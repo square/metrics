@@ -12,7 +12,7 @@ func AssertString(t *testing.T, actual string, expected string) {
 
 func TestTagSet_Serialize(t *testing.T) {
 	AssertString(t, NewTagSet().Serialize(), "")
-	var ts TagSet = NewTagSet()
+	ts := NewTagSet()
 	ts["dc"] = "sjc1b"
 	ts["env"] = "production"
 	AssertString(t, ts.Serialize(), "dc=sjc1b,env=production")
