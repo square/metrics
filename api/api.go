@@ -5,12 +5,43 @@ package api
 // https://docs.google.com/a/squareup.com/document/d/1k0Wgi2wnJPQoyDyReb9dyIqRrD8-v0u8hz37S282ii4/edit
 // for the terminology.
 
+import (
+	"bytes"
+	"sort"
+)
+
 // MetricKey is the logical name of a given metric.
 // MetricKey should not contain any variable component in it.
 type MetricKey string
 
 // TagSet is the set of key-value pairs associated with a given metric.
 type TagSet map[string]string
+
+func NewTagSet() TagSet {
+	return make(map[string]string)
+}
+
+func (tagSet TagSet) Serialize() string {
+	var buffer bytes.Buffer
+	sortedKeys := make([]string, len(tagSet))
+	index := 0
+	for key, _ := range tagSet {
+		sortedKeys[index] = key
+		index++
+	}
+	sort.Strings(sortedKeys)
+
+	for index, key := range sortedKeys {
+		value := tagSet[key]
+		if index != 0 {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString(key)
+		buffer.WriteString("=")
+		buffer.WriteString(value)
+	}
+	return buffer.String()
+}
 
 // TaggedMetric is composition of a MetricKey and a TagSet.
 // TaggedMetric should uniquely identify a single series of metric.
