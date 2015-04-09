@@ -42,23 +42,44 @@ func Test_AddMetricName_GetTagSet(t *testing.T) {
 	} else {
 		a.EqInt(len(tags), 0)
 	}
-	db.AddMetricName("sample", api.ParseTagSet("foo=bar1"))
+	a.CheckError(db.AddMetricName("sample", api.ParseTagSet("foo=bar1")))
 	if tags, err := db.GetTagSet("sample"); err != nil {
 		t.Errorf("Error while accessing cassandra.")
 	} else {
 		a.EqInt(len(tags), 1)
 		a.EqString(tags[0].Serialize(), "foo=bar1")
 	}
-	db.AddMetricName("sample", api.ParseTagSet("foo=bar2"))
+	a.CheckError(db.AddMetricName("sample", api.ParseTagSet("foo=bar2")))
 	if tags, err := db.GetTagSet("sample"); err != nil {
 		t.Errorf("Error while accessing cassandra.")
 	} else {
 		a.EqInt(len(tags), 2)
 	}
-	db.AddMetricName("sample2", api.ParseTagSet("foo=bar2"))
+	a.CheckError(db.AddMetricName("sample2", api.ParseTagSet("foo=bar2")))
 	if tags, err := db.GetTagSet("sample"); err != nil {
 		t.Errorf("Error while accessing cassandra.")
 	} else {
 		a.EqInt(len(tags), 2)
+	}
+}
+
+func Test_AddTagIndex(t *testing.T) {
+	a := assert.New(t)
+	db := newDatabase(t)
+	defer cleanDatabase(t, db)
+	if db == nil {
+		return
+	}
+	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
+		a.CheckError(err)
+	} else {
+		a.EqInt(len(rows), 0)
+	}
+	a.CheckError(db.AddTagIndex("environment", "production", "a.b.c"))
+	a.CheckError(db.AddTagIndex("environment", "production", "d.e.f"))
+	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
+		a.CheckError(err)
+	} else {
+		a.EqInt(len(rows), 2)
 	}
 }
