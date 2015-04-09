@@ -5,12 +5,45 @@ package api
 // https://docs.google.com/a/squareup.com/document/d/1k0Wgi2wnJPQoyDyReb9dyIqRrD8-v0u8hz37S282ii4/edit
 // for the terminology.
 
+import (
+	"bytes"
+	"sort"
+)
+
 // MetricKey is the logical name of a given metric.
 // MetricKey should not contain any variable component in it.
 type MetricKey string
 
 // TagSet is the set of key-value pairs associated with a given metric.
 type TagSet map[string]string
+
+// NewTagSet creates a new instance of TagSet.
+func NewTagSet() TagSet {
+	return make(map[string]string)
+}
+
+// Serialize transforms a given tagset to string-serialized form, following the spec.
+func (tagSet TagSet) Serialize() string {
+	var buffer bytes.Buffer
+	sortedKeys := make([]string, len(tagSet))
+	index := 0
+	for key := range tagSet {
+		sortedKeys[index] = key
+		index++
+	}
+	sort.Strings(sortedKeys)
+
+	for index, key := range sortedKeys {
+		value := tagSet[key]
+		if index != 0 {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString(key)
+		buffer.WriteString("=")
+		buffer.WriteString(value)
+	}
+	return buffer.String()
+}
 
 // TaggedMetric is composition of a MetricKey and a TagSet.
 // TaggedMetric should uniquely identify a single series of metric.
@@ -27,21 +60,21 @@ type API interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric) error
 
-  // RemoveMetric removes the metric from the system.
+	// RemoveMetric removes the metric from the system.
 	RemoveMetric(metric TaggedMetric) error
 
-  // Convert the given tag-based metric name to graphite metric name,
-  // using the configured rules. May error out.
+	// Convert the given tag-based metric name to graphite metric name,
+	// using the configured rules. May error out.
 	ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error)
 
-  // Converts the given graphite metric to the tag-based meric,
-  // using the configured rules. May error out.
+	// Converts the given graphite metric to the tag-based meric,
+	// using the configured rules. May error out.
 	ToTaggedName(metric GraphiteMetric) (TaggedMetric, error)
 
-  // For a given MetricKey, retrieve all the tagsets associated with it.
+	// For a given MetricKey, retrieve all the tagsets associated with it.
 	GetAllTags(metricKey MetricKey) []TagSet
 
-  // For a given tag key-value pair, obtain the list of all the MetricKeys
-  // associated with them.
+	// For a given tag key-value pair, obtain the list of all the MetricKeys
+	// associated with them.
 	GetMericsForTag(tagKey string, tagValue string) []MetricKey
 }
