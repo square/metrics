@@ -29,3 +29,10 @@ func (assert Assert) EqInt(actual int, expected int) {
 		assert.t.Errorf("Expected=[%d], actual=[%d]", expected, actual)
 	}
 }
+
+// CheckError fails the test if a non-nil error is passed.
+func (assert Assert) CheckError(err error) {
+	if err != nil {
+		assert.t.Errorf("Unexpected error: %s", err.Error())
+	}
+}

@@ -32,6 +32,15 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 	).Exec()
 }
 
+func (db *defaultDatabase) AddTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+	return db.session.Query(
+		"UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?",
+		[]string{string(metricKey)},
+		tagKey,
+		tagValue,
+	).Exec()
+}
+
 func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error) {
 	var tags []api.TagSet
 	rawTag := ""
@@ -49,4 +58,17 @@ func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, err
 		return nil, err
 	}
 	return tags, nil
+}
+
+func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error) {
+	var keys []api.MetricKey
+	err := db.session.Query(
+		"SELECT metric_keys FROM tag_index WHERE tag_key = ? AND tag_value = ?",
+		tagKey,
+		tagValue,
+	).Scan(&keys)
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
