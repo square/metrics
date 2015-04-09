@@ -27,21 +27,21 @@ type API interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric) error
 
-  // RemoveMetric removes the metric from the system.
+	// RemoveMetric removes the metric from the system.
 	RemoveMetric(metric TaggedMetric) error
 
-  // Convert the given tag-based metric name to graphite metric name,
-  // using the configured rules. May error out.
+	// Convert the given tag-based metric name to graphite metric name,
+	// using the configured rules. May error out.
 	ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error)
 
-  // Converts the given graphite metric to the tag-based meric,
-  // using the configured rules. May error out.
+	// Converts the given graphite metric to the tag-based meric,
+	// using the configured rules. May error out.
 	ToTaggedName(metric GraphiteMetric) (TaggedMetric, error)
 
-  // For a given MetricKey, retrieve all the tagsets associated with it.
+	// For a given MetricKey, retrieve all the tagsets associated with it.
 	GetAllTags(metricKey MetricKey) []TagSet
 
-  // For a given tag key-value pair, obtain the list of all the MetricKeys
-  // associated with them.
+	// For a given tag key-value pair, obtain the list of all the MetricKeys
+	// associated with them.
 	GetMericsForTag(tagKey string, tagValue string) []MetricKey
 }
