@@ -7,6 +7,7 @@ package api
 
 import (
 	"bytes"
+	"regexp"
 	"sort"
 )
 
@@ -20,6 +21,35 @@ type TagSet map[string]string
 // NewTagSet creates a new instance of TagSet.
 func NewTagSet() TagSet {
 	return make(map[string]string)
+}
+
+// ParseTagSet parses a given string to a tagset, nil
+// if parsing failed.
+func ParseTagSet(raw string) TagSet {
+	result := NewTagSet()
+	byteSlice := []byte(raw)
+	stringPattern := "((?:[^=,\\\\]|\\\\[=,\\\\])+)"
+	keyValuePattern := regexp.MustCompile("^" + stringPattern + "=" + stringPattern)
+	for {
+		matcher := keyValuePattern.FindSubmatchIndex(byteSlice)
+		if matcher == nil {
+			return nil
+		}
+		key := unescapeString(string(byteSlice[matcher[2]:matcher[3]]))
+		value := unescapeString(string(byteSlice[matcher[4]:matcher[5]]))
+		result[key] = value
+		byteSlice = byteSlice[matcher[1]:]
+		if len(byteSlice) == 0 {
+			// end of input
+			return result
+		} else if byteSlice[0] == ',' {
+			// progress to the next key-value pair.
+			byteSlice = byteSlice[1:]
+		} else {
+			// invalid input.
+			return nil
+		}
+	}
 }
 
 // Serialize transforms a given tagset to string-serialized form, following the spec.
@@ -38,9 +68,9 @@ func (tagSet TagSet) Serialize() string {
 		if index != 0 {
 			buffer.WriteString(",")
 		}
-		buffer.WriteString(key)
+		buffer.WriteString(escapeString(key))
 		buffer.WriteString("=")
-		buffer.WriteString(value)
+		buffer.WriteString(escapeString(value))
 	}
 	return buffer.String()
 }
