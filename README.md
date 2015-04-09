@@ -26,3 +26,9 @@ recommended.
 
 Download it from: http://cassandra.apache.org/download/
 
+* To setup schema
+
+```
+$CASSANDRA/bin/cqlsh -f schema/schema.cql
+```
+
