@@ -67,6 +67,9 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 		tagKey,
 		tagValue,
 	).Scan(&keys)
+	if err == gocql.ErrNotFound {
+		return keys, nil
+	}
 	if err != nil {
 		return nil, err
 	}

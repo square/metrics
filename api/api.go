@@ -28,7 +28,7 @@ func NewTagSet() TagSet {
 func ParseTagSet(raw string) TagSet {
 	result := NewTagSet()
 	byteSlice := []byte(raw)
-	stringPattern := "((?:[^=,\\\\]|\\\\[=,\\\\])+)"
+	stringPattern := `((?:[^=,\\]|\\[=,\\])+)`
 	keyValuePattern := regexp.MustCompile("^" + stringPattern + "=" + stringPattern)
 	for {
 		matcher := keyValuePattern.FindSubmatchIndex(byteSlice)
