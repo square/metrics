@@ -17,15 +17,17 @@ type MetricKey string
 // TagSet is the set of key-value pairs associated with a given metric.
 type TagSet map[string]string
 
+// NewTagSet creates a new instance of TagSet.
 func NewTagSet() TagSet {
 	return make(map[string]string)
 }
 
+// Serialize transforms a given tagset to string-serialized form, following the spec.
 func (tagSet TagSet) Serialize() string {
 	var buffer bytes.Buffer
 	sortedKeys := make([]string, len(tagSet))
 	index := 0
-	for key, _ := range tagSet {
+	for key := range tagSet {
 		sortedKeys[index] = key
 		index++
 	}

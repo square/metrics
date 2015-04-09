@@ -19,10 +19,11 @@ type Database interface {
 	GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error)
 }
 
-type DefaultDatabase struct {
+type defaultDatabase struct {
 	session *gocql.Session
 }
 
+// AddMetricName inserts to metric to Cassandra.
 func (db *DefaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
 	return db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)",
 		metricKey,
