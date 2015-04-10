@@ -5,6 +5,7 @@ package assert
 import (
 	"runtime"
 	"testing"
+  "reflect"
 )
 
 // Assert is a helper struct for testing methods.
@@ -23,7 +24,7 @@ func New(t *testing.T) Assert {
 }
 
 // EqString fails the test if two strings aren't equal.
-func (assert Assert) EqString(actual string, expected string) {
+func (assert Assert) EqString(actual, expected string) {
 	file, line := caller()
 	if actual != expected {
 		assert.t.Errorf("%s:%d>Expected=[%s], actual=[%s]", file, line, expected, actual)
@@ -31,10 +32,18 @@ func (assert Assert) EqString(actual string, expected string) {
 }
 
 // EqInt fails the test if two ints aren't equal.
-func (assert Assert) EqInt(actual int, expected int) {
+func (assert Assert) EqInt(actual, expected int) {
 	file, line := caller()
 	if actual != expected {
 		assert.t.Errorf("%s:%d>Expected=[%d], actual=[%d]", file, line, expected, actual)
+	}
+}
+
+// Eq fails the test if two arguments are not equal.
+func (assert Assert) Eq(actual, expected interface{}) {
+	file, line := caller()
+	if !reflect.DeepEqual(actual, expected) {
+		assert.t.Errorf("%s:%d>Expected=%s, actual=%s", file, line, expected, actual)
 	}
 }
 
