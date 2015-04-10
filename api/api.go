@@ -106,5 +106,5 @@ type API interface {
 
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
-	GetMericsForTag(tagKey string, tagValue string) []MetricKey
+	GetMetricsForTag(tagKey string, tagValue string) []MetricKey
 }
