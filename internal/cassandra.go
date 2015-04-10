@@ -17,10 +17,24 @@ type Database interface {
 	// -------------
 	GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error)
 	GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error)
+
+	// Deletion Method
+	// ---------------
+	RemoveMetricName(metricKey api.MetricKey, metric api.TagSet) error
+	RemoveTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
 }
 
 type defaultDatabase struct {
 	session *gocql.Session
+}
+
+// NewCassandraDatabase creates an instance of database, backed by Cassandra.
+func NewCassandraDatabase(clusterConfig gocql.ClusterConfig) (Database, error) {
+	session, err := clusterConfig.CreateSession()
+	if err != nil {
+		return nil, err
+	}
+	return &defaultDatabase{session: session}, nil
 }
 
 // AddMetricName inserts to metric to Cassandra.
@@ -74,4 +88,14 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 		return nil, err
 	}
 	return keys, nil
+}
+
+func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, metric api.TagSet) error {
+	// TODO - implement this.
+	return nil
+}
+
+func (db *defaultDatabase) RemoveTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+	// TODO - implement this.
+	return nil
 }
