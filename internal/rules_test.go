@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"square/vis/metrics-indexer/api"
 	"square/vis/metrics-indexer/assert"
 	"testing"
 )
@@ -132,4 +133,20 @@ rules:
 	a.EqInt(len(ruleSet.rules), 1)
 	a.EqString(string(ruleSet.rules[0].raw.MetricKey), "abc")
 	a.Eq(ruleSet.rules[0].tags, []string{"tag"})
+}
+
+func TestReverse(t *testing.T) {
+	a := assert.New(t)
+	rule, err := Compile(RawRule{
+		Pattern:   "prefix.%foo%",
+		MetricKey: "test-metric",
+	})
+	a.CheckError(err)
+	tm := api.TaggedMetric{
+		MetricKey: "test-metric",
+		TagSet:    api.ParseTagSet("foo=fooValue"),
+	}
+	reversed, err := rule.Reverse(tm)
+	a.CheckError(err)
+	a.EqString(string(reversed), "prefix.fooValue")
 }
