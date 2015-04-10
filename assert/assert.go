@@ -3,9 +3,9 @@
 package assert
 
 import (
+	"reflect"
 	"runtime"
 	"testing"
-  "reflect"
 )
 
 // Assert is a helper struct for testing methods.
