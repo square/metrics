@@ -15,8 +15,10 @@ var defaultRegex = "[^.]+"
 var (
 	// ErrInvalidPattern is returned when an invalid rule pattern is provided.
 	ErrInvalidPattern = errors.New("Invalid Pattern")
-	// ErrInvalidMetricKey  is retruned when an invalid metric key is provided.
+	// ErrInvalidMetricKey is retruned when an invalid metric key is provided.
 	ErrInvalidMetricKey = errors.New("Invalid Metric Key")
+	// ErrInvalidCustomRegex is retruned when the custom regex is invalid.
+	ErrInvalidCustomRegex = errors.New("Invalid Custom Regex")
 )
 
 // RawRule is the input provided by the YAML file to specify the rul.
@@ -54,9 +56,15 @@ func Compile(rule RawRule) (Rule, error) {
 	if tags == nil {
 		return Rule{}, ErrInvalidPattern
 	}
+	if !rule.checkRegex() {
+		return Rule{}, ErrInvalidCustomRegex
+	}
 	regex := rule.toRegexp()
 	if regex == nil {
 		return Rule{}, ErrInvalidPattern
+	}
+	if regex.NumSubexp() != len(tags) {
+		return Rule{}, ErrInvalidCustomRegex
 	}
 	return Rule{
 		rule,
@@ -95,6 +103,19 @@ func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
 		}
 	}
 	return api.TaggedMetric{}, false
+}
+
+func (rule RawRule) checkRegex() bool {
+	for _, regex := range rule.Regex {
+		compiled, err := regexp.Compile(regex)
+		if err != nil {
+			return false
+		}
+		if compiled.NumSubexp() > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (rule RawRule) toRegexp() *regexp.Regexp {
