@@ -105,6 +105,15 @@ func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
 	return api.TaggedMetric{}, false
 }
 
+// AllKeys returns list of all metric keys defined in the system.
+func (ruleSet RuleSet) AllKeys() []api.MetricKey {
+	metrics := make([]api.MetricKey, 0, len(ruleSet.rules))
+	for _, rule := range ruleSet.rules {
+		metrics = append(metrics, rule.raw.MetricKey)
+	}
+	return metrics
+}
+
 func (rule RawRule) checkRegex() bool {
 	for _, regex := range rule.Regex {
 		compiled, err := regexp.Compile(regex)
