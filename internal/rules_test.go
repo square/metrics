@@ -55,6 +55,19 @@ func TestCompile_InvalidPattern(t *testing.T) {
 	}
 }
 
+func TestCompile_InvalidCustomRegex(t *testing.T) {
+	regex := make(map[string]string)
+	regex["foo"] = "(bar)"
+	_, err := Compile(RawRule{
+		Pattern:   "prefix.%foo%",
+		MetricKey: "test-metric",
+		Regex:     regex,
+	})
+	if err != ErrInvalidCustomRegex {
+		t.Errorf("Expected error, but something else happened.")
+	}
+}
+
 func TestMatchRule_Simple(t *testing.T) {
 	a := assert.New(t)
 	rule, err := Compile(RawRule{
