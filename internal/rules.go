@@ -19,6 +19,10 @@ var (
 	ErrInvalidMetricKey = errors.New("Invalid Metric Key")
 	// ErrInvalidCustomRegex is retruned when the custom regex is invalid.
 	ErrInvalidCustomRegex = errors.New("Invalid Custom Regex")
+	// ErrMissingTag is returned during the reverse mapping, when a tag is not provided.
+	ErrMissingTag = errors.New("Missing Tag")
+	// ErrCannotReverse is returned during the reverse mapping, when a given mapping cannot be reversed.
+	ErrCannotReverse = errors.New("Cannot Reverse")
 )
 
 // RawRule is the input provided by the YAML file to specify the rul.
@@ -93,6 +97,28 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	}, true
 }
 
+// Reverse transforms the given tagged metric back to its graphite metric.
+func (rule Rule) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
+	if rule.raw.MetricKey != taggedMetric.MetricKey {
+		return "", ErrCannotReverse
+	}
+	splitted := strings.Split(rule.raw.Pattern, "%")
+	buffer := new(bytes.Buffer)
+	for index, token := range splitted {
+		if isTagPortion(index) {
+			tagValue, hasTag := taggedMetric.TagSet[token]
+			if hasTag {
+				buffer.WriteString(tagValue)
+			} else {
+				return "", ErrMissingTag
+			}
+		} else {
+			buffer.WriteString(token)
+		}
+	}
+	return api.GraphiteMetric(buffer.String()), nil
+}
+
 // MatchRule sees if a given graphite string matches
 // any of the specified rules.
 func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
@@ -103,6 +129,18 @@ func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
 		}
 	}
 	return api.TaggedMetric{}, false
+}
+
+// Reverse transforms the given tagged metric back to its graphite name,
+// checking against all the rules.
+func (ruleSet RuleSet) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
+	for _, rule := range ruleSet.rules {
+		reversed, err := rule.Reverse(taggedMetric)
+		if err == nil {
+			return reversed, nil
+		}
+	}
+	return "", ErrCannotReverse
 }
 
 // AllKeys returns list of all metric keys defined in the system.

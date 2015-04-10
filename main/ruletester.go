@@ -57,7 +57,10 @@ type Statistics struct {
 // PerMetricStatistics represents per-metric result of rules
 // after running through the test file.
 type PerMetricStatistics struct {
-	matched int
+	matched          int // number of matched rows
+	reverseSuccess   int // number of reversed entries
+	reverseError     int // number of incorrectly reversed entries.
+	reverseIncorrect int // number of incorrectly reversed entries.
 }
 
 func main() {
@@ -84,6 +87,14 @@ func main() {
 			stat.matched++
 			perMetric := stat.perMetric[converted.MetricKey]
 			perMetric.matched++
+			reversed, err := ruleset.Reverse(converted)
+			if err != nil {
+				perMetric.reverseError++
+			} else if string(reversed) != input {
+				perMetric.reverseIncorrect++
+			} else {
+				perMetric.reverseSuccess++
+			}
 			stat.perMetric[converted.MetricKey] = perMetric
 		} else {
 			stat.unmatched++
@@ -95,8 +106,17 @@ func main() {
 	fmt.Printf("Unmatched: %d\n", stat.unmatched)
 	fmt.Printf("Per-rule statistics\n")
 	keys := ruleset.AllKeys()
+	rowformat := "%-50s %7d %7d %7d %7d\n"
+	headformat := "%-50s %7s %7s %7s %7s\n"
+	fmt.Printf(headformat, "name", "match", "rev-suc", "rev-err", "rev-fail")
 	for _, key := range keys {
 		perMetric := stat.perMetric[key]
-		fmt.Printf("%d %s\n", perMetric.matched, string(key))
+		fmt.Printf(rowformat,
+			string(key),
+			perMetric.matched,
+			perMetric.reverseSuccess,
+			perMetric.reverseError,
+			perMetric.reverseIncorrect,
+		)
 	}
 }
