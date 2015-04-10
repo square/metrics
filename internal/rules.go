@@ -23,18 +23,18 @@ var (
 type RawRule struct {
 	Pattern   string            `yaml:"pattern"`
 	MetricKey api.MetricKey     `yaml:"metric_key"`
-	Regex     map[string]string `yaml:"regex"`
+	Regex     map[string]string `yaml:"regex,omitempty"`
 }
 
 // RawRules is list of RawRule
 type RawRules struct {
-	RawRules []RawRule `yaml:"rule"`
+	RawRules []RawRule `yaml:"rules"`
 }
 
 // Rule is a sanitized version of RawRule. Only valid rules
 // can be converted to Rule.
 type Rule struct {
-	rule  RawRule
+	raw   RawRule
 	regex *regexp.Regexp
 	tags  []string
 }
@@ -80,7 +80,7 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		tagSet[tagKey] = tagValue
 	}
 	return api.TaggedMetric{
-		rule.rule.MetricKey,
+		rule.raw.MetricKey,
 		tagSet,
 	}, true
 }

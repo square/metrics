@@ -104,3 +104,19 @@ func TestMatchRule_CustomRegex(t *testing.T) {
 	a.EqString(matcher.TagSet["name"], "feedname")
 	a.EqString(matcher.TagSet["shard"], "12")
 }
+
+func TestLoadYAML(t *testing.T) {
+	a := assert.New(t)
+	rawYAML := `
+rules:
+  -
+    pattern: foo.bar.baz.%tag%
+    metric_key: abc
+    regex: {}
+  `
+	ruleSet, err := LoadYAML([]byte(rawYAML))
+	a.CheckError(err)
+	a.EqInt(len(ruleSet.rules), 1)
+	a.EqString(string(ruleSet.rules[0].raw.MetricKey), "abc")
+	a.Eq(ruleSet.rules[0].tags, []string{"tag"})
+}
