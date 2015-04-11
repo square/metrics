@@ -27,9 +27,9 @@ var (
 
 // RawRule is the input provided by the YAML file to specify the rul.
 type RawRule struct {
-	Pattern   string            `yaml:"pattern"`
-	MetricKey api.MetricKey     `yaml:"metric_key"`
-	Regex     map[string]string `yaml:"regex,omitempty"`
+	Pattern          string            `yaml:"pattern"`
+	MetricKeyPattern string            `yaml:"metric_key"`
+	Regex            map[string]string `yaml:"regex,omitempty"`
 }
 
 // RawRules is list of RawRule
@@ -40,9 +40,10 @@ type RawRules struct {
 // Rule is a sanitized version of RawRule. Only valid rules
 // can be converted to Rule.
 type Rule struct {
-	raw   RawRule
-	regex *regexp.Regexp
-	tags  []string
+	raw        RawRule
+	regex      *regexp.Regexp
+	sourceTags []string // tags extracted from the raw graphite string, in the order of appearance.
+	destTags   []string // tags extracted from MetricKey, in the order of appearance.
 }
 
 // RuleSet is a sanitized version of RawRules.
@@ -53,12 +54,19 @@ type RuleSet struct {
 
 // Compile a given RawRule into a regex and exposed tagset.
 func Compile(rule RawRule) (Rule, error) {
-	if len(rule.MetricKey) == 0 {
+	if len(rule.MetricKeyPattern) == 0 {
 		return Rule{}, ErrInvalidMetricKey
 	}
-	tags := rule.extractTags()
-	if tags == nil {
+	sourceTags := extractTags(rule.Pattern)
+	if sourceTags == nil {
 		return Rule{}, ErrInvalidPattern
+	}
+	destTags := extractTags(string(rule.MetricKeyPattern))
+	if !checkSubset(destTags, sourceTags) {
+		return Rule{}, ErrInvalidMetricKey
+	}
+	if destTags == nil {
+		return Rule{}, ErrInvalidMetricKey
 	}
 	if !rule.checkRegex() {
 		return Rule{}, ErrInvalidCustomRegex
@@ -67,13 +75,14 @@ func Compile(rule RawRule) (Rule, error) {
 	if regex == nil {
 		return Rule{}, ErrInvalidPattern
 	}
-	if regex.NumSubexp() != len(tags) {
+	if regex.NumSubexp() != len(sourceTags) {
 		return Rule{}, ErrInvalidCustomRegex
 	}
 	return Rule{
 		rule,
 		regex,
-		tags,
+		sourceTags,
+		destTags,
 	}, nil
 }
 
@@ -88,35 +97,33 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		if index == 0 {
 			continue
 		}
-		tagKey := rule.tags[index-1]
+		tagKey := rule.sourceTags[index-1]
 		tagSet[tagKey] = tagValue
 	}
+	interpolatedKey, err := reverse(rule.raw.MetricKeyPattern, tagSet)
+	if err != nil {
+		return api.TaggedMetric{}, false
+	}
 	return api.TaggedMetric{
-		rule.raw.MetricKey,
+		api.MetricKey(interpolatedKey),
 		tagSet,
 	}, true
 }
 
 // Reverse transforms the given tagged metric back to its graphite metric.
 func (rule Rule) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
-	if rule.raw.MetricKey != taggedMetric.MetricKey {
+	interpolatedKey, err := reverse(rule.raw.MetricKeyPattern, taggedMetric.TagSet)
+	if err != nil {
+		return "", err
+	}
+	if interpolatedKey != string(taggedMetric.MetricKey) {
 		return "", ErrCannotReverse
 	}
-	splitted := strings.Split(rule.raw.Pattern, "%")
-	buffer := new(bytes.Buffer)
-	for index, token := range splitted {
-		if isTagPortion(index) {
-			tagValue, hasTag := taggedMetric.TagSet[token]
-			if hasTag {
-				buffer.WriteString(tagValue)
-			} else {
-				return "", ErrMissingTag
-			}
-		} else {
-			buffer.WriteString(token)
-		}
+	reversed, err := reverse(rule.raw.Pattern, taggedMetric.TagSet)
+	if err != nil {
+		return "", err
 	}
-	return api.GraphiteMetric(buffer.String()), nil
+	return api.GraphiteMetric(reversed), nil
 }
 
 // MatchRule sees if a given graphite string matches
@@ -143,15 +150,7 @@ func (ruleSet RuleSet) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetri
 	return "", ErrCannotReverse
 }
 
-// AllKeys returns list of all metric keys defined in the system.
-func (ruleSet RuleSet) AllKeys() []api.MetricKey {
-	metrics := make([]api.MetricKey, 0, len(ruleSet.rules))
-	for _, rule := range ruleSet.rules {
-		metrics = append(metrics, rule.raw.MetricKey)
-	}
-	return metrics
-}
-
+// checkRegex sees if any of the custom regular expressions are invalid.
 func (rule RawRule) checkRegex() bool {
 	for _, regex := range rule.Regex {
 		compiled, err := regexp.Compile(regex)
@@ -159,7 +158,7 @@ func (rule RawRule) checkRegex() bool {
 			return false
 		}
 		if compiled.NumSubexp() > 0 {
-			return false
+			return false // do not allow subexpressions.
 		}
 	}
 	return true
@@ -195,11 +194,11 @@ func (rule RawRule) toRegexp() *regexp.Regexp {
 	return compiled
 }
 
-func (rule RawRule) extractTags() []string {
-	if len(rule.Pattern) == 0 {
+func extractTags(pattern string) []string {
+	if len(pattern) == 0 {
 		return nil // empty pattern is not allowed.
 	}
-	splitted := strings.Split(rule.Pattern, "%")
+	splitted := strings.Split(pattern, "%")
 	if len(splitted)%2 == 0 {
 		return nil // invalid tags.
 	}
@@ -242,6 +241,41 @@ func LoadYAML(input []byte) (RuleSet, error) {
 	return RuleSet{rules}, nil
 }
 
+// check if setA is subset of setB.
+func checkSubset(setA, setB []string) bool {
+	set := make(map[string]bool)
+	for _, v := range setB {
+		set[v] = true
+	}
+	for _, v := range setA {
+		if !set[v] {
+			return false
+		}
+	}
+	return true
+}
+
 func isTagPortion(index int) bool {
 	return index%2 == 1
+}
+
+func reverse(pattern string, tagSet api.TagSet) (string, error) {
+	if !strings.Contains(pattern, "%") {
+		return pattern, nil // short circuit when there are no tags to interpolate.
+	}
+	splitted := strings.Split(pattern, "%")
+	buffer := new(bytes.Buffer)
+	for index, token := range splitted {
+		if isTagPortion(index) {
+			tagValue, hasTag := tagSet[token]
+			if hasTag {
+				buffer.WriteString(tagValue)
+			} else {
+				return "", ErrMissingTag
+			}
+		} else {
+			buffer.WriteString(token)
+		}
+	}
+	return buffer.String(), nil
 }
