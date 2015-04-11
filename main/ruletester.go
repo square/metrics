@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 
 	"square/vis/metrics-indexer/api"
 	"square/vis/metrics-indexer/internal"
@@ -77,6 +78,11 @@ func main() {
 		exitWithMessage("No metric file.")
 	}
 	scanner := bufio.NewScanner(metricFile)
+	stat := run(ruleset, scanner)
+	report(stat)
+}
+
+func run(ruleset *internal.RuleSet, scanner *bufio.Scanner) Statistics {
 	stat := Statistics{
 		perMetric: make(map[api.MetricKey]PerMetricStatistics),
 	}
@@ -100,17 +106,26 @@ func main() {
 			stat.unmatched++
 		}
 	}
+	return stat
+}
+func report(stat Statistics) {
 	total := stat.matched + stat.unmatched
 	fmt.Printf("Processed %d entries\n", total)
 	fmt.Printf("Matched:   %d\n", stat.matched)
 	fmt.Printf("Unmatched: %d\n", stat.unmatched)
 	fmt.Printf("Per-rule statistics\n")
-	keys := ruleset.AllKeys()
-	rowformat := "%-50s %7d %7d %7d %7d\n"
-	headformat := "%-50s %7s %7s %7s %7s\n"
+	rowformat := "%-60s %7d %7d %7d %7d\n"
+	headformat := "%-60s %7s %7s %7s %7s\n"
 	fmt.Printf(headformat, "name", "match", "rev-suc", "rev-err", "rev-fail")
-	for _, key := range keys {
-		perMetric := stat.perMetric[key]
+	sortedKeys := make([]string, len(stat.perMetric))
+	index := 0
+	for key, _ := range stat.perMetric {
+		sortedKeys[index] = string(key)
+		index++
+	}
+	sort.Strings(sortedKeys)
+	for _, key := range sortedKeys {
+		perMetric := stat.perMetric[api.MetricKey(key)]
 		fmt.Printf(rowformat,
 			string(key),
 			perMetric.matched,
