@@ -5,6 +5,7 @@ package assert
 import (
 	"reflect"
 	"runtime"
+	"reflect"
 	"testing"
 )
 
@@ -21,6 +22,12 @@ func caller() (string, int) {
 // New creates a new Assert struct.
 func New(t *testing.T) Assert {
 	return Assert{t}
+}
+
+func (assert Assert) EqStringSlices(actual []string, expected []string) {
+	if !reflect.DeepEqual(actual, expected) {
+		assert.t.Errorf("Expected \"%s\", but got \"%s\"", actual, expected)
+	}
 }
 
 // EqString fails the test if two strings aren't equal.
