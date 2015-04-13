@@ -135,7 +135,7 @@ rules:
 	a.Eq(ruleSet.rules[0].sourceTags, []string{"tag"})
 }
 
-func TestReverse(t *testing.T) {
+func TestToGraphiteName(t *testing.T) {
 	a := assert.New(t)
 	rule, err := Compile(RawRule{
 		Pattern:          "prefix.%foo%",
@@ -146,7 +146,7 @@ func TestReverse(t *testing.T) {
 		MetricKey: "test-metric",
 		TagSet:    api.ParseTagSet("foo=fooValue"),
 	}
-	reversed, err := rule.Reverse(tm)
+	reversed, err := rule.ToGraphiteName(tm)
 	a.CheckError(err)
 	a.EqString(string(reversed), "prefix.fooValue")
 }
