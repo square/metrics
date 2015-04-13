@@ -1,0 +1,26 @@
+rules:
+  - pattern:    "%app%.%env%.%datacenter%.%host%.cogs.dispatcher.SyncService.CreateSession.request_size.%percentile%"
+    metric_key: "dispatcher.SyncService.CreateSession"
+  # Rule for RPC Client
+  - pattern:    "%app%.%env%.%datacenter%.%host%.framework.clients.rpc.SakeService.%service%.%action%.%type%.%percentile%"
+    metric_key: "framework.clients.rpc.SakeService.%type%"
+    regex:
+      percentile: "(?:[0-9]+percentile|median)"
+  - pattern:    "%app%.%env%.%datacenter%.%host%.feeds.consumers.%feedname%-shard-%shard%.%method%.%type%"
+    metric_key: "feeds.consumers.%method%"
+    regex:
+      shard: "[0-9]+"
+  # Rule for nodes
+  - pattern:    "nodes.%host%_%datacenter%_square.cpu.%type%"
+    metric_key: "nodes.cpu.usage"
+    regex:
+      type: "(?:system|user|idle)"
+  - pattern:    "nodes.%host%_%datacenter%_square.cpu.swap%type%"
+    metric_key: "nodes.cpu.swap"
+  - pattern:    "nodes.%host%_%datacenter%_square.cpu.io%type%"
+    metric_key: "nodes.cpu.io"
+ # catch-all for all the missing ones.
+  - pattern:    "nodes.%host%_%datacenter%_square.cpu.%type%"
+    metric_key: "nodes.cpu.%type%"
+  - pattern:    "nodes.%host%_%datacenter%_square.disk.%volume%.%metric%"
+    metric_key: "nodes.disk.%metric%"

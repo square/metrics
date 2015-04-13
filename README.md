@@ -3,7 +3,6 @@ Metrics-indexer
 
 Consumes a list of metric names, and stores them in the Cassandra database.
 
-
 Development
 ===========
 
@@ -20,6 +19,16 @@ To obtain the list of metrics, you can either:
 
 ```
 scp alg6.sjc1b:/data/app/otsdb2graphite/metric_list_cache/MetricListFileManager.2015-04-07-15-41-185.txt .
+```
+
+Project Structure
+-----------------
+```
+├── api      # list of publically exposed APIs.
+├── assert   # helper functions to make test writing easier.
+├── internal # internal library - should not be exposed to the users.
+├── main     # entry point.
+└── schema   # CQL schema files.
 ```
 
 Cassandra
