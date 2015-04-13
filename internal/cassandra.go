@@ -2,8 +2,9 @@
 package internal
 
 import (
-	"github.com/gocql/gocql"
 	"square/vis/metrics-indexer/api"
+
+	"github.com/gocql/gocql"
 )
 
 // Database represents internal connection to Cassandra.
@@ -11,7 +12,7 @@ type Database interface {
 	// Insertion Methods
 	// -----------------
 	AddMetricName(metricKey api.MetricKey, metric api.TagSet) error
-	AddTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
+	AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
 
 	// Query methods
 	// -------------
@@ -20,8 +21,8 @@ type Database interface {
 
 	// Deletion Method
 	// ---------------
-	RemoveMetricName(metricKey api.MetricKey, metric api.TagSet) error
-	RemoveTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
+	RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error
+	RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
 }
 
 type defaultDatabase struct {
@@ -46,7 +47,7 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 	).Exec()
 }
 
-func (db *defaultDatabase) AddTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
 	return db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?",
 		[]string{string(metricKey)},
@@ -90,12 +91,19 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 	return keys, nil
 }
 
-func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, metric api.TagSet) error {
-	// TODO - implement this.
-	return nil
+func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
+	return db.session.Query(
+		"DELETE FROM metric_names WHERE metric_key = ? AND tag_set = ?",
+		metricKey,
+		tagSet.Serialize(),
+	).Exec()
 }
 
-func (db *defaultDatabase) RemoveTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
-	// TODO - implement this.
-	return nil
+func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+	return db.session.Query(
+		"UPDATE tag_index SET metric_keys = metric_keys - ? WHERE tag_key = ? AND tag_value = ?",
+		[]string{string(metricKey)},
+		tagKey,
+		tagValue,
+	).Exec()
 }

@@ -1,10 +1,12 @@
 package internal
 
 import (
-	"github.com/gocql/gocql"
+	"sort"
 	"square/vis/metrics-indexer/api"
 	"square/vis/metrics-indexer/assert"
 	"testing"
+
+	"github.com/gocql/gocql"
 )
 
 func newDatabase(t *testing.T) *defaultDatabase {
@@ -30,7 +32,7 @@ func cleanDatabase(t *testing.T, db *defaultDatabase) {
 	db.session.Close()
 }
 
-func Test_AddMetricName_GetTagSet(t *testing.T) {
+func Test_MetricName_GetTagSet(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	defer cleanDatabase(t, db)
@@ -38,32 +40,61 @@ func Test_AddMetricName_GetTagSet(t *testing.T) {
 		return
 	}
 	if tags, err := db.GetTagSet("sample"); err != nil {
-		t.Errorf("Error while accessing cassandra.")
+		t.Errorf("Error fetching tags from Cassandra")
 	} else {
 		a.EqInt(len(tags), 0)
 	}
-	a.CheckError(db.AddMetricName("sample", api.ParseTagSet("foo=bar1")))
-	if tags, err := db.GetTagSet("sample"); err != nil {
-		t.Errorf("Error while accessing cassandra.")
-	} else {
-		a.EqInt(len(tags), 1)
-		a.EqString(tags[0].Serialize(), "foo=bar1")
+
+	metricNamesTests := []struct {
+		addTest      bool
+		metricName   string
+		tagString    string
+		expectedTags map[string][]string // { metricName: [ tags ] }
+	}{
+		{true, "sample", "foo=bar1", map[string][]string{
+			"sample": []string{"foo=bar1"},
+		}},
+		{true, "sample", "foo=bar2", map[string][]string{
+			"sample": []string{"foo=bar1", "foo=bar2"},
+		}},
+		{true, "sample2", "foo=bar2", map[string][]string{
+			"sample":  []string{"foo=bar1", "foo=bar2"},
+			"sample2": []string{"foo=bar2"},
+		}},
+		{false, "sample2", "foo=bar2", map[string][]string{
+			"sample": []string{"foo=bar1", "foo=bar2"},
+		}},
+		{false, "sample", "foo=bar1", map[string][]string{
+			"sample": []string{"foo=bar2"},
+		}},
 	}
-	a.CheckError(db.AddMetricName("sample", api.ParseTagSet("foo=bar2")))
-	if tags, err := db.GetTagSet("sample"); err != nil {
-		t.Errorf("Error while accessing cassandra.")
-	} else {
-		a.EqInt(len(tags), 2)
-	}
-	a.CheckError(db.AddMetricName("sample2", api.ParseTagSet("foo=bar2")))
-	if tags, err := db.GetTagSet("sample"); err != nil {
-		t.Errorf("Error while accessing cassandra.")
-	} else {
-		a.EqInt(len(tags), 2)
+
+	for _, c := range metricNamesTests {
+		if c.addTest {
+			a.CheckError(db.AddMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
+		} else {
+			a.CheckError(db.RemoveMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
+		}
+
+		for k, v := range c.expectedTags {
+			if tags, err := db.GetTagSet(api.MetricKey(k)); err != nil {
+				t.Errorf("Error fetching tags")
+			} else {
+				stringTags := make([]string, len(tags))
+				for i, tag := range tags {
+					stringTags[i] = tag.Serialize()
+				}
+
+				a.EqInt(len(stringTags), len(v))
+				sort.Sort(sort.StringSlice(stringTags))
+				sort.Sort(sort.StringSlice(v))
+				a.EqStringSlices(stringTags, v)
+			}
+		}
 	}
 }
 
-func Test_AddTagIndex(t *testing.T) {
+func Test_TagIndex(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	defer cleanDatabase(t, db)
@@ -75,11 +106,19 @@ func Test_AddTagIndex(t *testing.T) {
 	} else {
 		a.EqInt(len(rows), 0)
 	}
-	a.CheckError(db.AddTagIndex("environment", "production", "a.b.c"))
-	a.CheckError(db.AddTagIndex("environment", "production", "d.e.f"))
+	a.CheckError(db.AddToTagIndex("environment", "production", "a.b.c"))
+	a.CheckError(db.AddToTagIndex("environment", "production", "d.e.f"))
 	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
 		a.CheckError(err)
 	} else {
 		a.EqInt(len(rows), 2)
+	}
+
+	a.CheckError(db.RemoveFromTagIndex("environment", "production", "a.b.c"))
+	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
+		a.CheckError(err)
+	} else {
+		a.EqInt(len(rows), 1)
+		a.EqString(string(rows[0]), "d.e.f")
 	}
 }
