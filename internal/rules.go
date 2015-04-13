@@ -40,10 +40,10 @@ type RawRules struct {
 // Rule is a sanitized version of RawRule. Only valid rules
 // can be converted to Rule.
 type Rule struct {
-	raw        RawRule
-	regex      *regexp.Regexp
-	sourceTags []string // tags extracted from the raw graphite string, in the order of appearance.
-	destTags   []string // tags extracted from MetricKey, in the order of appearance.
+	raw                 RawRule
+	regex               *regexp.Regexp
+	graphitePatternTags []string // tags extracted from the raw graphite string, in the order of appearance.
+	metricKeyTags       []string // tags extracted from MetricKey, in the order of appearance.
 }
 
 // RuleSet is a sanitized version of RawRules.
@@ -57,15 +57,15 @@ func Compile(rule RawRule) (Rule, error) {
 	if len(rule.MetricKeyPattern) == 0 {
 		return Rule{}, ErrInvalidMetricKey
 	}
-	sourceTags := extractTags(rule.Pattern)
-	if sourceTags == nil {
+	graphitePatternTags := extractTags(rule.Pattern)
+	if graphitePatternTags == nil {
 		return Rule{}, ErrInvalidPattern
 	}
-	destTags := extractTags(string(rule.MetricKeyPattern))
-	if !isSubset(destTags, sourceTags) {
+	metricKeyTags := extractTags(string(rule.MetricKeyPattern))
+	if !isSubset(metricKeyTags, graphitePatternTags) {
 		return Rule{}, ErrInvalidMetricKey
 	}
-	if destTags == nil {
+	if metricKeyTags == nil {
 		return Rule{}, ErrInvalidMetricKey
 	}
 	if !rule.checkTagRegexes() {
@@ -75,14 +75,14 @@ func Compile(rule RawRule) (Rule, error) {
 	if regex == nil {
 		return Rule{}, ErrInvalidPattern
 	}
-	if regex.NumSubexp() != len(sourceTags) {
+	if regex.NumSubexp() != len(graphitePatternTags) {
 		return Rule{}, ErrInvalidCustomRegex
 	}
 	return Rule{
 		rule,
 		regex,
-		sourceTags,
-		destTags,
+		graphitePatternTags,
+		metricKeyTags,
 	}, nil
 }
 
@@ -97,7 +97,7 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		if index == 0 {
 			continue
 		}
-		tagKey := rule.sourceTags[index-1]
+		tagKey := rule.graphitePatternTags[index-1]
 		tagSet[tagKey] = tagValue
 	}
 	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet)

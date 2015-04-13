@@ -132,7 +132,7 @@ rules:
 	a.CheckError(err)
 	a.EqInt(len(ruleSet.rules), 1)
 	a.EqString(string(ruleSet.rules[0].raw.MetricKeyPattern), "abc")
-	a.Eq(ruleSet.rules[0].sourceTags, []string{"tag"})
+	a.Eq(ruleSet.rules[0].graphitePatternTags, []string{"tag"})
 }
 
 func TestToGraphiteName(t *testing.T) {
