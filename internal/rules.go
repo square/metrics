@@ -21,8 +21,8 @@ var (
 	ErrInvalidCustomRegex = errors.New("Invalid Custom Regex")
 	// ErrMissingTag is returned during the reverse mapping, when a tag is not provided.
 	ErrMissingTag = errors.New("Missing Tag")
-	// ErrCannotReverse is returned during the reverse mapping, when a given mapping cannot be reversed.
-	ErrCannotReverse = errors.New("Cannot Reverse")
+	// ErrCannotInterpolate is returned when the tag interpolation fails.
+	ErrCannotInterpolate = errors.New("Cannot Interpolate")
 )
 
 // RawRule is the input provided by the YAML file to specify the rul.
@@ -62,13 +62,13 @@ func Compile(rule RawRule) (Rule, error) {
 		return Rule{}, ErrInvalidPattern
 	}
 	destTags := extractTags(string(rule.MetricKeyPattern))
-	if !checkSubset(destTags, sourceTags) {
+	if !isSubset(destTags, sourceTags) {
 		return Rule{}, ErrInvalidMetricKey
 	}
 	if destTags == nil {
 		return Rule{}, ErrInvalidMetricKey
 	}
-	if !rule.checkRegex() {
+	if !rule.checkTagRegexes() {
 		return Rule{}, ErrInvalidCustomRegex
 	}
 	regex := rule.toRegexp()
@@ -100,7 +100,7 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		tagKey := rule.sourceTags[index-1]
 		tagSet[tagKey] = tagValue
 	}
-	interpolatedKey, err := reverse(rule.raw.MetricKeyPattern, tagSet)
+	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet)
 	if err != nil {
 		return api.TaggedMetric{}, false
 	}
@@ -110,20 +110,20 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	}, true
 }
 
-// Reverse transforms the given tagged metric back to its graphite metric.
-func (rule Rule) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
-	interpolatedKey, err := reverse(rule.raw.MetricKeyPattern, taggedMetric.TagSet)
+// ToGraphiteName transforms the given tagged metric back to its graphite metric.
+func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
+	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, taggedMetric.TagSet)
 	if err != nil {
 		return "", err
 	}
 	if interpolatedKey != string(taggedMetric.MetricKey) {
-		return "", ErrCannotReverse
+		return "", ErrCannotInterpolate
 	}
-	reversed, err := reverse(rule.raw.Pattern, taggedMetric.TagSet)
+	interpolated, err := interpolateTags(rule.raw.Pattern, taggedMetric.TagSet)
 	if err != nil {
 		return "", err
 	}
-	return api.GraphiteMetric(reversed), nil
+	return api.GraphiteMetric(interpolated), nil
 }
 
 // MatchRule sees if a given graphite string matches
@@ -138,20 +138,20 @@ func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
 	return api.TaggedMetric{}, false
 }
 
-// Reverse transforms the given tagged metric back to its graphite name,
+// ToGraphiteName transforms the given tagged metric back to its graphite name,
 // checking against all the rules.
-func (ruleSet RuleSet) Reverse(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
+func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
 	for _, rule := range ruleSet.rules {
-		reversed, err := rule.Reverse(taggedMetric)
+		reversed, err := rule.ToGraphiteName(taggedMetric)
 		if err == nil {
 			return reversed, nil
 		}
 	}
-	return "", ErrCannotReverse
+	return "", ErrCannotInterpolate
 }
 
-// checkRegex sees if any of the custom regular expressions are invalid.
-func (rule RawRule) checkRegex() bool {
+// checkTagRegexes sees if any of the custom regular expressions are invalid.
+func (rule RawRule) checkTagRegexes() bool {
 	for _, regex := range rule.Regex {
 		compiled, err := regexp.Compile(regex)
 		if err != nil {
@@ -242,7 +242,7 @@ func LoadYAML(input []byte) (RuleSet, error) {
 }
 
 // check if setA is subset of setB.
-func checkSubset(setA, setB []string) bool {
+func isSubset(setA, setB []string) bool {
 	set := make(map[string]bool)
 	for _, v := range setB {
 		set[v] = true
@@ -259,7 +259,7 @@ func isTagPortion(index int) bool {
 	return index%2 == 1
 }
 
-func reverse(pattern string, tagSet api.TagSet) (string, error) {
+func interpolateTags(pattern string, tagSet api.TagSet) (string, error) {
 	if !strings.Contains(pattern, "%") {
 		return pattern, nil // short circuit when there are no tags to interpolate.
 	}

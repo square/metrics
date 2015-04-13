@@ -93,7 +93,7 @@ func run(ruleset *internal.RuleSet, scanner *bufio.Scanner) Statistics {
 			stat.matched++
 			perMetric := stat.perMetric[converted.MetricKey]
 			perMetric.matched++
-			reversed, err := ruleset.Reverse(converted)
+			reversed, err := ruleset.ToGraphiteName(converted)
 			if err != nil {
 				perMetric.reverseError++
 			} else if string(reversed) != input {
