@@ -102,9 +102,9 @@ type API interface {
 	ToTaggedName(metric GraphiteMetric) (TaggedMetric, error)
 
 	// For a given MetricKey, retrieve all the tagsets associated with it.
-	GetAllTags(metricKey MetricKey) []TagSet
+	GetAllTags(metricKey MetricKey) ([]TagSet, error)
 
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
-	GetMetricsForTag(tagKey string, tagValue string) []MetricKey
+	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
 }

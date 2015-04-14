@@ -119,7 +119,7 @@ func report(stat Statistics) {
 	fmt.Printf(headformat, "name", "match", "rev-suc", "rev-err", "rev-fail")
 	sortedKeys := make([]string, len(stat.perMetric))
 	index := 0
-	for key, _ := range stat.perMetric {
+	for key := range stat.perMetric {
 		sortedKeys[index] = string(key)
 		index++
 	}
