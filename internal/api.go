@@ -1,6 +1,10 @@
 package internal
 
 import (
+	"io/ioutil"
+	"os"
+
+	"github.com/gocql/gocql"
 	"square/vis/metrics-indexer/api"
 )
 
@@ -8,6 +12,33 @@ import (
 type defaultAPI struct {
 	db      Database
 	ruleset RuleSet
+}
+
+// NewAPI creates a new instance of API from the given configuration.
+func NewAPI(config api.Configuration) (api.API, error) {
+	file, err := os.Open(config.RuleYamlFileName)
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	ruleset, err := LoadYAML(bytes)
+	if err != nil {
+		return nil, err
+	}
+	clusterConfig := gocql.NewCluster()
+	clusterConfig.Hosts = config.Hosts
+	clusterConfig.Keyspace = config.Keyspace
+	db, err := NewCassandraDatabase(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &defaultAPI{
+		db:      db,
+		ruleset: ruleset,
+	}, nil
 }
 
 func (a *defaultAPI) AddMetric(metric api.TaggedMetric) error {
