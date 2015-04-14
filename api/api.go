@@ -111,7 +111,7 @@ type API interface {
 
 // Configuration is the struct that tells how to instantiate a new copy of an API.
 type Configuration struct {
-	RuleYamlFileName string // Location of the rule yaml file.
+	RuleYamlFilePath string // Location of the rule yaml file.
 	// Database configurations
 	// mostly cassandra configurations from
 	// https://github.com/gocql/gocql/blob/master/cluster.go
