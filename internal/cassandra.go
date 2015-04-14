@@ -30,7 +30,7 @@ type defaultDatabase struct {
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
-func NewCassandraDatabase(clusterConfig gocql.ClusterConfig) (Database, error) {
+func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) {
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err
