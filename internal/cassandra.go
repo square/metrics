@@ -12,17 +12,17 @@ type Database interface {
 	// Insertion Methods
 	// -----------------
 	AddMetricName(metricKey api.MetricKey, metric api.TagSet) error
-	AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
+	AddToTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
 
 	// Query methods
 	// -------------
 	GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error)
-	GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error)
+	GetMetricKeys(tagKey, tagValue string) ([]api.MetricKey, error)
 
 	// Deletion Method
 	// ---------------
 	RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error
-	RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error
+	RemoveFromTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
 }
 
 type defaultDatabase struct {
