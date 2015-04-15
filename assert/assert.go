@@ -3,9 +3,9 @@
 package assert
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
-	"reflect"
 	"testing"
 )
 
@@ -24,40 +24,42 @@ func New(t *testing.T) Assert {
 	return Assert{t}
 }
 
+func (assert Assert) withCaller(format string, a ...interface{}) {
+	file, line := caller()
+	assert.t.Errorf(fmt.Sprintf("%s:%d>", file, line)+format, a...)
+}
+
+// EqStringSlices checks whether given two string slices are equal.
 func (assert Assert) EqStringSlices(actual []string, expected []string) {
 	if !reflect.DeepEqual(actual, expected) {
-		assert.t.Errorf("Expected \"%s\", but got \"%s\"", actual, expected)
+		assert.withCaller("Expected \"%s\", but got \"%s\"", actual, expected)
 	}
 }
 
 // EqString fails the test if two strings aren't equal.
 func (assert Assert) EqString(actual, expected string) {
-	file, line := caller()
 	if actual != expected {
-		assert.t.Errorf("%s:%d>Expected=[%s], actual=[%s]", file, line, expected, actual)
+		assert.withCaller("Expected=[%s], actual=[%s]", expected, actual)
 	}
 }
 
 // EqInt fails the test if two ints aren't equal.
 func (assert Assert) EqInt(actual, expected int) {
-	file, line := caller()
 	if actual != expected {
-		assert.t.Errorf("%s:%d>Expected=[%d], actual=[%d]", file, line, expected, actual)
+		assert.withCaller("Expected=[%d], actual=[%d]", expected, actual)
 	}
 }
 
 // Eq fails the test if two arguments are not equal.
 func (assert Assert) Eq(actual, expected interface{}) {
-	file, line := caller()
 	if !reflect.DeepEqual(actual, expected) {
-		assert.t.Errorf("%s:%d>Expected=%s, actual=%s", file, line, expected, actual)
+		assert.withCaller("Expected=%s, actual=%s", expected, actual)
 	}
 }
 
 // CheckError fails the test if a non-nil error is passed.
 func (assert Assert) CheckError(err error) {
-	file, line := caller()
 	if err != nil {
-		assert.t.Errorf("%s:%d>Unexpected error: %s", file, line, err.Error())
+		assert.withCaller("Unexpected error: %s", err.Error())
 	}
 }
