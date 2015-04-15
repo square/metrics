@@ -1,0 +1,101 @@
+package query
+
+type Parser Peg {
+  // temporary variables
+  nodeStack []Node  // stack of nodes used during the AST traversal. should be empty at finish.
+  errors    []error // errors accumulated during the AST traversal. should be empty at finish.
+
+  // final result
+  command Command
+}
+
+# Hierarchical Syntax
+# ===================
+
+root <- (selectStmt / describeStmt) !. # TODO
+
+selectStmt <- "select" __ .* # TODO
+
+describeStmt <- "describe" __ (describeAllMetricsStmt / describeSingleMetricStmt)
+
+describeAllMetricsStmt <- "all" __ "metrics" { p.makeDescribeAll() }
+
+describeSingleMetricStmt <-
+	<METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
+	( __ predicateClause / { p.addNullPredicate() } )
+	{ p.makeDescribe() }
+
+predicateClause <- "where" __ predicate_1
+
+# predicate_X are layered to maintain the order of operations.
+# not
+# or
+# and
+# ...
+
+predicate_1 <-
+  predicate_2 __ "and" __ predicate_1 { p.addAndMatcher() } /
+  predicate_2 /
+
+predicate_2 <-
+  predicate_3 __ "or" __ predicate_2 { p.addOrMatcher() } /
+  predicate_3
+
+predicate_3 <-
+  "not" __ predicate_3 { p.addNotMatcher() } /
+  "(" _ predicate_1 _ ")" /
+  tagMatcher
+
+tagMatcher <-
+  matcherPart _ "=" _ literalString {
+    p.addLiteralMatcher()
+  } /
+  matcherPart _ "!=" _ literalString {
+    p.addLiteralMatcher()
+    p.addNotMatcher()
+  } /
+  matcherPart _ "matches" _ literalString {
+    p.addRegexMatcher()
+  } /
+  matcherPart _ "in" _ literalList {
+    p.addListMatcher()
+  }
+
+literalString <- <STRING> {
+  p.addLiteralNode(unescapeLiteral(buffer[begin:end]))
+}
+
+literalList <- { p.addLiteralListNode() } "(" _ <literalListString> (_ "," _ <literalListString>)* _ ")"
+
+literalListString <- STRING {
+  p.appendLiteral(unescapeLiteral(buffer[begin:end]))
+}
+
+matcherPart <-
+  { p.addTagRefNode() }
+  ( <ALIAS_NAME> { p.setAlias(buffer[begin:end]) } _ ":" _)?
+  <TAG_NAME> { p.setTag(buffer[begin:end]) }
+
+# Lexical Syntax
+# ==============
+# Convention: These rules contain no code blocks.
+
+ALIAS_NAME <-  IDENTIFIER
+METRIC_NAME <- IDENTIFIER
+TAG_NAME <-    IDENTIFIER
+
+IDENTIFIER <-  ID_SEGMENT ("." ID_SEGMENT)* / "`" CHAR* "`"
+ID_SEGMENT <-  ID_START ID_CONT*
+ID_START <-    [a-zA-Z_]
+ID_CONT <-     ID_START / [0-9]
+
+STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
+
+CHAR <-
+	"\\" ("'" / "`" / "\"" / "\\")
+	/ !"'" .
+
+# Spaces
+
+__ <- " "+ # Required spaces
+_  <- " "* # Optional spaces
