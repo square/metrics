@@ -23,6 +23,8 @@ var (
 	ErrMissingTag = errors.New("Missing Tag")
 	// ErrCannotInterpolate is returned when the tag interpolation fails.
 	ErrCannotInterpolate = errors.New("Cannot Interpolate")
+	// ErrNoMatch is returned when the conversion to tagged metric fails.
+	ErrNoMatch = errors.New("No Match")
 )
 
 // RawRule is the input provided by the YAML file to specify the rul.
@@ -232,11 +234,11 @@ func LoadYAML(input []byte) (RuleSet, error) {
 	}
 	rules := make([]Rule, len(rawRules.RawRules))
 	for index, rawRule := range rawRules.RawRules {
-		if rule, err := Compile(rawRule); err != nil {
+		rule, err := Compile(rawRule)
+		if err != nil {
 			return RuleSet{}, err
-		} else {
-			rules[index] = rule
 		}
+		rules[index] = rule
 	}
 	return RuleSet{rules}, nil
 }
