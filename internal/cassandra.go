@@ -18,6 +18,7 @@ type Database interface {
 	// -------------
 	GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error)
 	GetMetricKeys(tagKey, tagValue string) ([]api.MetricKey, error)
+	GetAllMetrics() ([]api.MetricKey, error)
 
 	// Deletion Method
 	// ---------------
@@ -86,6 +87,19 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 		return keys, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
+	var keys []api.MetricKey
+	metricKey := ""
+	iterator := db.session.Query("SELECT distinct metric_key FROM metric_names").Iter()
+	for iterator.Scan(&metricKey) {
+		keys = append(keys, api.MetricKey(metricKey))
+	}
+	if err := iterator.Close(); err != nil {
 		return nil, err
 	}
 	return keys, nil

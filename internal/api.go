@@ -61,6 +61,10 @@ func (a *defaultAPI) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey,
 	return a.db.GetMetricKeys(tagKey, tagValue)
 }
 
+func (a *defaultAPI) GetAllMetrics() ([]api.MetricKey, error) {
+	return a.db.GetAllMetrics()
+}
+
 func (a *defaultAPI) RemoveMetric(metric api.TaggedMetric) error {
 	if err := a.db.RemoveMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
