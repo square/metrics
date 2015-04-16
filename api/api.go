@@ -15,6 +15,21 @@ import (
 // MetricKey should not contain any variable component in it.
 type MetricKey string
 
+// MetricKeys is an interface implementing sort.Interface to allow it to be sorted.
+type MetricKeys []MetricKey
+
+func (keys MetricKeys) Len() int {
+	return len(keys)
+}
+
+func (keys MetricKeys) Less(i, j int) bool {
+	return keys[i] < keys[j]
+}
+
+func (keys MetricKeys) Swap(i, j int) {
+	keys[i], keys[j] = keys[j], keys[i]
+}
+
 // TagSet is the set of key-value pairs associated with a given metric.
 type TagSet map[string]string
 
@@ -103,6 +118,9 @@ type API interface {
 
 	// For a given MetricKey, retrieve all the tagsets associated with it.
 	GetAllTags(metricKey MetricKey) ([]TagSet, error)
+
+	// GetAllMetrics returns all metrics managed by the system.
+	GetAllMetrics() ([]MetricKey, error)
 
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
