@@ -94,6 +94,24 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 	}
 }
 
+func Test_GetAllMetrics(t *testing.T) {
+	a := assert.New(t)
+	db := newDatabase(t)
+	defer cleanDatabase(t, db)
+	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
+	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
+	keys, err := db.GetAllMetrics()
+	a.CheckError(err)
+	sort.Sort(api.MetricKeys(keys))
+	a.Eq(keys, []api.MetricKey{"metric.a"})
+	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
+	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
+	keys, err = db.GetAllMetrics()
+	a.CheckError(err)
+	sort.Sort(api.MetricKeys(keys))
+	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b"})
+}
+
 func Test_TagIndex(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
