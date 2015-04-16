@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	yamlFile    = flag.String("yaml-file", "", "Location of YAML configuration file.")
-	metricsFile = flag.String("metrics-file", "", "Location of YAML configuration file.")
+	yamlFile         = flag.String("yaml-file", "", "Location of YAML configuration file.")
+	metricsFile      = flag.String("metrics-file", "", "Location of YAML configuration file.")
+	insertToDatabase = flag.Bool("insert-to-db", false, "If true, insert rows to database.")
 )
 
 func exitWithRequired(flagName string) {
@@ -78,11 +79,19 @@ func main() {
 		exitWithMessage("No metric file.")
 	}
 	scanner := bufio.NewScanner(metricFile)
-	stat := run(ruleset, scanner)
+	apiInstance, err := internal.NewAPI(api.Configuration{
+		RuleYamlFilePath: *yamlFile,
+		Hosts:            []string{"localhost"},
+		Keyspace:         "metrics_indexer",
+	})
+	if err != nil {
+		exitWithMessage("Cannot instantiate a new API.")
+	}
+	stat := run(ruleset, scanner, apiInstance)
 	report(stat)
 }
 
-func run(ruleset *internal.RuleSet, scanner *bufio.Scanner) Statistics {
+func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API) Statistics {
 	stat := Statistics{
 		perMetric: make(map[api.MetricKey]PerMetricStatistics),
 	}
@@ -94,6 +103,9 @@ func run(ruleset *internal.RuleSet, scanner *bufio.Scanner) Statistics {
 			perMetric := stat.perMetric[converted.MetricKey]
 			perMetric.matched++
 			reversed, err := ruleset.ToGraphiteName(converted)
+			if *insertToDatabase {
+				apiInstance.AddMetric(converted)
+			}
 			if err != nil {
 				perMetric.reverseError++
 			} else if string(reversed) != input {
