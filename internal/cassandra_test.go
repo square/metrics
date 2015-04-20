@@ -35,6 +35,9 @@ func cleanDatabase(t *testing.T, db *defaultDatabase) {
 func Test_MetricName_GetTagSet(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
+	if db == nil {
+		return
+	}
 	defer cleanDatabase(t, db)
 	if db == nil {
 		return
@@ -97,6 +100,9 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 func Test_GetAllMetrics(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
+	if db == nil {
+		return
+	}
 	defer cleanDatabase(t, db)
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
@@ -115,6 +121,9 @@ func Test_GetAllMetrics(t *testing.T) {
 func Test_TagIndex(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
+	if db == nil {
+		return
+	}
 	defer cleanDatabase(t, db)
 	if db == nil {
 		return

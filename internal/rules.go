@@ -106,6 +106,12 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	if err != nil {
 		return api.TaggedMetric{}, false
 	}
+	// removed tags that are part of the generated metric key.
+	for _, metricKeyTag := range rule.metricKeyTags {
+		if _, containsKey := tagSet[metricKeyTag]; containsKey {
+			delete(tagSet, metricKeyTag)
+		}
+	}
 	return api.TaggedMetric{
 		api.MetricKey(interpolatedKey),
 		tagSet,
