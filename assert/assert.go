@@ -15,12 +15,12 @@ type Assert struct {
 }
 
 func caller() (string, int) {
-  // determines how many stack frames to traverse.
-  // we need to traverse 3 for the original caller:
-  // 0: caller()
-  // 1: Assert.withCaller()
-  // 2: Assert.Eq...()
-  // 3: <- original caller
+	// determines how many stack frames to traverse.
+	// we need to traverse 3 for the original caller:
+	// 0: caller()
+	// 1: Assert.withCaller()
+	// 2: Assert.Eq...()
+	// 3: <- original caller
 	_, file, line, _ := runtime.Caller(3)
 	return file, line
 }
