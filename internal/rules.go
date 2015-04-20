@@ -106,7 +106,13 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	if err != nil {
 		return api.TaggedMetric{}, false
 	}
-	// removed tags that are part of the generated metric key.
+	// Do not output tags appearing in both graphite metric & metric key.
+	// for exmaple, if graphite metric is
+	//   `foo.%a%.%b%`
+	// and metric key is
+	//   `bar.%b%`
+	// the resulting tag set should only contain {a} after the matching
+	// because %b% is already encoded.
 	for _, metricKeyTag := range rule.metricKeyTags {
 		if _, containsKey := tagSet[metricKeyTag]; containsKey {
 			delete(tagSet, metricKeyTag)
