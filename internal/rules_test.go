@@ -94,6 +94,21 @@ func TestMatchRule_Simple(t *testing.T) {
 	}
 }
 
+func TestMatchRule_FilterTag(t *testing.T) {
+	a := assert.New(t)
+	rule, err := Compile(RawRule{
+		Pattern:          "prefix.%foo%.%bar%",
+		MetricKeyPattern: "test-metric.%bar%",
+	})
+	a.CheckError(err)
+	matcher, matched := rule.MatchRule("prefix.fooValue.barValue")
+	if !matched {
+		t.Errorf("Expected matching but didn't occur")
+	}
+	a.EqString(string(matcher.MetricKey), "test-metric.barValue")
+	a.Eq(matcher.TagSet, api.TagSet(map[string]string{"foo": "fooValue"}))
+}
+
 func TestMatchRule_CustomRegex(t *testing.T) {
 	a := assert.New(t)
 	regex := make(map[string]string)
