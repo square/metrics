@@ -9,7 +9,7 @@ Development
 Check out the project to the development directory.
 
 ```
-git clone ssh://git@git.corp.squareup.com/vis/metrics-indexer.git $GOPATH/src/square/vis/metrics-indexer/
+git clone git@github.com:square/metrics-indexer.git $GOPATH/src/github.com/square/metrics-indexer/
 ```
 
 To obtain the list of metrics, you can either:
