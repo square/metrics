@@ -2,9 +2,8 @@
 package internal
 
 import (
-	"square/vis/metrics-indexer/api"
-
 	"github.com/gocql/gocql"
+	"github.com/square/metrics-indexer/api"
 )
 
 // Database represents internal connection to Cassandra.

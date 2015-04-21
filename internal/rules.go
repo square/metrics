@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/square/metrics-indexer/api"
 	"gopkg.in/yaml.v2"
-	"square/vis/metrics-indexer/api"
 )
 
 var defaultRegex = "[^.]+"

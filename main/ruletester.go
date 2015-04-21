@@ -12,8 +12,8 @@ import (
 	"os"
 	"sort"
 
-	"square/vis/metrics-indexer/api"
-	"square/vis/metrics-indexer/internal"
+	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics-indexer/internal"
 )
 
 var (
