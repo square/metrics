@@ -2,11 +2,11 @@ package internal
 
 import (
 	"sort"
-	"square/vis/metrics-indexer/api"
-	"square/vis/metrics-indexer/assert"
 	"testing"
 
 	"github.com/gocql/gocql"
+	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics-indexer/assert"
 )
 
 func newDatabase(t *testing.T) *defaultDatabase {
