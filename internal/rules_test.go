@@ -1,9 +1,10 @@
 package internal
 
 import (
-	"square/vis/metrics-indexer/api"
-	"square/vis/metrics-indexer/assert"
 	"testing"
+
+	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics-indexer/assert"
 )
 
 func TestCompile_Good(t *testing.T) {
