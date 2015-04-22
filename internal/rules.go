@@ -42,10 +42,11 @@ type RawRules struct {
 // Rule is a sanitized version of RawRule. Only valid rules
 // can be converted to Rule.
 type Rule struct {
-	raw                 RawRule
-	regex               *regexp.Regexp
-	graphitePatternTags []string // tags extracted from the raw graphite string, in the order of appearance.
-	metricKeyTags       []string // tags extracted from MetricKey, in the order of appearance.
+	raw                  RawRule
+	graphitePatternRegex *regexp.Regexp
+	metricKeyRegex       *regexp.Regexp
+	graphitePatternTags  []string // tags extracted from the raw graphite string, in the order of appearance.
+	metricKeyTags        []string // tags extracted from MetricKey, in the order of appearance.
 }
 
 // RuleSet is a sanitized version of RawRules.
@@ -73,34 +74,34 @@ func Compile(rule RawRule) (Rule, error) {
 	if !rule.checkTagRegexes() {
 		return Rule{}, ErrInvalidCustomRegex
 	}
-	regex := rule.toRegexp()
+	regex := rule.toRegexp(rule.Pattern)
 	if regex == nil {
 		return Rule{}, ErrInvalidPattern
 	}
 	if regex.NumSubexp() != len(graphitePatternTags) {
 		return Rule{}, ErrInvalidCustomRegex
 	}
+	metricKeyRegex := rule.toRegexp(rule.MetricKeyPattern)
+	if metricKeyRegex == nil {
+		return Rule{}, ErrInvalidPattern
+	}
+	if metricKeyRegex.NumSubexp() != len(metricKeyTags) {
+		return Rule{}, ErrInvalidCustomRegex
+	}
 	return Rule{
-		rule,
-		regex,
-		graphitePatternTags,
-		metricKeyTags,
+		raw:                  rule,
+		graphitePatternRegex: regex,
+		metricKeyRegex:       metricKeyRegex,
+		graphitePatternTags:  graphitePatternTags,
+		metricKeyTags:        metricKeyTags,
 	}, nil
 }
 
 // MatchRule sees if a given graphite string matches the rule, and if so, returns the generated tag.
 func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
-	matches := rule.regex.FindStringSubmatch(input)
-	if matches == nil {
+	tagSet := extractTagValues(rule.graphitePatternRegex, rule.graphitePatternTags, input)
+	if tagSet == nil {
 		return api.TaggedMetric{}, false
-	}
-	tagSet := api.NewTagSet()
-	for index, tagValue := range matches {
-		if index == 0 {
-			continue
-		}
-		tagKey := rule.graphitePatternTags[index-1]
-		tagSet[tagKey] = tagValue
 	}
 	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet)
 	if err != nil {
@@ -126,14 +127,16 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 
 // ToGraphiteName transforms the given tagged metric back to its graphite metric.
 func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
-	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, taggedMetric.TagSet)
-	if err != nil {
-		return "", err
-	}
-	if interpolatedKey != string(taggedMetric.MetricKey) {
+	extractedTagSet := extractTagValues(rule.metricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
+	if extractedTagSet == nil {
+		// no match found. not a correct rule to interpolate.
 		return "", ErrCannotInterpolate
 	}
-	interpolated, err := interpolateTags(rule.raw.Pattern, taggedMetric.TagSet)
+	// Merge the tags in the provided tag set, and tags extracted from the metric.
+	// This is necessary because tags embedded in the metric are not
+	// exported to the tagset.
+	mergedTagSet := taggedMetric.TagSet.Merge(extractedTagSet)
+	interpolated, err := interpolateTags(rule.raw.Pattern, mergedTagSet)
 	if err != nil {
 		return "", err
 	}
@@ -178,8 +181,8 @@ func (rule RawRule) checkTagRegexes() bool {
 	return true
 }
 
-func (rule RawRule) toRegexp() *regexp.Regexp {
-	splitted := strings.Split(rule.Pattern, "%")
+func (rule RawRule) toRegexp(pattern string) *regexp.Regexp {
+	splitted := strings.Split(pattern, "%")
 	buffer := new(bytes.Buffer)
 	if len(splitted)%2 == 0 {
 		// invalid pattern - even number of parts mean odd number of %.
@@ -208,6 +211,24 @@ func (rule RawRule) toRegexp() *regexp.Regexp {
 	return compiled
 }
 
+// extractTagValues extracts the tagset using the given regex and the list of tags.
+func extractTagValues(regex *regexp.Regexp, tagList []string, input string) api.TagSet {
+	matches := regex.FindStringSubmatch(input)
+	if matches == nil {
+		return nil
+	}
+	tagSet := api.NewTagSet()
+	for index, tagValue := range matches {
+		if index == 0 {
+			continue
+		}
+		tagKey := tagList[index-1]
+		tagSet[tagKey] = tagValue
+	}
+	return tagSet
+}
+
+// extractTags extracts list of tags in the given pattern string.
 func extractTags(pattern string) []string {
 	if len(pattern) == 0 {
 		return nil // empty pattern is not allowed.
