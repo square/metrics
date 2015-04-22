@@ -30,7 +30,7 @@ rules:
 
   # Rule for Java Action Framework
   - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%api%.response_times.%percentile%"
-    metric_key: "framework.actions.api.percentile"
+    metric_key: "framework.actions.api.response_times"
     regex:
       percentile: *percentile
   - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%service%.%api%.response_times.%percentile%"
@@ -38,25 +38,22 @@ rules:
     regex:
       percentile: *percentile
   - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%api%.response_codes.%type%s.count"
-    metric_key: "framework.actions.api.count"
+    metric_key: "framework.actions.api.response_codes.count"
   - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%service%.%api%.response_codes.%type%s.count"
-    metric_key: "framework.actions.service-api.count"
+    metric_key: "framework.actions.service-api.response_codes"
 
 
   # Java components
   - pattern:    "%app%.%env%.%dc%.%host%.components.rpc.server.open-connections.value"
     metric_key: "components.rpc.server.open-connections"
-  # Rule for RPC Client
-  # web-emissary.production.sjc2b.awa294.framework.clients.rpc.BeemoInternalReportingServiceV2.connections.all.value
-  # web-emissary.production.sjc2b.awa294.framework.clients.rpc.CogsInternalApi.connections.all.value
-  # web-emissary.production.sjc2b.awa294.framework.clients.rpc.GeocodingService.connections.all.value
 
+  # Rule for RPC Client
   - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.connections.all.value"
     metric_key: "framework.clients.rpc.connections"
     regex:
       percentile: *percentile
   - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.%type%.%percentile%"
-    metric_key: "framework.clients.rpc.%type%.percentile"
+    metric_key: "framework.clients.rpc.%type%"
     regex:
       percentile: *percentile
   - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.response_codes.%code%.count"
