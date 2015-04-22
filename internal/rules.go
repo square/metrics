@@ -129,8 +129,12 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
 	extractedTagSet := extractTagValues(rule.metricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
 	if extractedTagSet == nil {
+		// no match found. not a correct rule to interpolate.
 		return "", ErrCannotInterpolate
 	}
+	// Merge the tags in the provided tag set, and tags extracted from the metric.
+	// This is necessary because tags embedded in the metric are not
+	// exported to the tagset.
 	mergedTagSet := taggedMetric.TagSet.Merge(extractedTagSet)
 	interpolated, err := interpolateTags(rule.raw.Pattern, mergedTagSet)
 	if err != nil {
