@@ -9,7 +9,8 @@ import (
 )
 
 var inputs = []string{
-	"describe all metrics",
+	// describes
+	"describe all",
 	"describe x",
 	"describe cpu_usage",
 	"describe cpu_usage where key = 'value'",
@@ -26,10 +27,29 @@ var inputs = []string{
 	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host matches 'fwd'",
 }
 
+var parseOnly = []string {
+	// selects
+	"select x",
+	"select x, y",
+	"select 1 + 2 * 3",
+	"select x * (y + 123), z",
+	"select scalar.max(x)",
+	"select aggregate.max(x, y)",
+	"select aggregate.max(x group by foo) + 3",
+	"select x from y as x",
+	"select x from y as x, x as y",
+}
+
 func TestParse_success(t *testing.T) {
-	a := assert.New(t)
 	for _, row := range inputs {
-		a.CheckError(testParser(t, row))
+		if err := testParser(t, row); err != nil {
+			t.Errorf("[%s] failed to parse: %s", row, err.Error())
+		}
+	}
+	for _, row := range parseOnly {
+		if err := testParser(t, row); err != nil {
+			t.Errorf("[%s] failed to parse: %s", row, err.Error())
+		}
 	}
 }
 
