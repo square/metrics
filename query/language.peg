@@ -22,7 +22,10 @@ type Parser Peg {
 
 root <- (selectStmt / describeStmt) !.
 
-selectStmt <-   "select" __ expressionList optionalPredicateClause
+selectStmt <-   "select" __
+  expressionList
+  optionalPredicateClause
+  rangeClause
 
 describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
 
@@ -32,6 +35,9 @@ describeSingleStmt <-
 	<METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
 	{ p.makeDescribe() }
+
+rangeClause <-
+  _ "from" __ TIMESTAMP __ "to" __ TIMESTAMP
 
 optionalPredicateClause <-
   __ predicateClause / { p.addNullPredicate() }
@@ -122,7 +128,7 @@ propertySource <-
 COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
-
+TIMESTAMP <-   INTEGER / STRING
 IDENTIFIER <-  !KEYWORD ID_SEGMENT ("." ID_SEGMENT)* / "`" CHAR* "`"
 ID_SEGMENT <-  ID_START ID_CONT*
 ID_START <-    [a-zA-Z_]
@@ -140,6 +146,7 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "not" /
   "or" /
   "select" /
+  "to" /
   "where"
 
 NUMBER <-  INTEGER
