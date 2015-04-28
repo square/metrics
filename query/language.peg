@@ -22,7 +22,7 @@ type Parser Peg {
 
 root <- (selectStmt / describeStmt) !.
 
-selectStmt <-   "select" __ expressionList optionalFromClause # optionalPredicateClause # TODO
+selectStmt <-   "select" __ expressionList optionalPredicateClause
 
 describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
 
@@ -32,6 +32,9 @@ describeSingleStmt <-
 	<METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
 	{ p.makeDescribe() }
+
+optionalPredicateClause <-
+  __ predicateClause / { p.addNullPredicate() }
 
 # expression_X are layered to maintain the order of operations.
 
@@ -51,23 +54,12 @@ expression_3 <-
   # sub-expression
   PAREN_OPEN expression_1 PAREN_CLOSE /
   # reference to time series.
-  IDENTIFIER /
+  IDENTIFIER ("[" _ predicate_1 _ "]")? /
   # constant scalar
   NUMBER
 
 groupByClause <-
   "group" __ "by" __ COLUMN_NAME ( COMMA COLUMN_NAME )*
-
-optionalFromClause <- __ fromClause / { }
-
-fromClause <- "from" __ aliasList
-
-aliasList <- aliasDeclaration (COMMA aliasDeclaration)*
-
-aliasDeclaration <- METRIC_NAME __ "as" __ IDENTIFIER
-
-optionalPredicateClause <-
-  __ predicateClause / { p.addNullPredicate() }
 
 predicateClause <- "where" __ predicate_1
 
