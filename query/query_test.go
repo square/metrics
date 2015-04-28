@@ -38,8 +38,10 @@ var parseOnly = []string{
 	"select scalar.max(x)",
 	"select aggregate.max(x, y)",
 	"select aggregate.max(x group by foo) + 3",
-	"select x from y as x",
-	"select x from y as x, x as y",
+	"select x where y = 'z'",
+	"select x + z[y = 'z']",
+	"select x[y = 'z']",
+	"select aggregate.max(x[y = 'z'] group by foo)",
 }
 
 // TODO - add test for "does not parse"
