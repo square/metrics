@@ -8,12 +8,12 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"sort"
 	"github.com/square/metrics-indexer/api"
 	"github.com/square/metrics-indexer/internal"
 	"github.com/square/metrics-indexer/main/common"
+	"io/ioutil"
+	"os"
+	"sort"
 )
 
 var (

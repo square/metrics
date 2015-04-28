@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"github.com/square/metrics-indexer/main/common"
 	"github.com/square/metrics-indexer/query"
+	"os"
 )
 
 func main() {

@@ -1,14 +1,17 @@
 package query
 
 import (
+	"bytes"
+	"fmt"
 	"regexp"
+	"strings"
 )
 
 // Node is a processed AST node generated during the AST traversal.
 // During Execute(), nodes are repeatedly pushed and popped
 // on top of nodeStack.
 type Node interface {
-	Print() string
+	Print(buffer bytes.Buffer, indent int)
 }
 
 type andPred struct {
@@ -50,27 +53,78 @@ type tagRefNode struct {
 	alias string
 }
 
-func (node *andPred) Print() string {
-	return ""
+func printHelper(buffer bytes.Buffer, indent int, value string) {
+	for i := 0; i < indent; i++ {
+		buffer.WriteString(" ")
+	}
+	buffer.WriteString(value)
+	buffer.WriteString("\n")
 }
-func (node *orPred) Print() string {
-	return ""
+
+func printUnknown(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "<?>")
 }
-func (node *notPred) Print() string {
-	return ""
+
+func (node *andPred) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "andPred")
+	for _, pred := range node.predicates {
+		if node, ok := pred.(Node); ok {
+			node.Print(buffer, indent+1)
+		} else {
+			printUnknown(buffer, indent+1)
+		}
+	}
 }
-func (node *listMatcher) Print() string {
-	return ""
+
+func (node *orPred) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "orPred")
+	for _, pred := range node.predicates {
+		if node, ok := pred.(Node); ok {
+			node.Print(buffer, indent+1)
+		} else {
+			printUnknown(buffer, indent+1)
+		}
+	}
 }
-func (node *regexMatcher) Print() string {
-	return ""
+
+func (node *notPred) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "notPred")
+	if node, ok := node.predicate.(Node); ok {
+		node.Print(buffer, indent+1)
+	} else {
+		printUnknown(buffer, indent+1)
+	}
 }
-func (node *literalNode) Print() string {
-	return ""
+
+func (node *listMatcher) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "listMatcher")
+	printHelper(buffer, indent+1, fmt.Sprintf("%s.%s=%s",
+		node.alias,
+		node.tag,
+		strings.Join(node.matches, ","),
+	))
 }
-func (node *literalListNode) Print() string {
-	return ""
+
+func (node *regexMatcher) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "regexMatcher")
+	printHelper(buffer, indent+1, fmt.Sprintf("%s.%s=%s",
+		node.alias,
+		node.tag,
+		node.regex.String(),
+	))
 }
-func (node *tagRefNode) Print() string {
-	return ""
+func (node *literalNode) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "literalNode")
+	printHelper(buffer, indent+1, node.literal)
+}
+func (node *literalListNode) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "literalNode")
+	printHelper(buffer, indent+1, strings.Join(node.literals, ","))
+}
+func (node *tagRefNode) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "tagRefNode")
+	printHelper(buffer, indent+1, fmt.Sprintf("%s:%s",
+		node.tag,
+		node.alias,
+	))
 }
