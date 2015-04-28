@@ -9,6 +9,14 @@ type Parser Peg {
   command Command
 }
 
+# The following queries are support
+
+# describe all              <- describe all statement - returns all metric keys.
+# describe metric where ... <- describes a single metric - returns all tagsets within a single metric key.
+# select ...                <- select statement - retrieves, transforms, and aggregates time serieses.
+
+# Refer to the unit test query_test.go for more info.
+
 # Hierarchical Syntax
 # ===================
 
@@ -31,17 +39,24 @@ expressionList <- expression_1 ( COMMA expression_1 )*
 
 expression_1 <-
   expression_2 OP_ADD expression_1 /
+  expression_2 OP_SUB expression_1 /
   expression_2
 
 expression_2 <-
   expression_3 OP_MULT expression_2 /
+  expression_3 OP_DIV expression_2 /
   expression_3
 
 expression_3 <-
+  # aggregate function
   IDENTIFIER PAREN_OPEN expression_1 __ groupByClause PAREN_CLOSE /
+  # non-aggregate function
   IDENTIFIER PAREN_OPEN expressionList PAREN_CLOSE /
+  # sub-expression
   PAREN_OPEN expression_1 PAREN_CLOSE /
-  ALIAS_NAME /
+  # reference to time series.
+  IDENTIFIER /
+  # constant scalar
   NUMBER
 
 groupByClause <-
@@ -53,7 +68,7 @@ fromClause <- "from" __ aliasList
 
 aliasList <- aliasDeclaration (COMMA aliasDeclaration)*
 
-aliasDeclaration <- METRIC_NAME __ "as" __ ALIAS_NAME
+aliasDeclaration <- METRIC_NAME __ "as" __ IDENTIFIER
 
 optionalPredicateClause <-
   __ predicateClause / { p.addNullPredicate() }
@@ -109,14 +124,13 @@ literalListString <- STRING {
 
 propertySource <-
   { p.addTagRefNode() }
-  ( <ALIAS_NAME> { p.setAlias(buffer[begin:end]) } COLON)?
+  ( <IDENTIFIER> { p.setAlias(buffer[begin:end]) } COLON)?
   <TAG_NAME> { p.setTag(buffer[begin:end]) }
 
 # Lexical Syntax
 # ==============
 # Convention: These rules contain no code blocks.
 
-ALIAS_NAME <-  IDENTIFIER
 COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
@@ -141,13 +155,15 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "where"
 
 NUMBER <-  INTEGER
-INTEGER <- "-"? [1-9][0-9]*
+INTEGER <- "0" / "-"? [1-9][0-9]*
 
-OP_ADD  <- _ ("+" / "-") _
-OP_MULT <- _ ("*" / "/") _
-OP_AND <-  __ "and" __
-OP_OR <-   __ "or" __
-OP_NOT <-  "not" __
+OP_ADD  <- _ "+" _
+OP_SUB  <- _ "-" _
+OP_MULT <- _ "*" _
+OP_DIV  <- _ "/" _
+OP_AND  <- __ "and" __
+OP_OR   <- __ "or" __
+OP_NOT  <- "not" __
 
 STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
 

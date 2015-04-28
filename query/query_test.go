@@ -30,6 +30,8 @@ var inputs = []string{
 var parseOnly = []string{
 	// selects
 	"select x",
+	"select x-y-z",
+	"select 0",
 	"select x, y",
 	"select 1 + 2 * 3",
 	"select x * (y + 123), z",

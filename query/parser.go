@@ -78,7 +78,7 @@ func (p *Parser) flagTypeError(typeString string) {
 func (p *Parser) popNode() Node {
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagError(errors.New("Reached the bottom of stack. BAD."))
+		p.flagError(errors.New("popNode() on an empty stack"))
 		return nil
 	}
 	node := p.nodeStack[l-1]
@@ -89,7 +89,7 @@ func (p *Parser) popNode() Node {
 func (p *Parser) peekNode() Node {
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagError(errors.New("Reached the bottom of stack. BAD."))
+		p.flagError(errors.New("peekNode() on an empty stack"))
 		return nil
 	}
 	node := p.nodeStack[l-1]
