@@ -42,6 +42,7 @@ var parseOnly = []string{
 	"select x + z[y = 'z']",
 	"select x[y = 'z']",
 	"select aggregate.max(x[y = 'z'] group by foo)",
+	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b'",
 }
 
 // TODO - add test for "does not parse"
