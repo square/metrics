@@ -33,7 +33,7 @@ var parseOnly = []string{
 	"select x-y-z",
 	"select 0",
 	"select x, y",
-	"select 1 + 2 * 3",
+	"select 1 + 2 * 3 + 4",
 	"select x * (y + 123), z",
 	"select scalar.max(x)",
 	"select aggregate.max(x, y)",
@@ -41,6 +41,8 @@ var parseOnly = []string{
 	"select x from y as x",
 	"select x from y as x, x as y",
 }
+
+// TODO - add test for "does not parse"
 
 func TestParse_success(t *testing.T) {
 	for _, row := range inputs {

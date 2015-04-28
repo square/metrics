@@ -38,14 +38,10 @@ describeSingleStmt <-
 expressionList <- expression_1 ( COMMA expression_1 )*
 
 expression_1 <-
-  expression_2 OP_ADD expression_1 /
-  expression_2 OP_SUB expression_1 /
-  expression_2
+  expression_2 ((OP_ADD / OP_SUB) expression_2) *
 
 expression_2 <-
-  expression_3 OP_MULT expression_2 /
-  expression_3 OP_DIV expression_2 /
-  expression_3
+  expression_3 ((OP_DIV / OP_MULT) expression_3) *
 
 expression_3 <-
   # aggregate function
