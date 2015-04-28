@@ -27,7 +27,7 @@ var inputs = []string{
 	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host matches 'fwd'",
 }
 
-var parseOnly = []string {
+var parseOnly = []string{
 	// selects
 	"select x",
 	"select x, y",

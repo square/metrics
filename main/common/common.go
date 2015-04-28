@@ -3,9 +3,9 @@ package common
 import (
 	"flag"
 	"fmt"
-	"os"
 	"github.com/square/metrics-indexer/api"
 	"github.com/square/metrics-indexer/internal"
+	"os"
 )
 
 var (
