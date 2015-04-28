@@ -28,21 +28,37 @@ var inputs = []string{
 }
 
 var parseOnly = []string{
-	// selects
-	"select x",
-	"select x-y-z",
-	"select 0",
-	"select x, y",
-	"select 1 + 2 * 3 + 4",
-	"select x * (y + 123), z",
-	"select scalar.max(x)",
-	"select aggregate.max(x, y)",
-	"select aggregate.max(x group by foo) + 3",
-	"select x where y = 'z'",
-	"select x + z[y = 'z']",
-	"select x[y = 'z']",
-	"select aggregate.max(x[y = 'z'] group by foo)",
-	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b'",
+	// selects - trying out arithmetic
+	"select x from 0 to 0",
+	"select x-y-z from 0 to 0",
+	"select (x)-(y)-(z) from 0 to 0",
+	"select 0 from 0 to 0",
+	"select x, y from 0 to 0",
+	"select 1 + 2 * 3 + 4 from 0 to 0",
+	"select x * (y + 123), z from 0 to 0",
+	// selects - timestamps
+	"select x * (y + 123), z from '2014-01-01' to '2014-01-02'",
+	"select x * (y + 123), z from 0 to 10000",
+	// selects - aggregate functions
+	"select scalar.max(x) from 0 to 0",
+	"select scalar.max(x) from 0 to 0",
+	"select aggregate.max(x, y) from 0 to 0",
+	"select aggregate.max(x group by foo) + 3 from 0 to 0",
+	// selects - where clause
+	"select x where y = 'z' from 0 to 0",
+	// selects - per-identifier where clause
+	"select x + z[y = 'z'] from 0 to 0",
+	"select x[y = 'z'] from 0 to 0",
+	// selects - complicated queries
+	"select aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
+	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
+	// rough notes
+	// (absolute, absolute) absolute range
+	// (absolute, relative) FROM ~ FROM + interval (march 1st, 2 days)
+	// (relative, absolute) FROM - interval ~ FROM (2 days, march 1st)
+	// (relative, relative) NOW - interval_1 ~ NOW - interval_2
+	/// + concept of "now"
+
 }
 
 // TODO - add test for "does not parse"
