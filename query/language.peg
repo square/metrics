@@ -128,9 +128,12 @@ propertySource <-
 COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
+# TODO - may be refactored later.
 TIMESTAMP <-   INTEGER / STRING
 IDENTIFIER <-  !KEYWORD ID_SEGMENT ("." ID_SEGMENT)* / "`" CHAR* "`"
 ID_SEGMENT <-  ID_START ID_CONT*
+# Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
+# If hyphens are needed, use backticks instead.
 ID_START <-    [a-zA-Z_]
 ID_CONT <-     ID_START / [0-9]
 KEYWORD <-     # List of keywrods used throughout the code.
