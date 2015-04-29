@@ -14,15 +14,15 @@ type Node interface {
 	Print(buffer bytes.Buffer, indent int)
 }
 
-type andPred struct {
+type andPredicate struct {
 	predicates []Predicate
 }
 
-type orPred struct {
+type orPredicate struct {
 	predicates []Predicate
 }
 
-type notPred struct {
+type notPredicate struct {
 	predicate Predicate
 }
 
@@ -65,8 +65,8 @@ func printUnknown(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "<?>")
 }
 
-func (node *andPred) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "andPred")
+func (node *andPredicate) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "andPredicate")
 	for _, pred := range node.predicates {
 		if node, ok := pred.(Node); ok {
 			node.Print(buffer, indent+1)
@@ -76,8 +76,8 @@ func (node *andPred) Print(buffer bytes.Buffer, indent int) {
 	}
 }
 
-func (node *orPred) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "orPred")
+func (node *orPredicate) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "orPredicate")
 	for _, pred := range node.predicates {
 		if node, ok := pred.(Node); ok {
 			node.Print(buffer, indent+1)
@@ -87,8 +87,8 @@ func (node *orPred) Print(buffer bytes.Buffer, indent int) {
 	}
 }
 
-func (node *notPred) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "notPred")
+func (node *notPredicate) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "notPredicate")
 	if node, ok := node.predicate.(Node); ok {
 		node.Print(buffer, indent+1)
 	} else {

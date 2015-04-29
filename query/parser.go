@@ -225,7 +225,7 @@ func (p *Parser) appendLiteral(literal string) {
 func (p *Parser) addNotMatcher() {
 	predicate, ok := p.popNode().(Predicate)
 	if ok {
-		p.pushNode(&notPred{predicate})
+		p.pushNode(&notPredicate{predicate})
 	} else {
 		p.flagTypeError("Predicate")
 	}
@@ -239,7 +239,7 @@ func (p *Parser) addOrMatcher() {
 	if !ok {
 		p.flagTypeError("Predicate")
 	}
-	p.pushNode(&orPred{
+	p.pushNode(&orPredicate{
 		predicates: []Predicate{
 			leftPredicate,
 			rightPredicate,
@@ -248,7 +248,7 @@ func (p *Parser) addOrMatcher() {
 }
 
 func (p *Parser) addNullPredicate() {
-	p.pushNode(&andPred{predicates: []Predicate{}})
+	p.pushNode(&andPredicate{predicates: []Predicate{}})
 }
 
 func (p *Parser) addAndMatcher() {
@@ -260,7 +260,7 @@ func (p *Parser) addAndMatcher() {
 	if !ok {
 		p.flagTypeError("Predicate")
 	}
-	p.pushNode(&andPred{
+	p.pushNode(&andPredicate{
 		predicates: []Predicate{
 			leftPredicate,
 			rightPredicate,
