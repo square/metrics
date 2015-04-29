@@ -129,7 +129,7 @@ METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
 TIMESTAMP <-   INTEGER / STRING
-IDENTIFIER <-  !KEYWORD ID_SEGMENT ("." ID_SEGMENT)* / "`" CHAR* "`"
+IDENTIFIER <-  "`" CHAR* "`" / !KEYWORD ID_SEGMENT ("." ID_SEGMENT)*
 ID_SEGMENT <-  ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
 # If hyphens are needed, use backticks instead.
@@ -164,11 +164,12 @@ OP_NOT  <- "not" __
 
 STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
 
-CHAR <-
-	"\\" ("'" / "`" / "\"" / "\\")
-	/ !"'" .
+CHAR         <- "\\" ESCAPE_CLASS / ! ESCAPE_CLASS .
+# TODO - this currently doesn't support not-escaping single-quotes within quotes, vice versa.
+ESCAPE_CLASS <- ("'" / "`" / "\"" / "\\")
 
-# Syntactic element
+# Syntactic elements
+# ==================
 
 PAREN_OPEN <-  _ "(" _
 PAREN_CLOSE <- _ ")" _
