@@ -21,7 +21,6 @@ var inputs = []string{
 	"describe cpu_usage where not key = 'value'",
 	"describe cpu_usage where (key = 'value' and key = 'value')",
 	"describe cpu_usage where key = 'value' or key = 'value'",
-	"describe cpu_usage where name:key in ('value')",
 	"describe cpu_usage where key in ('value', 'value')",
 	"describe cpu_usage where key matches 'abc'",
 	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host matches 'fwd'",

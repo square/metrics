@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/square/metrics-indexer/api"
@@ -63,14 +64,15 @@ func Parse(query string) (Command, error) {
 
 // Error functions
 // ===============
-// these functions
+// these functions are called to mark that an error has occurred
+// while parsing or constructing command.
 
 func (p *Parser) flagError(err error) {
 	p.errors = append(p.errors, err)
 }
 
 func (p *Parser) flagTypeError(typeString string) {
-	p.flagError(fmt.Errorf("expected %s", typeString))
+	p.flagError(fmt.Errorf("[%s] expected %s", functionName(1), typeString))
 }
 
 // Generic Stack Operation
@@ -136,7 +138,6 @@ func (p *Parser) addLiteralMatcher() {
 		return
 	}
 	p.pushNode(&listMatcher{
-		alias:   tagRefNode.alias,
 		tag:     tagRefNode.tag,
 		matches: []string{literalNode.literal},
 	})
@@ -154,7 +155,6 @@ func (p *Parser) addListMatcher() {
 		return
 	}
 	p.pushNode(&listMatcher{
-		alias:   tagRefNode.alias,
 		tag:     tagRefNode.tag,
 		matches: literalNode.literals,
 	})
@@ -177,7 +177,6 @@ func (p *Parser) addRegexMatcher() {
 		p.flagError(errors.New(fmt.Sprintf("Cannot parse regex: %s", err.Error())))
 	}
 	p.pushNode(&regexMatcher{
-		alias: tagRefNode.alias,
 		tag:   tagRefNode.tag,
 		regex: compiled,
 	})
@@ -191,15 +190,6 @@ func (p *Parser) setTag(tag string) {
 	tagRefNode, ok := p.peekNode().(*tagRefNode)
 	if ok {
 		tagRefNode.tag = tag
-	} else {
-		p.flagTypeError("tagRefNode")
-	}
-}
-
-func (p *Parser) setAlias(alias string) {
-	tagRefNode, ok := p.peekNode().(*tagRefNode)
-	if ok {
-		tagRefNode.alias = alias
 	} else {
 		p.flagTypeError("tagRefNode")
 	}
@@ -287,4 +277,14 @@ func unescapeLiteral(escaped string) string {
 		}
 	}
 	return processed
+}
+
+var functionNameRegex = regexp.MustCompile(`[^./]+$`)
+
+// returns the name of the function on the stack.
+func functionName(depth int) string {
+	pc := make([]uintptr, 1)
+	runtime.Callers(depth+2, pc)
+	f := runtime.FuncForPC(pc[0])
+	return functionNameRegex.FindString(f.Name())
 }

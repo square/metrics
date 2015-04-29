@@ -89,17 +89,17 @@ predicate_3 <-
   tagMatcher
 
 tagMatcher <-
-  propertySource _ "=" _ literalString {
+  tagName _ "=" _ literalString {
     p.addLiteralMatcher()
   } /
-  propertySource _ "!=" _ literalString {
+  tagName _ "!=" _ literalString {
     p.addLiteralMatcher()
     p.addNotMatcher()
   } /
-  propertySource __ "matches" __ literalString {
+  tagName __ "matches" __ literalString {
     p.addRegexMatcher()
   } /
-  propertySource __ "in" __ literalList {
+  tagName __ "in" __ literalList {
     p.addListMatcher()
   }
 
@@ -116,9 +116,8 @@ literalListString <- STRING {
   p.appendLiteral(unescapeLiteral(buffer[begin:end]))
 }
 
-propertySource <-
+tagName <-
   { p.addTagRefNode() }
-  ( <IDENTIFIER> { p.setAlias(buffer[begin:end]) } COLON)?
   <TAG_NAME> { p.setTag(buffer[begin:end]) }
 
 # Lexical Syntax
@@ -174,7 +173,6 @@ CHAR <-
 PAREN_OPEN <-  _ "(" _
 PAREN_CLOSE <- _ ")" _
 COMMA <-       _ "," _
-COLON <-       _ ":" _
 _  <-          SPACE* # Optional spaces
 __ <-          SPACE+ # Required spaces
 SPACE <-       " " / "\n" / "\t"
