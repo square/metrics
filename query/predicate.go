@@ -12,7 +12,7 @@ type Predicate interface {
 	Match(alias string, tagSet api.TagSet) bool
 }
 
-func (matcher *andPred) Match(alias string, tagSet api.TagSet) bool {
+func (matcher *andPredicate) Match(alias string, tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
 		if !subPredicate.Match(alias, tagSet) {
 			return false
@@ -21,7 +21,7 @@ func (matcher *andPred) Match(alias string, tagSet api.TagSet) bool {
 	return true
 }
 
-func (matcher *orPred) Match(alias string, tagSet api.TagSet) bool {
+func (matcher *orPredicate) Match(alias string, tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
 		if subPredicate.Match(alias, tagSet) {
 			return true
@@ -30,7 +30,7 @@ func (matcher *orPred) Match(alias string, tagSet api.TagSet) bool {
 	return false
 }
 
-func (matcher *notPred) Match(alias string, tagSet api.TagSet) bool {
+func (matcher *notPredicate) Match(alias string, tagSet api.TagSet) bool {
 	return !matcher.predicate.Match(alias, tagSet)
 }
 
