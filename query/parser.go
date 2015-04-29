@@ -281,7 +281,9 @@ func unescapeLiteral(escaped string) string {
 
 var functionNameRegex = regexp.MustCompile(`[^./]+$`)
 
-// returns the name of the function on the stack.
+// name of the function on the stack.
+// depth(0) - name of the function calling functionName(0)
+// each additional depth traverses the stack frame further towards the caller.
 func functionName(depth int) string {
 	pc := make([]uintptr, 1)
 	runtime.Callers(depth+2, pc)
