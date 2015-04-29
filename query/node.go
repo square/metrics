@@ -27,13 +27,11 @@ type notPredicate struct {
 }
 
 type listMatcher struct {
-	alias   string
 	tag     string
 	matches []string
 }
 
 type regexMatcher struct {
-	alias string
 	tag   string
 	regex *regexp.Regexp
 }
@@ -49,8 +47,7 @@ type literalListNode struct {
 }
 
 type tagRefNode struct {
-	tag   string
-	alias string
+	tag string
 }
 
 func printHelper(buffer bytes.Buffer, indent int, value string) {
@@ -98,8 +95,7 @@ func (node *notPredicate) Print(buffer bytes.Buffer, indent int) {
 
 func (node *listMatcher) Print(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "listMatcher")
-	printHelper(buffer, indent+1, fmt.Sprintf("%s.%s=%s",
-		node.alias,
+	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
 		node.tag,
 		strings.Join(node.matches, ","),
 	))
@@ -107,8 +103,7 @@ func (node *listMatcher) Print(buffer bytes.Buffer, indent int) {
 
 func (node *regexMatcher) Print(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "regexMatcher")
-	printHelper(buffer, indent+1, fmt.Sprintf("%s.%s=%s",
-		node.alias,
+	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
 		node.tag,
 		node.regex.String(),
 	))
@@ -123,8 +118,5 @@ func (node *literalListNode) Print(buffer bytes.Buffer, indent int) {
 }
 func (node *tagRefNode) Print(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "tagRefNode")
-	printHelper(buffer, indent+1, fmt.Sprintf("%s:%s",
-		node.tag,
-		node.alias,
-	))
+	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
 }

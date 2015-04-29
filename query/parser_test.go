@@ -15,3 +15,15 @@ func TestUnescapeLiteral(t *testing.T) {
 	a.EqString(unescapeLiteral(`'\"hello\"'`), `"hello"`)
 	a.EqString(unescapeLiteral("\"\\`\""), "`")
 }
+
+func testFunction1() (string, string) {
+	return functionName(0), functionName(1)
+
+}
+func TestFunctionName(t *testing.T) {
+	a := assert.New(t)
+	a.EqString(functionName(0), "TestFunctionName")
+	first, second := testFunction1()
+	a.EqString(first, "testFunction1")
+	a.EqString(second, "TestFunctionName")
+}
