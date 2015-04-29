@@ -10,4 +10,8 @@ func TestUnescapeLiteral(t *testing.T) {
 	a.EqString(unescapeLiteral("'foo'"), "foo")
 	a.EqString(unescapeLiteral("foo"), "foo")
 	a.EqString(unescapeLiteral("nodes.cpu.io"), "nodes.cpu.io")
+	a.EqString(unescapeLiteral(`"hello"`), `hello`)
+	a.EqString(unescapeLiteral(`"\"hello\""`), `"hello"`)
+	a.EqString(unescapeLiteral(`'\"hello\"'`), `"hello"`)
+	a.EqString(unescapeLiteral("\"\\`\""), "`")
 }
