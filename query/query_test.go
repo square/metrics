@@ -35,6 +35,8 @@ var parseOnly = []string{
 	"select x, y from 0 to 0",
 	"select 1 + 2 * 3 + 4 from 0 to 0",
 	"select x * (y + 123), z from 0 to 0",
+	// testing escaping
+	"select `x` from 0 to 0",
 	// selects - timestamps
 	"select x * (y + 123), z from '2014-01-01' to '2014-01-02'",
 	"select x * (y + 123), z from 0 to 10000",
