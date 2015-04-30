@@ -132,13 +132,13 @@ func (p *Parser) addLiteralMatcher() {
 		p.flagTypeError("literalNode")
 		return
 	}
-	tagRefNode, ok := p.popNode().(*tagRefNode)
+	tagNode, ok := p.popNode().(*tagNode)
 	if !ok {
-		p.flagTypeError("tagRefNode")
+		p.flagTypeError("tagNode")
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagRefNode.tag,
+		tag:     tagNode.tag,
 		matches: []string{literalNode.literal},
 	})
 }
@@ -149,13 +149,13 @@ func (p *Parser) addListMatcher() {
 		p.flagTypeError("literalNode")
 		return
 	}
-	tagRefNode, ok := p.popNode().(*tagRefNode)
+	tagNode, ok := p.popNode().(*tagNode)
 	if !ok {
-		p.flagTypeError("tagRefNode")
+		p.flagTypeError("tagNode")
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagRefNode.tag,
+		tag:     tagNode.tag,
 		matches: literalNode.literals,
 	})
 }
@@ -166,9 +166,9 @@ func (p *Parser) addRegexMatcher() {
 		p.flagTypeError("literalNode")
 		return
 	}
-	tagRefNode, ok := p.popNode().(*tagRefNode)
+	tagNode, ok := p.popNode().(*tagNode)
 	if !ok {
-		p.flagTypeError("tagRefNode")
+		p.flagTypeError("tagNode")
 		return
 	}
 	compiled, err := regexp.Compile(literalNode.literal)
@@ -177,22 +177,13 @@ func (p *Parser) addRegexMatcher() {
 		p.flagError(errors.New(fmt.Sprintf("Cannot parse regex: %s", err.Error())))
 	}
 	p.pushNode(&regexMatcher{
-		tag:   tagRefNode.tag,
+		tag:   tagNode.tag,
 		regex: compiled,
 	})
 }
 
-func (p *Parser) addTagRefNode() {
-	p.pushNode(&tagRefNode{})
-}
-
-func (p *Parser) setTag(tag string) {
-	tagRefNode, ok := p.peekNode().(*tagRefNode)
-	if ok {
-		tagRefNode.tag = tag
-	} else {
-		p.flagTypeError("tagRefNode")
-	}
+func (p *Parser) addTag(tag string) {
+	p.pushNode(&tagNode{tag: tag})
 }
 
 func (p *Parser) addLiteralListNode() {
@@ -212,7 +203,7 @@ func (p *Parser) appendLiteral(literal string) {
 	}
 }
 
-func (p *Parser) addNotMatcher() {
+func (p *Parser) addNotPredicate() {
 	predicate, ok := p.popNode().(Predicate)
 	if ok {
 		p.pushNode(&notPredicate{predicate})
@@ -220,7 +211,7 @@ func (p *Parser) addNotMatcher() {
 		p.flagTypeError("Predicate")
 	}
 }
-func (p *Parser) addOrMatcher() {
+func (p *Parser) addOrPredicate() {
 	rightPredicate, ok := p.popNode().(Predicate)
 	if !ok {
 		p.flagTypeError("Predicate")
@@ -241,7 +232,7 @@ func (p *Parser) addNullPredicate() {
 	p.pushNode(&andPredicate{predicates: []Predicate{}})
 }
 
-func (p *Parser) addAndMatcher() {
+func (p *Parser) addAndPredicate() {
 	rightPredicate, ok := p.popNode().(Predicate)
 	if !ok {
 		p.flagTypeError("Predicate")

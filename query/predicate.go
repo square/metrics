@@ -9,32 +9,32 @@ import (
 // should be included in the query.
 type Predicate interface {
 	// checks the matcher.
-	Match(tagSet api.TagSet) bool
+	Apply(tagSet api.TagSet) bool
 }
 
-func (matcher *andPredicate) Match(tagSet api.TagSet) bool {
+func (matcher *andPredicate) Apply(tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
-		if !subPredicate.Match(tagSet) {
+		if !subPredicate.Apply(tagSet) {
 			return false
 		}
 	}
 	return true
 }
 
-func (matcher *orPredicate) Match(tagSet api.TagSet) bool {
+func (matcher *orPredicate) Apply(tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
-		if subPredicate.Match(tagSet) {
+		if subPredicate.Apply(tagSet) {
 			return true
 		}
 	}
 	return false
 }
 
-func (matcher *notPredicate) Match(tagSet api.TagSet) bool {
-	return !matcher.predicate.Match(tagSet)
+func (matcher *notPredicate) Apply(tagSet api.TagSet) bool {
+	return !matcher.predicate.Apply(tagSet)
 }
 
-func (matcher *listMatcher) Match(tagSet api.TagSet) bool {
+func (matcher *listMatcher) Apply(tagSet api.TagSet) bool {
 	if !matchPrecondition(matcher.tag, tagSet) {
 		return false
 	}
@@ -47,7 +47,7 @@ func (matcher *listMatcher) Match(tagSet api.TagSet) bool {
 	return false
 }
 
-func (matcher *regexMatcher) Match(tagSet api.TagSet) bool {
+func (matcher *regexMatcher) Apply(tagSet api.TagSet) bool {
 	if !matchPrecondition(matcher.tag, tagSet) {
 		return false
 	}
@@ -55,8 +55,5 @@ func (matcher *regexMatcher) Match(tagSet api.TagSet) bool {
 }
 
 func matchPrecondition(matcherTag string, tagSet api.TagSet) bool {
-	if _, hasTag := tagSet[matcherTag]; !hasTag {
-		return false
-	}
-	return true
+	return tagSet.HasKey(matcherTag)
 }

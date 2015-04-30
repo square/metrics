@@ -46,7 +46,7 @@ type literalListNode struct {
 	literals []string
 }
 
-type tagRefNode struct {
+type tagNode struct {
 	tag string
 }
 
@@ -116,7 +116,7 @@ func (node *literalListNode) Print(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "literalNode")
 	printHelper(buffer, indent+1, strings.Join(node.literals, ","))
 }
-func (node *tagRefNode) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "tagRefNode")
+func (node *tagNode) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "tagNode")
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
 }
