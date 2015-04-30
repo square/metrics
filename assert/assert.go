@@ -25,27 +25,32 @@ import (
 
 // Assert is a helper struct for testing methods.
 type Assert struct {
-	t *testing.T
+	t     *testing.T
+	stack int // number of stack frames to traverse to generate error.
 }
 
-func caller() (string, int) {
+func caller(depth int) (string, int) {
 	// determines how many stack frames to traverse.
 	// we need to traverse 3 for the original caller:
 	// 0: caller()
 	// 1: Assert.withCaller()
 	// 2: Assert.Eq...()
 	// 3: <- original caller
-	_, file, line, _ := runtime.Caller(3)
+	_, file, line, _ := runtime.Caller(depth + 3)
 	return file, line
 }
 
 // New creates a new Assert struct.
 func New(t *testing.T) Assert {
-	return Assert{t}
+	return Assert{t, 0}
+}
+
+func NewWithStack(t *testing.T, stack int) Assert {
+	return Assert{t, stack}
 }
 
 func (assert Assert) withCaller(format string, a ...interface{}) {
-	file, line := caller()
+	file, line := caller(assert.stack)
 	assert.t.Errorf(fmt.Sprintf("%s:%d>", file, line)+format, a...)
 }
 

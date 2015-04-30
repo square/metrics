@@ -16,7 +16,6 @@ package internal
 
 import (
 	"bytes"
-	"errors"
 	"regexp"
 	"strings"
 
@@ -25,21 +24,6 @@ import (
 )
 
 var defaultRegex = "[^.]+"
-
-var (
-	// ErrInvalidPattern is returned when an invalid rule pattern is provided.
-	ErrInvalidPattern = errors.New("Invalid Pattern")
-	// ErrInvalidMetricKey is retruned when an invalid metric key is provided.
-	ErrInvalidMetricKey = errors.New("Invalid Metric Key")
-	// ErrInvalidCustomRegex is retruned when the custom regex is invalid.
-	ErrInvalidCustomRegex = errors.New("Invalid Custom Regex")
-	// ErrMissingTag is returned during the reverse mapping, when a tag is not provided.
-	ErrMissingTag = errors.New("Missing Tag")
-	// ErrCannotInterpolate is returned when the tag interpolation fails.
-	ErrCannotInterpolate = errors.New("Cannot Interpolate")
-	// ErrNoMatch is returned when the conversion to tagged metric fails.
-	ErrNoMatch = errors.New("No Match")
-)
 
 // RawRule is the input provided by the YAML file to specify the rul.
 type RawRule struct {
@@ -70,37 +54,38 @@ type RuleSet struct {
 }
 
 // Compile a given RawRule into a regex and exposed tagset.
+// error is an instance of RuleError.
 func Compile(rule RawRule) (Rule, error) {
 	if len(rule.MetricKeyPattern) == 0 {
-		return Rule{}, ErrInvalidMetricKey
+		return Rule{}, newInvalidMetricKey(rule.MetricKeyPattern)
 	}
 	graphitePatternTags := extractTags(rule.Pattern)
 	if graphitePatternTags == nil {
-		return Rule{}, ErrInvalidPattern
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
 	}
 	metricKeyTags := extractTags(string(rule.MetricKeyPattern))
 	if !isSubset(metricKeyTags, graphitePatternTags) {
-		return Rule{}, ErrInvalidMetricKey
+		return Rule{}, newInvalidMetricKey(rule.MetricKeyPattern)
 	}
 	if metricKeyTags == nil {
-		return Rule{}, ErrInvalidMetricKey
+		return Rule{}, newInvalidMetricKey(rule.MetricKeyPattern)
 	}
 	if !rule.checkTagRegexes() {
-		return Rule{}, ErrInvalidCustomRegex
+		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 	regex := rule.toRegexp(rule.Pattern)
 	if regex == nil {
-		return Rule{}, ErrInvalidPattern
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
 	}
 	if regex.NumSubexp() != len(graphitePatternTags) {
-		return Rule{}, ErrInvalidCustomRegex
+		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 	metricKeyRegex := rule.toRegexp(rule.MetricKeyPattern)
 	if metricKeyRegex == nil {
-		return Rule{}, ErrInvalidPattern
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
 	}
 	if metricKeyRegex.NumSubexp() != len(metricKeyTags) {
-		return Rule{}, ErrInvalidCustomRegex
+		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 	return Rule{
 		raw:                  rule,
@@ -144,7 +129,7 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetr
 	extractedTagSet := extractTagValues(rule.metricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
 	if extractedTagSet == nil {
 		// no match found. not a correct rule to interpolate.
-		return "", ErrCannotInterpolate
+		return "", newCannotInterpolate()
 	}
 	// Merge the tags in the provided tag set, and tags extracted from the metric.
 	// This is necessary because tags embedded in the metric are not
@@ -178,7 +163,7 @@ func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (api.Graphi
 			return reversed, nil
 		}
 	}
-	return "", ErrCannotInterpolate
+	return "", newCannotInterpolate()
 }
 
 // checkTagRegexes sees if any of the custom regular expressions are invalid.
@@ -274,10 +259,14 @@ func extractTags(pattern string) []string {
 }
 
 // LoadYAML loads a RuleSet from the byte array of the YAML file.
+// error is an interface of RuleError.
 func LoadYAML(input []byte) (RuleSet, error) {
 	rawRules := RawRules{}
 	if err := yaml.Unmarshal(input, &rawRules); err != nil {
-		return RuleSet{}, err
+		return RuleSet{}, ruleError{
+			code:    InvalidYaml,
+			message: err.Error(),
+		}
 	}
 	rules := make([]Rule, len(rawRules.RawRules))
 	for index, rawRule := range rawRules.RawRules {
@@ -320,7 +309,7 @@ func interpolateTags(pattern string, tagSet api.TagSet) (string, error) {
 			if hasTag {
 				buffer.WriteString(tagValue)
 			} else {
-				return "", ErrMissingTag
+				return "", newMissingTag(token)
 			}
 		} else {
 			buffer.WriteString(token)

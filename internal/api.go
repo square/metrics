@@ -86,7 +86,7 @@ func (a *defaultAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, 
 	if matched {
 		return match, nil
 	}
-	return api.TaggedMetric{}, ErrNoMatch
+	return api.TaggedMetric{}, newNoMatch()
 }
 
 // ensure interface

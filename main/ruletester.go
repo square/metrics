@@ -85,7 +85,7 @@ func main() {
 	scanner := bufio.NewScanner(metricFile)
 	apiInstance := common.NewAPI()
 	var output *os.File
-	if (*unmatchedFile != "") {
+	if *unmatchedFile != "" {
 		output, err = os.Create(*unmatchedFile)
 		if err != nil {
 			common.ExitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
