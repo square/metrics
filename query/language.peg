@@ -76,15 +76,15 @@ predicateClause <- "where" __ predicate_1
 # ...
 
 predicate_1 <-
-  predicate_2 OP_AND predicate_1 { p.addAndMatcher() } /
+  predicate_2 OP_AND predicate_1 { p.addAndPredicate() } /
   predicate_2 /
 
 predicate_2 <-
-  predicate_3 OP_OR predicate_2 { p.addOrMatcher() } /
+  predicate_3 OP_OR predicate_2 { p.addOrPredicate() } /
   predicate_3
 
 predicate_3 <-
-  OP_NOT predicate_3 { p.addNotMatcher() } /
+  OP_NOT predicate_3 { p.addNotPredicate() } /
   PAREN_OPEN predicate_1 PAREN_CLOSE /
   tagMatcher
 
@@ -94,7 +94,7 @@ tagMatcher <-
   } /
   tagName _ "!=" _ literalString {
     p.addLiteralMatcher()
-    p.addNotMatcher()
+    p.addNotPredicate()
   } /
   tagName __ "matches" __ literalString {
     p.addRegexMatcher()
@@ -117,8 +117,7 @@ literalListString <- STRING {
 }
 
 tagName <-
-  { p.addTagRefNode() }
-  <TAG_NAME> { p.setTag(buffer[begin:end]) }
+  <TAG_NAME> { p.addTag(buffer[begin:end]) }
 
 # Lexical Syntax
 # ==============

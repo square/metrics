@@ -90,6 +90,11 @@ func (tagSet TagSet) Serialize() string {
 	return buffer.String()
 }
 
+func (tagSet TagSet) HasKey(key string) bool {
+	_, hasTag := tagSet[key]
+	return hasTag
+}
+
 // TaggedMetric is composition of a MetricKey and a TagSet.
 // TaggedMetric should uniquely identify a single series of metric.
 type TaggedMetric struct {

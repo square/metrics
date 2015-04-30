@@ -25,7 +25,7 @@ func (cmd *DescribeCommand) Execute(a api.API) (interface{}, error) {
 	tags, _ := a.GetAllTags(cmd.metricName)
 	output := make([]string, 0, len(tags))
 	for _, tag := range tags {
-		if cmd.predicate.Match(tag) {
+		if cmd.predicate.Apply(tag) {
 			output = append(output, tag.Serialize())
 		}
 	}
