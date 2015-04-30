@@ -8,43 +8,32 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics-indexer/internal"
+	"github.com/square/metrics-indexer/main/common"
 	"io/ioutil"
 	"os"
 	"sort"
-
-	"github.com/square/metrics-indexer/api"
-	"github.com/square/metrics-indexer/internal"
 )
 
 var (
-	yamlFile         = flag.String("yaml-file", "", "Location of YAML configuration file.")
-	metricsFile      = flag.String("metrics-file", "", "Location of metrics list to test transformations to.")
+	metricsFile      = flag.String("metrics-file", "", "Location of YAML configuration file.")
 	unmatchedFile    = flag.String("unmatched-file", "", "location of metrics list to output unmatched transformations.")
 	insertToDatabase = flag.Bool("insert-to-db", false, "If true, insert rows to database.")
 )
 
-func exitWithRequired(flagName string) {
-	fmt.Fprintf(os.Stderr, "%s is required\n", flagName)
-	os.Exit(1)
-}
-
-func exitWithMessage(message string) {
-	fmt.Fprint(os.Stderr, message)
-	os.Exit(1)
-}
-
 func readRule(filename string) *internal.RuleSet {
 	file, err := os.Open(filename)
 	if err != nil {
-		exitWithMessage("No rule file")
+		common.ExitWithMessage("No rule file")
 	}
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		exitWithMessage("Cannot read the rule YAML")
+		common.ExitWithMessage("Cannot read the rule YAML")
 	}
 	rule, err := internal.LoadYAML(bytes)
 	if err != nil {
-		exitWithMessage("Cannot parse Rule file")
+		common.ExitWithMessage("Cannot parse Rule file")
 	}
 	return &rule
 }
@@ -68,32 +57,25 @@ type PerMetricStatistics struct {
 
 func main() {
 	flag.Parse()
-	if *yamlFile == "" {
-		exitWithRequired("yaml-file")
+	if *common.YamlFile == "" {
+		common.ExitWithRequired("yaml-file")
 	}
 	if *metricsFile == "" {
-		exitWithRequired("metrics-file")
+		common.ExitWithRequired("metrics-file")
 	}
-	ruleset := readRule(*yamlFile)
+	ruleset := readRule(*common.YamlFile)
 	metricFile, err := os.Open(*metricsFile)
 	if err != nil {
-		exitWithMessage("No metric file.")
+		common.ExitWithMessage("No metric file.")
 	}
 	scanner := bufio.NewScanner(metricFile)
+	apiInstance := common.NewAPI()
 	var output *os.File
 	if (*unmatchedFile != "") {
 		output, err = os.Create(*unmatchedFile)
 		if err != nil {
-			exitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
+			common.ExitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
 		}
-	}
-	apiInstance, err := internal.NewAPI(api.Configuration{
-		RuleYamlFilePath: *yamlFile,
-		Hosts:            []string{"localhost"},
-		Keyspace:         "metrics_indexer",
-	})
-	if err != nil {
-		exitWithMessage("Cannot instantiate a new API.")
 	}
 	stat := run(ruleset, scanner, apiInstance, output)
 	report(stat)
@@ -132,6 +114,7 @@ func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API,
 	}
 	return stat
 }
+
 func report(stat Statistics) {
 	total := stat.matched + stat.unmatched
 	fmt.Printf("Processed %d entries\n", total)

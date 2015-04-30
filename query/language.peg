@@ -1,0 +1,178 @@
+package query
+
+type Parser Peg {
+  // temporary variables
+  nodeStack []Node  // stack of nodes used during the AST traversal. should be empty at finish.
+  errors    []error // errors accumulated during the AST traversal. should be empty at finish.
+
+  // final result
+  command Command
+}
+
+# The following queries are support
+
+# describe all              <- describe all statement - returns all metric keys.
+# describe metric where ... <- describes a single metric - returns all tagsets within a single metric key.
+# select ...                <- select statement - retrieves, transforms, and aggregates time serieses.
+
+# Refer to the unit test query_test.go for more info.
+
+# Hierarchical Syntax
+# ===================
+
+root <- (selectStmt / describeStmt) !.
+
+selectStmt <-   "select" __
+  expressionList
+  optionalPredicateClause
+  rangeClause
+
+describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
+
+describeAllStmt <- "all" { p.makeDescribeAll() }
+
+describeSingleStmt <-
+	<METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
+  optionalPredicateClause
+	{ p.makeDescribe() }
+
+rangeClause <-
+  _ "from" __ TIMESTAMP __ "to" __ TIMESTAMP
+
+optionalPredicateClause <-
+  __ predicateClause / { p.addNullPredicate() }
+
+# expression_X are layered to maintain the order of operations.
+
+expressionList <- expression_1 ( COMMA expression_1 )*
+
+expression_1 <-
+  expression_2 ((OP_ADD / OP_SUB) expression_2) *
+
+expression_2 <-
+  expression_3 ((OP_DIV / OP_MULT) expression_3) *
+
+expression_3 <-
+  # aggregate function
+  IDENTIFIER PAREN_OPEN expression_1 __ groupByClause PAREN_CLOSE /
+  # non-aggregate function
+  IDENTIFIER PAREN_OPEN expressionList PAREN_CLOSE /
+  # sub-expression
+  PAREN_OPEN expression_1 PAREN_CLOSE /
+  # reference to time series.
+  IDENTIFIER ("[" _ predicate_1 _ "]")? /
+  # constant scalar
+  NUMBER
+
+groupByClause <-
+  "group" __ "by" __ COLUMN_NAME ( COMMA COLUMN_NAME )*
+
+predicateClause <- "where" __ predicate_1
+
+# predicate_X are layered to maintain the order of operations.
+# not
+# or
+# and
+# ...
+
+predicate_1 <-
+  predicate_2 OP_AND predicate_1 { p.addAndPredicate() } /
+  predicate_2 /
+
+predicate_2 <-
+  predicate_3 OP_OR predicate_2 { p.addOrPredicate() } /
+  predicate_3
+
+predicate_3 <-
+  OP_NOT predicate_3 { p.addNotPredicate() } /
+  PAREN_OPEN predicate_1 PAREN_CLOSE /
+  tagMatcher
+
+tagMatcher <-
+  tagName _ "=" _ literalString {
+    p.addLiteralMatcher()
+  } /
+  tagName _ "!=" _ literalString {
+    p.addLiteralMatcher()
+    p.addNotPredicate()
+  } /
+  tagName __ "matches" __ literalString {
+    p.addRegexMatcher()
+  } /
+  tagName __ "in" __ literalList {
+    p.addListMatcher()
+  }
+
+literalString <- <STRING> {
+  p.addLiteralNode(unescapeLiteral(buffer[begin:end]))
+}
+
+literalList <- { p.addLiteralListNode() }
+  PAREN_OPEN
+    literalListString (COMMA literalListString)*
+  PAREN_CLOSE
+
+literalListString <- STRING {
+  p.appendLiteral(unescapeLiteral(buffer[begin:end]))
+}
+
+tagName <-
+  <TAG_NAME> { p.addTag(buffer[begin:end]) }
+
+# Lexical Syntax
+# ==============
+# Convention: These rules contain no code blocks.
+
+COLUMN_NAME <- IDENTIFIER
+METRIC_NAME <- IDENTIFIER
+TAG_NAME <-    IDENTIFIER
+# TODO - may be refactored later.
+TIMESTAMP <-   INTEGER / STRING
+IDENTIFIER <-  "`" CHAR* "`" / !KEYWORD ID_SEGMENT ("." ID_SEGMENT)*
+ID_SEGMENT <-  ID_START ID_CONT*
+# Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
+# If hyphens are needed, use backticks instead.
+ID_START <-    [a-zA-Z_]
+ID_CONT <-     ID_START / [0-9]
+KEYWORD <-     # List of keywrods used throughout the code.
+  "all" /
+  "and" /
+  "as" /
+  "by" /
+  "describe" /
+  "from" /
+  "group" /
+  "in" /
+  "matches" /
+  "not" /
+  "or" /
+  "select" /
+  "to" /
+  "where"
+
+NUMBER <-  INTEGER
+INTEGER <- "0" / "-"? [1-9][0-9]*
+
+OP_ADD  <- _ "+" _
+OP_SUB  <- _ "-" _
+OP_MULT <- _ "*" _
+OP_DIV  <- _ "/" _
+OP_AND  <- __ "and" __
+OP_OR   <- __ "or" __
+OP_NOT  <- "not" __
+
+STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
+
+CHAR         <- "\\" ESCAPE_CLASS / ! ESCAPE_CLASS .
+# TODO - this currently doesn't support not-escaping single-quotes within quotes, vice versa.
+ESCAPE_CLASS <- ("'" / "`" / "\"" / "\\")
+
+# Syntactic elements
+# ==================
+
+PAREN_OPEN <-  _ "(" _
+PAREN_CLOSE <- _ ")" _
+COMMA <-       _ "," _
+_  <-          SPACE* # Optional spaces
+__ <-          SPACE+ # Required spaces
+SPACE <-       " " / "\n" / "\t"
