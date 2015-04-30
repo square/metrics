@@ -102,12 +102,18 @@ func TestMatchRule_FilterTag(t *testing.T) {
 		MetricKeyPattern: "test-metric.%bar%",
 	})
 	a.CheckError(err)
-	matcher, matched := rule.MatchRule("prefix.fooValue.barValue")
+	originalName := "prefix.fooValue.barValue"
+	matcher, matched := rule.MatchRule(originalName)
 	if !matched {
 		t.Errorf("Expected matching but didn't occur")
+		return
 	}
 	a.EqString(string(matcher.MetricKey), "test-metric.barValue")
 	a.Eq(matcher.TagSet, api.TagSet(map[string]string{"foo": "fooValue"}))
+	// perform the reverse.
+	reversed, err := rule.ToGraphiteName(matcher)
+	a.CheckError(err)
+	a.EqString(string(reversed), originalName)
 }
 
 func TestMatchRule_CustomRegex(t *testing.T) {

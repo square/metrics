@@ -1,26 +1,105 @@
+_:
+  # YAML variables used throughout the code.
+  percentile: &percentile "(?:[0-9]+percentile|median)"
+  integer:    &integer    "[0-9]+"
+
 rules:
-  - pattern:    "%app%.%env%.%datacenter%.%host%.cogs.dispatcher.SyncService.CreateSession.request_size.%percentile%"
-    metric_key: "dispatcher.SyncService.CreateSession"
-  # Rule for RPC Client
-  - pattern:    "%app%.%env%.%datacenter%.%host%.framework.clients.rpc.SakeService.%service%.%action%.%type%.%percentile%"
-    metric_key: "framework.clients.rpc.SakeService.%type%"
+  # JVM metrics
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.gc.%gc%.time"
+    metric_key: "jvm.gc.time"
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.gc.%gc%.runs"
+    metric_key: "jvm.gc.runs"
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.memory.memory_pool_usages.%type%"
+    metric_key: "jvm.memory.memory_pool_usage"
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.memory.%type%"
+    metric_key: "jvm.memory.memory_usage"
     regex:
-      percentile: "(?:[0-9]+percentile|median)"
-  - pattern:    "%app%.%env%.%datacenter%.%host%.feeds.consumers.%feedname%-shard-%shard%.%method%.%type%"
+      type: "heap_usage|non_heap_usage"
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.thread-states.%type%"
+    metric_key: "jvm.thread-states"
+  - pattern:    "%app%.%env%.%dc%.%host%.jvm.%type%"
+    metric_key: "jvm.thread-count"
+    regex:
+      type: "thread_count|daemon_thread_count"
+
+  # JVM performance metric outside.
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.perf.pause.peak.value"
+    metric_key:   "framework.perf.pause.peak"
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.perf.pause.sum"
+    metric_key:   "framework.perf.pause.sum"
+
+  # Rule for Java Action Framework
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%api%.response_times.%percentile%"
+    metric_key: "framework.actions.api.response_times"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%service%.%api%.response_times.%percentile%"
+    metric_key: "framework.actions.service-api.percentile"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%api%.response_codes.%type%s.count"
+    metric_key: "framework.actions.api.response_codes.count"
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.actions.%service%.%api%.response_codes.%type%s.count"
+    metric_key: "framework.actions.service-api.response_codes"
+
+
+  # Java components
+  - pattern:    "%app%.%env%.%dc%.%host%.components.rpc.server.open-connections.value"
+    metric_key: "components.rpc.server.open-connections"
+
+  # Rule for RPC Client
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.connections.all.value"
+    metric_key: "framework.clients.rpc.connections"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.%type%.%percentile%"
+    metric_key: "framework.clients.rpc.%type%"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.response_codes.%code%.count"
+    metric_key: "framework.clients.rpc.response_codes.count"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.%type%.sum"
+    metric_key: "framework.clients.rpc.response_codes.sum"
+    regex:
+      percentile: *percentile
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.%type%.count"
+    metric_key: "framework.clients.rpc.%type%.count"
+  - pattern:    "%app%.%env%.%dc%.%host%.framework.clients.rpc.%service%.%api%.%dest%.%type%.peak.value"
+    metric_key: "framework.clients.rpc.%type%.peak"
+
+  # Rules for feeds
+  - pattern:    "%app%.%env%.%dc%.%host%.feeds.consumers.%feedname%-shard-%shard%.%method%.%type%"
     metric_key: "feeds.consumers.%method%"
     regex:
-      shard: "[0-9]+"
+      shard: *integer
+
   # Rule for nodes
-  - pattern:    "nodes.%host%_%datacenter%_square.cpu.%type%"
+  - pattern:    "nodes.%host%_%dc%_square.cpu.%type%"
     metric_key: "nodes.cpu.usage"
     regex:
       type: "(?:system|user|idle)"
-  - pattern:    "nodes.%host%_%datacenter%_square.cpu.swap%type%"
+  - pattern:    "nodes.%host%_%dc%_square.cpu.swap%type%"
     metric_key: "nodes.cpu.swap"
-  - pattern:    "nodes.%host%_%datacenter%_square.cpu.io%type%"
+  - pattern:    "nodes.%host%_%dc%_square.cpu.io%type%"
     metric_key: "nodes.cpu.io"
- # catch-all for all the missing ones.
-  - pattern:    "nodes.%host%_%datacenter%_square.cpu.%type%"
+
+  # catch-all for all the missing node metric.
+  - pattern:    "nodes.%host%_%dc%_square.cpu.%type%"
     metric_key: "nodes.cpu.%type%"
-  - pattern:    "nodes.%host%_%datacenter%_square.disk.%volume%.%metric%"
+  - pattern:    "nodes.%host%_%dc%_square.disk.%volume%.%metric%"
     metric_key: "nodes.disk.%metric%"
+
+  # SQ-metrics
+  - pattern:    "aggregated.%app%.%env%.%dc%._%cluster%.http.action_controller.process_action.%controller%.%method%.response_time.count"
+    metric_key: "http.action_controller.process_action.count"
+  - pattern:    "aggregated.%app%.%env%.%dc%._%cluster%.http.action_controller.process_action.%controller%.%method%.response_time.count_ps"
+    metric_key: "http.action_controller.process_action.count_ps"
+  - pattern:    "aggregated.%app%.%env%.%dc%._%cluster%.http.action_controller.process_action.%controller%.%method%.%status%_count_ps"
+    metric_key: "http.action_controller.process_action.status_count_ps"
+    regex:
+      status: *integer
+  # Application-specific rules
+  - pattern:    "%app%.%env%.%dc%.%host%.cogs.dispatcher.SyncService.CreateSession.request_size.%percentile%"
+    metric_key: "dispatcher.SyncService.CreateSession"
