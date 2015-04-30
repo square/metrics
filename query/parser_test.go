@@ -1,7 +1,7 @@
 package query
 
 import (
-	"github.com/square/metrics-indexer/assert"
+	"github.com/square/metrics/assert"
 	"testing"
 )
 

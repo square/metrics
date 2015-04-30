@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics/api"
 	"gopkg.in/yaml.v2"
 )
 

@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/square/metrics-indexer/assert"
+	"github.com/square/metrics/assert"
 )
 
 func TestTagSet_Serialize(t *testing.T) {

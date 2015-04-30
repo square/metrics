@@ -4,7 +4,7 @@ package query
 // show tags WHERE predicate
 
 import (
-	"github.com/square/metrics-indexer/assert"
+	"github.com/square/metrics/assert"
 	"testing"
 )
 

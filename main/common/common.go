@@ -3,8 +3,8 @@ package common
 import (
 	"flag"
 	"fmt"
-	"github.com/square/metrics-indexer/api"
-	"github.com/square/metrics-indexer/internal"
+	"github.com/square/metrics/api"
+	"github.com/square/metrics/internal"
 	"os"
 )
 

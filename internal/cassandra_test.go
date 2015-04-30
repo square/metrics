@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/gocql/gocql"
-	"github.com/square/metrics-indexer/api"
-	"github.com/square/metrics-indexer/assert"
+	"github.com/square/metrics/api"
+	"github.com/square/metrics/assert"
 )
 
 func newDatabase(t *testing.T) *defaultDatabase {

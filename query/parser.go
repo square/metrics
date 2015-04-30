@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics/api"
 )
 
 // Parse is the entry point of the parser.

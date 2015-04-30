@@ -3,8 +3,8 @@ package internal
 import (
 	"testing"
 
-	"github.com/square/metrics-indexer/api"
-	"github.com/square/metrics-indexer/assert"
+	"github.com/square/metrics/api"
+	"github.com/square/metrics/assert"
 )
 
 func TestCompile_Good(t *testing.T) {

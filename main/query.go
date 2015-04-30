@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/square/metrics-indexer/main/common"
-	"github.com/square/metrics-indexer/query"
+	"github.com/square/metrics/main/common"
+	"github.com/square/metrics/query"
 	"os"
 )
 

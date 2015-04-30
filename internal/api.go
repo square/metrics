@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gocql/gocql"
-	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics/api"
 )
 
 // API implementations.

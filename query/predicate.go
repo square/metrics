@@ -1,7 +1,7 @@
 package query
 
 import (
-	"github.com/square/metrics-indexer/api"
+	"github.com/square/metrics/api"
 )
 
 // Predicate is a boolean function applied against the given
