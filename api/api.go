@@ -38,6 +38,19 @@ func NewTagSet() TagSet {
 	return make(map[string]string)
 }
 
+// Merge two tagsets, and return a new tagset.
+// If keys conflict, the first tag set is preferred.
+func (tagSet TagSet) Merge(other TagSet) TagSet {
+	result := NewTagSet()
+	for key, value := range other {
+		result[key] = value
+	}
+	for key, value := range tagSet {
+		result[key] = value
+	}
+	return result
+}
+
 // ParseTagSet parses a given string to a tagset, nil
 // if parsing failed.
 func ParseTagSet(raw string) TagSet {

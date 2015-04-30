@@ -18,6 +18,7 @@ import (
 
 var (
 	metricsFile      = flag.String("metrics-file", "", "Location of YAML configuration file.")
+	unmatchedFile    = flag.String("unmatched-file", "", "location of metrics list to output unmatched transformations.")
 	insertToDatabase = flag.Bool("insert-to-db", false, "If true, insert rows to database.")
 )
 
@@ -69,11 +70,18 @@ func main() {
 	}
 	scanner := bufio.NewScanner(metricFile)
 	apiInstance := common.NewAPI()
-	stat := run(ruleset, scanner, apiInstance)
+	var output *os.File
+	if (*unmatchedFile != "") {
+		output, err = os.Create(*unmatchedFile)
+		if err != nil {
+			common.ExitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
+		}
+	}
+	stat := run(ruleset, scanner, apiInstance, output)
 	report(stat)
 }
 
-func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API) Statistics {
+func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, unmatched *os.File) Statistics {
 	stat := Statistics{
 		perMetric: make(map[api.MetricKey]PerMetricStatistics),
 	}
@@ -98,10 +106,15 @@ func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API)
 			stat.perMetric[converted.MetricKey] = perMetric
 		} else {
 			stat.unmatched++
+			if unmatched != nil {
+				unmatched.WriteString(input)
+				unmatched.WriteString("\n")
+			}
 		}
 	}
 	return stat
 }
+
 func report(stat Statistics) {
 	total := stat.matched + stat.unmatched
 	fmt.Printf("Processed %d entries\n", total)
