@@ -31,7 +31,7 @@ var fileRegex = regexp.MustCompile("([^/]*/){0,2}[^/]*$")
 type Assert struct {
 	t       *testing.T
 	stack   int // number of stack frames to traverse to generate error.
-	Context string
+	context string
 }
 
 // New creates a new Assert struct.
@@ -39,8 +39,9 @@ func New(t *testing.T) Assert {
 	return Assert{t, 0, ""}
 }
 
-// Stack sets how many stack frames to traverse to print the error message.
+// Stack shifts how many stack frames to traverse to print the error message.
 // this may be useful if you're creating a helper testing method.
+// returns a new instances of Assert.
 func (assert Assert) Stack(stack int) Assert {
 	assert.stack += stack
 	return assert
@@ -49,8 +50,9 @@ func (assert Assert) Stack(stack int) Assert {
 // ContextF sets the human-readable context of the test. This is useful
 // when the line number is not sufficient locator for the test failure:
 // i.e. testing in a loop.
+// returns a new instances of Assert.
 func (assert Assert) Contextf(format string, a ...interface{}) Assert {
-	assert.Context = fmt.Sprintf(format, a...)
+	assert.context = fmt.Sprintf(format, a...)
 	return assert
 }
 
@@ -92,8 +94,8 @@ func (assert Assert) CheckError(err error) {
 
 func (assert Assert) withCaller(format string, a ...interface{}) {
 	file, line := caller(assert.stack)
-	if assert.Context != "" {
-		assert.t.Errorf("%s:%d> [%s] %s", file, line, assert.Context, fmt.Sprintf(format, a...))
+	if assert.context != "" {
+		assert.t.Errorf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
 	} else {
 		assert.t.Errorf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
 	}
