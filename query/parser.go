@@ -74,10 +74,10 @@ func Parse(query string) (Command, error) {
 	if len(p.assertions) > 0 {
 		// logic error - an internal constraint is violated.
 		// TODO - log this error internally.
-		return nil, AssertionError{"Assertion Error: Programming error"}
+		return nil, AssertionError{"Programming error"}
 	}
 	if len(p.nodeStack) > 0 {
-		return nil, AssertionError{"Assertion Error: Node stack is not empty"}
+		return nil, AssertionError{"Node stack is not empty"}
 	}
 	if len(p.errors) > 0 {
 		// user error - an invalid query is provided.
@@ -85,7 +85,7 @@ func Parse(query string) (Command, error) {
 	}
 	if p.command == nil {
 		// after parsing has finished, there should be a command available.
-		return nil, AssertionError{"Assertion Error: No command"}
+		return nil, AssertionError{"No command"}
 	}
 	return p.command, nil
 }
