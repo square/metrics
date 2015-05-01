@@ -64,6 +64,10 @@ type tagNode struct {
 	tag string
 }
 
+type numberNode struct {
+	value float64
+}
+
 func printHelper(buffer bytes.Buffer, indent int, value string) {
 	for i := 0; i < indent; i++ {
 		buffer.WriteString(" ")
@@ -133,4 +137,8 @@ func (node *literalListNode) Print(buffer bytes.Buffer, indent int) {
 func (node *tagNode) Print(buffer bytes.Buffer, indent int) {
 	printHelper(buffer, indent, "tagNode")
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
+}
+func (node *numberNode) Print(buffer bytes.Buffer, indent int) {
+	printHelper(buffer, indent, "numberNode")
+	printHelper(buffer, indent+1, fmt.Sprintf("%f", node.value))
 }

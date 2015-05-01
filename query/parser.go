@@ -19,9 +19,11 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/square/metrics/api"
@@ -298,6 +300,21 @@ func (p *Parser) addAndPredicate() {
 	})
 }
 
+func (p *Parser) addNumberNode(value string) {
+	parsedValue, err := parseNumber(value)
+	if err != nil || math.IsNaN(parsedValue) {
+		p.flagSyntaxError(SyntaxError{
+			token:   value,
+			message: fmt.Sprintf("Cannot parse the number: %s", value),
+		})
+		return
+	}
+	p.pushNode(&numberNode{parsedValue})
+}
+
+// Utility Functions
+// =================
+
 // used to unescape:
 // - identifiers (no unescaping required).
 // - quoted strings.
@@ -317,6 +334,10 @@ func unescapeLiteral(escaped string) string {
 		}
 	}
 	return processed
+}
+
+func parseNumber(value string) (float64, error) {
+	return strconv.ParseFloat(value, 64)
 }
 
 var functionNameRegex = regexp.MustCompile(`[^./]+$`)
