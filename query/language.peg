@@ -50,7 +50,9 @@ root <- (selectStmt / describeStmt) !.
 selectStmt <-   "select" __
   expressionList
   optionalPredicateClause
-  rangeClause
+  rangeClause {
+    p.makeSelect()
+  }
 
 describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
 
@@ -69,25 +71,61 @@ optionalPredicateClause <-
 
 # expression_X are layered to maintain the order of operations.
 
-expressionList <- expression_1 ( COMMA expression_1 )*
+expressionList <- 
+	{ p.addExpressionList() }
+	expression_1 { p.appendExpression() }
+	(
+		COMMA expression_1 { p.appendExpression() }
+	)*
 
 expression_1 <-
-  expression_2 ((OP_ADD / OP_SUB) expression_2) *
+  expression_2
+  (
+    (OP_ADD { p.addOperatorLiteralNode("*") } / OP_SUB { p.addOperatorLiteralNode("-") })
+    expression_2 { p.addOperatorExpressionNode() }
+  ) *
 
 expression_2 <-
-  expression_3 ((OP_DIV / OP_MULT) expression_3) *
+  expression_3
+  (
+    (OP_DIV { p.addOperatorLiteralNode("*") } / OP_MULT { p.addOperatorLiteralNode("*") })
+    expression_3 { p.addOperatorExpressionNode() }
+  ) *
 
 expression_3 <-
-  # aggregate function
-  IDENTIFIER PAREN_OPEN expression_1 __ groupByClause PAREN_CLOSE /
-  # non-aggregate function
-  IDENTIFIER PAREN_OPEN expressionList PAREN_CLOSE /
-  # sub-expression
+  expression_aggregate /
+  expression_function /
+  expression_metric /
+  # #sub-expression
   PAREN_OPEN expression_1 PAREN_CLOSE /
-  # reference to time series.
-  IDENTIFIER ("[" _ predicate_1 _ "]")? /
   # constant scalar
-  NUMBER
+  <NUMBER> { p.addNumberNode(buffer[begin:end]) }
+
+expression_aggregate <-
+  # TODO - implement this
+  <IDENTIFIER> {
+    p.addLiteralNode(unescapeLiteral(buffer[begin:end]))
+  }
+  PAREN_OPEN
+    expression_1 __ groupByClause
+  PAREN_CLOSE
+
+expression_function  <- 
+  # TODO - implement this
+  <IDENTIFIER> {
+    p.addLiteralNode(unescapeLiteral(buffer[begin:end]))
+  }
+  PAREN_OPEN
+    expressionList
+  PAREN_CLOSE
+
+expression_metric <-
+  <IDENTIFIER> {
+    p.addLiteralNode(unescapeLiteral(buffer[begin:end]))
+  }
+  ("[" _ predicate_1 _ "]" / { p.addNullPredicate() })? {
+    p.addMetricReferenceNode()
+  }
 
 groupByClause <-
   "group" __ "by" __ COLUMN_NAME ( COMMA COLUMN_NAME )*

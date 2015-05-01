@@ -40,9 +40,6 @@ var inputs = []string{
 	"describe cpu_usage where key in ('value', 'value')",
 	"describe cpu_usage where key matches 'abc'",
 	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host matches 'fwd'",
-}
-
-var parseOnly = []string{
 	// selects - numbers
 	"select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0",
 	"select 10, 100, 1000 from 0 to 0",
@@ -50,8 +47,8 @@ var parseOnly = []string{
 	"select -10.1, -10.01, -10.001 from 0 to 0",
 	"select 1.0e1, 1.0e2, 1.0e10, 1.0e0 from 0 to 0",
 	"select 1.0e-5, 1.0e+5 from 0 to 0",
-
 	// selects - trying out arithmetic
+	"select x from 0 to 0",
 	"select x from 0 to 0",
 	"select x-y-z from 0 to 0",
 	"select (x)-(y)-(z) from 0 to 0",
@@ -64,6 +61,9 @@ var parseOnly = []string{
 	// selects - timestamps
 	"select x * (y + 123), z from '2014-01-01' to '2014-01-02'",
 	"select x * (y + 123), z from 0 to 10000",
+}
+
+var parseOnly = []string{
 	// selects - aggregate functions
 	"select scalar.max(x) from 0 to 0",
 	"select scalar.max(x) from 0 to 0",
@@ -138,5 +138,9 @@ func testParserResult(a assert.Assert, p Parser) {
 			a.Errorf("assertion error: %s", err.Error())
 		}
 	}
-	a.EqInt(len(p.nodeStack), 0)
+	if len(p.nodeStack) != 0 {
+		for _, node := range p.nodeStack {
+			a.Errorf("node error:\n%s", PrintNode(node))
+		}
+	}
 }

@@ -19,9 +19,11 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/square/metrics/api"
@@ -164,8 +166,88 @@ func (p *Parser) makeDescribe() {
 	}
 }
 
+func (p *Parser) makeSelect() {
+	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	expressionList, ok := p.popNode(expressionListPointer).(*expressionListNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.command = &SelectCommand{
+		predicate:   predicateNode,
+		expressions: expressionList.expressions,
+	}
+}
+
 func (p *Parser) makeDescribeAll() {
 	p.command = &DescribeAllCommand{}
+}
+
+func (p *Parser) addOperatorLiteralNode(operator string) {
+	p.pushNode(&operatorLiteralNode{operator})
+}
+
+func (p *Parser) addOperatorExpressionNode() {
+	right, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	operatorNode, ok := p.popNode(operatorLiteralPointer).(*operatorLiteralNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	left, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&functionNode{
+		functionName: operatorNode.operator,
+		arguments:    []Expression{left, right},
+	})
+}
+
+func (p *Parser) addMetricReferenceNode() {
+	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&metricReferenceNode{
+		metricName: literalNode.literal,
+		predicate:  predicateNode,
+	})
+}
+
+func (p *Parser) addExpressionList() {
+	p.pushNode(&expressionListNode{
+		make([]Expression, 0),
+	})
+}
+
+func (p *Parser) appendExpression() {
+	expressionNode, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode, ok := p.peekNode().(*expressionListNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode.expressions = append(listNode.expressions, expressionNode)
 }
 
 func (p *Parser) addLiteralMatcher() {
@@ -239,12 +321,12 @@ func (p *Parser) addLiteralNode(literal string) {
 }
 
 func (p *Parser) appendLiteral(literal string) {
-	literalNode, ok := p.peekNode().(*literalListNode)
+	listNode, ok := p.peekNode().(*literalListNode)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	literalNode.literals = append(literalNode.literals, literal)
+	listNode.literals = append(listNode.literals, literal)
 }
 
 func (p *Parser) addNotPredicate() {
@@ -256,6 +338,7 @@ func (p *Parser) addNotPredicate() {
 		return
 	}
 }
+
 func (p *Parser) addOrPredicate() {
 	rightPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
@@ -298,6 +381,21 @@ func (p *Parser) addAndPredicate() {
 	})
 }
 
+func (p *Parser) addNumberNode(value string) {
+	parsedValue, err := parseNumber(value)
+	if err != nil || math.IsNaN(parsedValue) {
+		p.flagSyntaxError(SyntaxError{
+			token:   value,
+			message: fmt.Sprintf("Cannot parse the number: %s", value),
+		})
+		return
+	}
+	p.pushNode(&numberNode{parsedValue})
+}
+
+// Utility Functions
+// =================
+
 // used to unescape:
 // - identifiers (no unescaping required).
 // - quoted strings.
@@ -319,6 +417,10 @@ func unescapeLiteral(escaped string) string {
 	return processed
 }
 
+func parseNumber(value string) (float64, error) {
+	return strconv.ParseFloat(value, 64)
+}
+
 var functionNameRegex = regexp.MustCompile(`[^./]+$`)
 
 // name of the function on the stack.
@@ -334,7 +436,10 @@ func functionName(depth int) string {
 // utility type variables
 var (
 	predicateType          = reflect.TypeOf((*Predicate)(nil)).Elem()
-	literalNodePointer     = reflect.TypeOf((*literalNode)(nil))
-	tagNodePointer         = reflect.TypeOf((*tagNode)(nil))
+	expressionType         = reflect.TypeOf((*Expression)(nil)).Elem()
 	literalListNodePointer = reflect.TypeOf((*literalListNode)(nil))
+	literalNodePointer     = reflect.TypeOf((*literalNode)(nil))
+	operatorLiteralPointer = reflect.TypeOf((*operatorLiteralNode)(nil))
+	expressionListPointer  = reflect.TypeOf((*expressionListNode)(nil))
+	tagNodePointer         = reflect.TypeOf((*tagNode)(nil))
 )
