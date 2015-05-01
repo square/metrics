@@ -21,17 +21,17 @@ import (
 	"github.com/square/metrics/assert"
 )
 
-func checkRuleErrorCode(t *testing.T, err error, expected RuleErrorCode) {
+func checkRuleErrorCode(a assert.Assert, err error, expected RuleErrorCode) {
+	a = a.Stack(1)
 	if err == nil {
-		t.Errorf("No error provided.")
+		a.Errorf("No error provided.")
 		return
 	}
 	casted, ok := err.(RuleError)
 	if !ok {
-		t.Errorf("Invalid Error type: %s", err.Error())
+		a.Errorf("Invalid Error type: %s", err.Error())
 		return
 	}
-	a := assert.NewWithStack(t, 1)
 	a.EqInt(int(casted.Code()), int(expected))
 }
 
@@ -65,11 +65,12 @@ func TestCompile_Error(t *testing.T) {
 		{RawRule{Pattern: "prefix.%foo%.%foo%", MetricKeyPattern: "test-metric"}, InvalidPattern},
 		{RawRule{Pattern: "prefix.%foo%.abc.%%", MetricKeyPattern: "test-metric"}, InvalidPattern},
 		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: "test-metric", Regex: map[string]string{"foo": "(bar)"}}, InvalidCustomRegex},
+		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: "test-metric", Regex: map[string]string{"foo": "(bar)"}}, 0},
 	} {
 		_, err := Compile(test.rawRule)
-		checkRuleErrorCode(t, err, test.expectedCode)
+		a := assert.New(t).Contextf("%s", test.rawRule.Pattern)
+		checkRuleErrorCode(a, err, test.expectedCode)
 	}
-
 }
 
 func TestMatchRule_Simple(t *testing.T) {
@@ -169,7 +170,7 @@ rules
     regex: {}
   `
 	ruleSet, err := LoadYAML([]byte(rawYAML))
-	checkRuleErrorCode(t, err, InvalidYaml)
+	checkRuleErrorCode(a, err, InvalidYaml)
 	a.EqInt(len(ruleSet.rules), 0)
 }
 
