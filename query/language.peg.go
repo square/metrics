@@ -716,8 +716,19 @@ func (t *tokens32) Expand(index int) tokenTree {
 type Parser struct {
 
 	// temporary variables
-	nodeStack []Node  // stack of nodes used during the AST traversal. should be empty at finish.
-	errors    []error // errors accumulated during the AST traversal. should be empty at finish.
+	// ===================
+
+	// stack of nodes used during the AST traversal.
+	// a non-empty stack at the finish implies a programming error.
+	nodeStack []Node
+
+	// user errors accumulated during the AST traversal.
+	// a non-empty list at the finish time means an invalid query is provided.
+	errors []SyntaxError
+
+	// programming errors accumulated during the AST traversal.
+	// a non-empty list at the finish time implies a programming error.
+	assertions []error
 
 	// final result
 	command Command
