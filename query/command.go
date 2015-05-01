@@ -55,6 +55,7 @@ func (cmd *DescribeCommand) Name() string {
 type DescribeAllCommand struct {
 }
 
+// Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(a api.API) (interface{}, error) {
 	return a.GetAllMetrics()
 }

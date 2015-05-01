@@ -188,7 +188,7 @@ func (p *Parser) addRegexMatcher() {
 	compiled, err := regexp.Compile(literalNode.literal)
 	if err != nil {
 		// TODO - return more user-friendly error.
-		p.flagError(errors.New(fmt.Sprintf("Cannot parse regex: %s", err.Error())))
+		p.flagError(fmt.Errorf("Cannot parse regex: %s", err.Error()))
 	}
 	p.pushNode(&regexMatcher{
 		tag:   tagNode.tag,

@@ -21,6 +21,30 @@ import (
 	"github.com/square/metrics/assert"
 )
 
+func checkRuleErrorCode(t *testing.T, err error, expected RuleErrorCode) {
+	if err == nil {
+		t.Errorf("No error provided.")
+		return
+	}
+	casted, ok := err.(RuleError)
+	if !ok {
+		t.Errorf("Invalid Error type: %s", err.Error())
+		return
+	}
+	a := assert.NewWithStack(t, 1)
+	a.EqInt(int(casted.Code()), int(expected))
+}
+
+func checkConversionErrorCode(t *testing.T, err error, expected ConversionErrorCode) {
+	casted, ok := err.(ConversionError)
+	if !ok {
+		t.Errorf("Invalid Error type")
+		return
+	}
+	a := assert.New(t)
+	a.EqInt(int(casted.Code()), int(expected))
+}
+
 func TestCompile_Good(t *testing.T) {
 	a := assert.New(t)
 	_, err := Compile(RawRule{
@@ -30,58 +54,22 @@ func TestCompile_Good(t *testing.T) {
 	a.CheckError(err)
 }
 
-func TestCompile_InvalidMetric(t *testing.T) {
-	_, err := Compile(RawRule{
-		Pattern:          "prefix.%foo%",
-		MetricKeyPattern: "",
-	})
-	if err != ErrInvalidMetricKey {
-		t.Errorf("Expected error, but something else happened.")
+func TestCompile_Error(t *testing.T) {
+	for _, test := range []struct {
+		rawRule      RawRule
+		expectedCode RuleErrorCode
+	}{
+		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: ""}, InvalidMetricKey},
+		{RawRule{Pattern: "prefix.%foo%abc%", MetricKeyPattern: "test-metric"}, InvalidPattern},
+		{RawRule{Pattern: "", MetricKeyPattern: "test-metric"}, InvalidPattern},
+		{RawRule{Pattern: "prefix.%foo%.%foo%", MetricKeyPattern: "test-metric"}, InvalidPattern},
+		{RawRule{Pattern: "prefix.%foo%.abc.%%", MetricKeyPattern: "test-metric"}, InvalidPattern},
+		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: "test-metric", Regex: map[string]string{"foo": "(bar)"}}, InvalidCustomRegex},
+	} {
+		_, err := Compile(test.rawRule)
+		checkRuleErrorCode(t, err, test.expectedCode)
 	}
-}
 
-func TestCompile_InvalidPattern(t *testing.T) {
-	_, err := Compile(RawRule{
-		Pattern:          "prefix.%foo%abc%",
-		MetricKeyPattern: "test-metric",
-	})
-	if err != ErrInvalidPattern {
-		t.Errorf("Expected error, but something else happened.")
-	}
-	_, err = Compile(RawRule{
-		Pattern:          "",
-		MetricKeyPattern: "test-metric",
-	})
-	if err != ErrInvalidPattern {
-		t.Errorf("Expected error, but something else happened.")
-	}
-	_, err = Compile(RawRule{
-		Pattern:          "prefix.%foo%.%foo%",
-		MetricKeyPattern: "test-metric",
-	})
-	if err != ErrInvalidPattern {
-		t.Errorf("Expected error, but something else happened.")
-	}
-	_, err = Compile(RawRule{
-		Pattern:          "prefix.%foo%.abc.%%",
-		MetricKeyPattern: "test-metric",
-	})
-	if err != ErrInvalidPattern {
-		t.Errorf("Expected error, but something else happened.")
-	}
-}
-
-func TestCompile_InvalidCustomRegex(t *testing.T) {
-	regex := make(map[string]string)
-	regex["foo"] = "(bar)"
-	_, err := Compile(RawRule{
-		Pattern:          "prefix.%foo%",
-		MetricKeyPattern: "test-metric",
-		Regex:            regex,
-	})
-	if err != ErrInvalidCustomRegex {
-		t.Errorf("Expected error, but something else happened.")
-	}
 }
 
 func TestMatchRule_Simple(t *testing.T) {
@@ -171,6 +159,20 @@ rules:
 	a.Eq(ruleSet.rules[0].graphitePatternTags, []string{"tag"})
 }
 
+func TestLoadYAML_Invalid(t *testing.T) {
+	a := assert.New(t)
+	rawYAML := `
+rules
+  -
+    pattern: foo.bar.baz.%tag%
+    metric_key: abc
+    regex: {}
+  `
+	ruleSet, err := LoadYAML([]byte(rawYAML))
+	checkRuleErrorCode(t, err, InvalidYaml)
+	a.EqInt(len(ruleSet.rules), 0)
+}
+
 func TestToGraphiteName(t *testing.T) {
 	a := assert.New(t)
 	rule, err := Compile(RawRule{
@@ -185,4 +187,26 @@ func TestToGraphiteName(t *testing.T) {
 	reversed, err := rule.ToGraphiteName(tm)
 	a.CheckError(err)
 	a.EqString(string(reversed), "prefix.fooValue")
+}
+
+func TestToGraphiteName_Error(t *testing.T) {
+	a := assert.New(t)
+	rule, err := Compile(RawRule{
+		Pattern:          "prefix.%foo%",
+		MetricKeyPattern: "test-metric",
+	})
+	a.CheckError(err)
+	reversed, err := rule.ToGraphiteName(api.TaggedMetric{
+		MetricKey: "test-metric",
+		TagSet:    api.ParseTagSet(""),
+	})
+	checkConversionErrorCode(t, err, MissingTag)
+	a.EqString(string(reversed), "")
+
+	reversed, err = rule.ToGraphiteName(api.TaggedMetric{
+		MetricKey: "test-metric-foo",
+		TagSet:    api.ParseTagSet("foo=fooValue"),
+	})
+	checkConversionErrorCode(t, err, CannotInterpolate)
+	a.EqString(string(reversed), "")
 }
