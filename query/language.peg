@@ -16,11 +16,22 @@ package query
 
 type Parser Peg {
   // temporary variables
-  nodeStack []Node  // stack of nodes used during the AST traversal. should be empty at finish.
-  errors    []error // errors accumulated during the AST traversal. should be empty at finish.
+  // ===================
+
+  // stack of nodes used during the AST traversal.
+  // a non-empty stack at the finish implies a programming error.
+  nodeStack  []Node
+
+  // user errors accumulated during the AST traversal.
+  // a non-empty list at the finish time means an invalid query is provided.
+  errors     []SyntaxError
+
+  // programming errors accumulated during the AST traversal.
+  // a non-empty list at the finish time implies a programming error.
+  assertions []error
 
   // final result
-  command Command
+  command    Command
 }
 
 # The following queries are support
@@ -46,9 +57,9 @@ describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
 describeAllStmt <- "all" { p.makeDescribeAll() }
 
 describeSingleStmt <-
-	<METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
+  <METRIC_NAME> { p.addLiteralNode(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
-	{ p.makeDescribe() }
+  { p.makeDescribe() }
 
 rangeClause <-
   _ "from" __ TIMESTAMP __ "to" __ TIMESTAMP

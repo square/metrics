@@ -22,6 +22,8 @@ import (
 	"testing"
 )
 
+// these queries should successfully parse,
+// with a corresponding command.
 var inputs = []string{
 	// describes
 	"describe all",
@@ -67,65 +69,66 @@ var parseOnly = []string{
 	// selects - complicated queries
 	"select aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
 	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
-	// rough notes
-	// (absolute, absolute) absolute range
-	// (absolute, relative) FROM ~ FROM + interval (march 1st, 2 days)
-	// (relative, absolute) FROM - interval ~ FROM (2 days, march 1st)
-	// (relative, relative) NOW - interval_1 ~ NOW - interval_2
-	/// + concept of "now"
-
 }
 
-// TODO - add test for "does not parse"
+// these queries should fail with a syntax error.
+var syntaxErrorQuery = []string{
+	"select (",
+	"select )",
+	"describe (",
+	"describe invalid_regex where key matches 'ab['",
+}
 
 func TestParse_success(t *testing.T) {
 	for _, row := range inputs {
-		if err := testParser(t, row); err != nil {
+		if err := checkSyntaxError(t, row); err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
 	}
 	for _, row := range parseOnly {
-		if err := testParser(t, row); err != nil {
+		if err := checkSyntaxError(t, row); err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
+		}
+	}
+}
+
+func TestParse_syntaxError(t *testing.T) {
+	for _, row := range syntaxErrorQuery {
+		_, err := Parse(row)
+		if err == nil {
+			t.Errorf("[%s] should have failed to parse", row)
+		} else if _, ok := err.(SyntaxErrors); !ok {
+			t.Logf("[%s] Expected SyntaxErrors, got: %s", row, err.Error())
 		}
 	}
 }
 
 func TestCompile(t *testing.T) {
-	a := assert.New(t)
 	for _, row := range inputs {
+		a := assert.New(t).Contextf(row)
 		p := Parser{Buffer: row}
 		p.Init()
 		a.CheckError(p.Parse())
 		p.Execute()
-		testParserResult(t, p)
+		testParserResult(a, p)
 	}
 }
 
-func TestPredicate_parse(t *testing.T) {
-	a := assert.New(t)
-	p := Parser{Buffer: "describe x where key in ('a', 'b', 'c')"}
-	p.Init()
-	a.CheckError(p.Parse())
-	p.Execute()
-	testParserResult(t, p)
-}
+// Helper functions
+// ================
 
-func testParser(t *testing.T, input string) error {
+func checkSyntaxError(t *testing.T, input string) error {
 	p := Parser{Buffer: input}
 	p.Init()
 	return p.Parse()
 }
 
-func testParserResult(t *testing.T, p Parser) {
-	a := assert.New(t)
+func testParserResult(a assert.Assert, p Parser) {
+	a.EqInt(len(p.assertions), 0)
+	if len(p.assertions) != 0 {
+		for _, err := range p.assertions {
+			a.Errorf("assertion error: %s", err.Error())
+		}
+	}
 	a.EqInt(len(p.nodeStack), 0)
-	a.EqInt(len(p.errors), 0)
-}
-
-func getNode(input string) {
-	p := Parser{Buffer: input}
-	p.Init()
-	p.Parse()
-	p.Execute()
 }

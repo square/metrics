@@ -19,6 +19,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -54,24 +55,38 @@ import (
 // * Each AST node can make intelligent assumptions on the current
 // state of the node stack. This information is a bit implicit but
 // enforced via type assertions throughout the code.
+//
+// returns either:
+// * command
+// * SyntaxError (user error - query is invalid)
+// * AssertionError (programming error, and is a sign of a bug).
 func Parse(query string) (Command, error) {
 	p := Parser{Buffer: query}
 	p.Init()
 	if err := p.Parse(); err != nil {
 		// Parsing error - invalid syntax.
-		return nil, err
+		// TODO - return the token where the error is occurring.
+		return nil, SyntaxErrors([]SyntaxError{{
+			token:   "",
+			message: err.Error(),
+		}})
 	}
 	p.Execute()
-	if len(p.errors) > 0 {
-		// Logic error - doing some invalid operation.
-		return nil, p.errors[0]
+	if len(p.assertions) > 0 {
+		// logic error - an internal constraint is violated.
+		// TODO - log this error internally.
+		return nil, AssertionError{"Programming error"}
 	}
 	if len(p.nodeStack) > 0 {
-		return nil, errors.New("Node stack is not empty")
+		return nil, AssertionError{"Node stack is not empty"}
+	}
+	if len(p.errors) > 0 {
+		// user error - an invalid query is provided.
+		return nil, SyntaxErrors(p.errors)
 	}
 	if p.command == nil {
 		// after parsing has finished, there should be a command available.
-		return nil, errors.New("Invalid Command")
+		return nil, AssertionError{"No command"}
 	}
 	return p.command, nil
 }
@@ -81,31 +96,44 @@ func Parse(query string) (Command, error) {
 // these functions are called to mark that an error has occurred
 // while parsing or constructing command.
 
-func (p *Parser) flagError(err error) {
+func (p *Parser) flagSyntaxError(err SyntaxError) {
 	p.errors = append(p.errors, err)
 }
 
-func (p *Parser) flagTypeError(typeString string) {
-	p.flagError(fmt.Errorf("[%s] expected %s", functionName(1), typeString))
+func (p *Parser) flagAssert(err error) {
+	p.assertions = append(p.assertions, err)
+}
+
+func (p *Parser) flagTypeAssertion() {
+	p.flagAssert(fmt.Errorf("[%s] type assertion failure", functionName(1)))
 }
 
 // Generic Stack Operation
 // =======================
-func (p *Parser) popNode() Node {
+func (p *Parser) popNode(expected reflect.Type) Node {
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagError(errors.New("popNode() on an empty stack"))
+		p.flagAssert(fmt.Errorf("[%s] popNode() on an empty stack", functionName(1)))
 		return nil
 	}
 	node := p.nodeStack[l-1]
 	p.nodeStack = p.nodeStack[:l-1]
+	actualType := reflect.ValueOf(node).Type()
+	if !actualType.ConvertibleTo(expected) {
+		p.flagAssert(fmt.Errorf("[%s] popNode() - expected %s, got %s",
+			functionName(1),
+			expected.String(),
+			reflect.ValueOf(node).Type().String()),
+		)
+		return nil
+	}
 	return node
 }
 
 func (p *Parser) peekNode() Node {
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagError(errors.New("peekNode() on an empty stack"))
+		p.flagAssert(errors.New("peekNode() on an empty stack"))
 		return nil
 	}
 	node := p.nodeStack[l-1]
@@ -120,14 +148,14 @@ func (p *Parser) pushNode(node Node) {
 // =======================
 // These operations are used by the embedded code snippets in language.peg
 func (p *Parser) makeDescribe() {
-	predicateNode, ok := p.popNode().(Predicate)
+	predicateNode, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
 		return
 	}
-	literalNode, ok := p.popNode().(*literalNode)
+	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
 	if !ok {
-		p.flagTypeError("literalNode")
+		p.flagTypeAssertion()
 		return
 	}
 	p.command = &DescribeCommand{
@@ -141,14 +169,14 @@ func (p *Parser) makeDescribeAll() {
 }
 
 func (p *Parser) addLiteralMatcher() {
-	literalNode, ok := p.popNode().(*literalNode)
+	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
 	if !ok {
-		p.flagTypeError("literalNode")
+		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode().(*tagNode)
+	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
 	if !ok {
-		p.flagTypeError("tagNode")
+		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&listMatcher{
@@ -158,14 +186,14 @@ func (p *Parser) addLiteralMatcher() {
 }
 
 func (p *Parser) addListMatcher() {
-	literalNode, ok := p.popNode().(*literalListNode)
+	literalNode, ok := p.popNode(literalListNodePointer).(*literalListNode)
 	if !ok {
-		p.flagTypeError("literalNode")
+		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode().(*tagNode)
+	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
 	if !ok {
-		p.flagTypeError("tagNode")
+		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&listMatcher{
@@ -175,20 +203,22 @@ func (p *Parser) addListMatcher() {
 }
 
 func (p *Parser) addRegexMatcher() {
-	literalNode, ok := p.popNode().(*literalNode)
+	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
 	if !ok {
-		p.flagTypeError("literalNode")
+		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode().(*tagNode)
+	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
 	if !ok {
-		p.flagTypeError("tagNode")
+		p.flagTypeAssertion()
 		return
 	}
 	compiled, err := regexp.Compile(literalNode.literal)
 	if err != nil {
-		// TODO - return more user-friendly error.
-		p.flagError(fmt.Errorf("Cannot parse regex: %s", err.Error()))
+		p.flagSyntaxError(SyntaxError{
+			token:   literalNode.literal,
+			message: fmt.Sprintf("Cannot parse the regex: %s", err.Error()),
+		})
 	}
 	p.pushNode(&regexMatcher{
 		tag:   tagNode.tag,
@@ -210,29 +240,32 @@ func (p *Parser) addLiteralNode(literal string) {
 
 func (p *Parser) appendLiteral(literal string) {
 	literalNode, ok := p.peekNode().(*literalListNode)
-	if ok {
-		literalNode.literals = append(literalNode.literals, literal)
-	} else {
-		p.flagTypeError("literalNode")
+	if !ok {
+		p.flagTypeAssertion()
+		return
 	}
+	literalNode.literals = append(literalNode.literals, literal)
 }
 
 func (p *Parser) addNotPredicate() {
-	predicate, ok := p.popNode().(Predicate)
+	predicate, ok := p.popNode(predicateType).(Predicate)
 	if ok {
 		p.pushNode(&notPredicate{predicate})
 	} else {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
+		return
 	}
 }
 func (p *Parser) addOrPredicate() {
-	rightPredicate, ok := p.popNode().(Predicate)
+	rightPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
+		return
 	}
-	leftPredicate, ok := p.popNode().(Predicate)
+	leftPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
+		return
 	}
 	p.pushNode(&orPredicate{
 		predicates: []Predicate{
@@ -247,13 +280,15 @@ func (p *Parser) addNullPredicate() {
 }
 
 func (p *Parser) addAndPredicate() {
-	rightPredicate, ok := p.popNode().(Predicate)
+	rightPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
+		return
 	}
-	leftPredicate, ok := p.popNode().(Predicate)
+	leftPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
-		p.flagTypeError("Predicate")
+		p.flagTypeAssertion()
+		return
 	}
 	p.pushNode(&andPredicate{
 		predicates: []Predicate{
@@ -295,3 +330,11 @@ func functionName(depth int) string {
 	f := runtime.FuncForPC(pc[0])
 	return functionNameRegex.FindString(f.Name())
 }
+
+// utility type variables
+var (
+	predicateType          = reflect.TypeOf((*Predicate)(nil)).Elem()
+	literalNodePointer     = reflect.TypeOf((*literalNode)(nil))
+	tagNodePointer         = reflect.TypeOf((*tagNode)(nil))
+	literalListNodePointer = reflect.TypeOf((*literalListNode)(nil))
+)

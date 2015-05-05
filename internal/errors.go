@@ -39,14 +39,13 @@ type RuleError interface {
 	Code() RuleErrorCode
 	// Rule Metric Key, if applicable
 	MetricKey() string
-
-	Error() string
+	error
 }
 
 // ConversionError is the actual error object, wrapping ConversionErrorCode and related metadata.
 type ConversionError interface {
 	Code() ConversionErrorCode
-	Error() string
+	error
 }
 
 // Implementations
@@ -116,3 +115,4 @@ func newNoMatch() ConversionError {
 
 // ensure interface
 var _ RuleError = (*ruleError)(nil)
+var _ ConversionError = (*conversionError)(nil)
