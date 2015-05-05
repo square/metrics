@@ -47,7 +47,7 @@ func (assert Assert) Stack(stack int) Assert {
 	return assert
 }
 
-// ContextF sets the human-readable context of the test. This is useful
+// Contextf sets the human-readable context of the test. This is useful
 // when the line number is not sufficient locator for the test failure:
 // i.e. testing in a loop.
 // returns a new instances of Assert.

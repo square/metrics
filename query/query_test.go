@@ -104,13 +104,13 @@ func TestParse_syntaxError(t *testing.T) {
 }
 
 func TestCompile(t *testing.T) {
-	a := assert.New(t)
 	for _, row := range inputs {
+		a := assert.New(t).Contextf(row)
 		p := Parser{Buffer: row}
 		p.Init()
 		a.CheckError(p.Parse())
 		p.Execute()
-		testParserResult(t, p)
+		testParserResult(a, p)
 	}
 }
 
@@ -123,8 +123,12 @@ func checkSyntaxError(t *testing.T, input string) error {
 	return p.Parse()
 }
 
-func testParserResult(t *testing.T, p Parser) {
-	a := assert.New(t)
+func testParserResult(a assert.Assert, p Parser) {
+	a.EqInt(len(p.assertions), 0)
+	if len(p.assertions) != 0 {
+		for _, err := range p.assertions {
+			a.Errorf("assertion error: %s", err.Error())
+		}
+	}
 	a.EqInt(len(p.nodeStack), 0)
-	a.EqInt(len(p.errors), 0)
 }
