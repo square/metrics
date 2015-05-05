@@ -19,46 +19,46 @@ package assert
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"runtime"
 	"testing"
 )
 
+// used to strip out the long filename.
+var fileRegex = regexp.MustCompile("([^/]*/){0,2}[^/]*$")
+
 // Assert is a helper struct for testing methods.
 type Assert struct {
-	t     *testing.T
-	stack int // number of stack frames to traverse to generate error.
-}
-
-func caller(depth int) (string, int) {
-	// determines how many stack frames to traverse.
-	// we need to traverse 3 for the original caller:
-	// 0: caller()
-	// 1: Assert.withCaller()
-	// 2: Assert.Eq...()
-	// 3: <- original caller
-	_, file, line, _ := runtime.Caller(depth + 3)
-	return file, line
+	t       *testing.T
+	stack   int // number of stack frames to traverse to generate error.
+	context string
 }
 
 // New creates a new Assert struct.
 func New(t *testing.T) Assert {
-	return Assert{t, 0}
+	return Assert{t, 0, ""}
 }
 
-func NewWithStack(t *testing.T, stack int) Assert {
-	return Assert{t, stack}
+// Stack shifts how many stack frames to traverse to print the error message.
+// this may be useful if you're creating a helper testing method.
+// returns a new instances of Assert.
+func (assert Assert) Stack(stack int) Assert {
+	assert.stack += stack
+	return assert
 }
 
-func (assert Assert) withCaller(format string, a ...interface{}) {
-	file, line := caller(assert.stack)
-	assert.t.Errorf(fmt.Sprintf("%s:%d>", file, line)+format, a...)
+// ContextF sets the human-readable context of the test. This is useful
+// when the line number is not sufficient locator for the test failure:
+// i.e. testing in a loop.
+// returns a new instances of Assert.
+func (assert Assert) Contextf(format string, a ...interface{}) Assert {
+	assert.context = fmt.Sprintf(format, a...)
+	return assert
 }
 
-// EqStringSlices checks whether given two string slices are equal.
-func (assert Assert) EqStringSlices(actual []string, expected []string) {
-	if !reflect.DeepEqual(actual, expected) {
-		assert.withCaller("Expected \"%s\", but got \"%s\"", actual, expected)
-	}
+// Errorf marks the test as failed.
+func (assert Assert) Errorf(format string, a ...interface{}) {
+	assert.withCaller(format, a...)
 }
 
 // EqString fails the test if two strings aren't equal.
@@ -87,4 +87,31 @@ func (assert Assert) CheckError(err error) {
 	if err != nil {
 		assert.withCaller("Unexpected error: %s", err.Error())
 	}
+}
+
+// Utility Functions
+// =================
+
+func (assert Assert) withCaller(format string, a ...interface{}) {
+	file, line := caller(assert.stack)
+	if assert.context != "" {
+		assert.t.Errorf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
+	} else {
+		assert.t.Errorf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
+	}
+}
+
+func caller(depth int) (string, int) {
+	// determines how many stack frames to traverse.
+	// we need to traverse 3 for the original caller:
+	// 0: caller()
+	// 1: Assert.withCaller()
+	// 2: Assert.Eq...()
+	// 3: <- original caller
+	_, file, line, _ := runtime.Caller(depth + 3)
+	match := fileRegex.FindString(file)
+	if match != "" {
+		return match, line
+	}
+	return file, line
 }

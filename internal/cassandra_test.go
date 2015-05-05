@@ -105,7 +105,7 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 				a.EqInt(len(stringTags), len(v))
 				sort.Sort(sort.StringSlice(stringTags))
 				sort.Sort(sort.StringSlice(v))
-				a.EqStringSlices(stringTags, v)
+				a.Eq(stringTags, v)
 			}
 		}
 	}
