@@ -65,7 +65,6 @@ func TestCompile_Error(t *testing.T) {
 		{RawRule{Pattern: "prefix.%foo%.%foo%", MetricKeyPattern: "test-metric"}, InvalidPattern},
 		{RawRule{Pattern: "prefix.%foo%.abc.%%", MetricKeyPattern: "test-metric"}, InvalidPattern},
 		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: "test-metric", Regex: map[string]string{"foo": "(bar)"}}, InvalidCustomRegex},
-		{RawRule{Pattern: "prefix.%foo%", MetricKeyPattern: "test-metric", Regex: map[string]string{"foo": "(bar)"}}, 0},
 	} {
 		_, err := Compile(test.rawRule)
 		a := assert.New(t).Contextf("%s", test.rawRule.Pattern)
