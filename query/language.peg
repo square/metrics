@@ -152,7 +152,7 @@ COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
-TIMESTAMP <-   INTEGER / STRING
+TIMESTAMP <-   NUMBER_NATURAL / STRING
 IDENTIFIER <-  "`" CHAR* "`" / !KEYWORD ID_SEGMENT ("." ID_SEGMENT)*
 ID_SEGMENT <-  ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
@@ -175,8 +175,8 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "to" /
   "where"
 
-NUMBER <-  INTEGER
-INTEGER <- "0" / "-"? [1-9][0-9]*
+# Operators
+# =========
 
 OP_ADD  <- _ "+" _
 OP_SUB  <- _ "-" _
@@ -191,6 +191,17 @@ STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
 CHAR         <- "\\" ESCAPE_CLASS / ! ESCAPE_CLASS .
 # TODO - this currently doesn't support not-escaping single-quotes within quotes, vice versa.
 ESCAPE_CLASS <- ("'" / "`" / "\"" / "\\")
+
+# Numerical elements
+# ==================
+
+# Definition for floating point numbers.
+# modelled after JSON (http://json.org/)
+NUMBER          <- NUMBER_INTEGER NUMBER_FRACTION? NUMBER_EXP?
+NUMBER_NATURAL  <- "0" / [1-9] [0-9]*
+NUMBER_FRACTION <- "." [0-9]+
+NUMBER_INTEGER  <- "-"? NUMBER_NATURAL
+NUMBER_EXP      <- "e" ("+" / "-")? [0-9]+
 
 # Syntactic elements
 # ==================

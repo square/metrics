@@ -43,6 +43,14 @@ var inputs = []string{
 }
 
 var parseOnly = []string{
+	// selects - numbers
+	"select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0",
+	"select 10, 100, 1000 from 0 to 0",
+	"select 10.1, 10.01, 10.001 from 0 to 0",
+	"select -10.1, -10.01, -10.001 from 0 to 0",
+	"select 1.0e1, 1.0e2, 1.0e10, 1.0e0 from 0 to 0",
+	"select 1.0e-5, 1.0e+5 from 0 to 0",
+
 	// selects - trying out arithmetic
 	"select x from 0 to 0",
 	"select x-y-z from 0 to 0",
