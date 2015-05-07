@@ -32,12 +32,36 @@ func TestUnescapeLiteral(t *testing.T) {
 
 func testFunction1() (string, string) {
 	return functionName(0), functionName(1)
-
 }
+
 func TestFunctionName(t *testing.T) {
 	a := assert.New(t)
 	a.EqString(functionName(0), "TestFunctionName")
 	first, second := testFunction1()
 	a.EqString(first, "testFunction1")
 	a.EqString(second, "TestFunctionName")
+}
+
+func TestParseNumber(t *testing.T) {
+	for _, test := range []struct {
+		Input         string
+		Expected      float64
+		ExpectedError bool
+	}{
+		{"foo", 0, true},
+		{"0.0", 0, false},
+		{"0.5", 0.5, false},
+		{"-3.5", -3.5, false},
+	} {
+		a := assert.New(t).Contextf("input=%s", test.Input)
+		parsed, err := parseNumber(test.Input)
+		if test.ExpectedError {
+			if err == nil {
+				a.Errorf("Expected error, but got nil")
+			}
+		} else {
+			a.CheckError(err)
+			a.EqNaN(parsed, test.Expected)
+		}
+	}
 }

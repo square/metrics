@@ -87,7 +87,7 @@ expression_3 <-
   # reference to time series.
   IDENTIFIER ("[" _ predicate_1 _ "]")? /
   # constant scalar
-  NUMBER
+  <NUMBER> { p.addNumberNode(buffer[begin:end]) }
 
 groupByClause <-
   "group" __ "by" __ COLUMN_NAME ( COMMA COLUMN_NAME )*
