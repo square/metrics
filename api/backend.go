@@ -17,9 +17,9 @@ package api
 // Query represents the list of required parameters to perform the
 // time-series query to the backend.
 type Query struct {
-	metric    TaggedMetric
-	column    Column
-	timerange Timerange
+	metric     TaggedMetric
+	seriesType SeriesType
+	timerange  Timerange
 }
 
 // Backend describes how to fetch time-series data

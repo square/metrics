@@ -116,10 +116,10 @@ type TaggedMetric struct {
 // GraphiteMetric is a flat, dot-separated identifier to a series of metric.
 type GraphiteMetric string
 
-// Column is a different aspect of data.
+// SeriesType is a different aspect of data.
 // For example, Blueflood may stores (min / max / average / count) during rollups,
 // and these data are exposed via columns
-type Column string
+type SeriesType string
 
 // Timerange represents a range of time a given time series is defined in:
 // it is 3-tuple of (start, end, resolution) with the following constraints:
@@ -151,7 +151,8 @@ type Timeseries struct {
 	TagSet TagSet
 }
 
-// SamplingStrategy determines how the given time series should be sampled
+// SamplingStrategy determines how the given time series should be sampled.
+// Note(This is currently unused).
 type SamplingStrategy int
 
 const (
@@ -181,7 +182,7 @@ func (list SeriesList) IsValid() bool {
 		// timerange must be valid.
 		return false
 	}
-	for _, series := range(list.List) {
+	for _, series := range list.List {
 		// # of slots per series must be valid.
 		if len(series.Values) != list.Timerange.Slots() {
 			return false
@@ -191,31 +192,17 @@ func (list SeriesList) IsValid() bool {
 }
 
 // Sample converts the given serieslist to comform with the provided sampling strategy.
-func (s SeriesList) Sample(timerange Timerange, sampling SamplingStrategy) SeriesList {
+func (list SeriesList) Sample(timerange Timerange, sampling SamplingStrategy) SeriesList {
 	// TODO - deal with the different range.
-	return s
-}
-
-// ScalarSeriesList represents a scalar value returned by the query.
-// such scalar value can be converted to a SeriesList of any timerange.
-type ScalarSeriesList float64
-
-// Sample converts a given scalar to a SeriesList with a single series, repeating the same value.
-func (s ScalarSeriesList) Sample(timerange Timerange, sampling SamplingStrategy) SeriesList {
-	slots := timerange.Slots()
-	value := float64(s)
-	values := make([]float64, slots)
-	for i := 0; i < slots; i++ {
-		values[i] = value
-	}
-	return SeriesList{
-		List:      []Timeseries{Timeseries{values, NewTagSet()}},
-		Timerange: timerange,
-	}
+	return list
 }
 
 // MetricMetadata is metadata associated with the given metric.
 type MetricMetadata struct {
-	Columns     []string
-	Resolutions []int64
+	Meta map[SeriesType]SeriesMetadata
+}
+
+// SeriesMetadata is a metadata about a single time series.
+type SeriesMetadata struct {
+	Resolutions []Timerange // list of available resolutions for the list of time ranges.
 }
