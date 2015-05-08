@@ -15,6 +15,7 @@
 package query
 
 import (
+	"errors"
 	"github.com/square/metrics/api"
 )
 
@@ -34,6 +35,17 @@ type DescribeCommand struct {
 	predicate  Predicate
 }
 
+// DescribeAllCommand returns all the metrics available in the system.
+type DescribeAllCommand struct {
+}
+
+// SelectCommand is the bread and butter of the metrics query engine.
+// It actually performs the query against the underlying metrics system.
+type SelectCommand struct {
+	predicate   Predicate
+	expressions []Expression
+}
+
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(a api.API) (interface{}, error) {
 	tags, _ := a.GetAllTags(cmd.metricName)
@@ -51,10 +63,6 @@ func (cmd *DescribeCommand) Name() string {
 	return "describe"
 }
 
-// DescribeAllCommand returns all the metrics available in the system.
-type DescribeAllCommand struct {
-}
-
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(a api.API) (interface{}, error) {
 	return a.GetAllMetrics()
@@ -63,4 +71,12 @@ func (cmd *DescribeAllCommand) Execute(a api.API) (interface{}, error) {
 // Name of the command
 func (cmd *DescribeAllCommand) Name() string {
 	return "describe all"
+}
+
+func (cmd *SelectCommand) Name() string {
+	return "select"
+}
+
+func (cmd *SelectCommand) Execute(a api.API) (interface{}, error) {
+	return nil, errors.New("Not implemented.")
 }
