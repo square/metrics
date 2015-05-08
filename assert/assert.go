@@ -18,6 +18,7 @@ package assert
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -68,10 +69,23 @@ func (assert Assert) EqString(actual, expected string) {
 	}
 }
 
+func (assert Assert) EqBool(actual, expected bool) {
+	if actual != expected {
+		assert.withCaller("Expected=[%t], actual=[%t]", expected, actual)
+	}
+}
+
 // EqInt fails the test if two ints aren't equal.
 func (assert Assert) EqInt(actual, expected int) {
 	if actual != expected {
 		assert.withCaller("Expected=[%d], actual=[%d]", expected, actual)
+	}
+}
+
+// EqNaN fails the test if two floats aren't equal. NaNs are considered equal.
+func (assert Assert) EqNaN(actual, expected float64) {
+	if actual != expected && !(math.IsNaN(actual) && math.IsNaN(expected)) {
+		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
 	}
 }
 
