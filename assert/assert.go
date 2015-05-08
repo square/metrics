@@ -69,6 +69,7 @@ func (assert Assert) EqString(actual, expected string) {
 	}
 }
 
+// EqBool fails the test if two booleans aren't equal.
 func (assert Assert) EqBool(actual, expected bool) {
 	if actual != expected {
 		assert.withCaller("Expected=[%t], actual=[%t]", expected, actual)
@@ -82,8 +83,8 @@ func (assert Assert) EqInt(actual, expected int) {
 	}
 }
 
-// EqNaN fails the test if two floats aren't equal. NaNs are considered equal.
-func (assert Assert) EqNaN(actual, expected float64) {
+// EqFloat fails the test if two floats aren't equal. NaNs are considered equal.
+func (assert Assert) EqFloat(actual, expected float64) {
 	if actual != expected && !(math.IsNaN(actual) && math.IsNaN(expected)) {
 		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
 	}
