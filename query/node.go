@@ -17,15 +17,23 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 )
+
+// PrintNode prints the given node.
+func PrintNode(node Node) string {
+	var buffer bytes.Buffer
+	node.Print(&buffer, 0)
+	return buffer.String()
+}
 
 // Node is a processed AST node generated during the AST traversal.
 // During Execute(), nodes are repeatedly pushed and popped
 // on top of nodeStack.
 type Node interface {
-	Print(buffer bytes.Buffer, indent int)
+	Print(buffer *bytes.Buffer, indent int)
 }
 
 type andPredicate struct {
@@ -50,21 +58,65 @@ type regexMatcher struct {
 	regex *regexp.Regexp
 }
 
-// list of literals
-type literalNode struct {
+// Expressions
+// -----------
+// nodes related to the query evaluation
+// each of these nodes are implementations of Expression interface.
+
+// numberExpression represents a scalar constant embedded within the expression.
+type numberExpression struct {
+	value float64
+}
+
+// metricFetchExpression represents a reference to a metric embedded within the expression.
+type metricFetchExpression struct {
+	metricName string
+	predicate  Predicate
+}
+
+// functionExpression represents a function call with subexpressions.
+// This includes:
+// * aggregate functions
+// * numerical operators
+type functionExpression struct {
+	functionName string
+	arguments    []Expression
+}
+
+// temporary nodes
+// ---------------
+// These nodes are only present during the parsing step and are not present
+// in the resulting command.
+// There are two types of temporary nodes:
+// * literals (constants in the syntax tree).
+// * lists
+
+type stringLiteral struct {
 	literal string
 }
 
 // list of literals
-type literalListNode struct {
+type stringLiteralList struct {
 	literals []string
 }
 
-type tagNode struct {
+// single tag
+type tagLiteral struct {
 	tag string
 }
 
-func printHelper(buffer bytes.Buffer, indent int, value string) {
+// a single operator
+type operatorLiteral struct {
+	operator string
+}
+
+type expressionList struct {
+	expressions []Expression
+}
+
+// Helper functions for printing
+// =============================
+func printHelper(buffer *bytes.Buffer, indent int, value string) {
 	for i := 0; i < indent; i++ {
 		buffer.WriteString(" ")
 	}
@@ -72,65 +124,95 @@ func printHelper(buffer bytes.Buffer, indent int, value string) {
 	buffer.WriteString("\n")
 }
 
-func printUnknown(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "<?>")
+func printType(buffer *bytes.Buffer, indent int, node Node) {
+	printHelper(buffer, indent, reflect.ValueOf(node).Type().String())
 }
 
-func (node *andPredicate) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "andPredicate")
-	for _, pred := range node.predicates {
-		if node, ok := pred.(Node); ok {
-			node.Print(buffer, indent+1)
-		} else {
-			printUnknown(buffer, indent+1)
-		}
-	}
-}
-
-func (node *orPredicate) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "orPredicate")
-	for _, pred := range node.predicates {
-		if node, ok := pred.(Node); ok {
-			node.Print(buffer, indent+1)
-		} else {
-			printUnknown(buffer, indent+1)
-		}
-	}
-}
-
-func (node *notPredicate) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "notPredicate")
-	if node, ok := node.predicate.(Node); ok {
+// printUnknown is used to print an item that may or may not be Node.
+func printUnknown(buffer *bytes.Buffer, indent int, object interface{}) {
+	if node, ok := object.(Node); ok {
 		node.Print(buffer, indent+1)
 	} else {
-		printUnknown(buffer, indent+1)
+		printHelper(buffer, indent, fmt.Sprintf("%+v", object))
 	}
 }
 
-func (node *listMatcher) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "listMatcher")
+func (node *andPredicate) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	for _, pred := range node.predicates {
+		printUnknown(buffer, indent+1, pred)
+	}
+}
+
+func (node *orPredicate) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	for _, pred := range node.predicates {
+		printUnknown(buffer, indent+1, pred)
+	}
+}
+
+func (node *notPredicate) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printUnknown(buffer, indent+1, node.predicate)
+}
+
+func (node *listMatcher) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
 		node.tag,
 		strings.Join(node.matches, ","),
 	))
 }
 
-func (node *regexMatcher) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "regexMatcher")
+func (node *regexMatcher) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
 		node.tag,
 		node.regex.String(),
 	))
 }
-func (node *literalNode) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "literalNode")
+
+func (node *stringLiteral) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, node.literal)
 }
-func (node *literalListNode) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "literalNode")
+
+func (node *stringLiteralList) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, strings.Join(node.literals, ","))
 }
-func (node *tagNode) Print(buffer bytes.Buffer, indent int) {
-	printHelper(buffer, indent, "tagNode")
+
+func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
+}
+
+func (node *numberExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, fmt.Sprintf("%f", node.value))
+}
+
+func (node *operatorLiteral) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.operator)
+}
+
+func (node *expressionList) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	for _, expression := range node.expressions {
+		printUnknown(buffer, indent+1, expression)
+	}
+}
+
+func (node *functionExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	for _, expression := range node.arguments {
+		printUnknown(buffer, indent+1, expression)
+	}
+}
+
+func (node *metricFetchExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.metricName)
+	printUnknown(buffer, indent+1, node.predicate)
 }
