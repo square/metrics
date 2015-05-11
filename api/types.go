@@ -196,13 +196,3 @@ func (list SeriesList) Sample(timerange Timerange, sampling SamplingStrategy) Se
 	// TODO - deal with the different range.
 	return list
 }
-
-// MetricMetadata is metadata associated with the given metric.
-type MetricMetadata struct {
-	Meta map[SeriesType]SeriesMetadata
-}
-
-// SeriesMetadata is a metadata about a single time series.
-type SeriesMetadata struct {
-	Resolutions []Timerange // list of available resolutions for the list of time ranges.
-}

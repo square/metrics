@@ -22,8 +22,20 @@ type Query struct {
 	timerange  Timerange
 }
 
+// MetricMetadata is a metadata for metrics defined in a backend,
+// describing the capabilities of a metric exposed by the given backend.
+type MetricMetadata struct {
+	Meta map[SeriesType]SeriesMetadata
+}
+
+// SeriesMetadata is a metadata about a single time series.
+type SeriesMetadata struct {
+	Resolutions []Timerange // list of available resolutions for the list of time ranges.
+}
+
 // Backend describes how to fetch time-series data
 // from a given backend supporting the metrics query engine.
+// This a MQE level driver to interact with different backends.
 type Backend interface {
 	FetchMetadata(metric TaggedMetric) MetricMetadata
 	FetchSeries(query Query) SeriesList
