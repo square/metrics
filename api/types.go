@@ -126,6 +126,8 @@ type SeriesType string
 // start <= end
 // start = 0 mod resolution
 // end =   0 mod resolution
+//
+// This range is inclusive of Start and End (i.e. [Start, End])
 type Timerange struct {
 	Start      int64
 	End        int64
@@ -141,8 +143,10 @@ func (tr Timerange) IsValid() bool {
 }
 
 // Slots represent the total # of data points
+// Behavior is undefined when operating on an invalid Timerange. There's a
+// circular dependency here, but it all works out.
 func (tr Timerange) Slots() int {
-	return int((tr.Start - tr.End) / tr.Resolution)
+	return int((tr.End-tr.Start)/tr.Resolution) + 1
 }
 
 // Timeseries is a single time series, identified with the associated tagset.

@@ -15,6 +15,8 @@
 package query
 
 import (
+	"errors"
+
 	"github.com/square/metrics/api"
 )
 
@@ -34,19 +36,31 @@ type EvaluationContext struct {
 // Internally, expressions form a tree of subexpressions, delegating work between them.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) api.SeriesResult
+	Evaluate(context EvaluationContext) (api.SeriesResult, error)
 }
 
 // Implementations
 // ===============
-func (expr *numberExpression) Evaluate(context EvaluationContext) api.SeriesResult {
-	return nil // TODO - implement this.
+func (expr *scalarExpression) Evaluate(context EvaluationContext) (api.SeriesResult, error) {
+	if !context.Timerange.IsValid() {
+		return api.SeriesList{}, errors.New("Invalid context.Timerange")
+	}
+
+	series := []float64{}
+	for i := 0; i < context.Timerange.Slots(); i += 1 {
+		series = append(series, expr.value)
+	}
+
+	return api.SeriesList{
+		List:      []api.Timeseries{api.Timeseries{series, api.TagSet{}}},
+		Timerange: context.Timerange,
+	}, nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context EvaluationContext) api.SeriesResult {
-	return nil // TODO - implement this.
+func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (api.SeriesResult, error) {
+	return nil, nil // TODO - implement this.
 }
 
-func (expr *functionExpression) Evaluate(context EvaluationContext) api.SeriesResult {
-	return nil // TODO - implement this.
+func (expr *functionExpression) Evaluate(context EvaluationContext) (api.SeriesResult, error) {
+	return nil, nil // TODO - implement this.
 }

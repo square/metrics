@@ -408,7 +408,7 @@ func (p *Parser) addNumberNode(value string) {
 		})
 		return
 	}
-	p.pushNode(&numberExpression{parsedValue})
+	p.pushNode(&scalarExpression{parsedValue})
 }
 
 // Utility Functions

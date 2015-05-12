@@ -49,19 +49,21 @@ func TestTagSet_ParseTagSet(t *testing.T) {
 	a.EqString(ParseTagSet("a\\=b=1").Serialize(), "a\\=b=1")
 }
 
-func TestIsValid(t *testing.T) {
+func TestTimerange(t *testing.T) {
 	for _, suite := range []struct {
 		Timerange     Timerange
 		ExpectedValid bool
+		ExpectedSlots int
 	}{
 		// valid cases
-		{Timerange{0, 0, 1}, true},
-		{Timerange{0, 100, 1}, true},
-		{Timerange{0, 100, 5}, true},
+		{Timerange{0, 0, 1}, true, 1},
+		{Timerange{0, 1, 1}, true, 2},
+		{Timerange{0, 100, 1}, true, 101},
+		{Timerange{0, 100, 5}, true, 21},
 		// invalid cases
-		{Timerange{100, 0, 1}, false},
-		{Timerange{0, 100, 6}, false},
-		{Timerange{0, 100, 200}, false},
+		{Timerange{100, 0, 1}, false, 0},
+		{Timerange{0, 100, 6}, false, 0},
+		{Timerange{0, 100, 200}, false, 0},
 	} {
 		a := assert.New(t).Contextf("input=%d:%d:%d",
 			suite.Timerange.Start,
@@ -69,5 +71,11 @@ func TestIsValid(t *testing.T) {
 			suite.Timerange.Resolution,
 		)
 		a.EqBool(suite.Timerange.IsValid(), suite.ExpectedValid)
+		// If invalid, nothing else to check
+		if !suite.ExpectedValid {
+			continue
+		}
+
+		a.EqInt(suite.Timerange.Slots(), suite.ExpectedSlots)
 	}
 }
