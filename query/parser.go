@@ -19,9 +19,11 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/square/metrics/api"
@@ -153,14 +155,31 @@ func (p *Parser) makeDescribe() {
 		p.flagTypeAssertion()
 		return
 	}
-	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.command = &DescribeCommand{
-		metricName: api.MetricKey(literalNode.literal),
+		metricName: api.MetricKey(stringLiteral.literal),
 		predicate:  predicateNode,
+	}
+}
+
+func (p *Parser) makeSelect() {
+	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.command = &SelectCommand{
+		predicate:   predicateNode,
+		expressions: expressionList.expressions,
 	}
 }
 
@@ -168,83 +187,164 @@ func (p *Parser) makeDescribeAll() {
 	p.command = &DescribeAllCommand{}
 }
 
-func (p *Parser) addLiteralMatcher() {
-	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
+func (p *Parser) addOperatorLiteral(operator string) {
+	p.pushNode(&operatorLiteral{operator})
+}
+
+func (p *Parser) addOperatorFunction() {
+	right, ok := p.popNode(expressionType).(Expression)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
+	operatorNode, ok := p.popNode(operatorLiteralPointer).(*operatorLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	left, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&functionExpression{
+		functionName: operatorNode.operator,
+		arguments:    []Expression{left, right},
+	})
+}
+
+func (p *Parser) addFunctionInvocation() {
+	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	// user-level error generation here.
+	p.pushNode(&functionExpression{
+		functionName: stringLiteral.literal,
+		arguments:    expressionList.expressions,
+	})
+}
+
+func (p *Parser) addMetricExpression() {
+	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&metricFetchExpression{
+		metricName: stringLiteral.literal,
+		predicate:  predicateNode,
+	})
+}
+
+func (p *Parser) addExpressionList() {
+	p.pushNode(&expressionList{
+		make([]Expression, 0),
+	})
+}
+
+func (p *Parser) appendExpression() {
+	expressionNode, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode, ok := p.peekNode().(*expressionList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode.expressions = append(listNode.expressions, expressionNode)
+}
+
+func (p *Parser) addLiteralMatcher() {
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagNode.tag,
-		matches: []string{literalNode.literal},
+		tag:     tagLiteral.tag,
+		matches: []string{stringLiteral.literal},
 	})
 }
 
 func (p *Parser) addListMatcher() {
-	literalNode, ok := p.popNode(literalListNodePointer).(*literalListNode)
+	stringLiteral, ok := p.popNode(stringLiteralListPointer).(*stringLiteralList)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
+	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagNode.tag,
-		matches: literalNode.literals,
+		tag:     tagLiteral.tag,
+		matches: stringLiteral.literals,
 	})
 }
 
 func (p *Parser) addRegexMatcher() {
-	literalNode, ok := p.popNode(literalNodePointer).(*literalNode)
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	tagNode, ok := p.popNode(tagNodePointer).(*tagNode)
+	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	compiled, err := regexp.Compile(literalNode.literal)
+	compiled, err := regexp.Compile(stringLiteral.literal)
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
-			token:   literalNode.literal,
+			token:   stringLiteral.literal,
 			message: fmt.Sprintf("Cannot parse the regex: %s", err.Error()),
 		})
 	}
 	p.pushNode(&regexMatcher{
-		tag:   tagNode.tag,
+		tag:   tagLiteral.tag,
 		regex: compiled,
 	})
 }
 
-func (p *Parser) addTag(tag string) {
-	p.pushNode(&tagNode{tag: tag})
+func (p *Parser) addTagLiteral(tag string) {
+	p.pushNode(&tagLiteral{tag: tag})
 }
 
 func (p *Parser) addLiteralListNode() {
-	p.pushNode(&literalListNode{make([]string, 0)})
+	p.pushNode(&stringLiteralList{make([]string, 0)})
 }
 
-func (p *Parser) addLiteralNode(literal string) {
-	p.pushNode(&literalNode{literal})
+func (p *Parser) addStringLiteral(literal string) {
+	p.pushNode(&stringLiteral{literal})
 }
 
 func (p *Parser) appendLiteral(literal string) {
-	literalNode, ok := p.peekNode().(*literalListNode)
+	listNode, ok := p.peekNode().(*stringLiteralList)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	literalNode.literals = append(literalNode.literals, literal)
+	listNode.literals = append(listNode.literals, literal)
 }
 
 func (p *Parser) addNotPredicate() {
@@ -256,6 +356,7 @@ func (p *Parser) addNotPredicate() {
 		return
 	}
 }
+
 func (p *Parser) addOrPredicate() {
 	rightPredicate, ok := p.popNode(predicateType).(Predicate)
 	if !ok {
@@ -298,6 +399,21 @@ func (p *Parser) addAndPredicate() {
 	})
 }
 
+func (p *Parser) addNumberNode(value string) {
+	parsedValue, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(parsedValue) {
+		p.flagSyntaxError(SyntaxError{
+			token:   value,
+			message: fmt.Sprintf("Cannot parse the number: %s", value),
+		})
+		return
+	}
+	p.pushNode(&numberExpression{parsedValue})
+}
+
+// Utility Functions
+// =================
+
 // used to unescape:
 // - identifiers (no unescaping required).
 // - quoted strings.
@@ -333,8 +449,11 @@ func functionName(depth int) string {
 
 // utility type variables
 var (
-	predicateType          = reflect.TypeOf((*Predicate)(nil)).Elem()
-	literalNodePointer     = reflect.TypeOf((*literalNode)(nil))
-	tagNodePointer         = reflect.TypeOf((*tagNode)(nil))
-	literalListNodePointer = reflect.TypeOf((*literalListNode)(nil))
+	predicateType            = reflect.TypeOf((*Predicate)(nil)).Elem()
+	expressionType           = reflect.TypeOf((*Expression)(nil)).Elem()
+	stringLiteralListPointer = reflect.TypeOf((*stringLiteralList)(nil))
+	stringLiteralPointer     = reflect.TypeOf((*stringLiteral)(nil))
+	operatorLiteralPointer   = reflect.TypeOf((*operatorLiteral)(nil))
+	expressionListPointer    = reflect.TypeOf((*expressionList)(nil))
+	tagLiteralPointer        = reflect.TypeOf((*tagLiteral)(nil))
 )

@@ -32,8 +32,8 @@ func TestUnescapeLiteral(t *testing.T) {
 
 func testFunction1() (string, string) {
 	return functionName(0), functionName(1)
-
 }
+
 func TestFunctionName(t *testing.T) {
 	a := assert.New(t)
 	a.EqString(functionName(0), "TestFunctionName")
