@@ -214,6 +214,11 @@ func (p *Parser) addOperatorFunction() {
 }
 
 func (p *Parser) addFunctionInvocation() {
+	groupBy, ok := p.popNode(groupByListPointer).(*groupByList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
 	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
 	if !ok {
 		p.flagTypeAssertion()
@@ -228,6 +233,7 @@ func (p *Parser) addFunctionInvocation() {
 	p.pushNode(&functionExpression{
 		functionName: stringLiteral.literal,
 		arguments:    expressionList.expressions,
+		groupBy:      groupBy.list,
 	})
 }
 
@@ -330,12 +336,12 @@ func (p *Parser) addTagLiteral(tag string) {
 	p.pushNode(&tagLiteral{tag: tag})
 }
 
-func (p *Parser) addLiteralListNode() {
-	p.pushNode(&stringLiteralList{make([]string, 0)})
-}
-
 func (p *Parser) addStringLiteral(literal string) {
 	p.pushNode(&stringLiteral{literal})
+}
+
+func (p *Parser) addLiteralList() {
+	p.pushNode(&stringLiteralList{make([]string, 0)})
 }
 
 func (p *Parser) appendLiteral(literal string) {
@@ -345,6 +351,19 @@ func (p *Parser) appendLiteral(literal string) {
 		return
 	}
 	listNode.literals = append(listNode.literals, literal)
+}
+
+func (p *Parser) addGroupBy() {
+	p.pushNode(&groupByList{make([]string, 0)})
+}
+
+func (p *Parser) appendGroupBy(literal string) {
+	listNode, ok := p.peekNode().(*groupByList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode.list = append(listNode.list, literal)
 }
 
 func (p *Parser) addNotPredicate() {
@@ -451,9 +470,10 @@ func functionName(depth int) string {
 var (
 	predicateType            = reflect.TypeOf((*Predicate)(nil)).Elem()
 	expressionType           = reflect.TypeOf((*Expression)(nil)).Elem()
+	expressionListPointer    = reflect.TypeOf((*expressionList)(nil))
+	groupByListPointer       = reflect.TypeOf((*groupByList)(nil))
+	operatorLiteralPointer   = reflect.TypeOf((*operatorLiteral)(nil))
 	stringLiteralListPointer = reflect.TypeOf((*stringLiteralList)(nil))
 	stringLiteralPointer     = reflect.TypeOf((*stringLiteral)(nil))
-	operatorLiteralPointer   = reflect.TypeOf((*operatorLiteral)(nil))
-	expressionListPointer    = reflect.TypeOf((*expressionList)(nil))
 	tagLiteralPointer        = reflect.TypeOf((*tagLiteral)(nil))
 )
