@@ -81,6 +81,7 @@ type metricFetchExpression struct {
 type functionExpression struct {
 	functionName string
 	arguments    []Expression
+	groupBy      []string
 }
 
 // temporary nodes
@@ -112,6 +113,10 @@ type operatorLiteral struct {
 
 type expressionList struct {
 	expressions []Expression
+}
+
+type groupByList struct {
+	list []string
 }
 
 // Helper functions for printing
@@ -180,6 +185,11 @@ func (node *stringLiteral) Print(buffer *bytes.Buffer, indent int) {
 func (node *stringLiteralList) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, strings.Join(node.literals, ","))
+}
+
+func (node *groupByList) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, strings.Join(node.list, ","))
 }
 
 func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
