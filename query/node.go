@@ -63,8 +63,8 @@ type regexMatcher struct {
 // nodes related to the query evaluation
 // each of these nodes are implementations of Expression interface.
 
-// numberExpression represents a scalar constant embedded within the expression.
-type numberExpression struct {
+// scalarExpression represents a scalar constant embedded within the expression.
+type scalarExpression struct {
 	value float64
 }
 
@@ -75,9 +75,7 @@ type metricFetchExpression struct {
 }
 
 // functionExpression represents a function call with subexpressions.
-// This includes:
-// * aggregate functions
-// * numerical operators
+// This includes aggregate functions and arithmetic operators.
 type functionExpression struct {
 	functionName string
 	arguments    []Expression
@@ -197,7 +195,7 @@ func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
 }
 
-func (node *numberExpression) Print(buffer *bytes.Buffer, indent int) {
+func (node *scalarExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%f", node.value))
 }
