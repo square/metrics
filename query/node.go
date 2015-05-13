@@ -75,9 +75,7 @@ type metricFetchExpression struct {
 }
 
 // functionExpression represents a function call with subexpressions.
-// This includes:
-// * aggregate functions
-// * numerical operators
+// This includes aggregate functions and arithmetic operators.
 type functionExpression struct {
 	functionName string
 	arguments    []Expression

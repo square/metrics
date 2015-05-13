@@ -152,7 +152,7 @@ func (tr Timerange) Slots() int {
 // Timeseries is a single time series, identified with the associated tagset.
 type Timeseries struct {
 	Values []float64
-	TagSet TagSet
+	Metric TaggedMetric
 }
 
 // SamplingStrategy determines how the given time series should be sampled.
@@ -161,22 +161,16 @@ type SamplingStrategy int
 
 const (
 	// SamplingMax chooses the maximum value.
-	SamplingMax SamplingStrategy = iota + 1
+	SampleMax SamplingStrategy = iota + 1
 	// SamplingMin chooses the minimum value.
-	SamplingMin
+	SampleMin
 	// SamplingMean chooses the average value.
-	SamplingMean
+	SampleMean
 )
-
-// SeriesResult is the abstract interface type describing the result of a time series operation.
-type SeriesResult interface {
-	// Sample the given result to the given timerange, using the provided sampling strategy.
-	Sample(timerange Timerange, sampling SamplingStrategy) SeriesList
-}
 
 // SeriesList is a list of time series sharing the same time range.
 type SeriesList struct {
-	List      []Timeseries
+	Series    []Timeseries
 	Timerange Timerange
 }
 
@@ -186,7 +180,7 @@ func (list SeriesList) IsValid() bool {
 		// timerange must be valid.
 		return false
 	}
-	for _, series := range list.List {
+	for _, series := range list.Series {
 		// # of slots per series must be valid.
 		if len(series.Values) != list.Timerange.Slots() {
 			return false
