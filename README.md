@@ -1,7 +1,7 @@
-Metrics-indexer
-===============
+Metrics
+=======
 
-Consumes a list of metric names, and stores them in the Cassandra database.
+Indexer & Query Engine for Square's metrics.
 
 Development
 ===========
