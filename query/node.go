@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/square/metrics/api"
 )
 
 // PrintNode prints the given node.
@@ -37,20 +39,20 @@ type Node interface {
 }
 
 type andPredicate struct {
-	predicates []Predicate
+	predicates []api.Predicate
 }
 
 type orPredicate struct {
-	predicates []Predicate
+	predicates []api.Predicate
 }
 
 type notPredicate struct {
-	predicate Predicate
+	predicate api.Predicate
 }
 
 type listMatcher struct {
-	tag     string
-	matches []string
+	tag    string
+	values []string
 }
 
 type regexMatcher struct {
@@ -71,7 +73,7 @@ type scalarExpression struct {
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
 	metricName string
-	predicate  Predicate
+	predicate  api.Predicate
 }
 
 // functionExpression represents a function call with subexpressions.
@@ -163,7 +165,7 @@ func (node *listMatcher) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
 		node.tag,
-		strings.Join(node.matches, ","),
+		strings.Join(node.values, ","),
 	))
 }
 

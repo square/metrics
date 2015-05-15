@@ -29,8 +29,12 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	Backend   api.Backend   // backend to fetch data from.
-	Timerange api.Timerange // current time range to fetch data from.
+	// Backend to fetch data from
+	Backend api.Backend
+	// Timerange to fetch data from
+	Timerange api.Timerange
+	// SampleMethod to use when up/downsampling to match the requested resolution
+	SampleMethod api.SampleMethod
 }
 
 // Expression is a piece of code, which can be evaluated in a given
@@ -51,7 +55,7 @@ type Expression interface {
 // Generates a Timeseries from the encapsulated scalar.
 func (expr *scalarExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
 	if !context.Timerange.IsValid() {
-		return &api.SeriesList{}, errors.New("Invalid context.Timerange")
+		return nil, errors.New("Invalid context.Timerange")
 	}
 
 	series := []float64{}
@@ -66,7 +70,7 @@ func (expr *scalarExpression) Evaluate(context EvaluationContext) (*api.SeriesLi
 }
 
 func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
-	return nil, nil // TODO - implement this.
+	return context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, expr.predicate, context.SampleMethod, context.Timerange)
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
@@ -74,10 +78,17 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (*api.Series
 	case "+":
 		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
 			func(left, right float64) float64 { return left + right })
+	case "-":
+		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
+			func(left, right float64) float64 { return left - right })
+	case "/":
+		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
+			func(left, right float64) float64 { return left / right })
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", functionName))
 	}
-	return nil, nil // TODO - implement this.
+
+	return nil, errors.New("I'm not sure how you got here...")
 }
 
 //

@@ -23,12 +23,12 @@ import (
 
 type FakeBackend struct{}
 
-func (b FakeBackend) FetchMetadata(metric api.TaggedMetric) api.MetricMetadata {
-	return api.MetricMetadata{}
+func (b FakeBackend) Api() api.API {
+	return nil
 }
 
-func (b FakeBackend) FetchSeries(query api.Query) api.SeriesList {
-	return api.SeriesList{}
+func (b FakeBackend) FetchSeries(metric api.TaggedMetric, tagConstraints api.Predicate, sampleMethod api.SampleMethod, timerange api.Timerange) (*api.SeriesList, error) {
+	return &api.SeriesList{}, nil
 }
 
 type LiteralExpression struct {
@@ -69,7 +69,11 @@ func Test_ScalarExpression(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		result, err := test.expr.Evaluate(EvaluationContext{FakeBackend{}, test.timerange})
+		result, err := test.expr.Evaluate(EvaluationContext{
+			Backend:      FakeBackend{},
+			Timerange:    test.timerange,
+			SampleMethod: api.SampleMean,
+		})
 
 		a.EqBool(err == nil, test.expectSuccess)
 		// Nothing else to validate if we expect failure
@@ -86,7 +90,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{FakeBackend{}, api.Timerange{}}
+	emptyContext := EvaluationContext{FakeBackend{}, api.Timerange{}, api.SampleMean}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string
@@ -147,3 +151,4 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 }
 
 var _ api.Backend = (*FakeBackend)(nil)
+var _ Expression = (*LiteralExpression)(nil)
