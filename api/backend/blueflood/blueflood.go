@@ -141,3 +141,5 @@ func bluefloodResolution(r int64) string {
 	}
 	return "min1440"
 }
+
+var _ api.Backend = (*Blueflood)(nil)
