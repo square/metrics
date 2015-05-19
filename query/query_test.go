@@ -64,6 +64,11 @@ var inputs = []string{
 	"select foo(x) from 0 to 0",
 	"select bar(x, y) from 0 to 0",
 	"select baz(x, y, z+1+foo(1)) from 0 to 0",
+	// selects - testing out property values
+	"select x",
+	"select x from 0",
+	"select x resolution 10",
+	"select x sample 'max'",
 }
 
 var parseOnly = []string{
@@ -87,6 +92,7 @@ var syntaxErrorQuery = []string{
 	"select )",
 	"describe (",
 	"describe invalid_regex where key matches 'ab['",
+	"select x invalid_property 0",
 }
 
 func TestParse_success(t *testing.T) {
