@@ -3698,7 +3698,7 @@ func (p *Parser) Init() {
 		},
 		/* 30 ID_CONT <- <(ID_START / [0-9])> */
 		nil,
-		/* 31 PROPERTY_KEY <- <((&('S' | 's') (('s' / 'S') ('a' / 'A') ('m' / 'M') ('p' / 'P') ('l' / 'L') ('e' / 'E'))) | (&('R' | 'r') (('r' / 'R') ('e' / 'E') ('s' / 'S') ('o' / 'O') ('l' / 'L') ('u' / 'U') ('t' / 'T') ('i' / 'I') ('o' / 'O') ('n' / 'N'))) | (&('T' | 't') (('t' / 'T') ('o' / 'O'))) | (&('F' | 'f') (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M'))))> */
+		/* 31 PROPERTY_KEY <- <((&('S' | 's') (('s' / 'S') ('a' / 'A') ('m' / 'M') ('p' / 'P') ('l' / 'L') ('e' / 'E') __ (('b' / 'B') ('y' / 'Y')))) | (&('R' | 'r') (('r' / 'R') ('e' / 'E') ('s' / 'S') ('o' / 'O') ('l' / 'L') ('u' / 'U') ('t' / 'T') ('i' / 'I') ('o' / 'O') ('n' / 'N'))) | (&('T' | 't') (('t' / 'T') ('o' / 'O'))) | (&('F' | 'f') (('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M'))))> */
 		func() bool {
 			position384, tokenIndex384, depth384 := position, tokenIndex, depth
 			{
@@ -3797,18 +3797,19 @@ func (p *Parser) Init() {
 							position++
 						}
 					l397:
-						break
-					case 'R', 'r':
+						if !_rules[rule__]() {
+							goto l384
+						}
 						{
 							position399, tokenIndex399, depth399 := position, tokenIndex, depth
-							if buffer[position] != rune('r') {
+							if buffer[position] != rune('b') {
 								goto l400
 							}
 							position++
 							goto l399
 						l400:
 							position, tokenIndex, depth = position399, tokenIndex399, depth399
-							if buffer[position] != rune('R') {
+							if buffer[position] != rune('B') {
 								goto l384
 							}
 							position++
@@ -3816,29 +3817,31 @@ func (p *Parser) Init() {
 					l399:
 						{
 							position401, tokenIndex401, depth401 := position, tokenIndex, depth
-							if buffer[position] != rune('e') {
+							if buffer[position] != rune('y') {
 								goto l402
 							}
 							position++
 							goto l401
 						l402:
 							position, tokenIndex, depth = position401, tokenIndex401, depth401
-							if buffer[position] != rune('E') {
+							if buffer[position] != rune('Y') {
 								goto l384
 							}
 							position++
 						}
 					l401:
+						break
+					case 'R', 'r':
 						{
 							position403, tokenIndex403, depth403 := position, tokenIndex, depth
-							if buffer[position] != rune('s') {
+							if buffer[position] != rune('r') {
 								goto l404
 							}
 							position++
 							goto l403
 						l404:
 							position, tokenIndex, depth = position403, tokenIndex403, depth403
-							if buffer[position] != rune('S') {
+							if buffer[position] != rune('R') {
 								goto l384
 							}
 							position++
@@ -3846,14 +3849,14 @@ func (p *Parser) Init() {
 					l403:
 						{
 							position405, tokenIndex405, depth405 := position, tokenIndex, depth
-							if buffer[position] != rune('o') {
+							if buffer[position] != rune('e') {
 								goto l406
 							}
 							position++
 							goto l405
 						l406:
 							position, tokenIndex, depth = position405, tokenIndex405, depth405
-							if buffer[position] != rune('O') {
+							if buffer[position] != rune('E') {
 								goto l384
 							}
 							position++
@@ -3861,14 +3864,14 @@ func (p *Parser) Init() {
 					l405:
 						{
 							position407, tokenIndex407, depth407 := position, tokenIndex, depth
-							if buffer[position] != rune('l') {
+							if buffer[position] != rune('s') {
 								goto l408
 							}
 							position++
 							goto l407
 						l408:
 							position, tokenIndex, depth = position407, tokenIndex407, depth407
-							if buffer[position] != rune('L') {
+							if buffer[position] != rune('S') {
 								goto l384
 							}
 							position++
@@ -3876,14 +3879,14 @@ func (p *Parser) Init() {
 					l407:
 						{
 							position409, tokenIndex409, depth409 := position, tokenIndex, depth
-							if buffer[position] != rune('u') {
+							if buffer[position] != rune('o') {
 								goto l410
 							}
 							position++
 							goto l409
 						l410:
 							position, tokenIndex, depth = position409, tokenIndex409, depth409
-							if buffer[position] != rune('U') {
+							if buffer[position] != rune('O') {
 								goto l384
 							}
 							position++
@@ -3891,14 +3894,14 @@ func (p *Parser) Init() {
 					l409:
 						{
 							position411, tokenIndex411, depth411 := position, tokenIndex, depth
-							if buffer[position] != rune('t') {
+							if buffer[position] != rune('l') {
 								goto l412
 							}
 							position++
 							goto l411
 						l412:
 							position, tokenIndex, depth = position411, tokenIndex411, depth411
-							if buffer[position] != rune('T') {
+							if buffer[position] != rune('L') {
 								goto l384
 							}
 							position++
@@ -3906,14 +3909,14 @@ func (p *Parser) Init() {
 					l411:
 						{
 							position413, tokenIndex413, depth413 := position, tokenIndex, depth
-							if buffer[position] != rune('i') {
+							if buffer[position] != rune('u') {
 								goto l414
 							}
 							position++
 							goto l413
 						l414:
 							position, tokenIndex, depth = position413, tokenIndex413, depth413
-							if buffer[position] != rune('I') {
+							if buffer[position] != rune('U') {
 								goto l384
 							}
 							position++
@@ -3921,14 +3924,14 @@ func (p *Parser) Init() {
 					l413:
 						{
 							position415, tokenIndex415, depth415 := position, tokenIndex, depth
-							if buffer[position] != rune('o') {
+							if buffer[position] != rune('t') {
 								goto l416
 							}
 							position++
 							goto l415
 						l416:
 							position, tokenIndex, depth = position415, tokenIndex415, depth415
-							if buffer[position] != rune('O') {
+							if buffer[position] != rune('T') {
 								goto l384
 							}
 							position++
@@ -3936,31 +3939,29 @@ func (p *Parser) Init() {
 					l415:
 						{
 							position417, tokenIndex417, depth417 := position, tokenIndex, depth
-							if buffer[position] != rune('n') {
+							if buffer[position] != rune('i') {
 								goto l418
 							}
 							position++
 							goto l417
 						l418:
 							position, tokenIndex, depth = position417, tokenIndex417, depth417
-							if buffer[position] != rune('N') {
+							if buffer[position] != rune('I') {
 								goto l384
 							}
 							position++
 						}
 					l417:
-						break
-					case 'T', 't':
 						{
 							position419, tokenIndex419, depth419 := position, tokenIndex, depth
-							if buffer[position] != rune('t') {
+							if buffer[position] != rune('o') {
 								goto l420
 							}
 							position++
 							goto l419
 						l420:
 							position, tokenIndex, depth = position419, tokenIndex419, depth419
-							if buffer[position] != rune('T') {
+							if buffer[position] != rune('O') {
 								goto l384
 							}
 							position++
@@ -3968,31 +3969,31 @@ func (p *Parser) Init() {
 					l419:
 						{
 							position421, tokenIndex421, depth421 := position, tokenIndex, depth
-							if buffer[position] != rune('o') {
+							if buffer[position] != rune('n') {
 								goto l422
 							}
 							position++
 							goto l421
 						l422:
 							position, tokenIndex, depth = position421, tokenIndex421, depth421
-							if buffer[position] != rune('O') {
+							if buffer[position] != rune('N') {
 								goto l384
 							}
 							position++
 						}
 					l421:
 						break
-					default:
+					case 'T', 't':
 						{
 							position423, tokenIndex423, depth423 := position, tokenIndex, depth
-							if buffer[position] != rune('f') {
+							if buffer[position] != rune('t') {
 								goto l424
 							}
 							position++
 							goto l423
 						l424:
 							position, tokenIndex, depth = position423, tokenIndex423, depth423
-							if buffer[position] != rune('F') {
+							if buffer[position] != rune('T') {
 								goto l384
 							}
 							position++
@@ -4000,29 +4001,31 @@ func (p *Parser) Init() {
 					l423:
 						{
 							position425, tokenIndex425, depth425 := position, tokenIndex, depth
-							if buffer[position] != rune('r') {
+							if buffer[position] != rune('o') {
 								goto l426
 							}
 							position++
 							goto l425
 						l426:
 							position, tokenIndex, depth = position425, tokenIndex425, depth425
-							if buffer[position] != rune('R') {
+							if buffer[position] != rune('O') {
 								goto l384
 							}
 							position++
 						}
 					l425:
+						break
+					default:
 						{
 							position427, tokenIndex427, depth427 := position, tokenIndex, depth
-							if buffer[position] != rune('o') {
+							if buffer[position] != rune('f') {
 								goto l428
 							}
 							position++
 							goto l427
 						l428:
 							position, tokenIndex, depth = position427, tokenIndex427, depth427
-							if buffer[position] != rune('O') {
+							if buffer[position] != rune('F') {
 								goto l384
 							}
 							position++
@@ -4030,19 +4033,49 @@ func (p *Parser) Init() {
 					l427:
 						{
 							position429, tokenIndex429, depth429 := position, tokenIndex, depth
-							if buffer[position] != rune('m') {
+							if buffer[position] != rune('r') {
 								goto l430
 							}
 							position++
 							goto l429
 						l430:
 							position, tokenIndex, depth = position429, tokenIndex429, depth429
-							if buffer[position] != rune('M') {
+							if buffer[position] != rune('R') {
 								goto l384
 							}
 							position++
 						}
 					l429:
+						{
+							position431, tokenIndex431, depth431 := position, tokenIndex, depth
+							if buffer[position] != rune('o') {
+								goto l432
+							}
+							position++
+							goto l431
+						l432:
+							position, tokenIndex, depth = position431, tokenIndex431, depth431
+							if buffer[position] != rune('O') {
+								goto l384
+							}
+							position++
+						}
+					l431:
+						{
+							position433, tokenIndex433, depth433 := position, tokenIndex, depth
+							if buffer[position] != rune('m') {
+								goto l434
+							}
+							position++
+							goto l433
+						l434:
+							position, tokenIndex, depth = position433, tokenIndex433, depth433
+							if buffer[position] != rune('M') {
+								goto l384
+							}
+							position++
+						}
+					l433:
 						break
 					}
 				}
@@ -4075,130 +4108,130 @@ func (p *Parser) Init() {
 		nil,
 		/* 41 STRING <- <(('\'' CHAR* '\'') / ('"' CHAR* '"'))> */
 		func() bool {
-			position440, tokenIndex440, depth440 := position, tokenIndex, depth
+			position444, tokenIndex444, depth444 := position, tokenIndex, depth
 			{
-				position441 := position
+				position445 := position
 				depth++
 				{
-					position442, tokenIndex442, depth442 := position, tokenIndex, depth
+					position446, tokenIndex446, depth446 := position, tokenIndex, depth
 					if buffer[position] != rune('\'') {
-						goto l443
+						goto l447
 					}
 					position++
-				l444:
+				l448:
 					{
-						position445, tokenIndex445, depth445 := position, tokenIndex, depth
+						position449, tokenIndex449, depth449 := position, tokenIndex, depth
 						if !_rules[ruleCHAR]() {
-							goto l445
+							goto l449
 						}
+						goto l448
+					l449:
+						position, tokenIndex, depth = position449, tokenIndex449, depth449
+					}
+					if buffer[position] != rune('\'') {
+						goto l447
+					}
+					position++
+					goto l446
+				l447:
+					position, tokenIndex, depth = position446, tokenIndex446, depth446
+					if buffer[position] != rune('"') {
 						goto l444
-					l445:
-						position, tokenIndex, depth = position445, tokenIndex445, depth445
-					}
-					if buffer[position] != rune('\'') {
-						goto l443
 					}
 					position++
-					goto l442
-				l443:
-					position, tokenIndex, depth = position442, tokenIndex442, depth442
-					if buffer[position] != rune('"') {
-						goto l440
-					}
-					position++
-				l446:
+				l450:
 					{
-						position447, tokenIndex447, depth447 := position, tokenIndex, depth
+						position451, tokenIndex451, depth451 := position, tokenIndex, depth
 						if !_rules[ruleCHAR]() {
-							goto l447
+							goto l451
 						}
-						goto l446
-					l447:
-						position, tokenIndex, depth = position447, tokenIndex447, depth447
+						goto l450
+					l451:
+						position, tokenIndex, depth = position451, tokenIndex451, depth451
 					}
 					if buffer[position] != rune('"') {
-						goto l440
+						goto l444
 					}
 					position++
 				}
-			l442:
+			l446:
 				depth--
-				add(ruleSTRING, position441)
+				add(ruleSTRING, position445)
 			}
 			return true
-		l440:
-			position, tokenIndex, depth = position440, tokenIndex440, depth440
+		l444:
+			position, tokenIndex, depth = position444, tokenIndex444, depth444
 			return false
 		},
 		/* 42 CHAR <- <(('\\' ESCAPE_CLASS) / (!ESCAPE_CLASS .))> */
 		func() bool {
-			position448, tokenIndex448, depth448 := position, tokenIndex, depth
+			position452, tokenIndex452, depth452 := position, tokenIndex, depth
 			{
-				position449 := position
+				position453 := position
 				depth++
 				{
-					position450, tokenIndex450, depth450 := position, tokenIndex, depth
+					position454, tokenIndex454, depth454 := position, tokenIndex, depth
 					if buffer[position] != rune('\\') {
-						goto l451
+						goto l455
 					}
 					position++
 					if !_rules[ruleESCAPE_CLASS]() {
-						goto l451
+						goto l455
 					}
-					goto l450
-				l451:
-					position, tokenIndex, depth = position450, tokenIndex450, depth450
+					goto l454
+				l455:
+					position, tokenIndex, depth = position454, tokenIndex454, depth454
 					{
-						position452, tokenIndex452, depth452 := position, tokenIndex, depth
+						position456, tokenIndex456, depth456 := position, tokenIndex, depth
 						if !_rules[ruleESCAPE_CLASS]() {
-							goto l452
+							goto l456
 						}
-						goto l448
-					l452:
-						position, tokenIndex, depth = position452, tokenIndex452, depth452
+						goto l452
+					l456:
+						position, tokenIndex, depth = position456, tokenIndex456, depth456
 					}
 					if !matchDot() {
-						goto l448
+						goto l452
 					}
 				}
-			l450:
+			l454:
 				depth--
-				add(ruleCHAR, position449)
+				add(ruleCHAR, position453)
 			}
 			return true
-		l448:
-			position, tokenIndex, depth = position448, tokenIndex448, depth448
+		l452:
+			position, tokenIndex, depth = position452, tokenIndex452, depth452
 			return false
 		},
 		/* 43 ESCAPE_CLASS <- <((&('\\') '\\') | (&('"') '"') | (&('`') '`') | (&('\'') '\''))> */
 		func() bool {
-			position453, tokenIndex453, depth453 := position, tokenIndex, depth
+			position457, tokenIndex457, depth457 := position, tokenIndex, depth
 			{
-				position454 := position
+				position458 := position
 				depth++
 				{
 					switch buffer[position] {
 					case '\\':
 						if buffer[position] != rune('\\') {
-							goto l453
+							goto l457
 						}
 						position++
 						break
 					case '"':
 						if buffer[position] != rune('"') {
-							goto l453
+							goto l457
 						}
 						position++
 						break
 					case '`':
 						if buffer[position] != rune('`') {
-							goto l453
+							goto l457
 						}
 						position++
 						break
 					default:
 						if buffer[position] != rune('\'') {
-							goto l453
+							goto l457
 						}
 						position++
 						break
@@ -4206,53 +4239,53 @@ func (p *Parser) Init() {
 				}
 
 				depth--
-				add(ruleESCAPE_CLASS, position454)
+				add(ruleESCAPE_CLASS, position458)
 			}
 			return true
-		l453:
-			position, tokenIndex, depth = position453, tokenIndex453, depth453
+		l457:
+			position, tokenIndex, depth = position457, tokenIndex457, depth457
 			return false
 		},
 		/* 44 NUMBER <- <(NUMBER_INTEGER NUMBER_FRACTION? NUMBER_EXP?)> */
 		nil,
 		/* 45 NUMBER_NATURAL <- <('0' / ([1-9] [0-9]*))> */
 		func() bool {
-			position457, tokenIndex457, depth457 := position, tokenIndex, depth
+			position461, tokenIndex461, depth461 := position, tokenIndex, depth
 			{
-				position458 := position
+				position462 := position
 				depth++
 				{
-					position459, tokenIndex459, depth459 := position, tokenIndex, depth
+					position463, tokenIndex463, depth463 := position, tokenIndex, depth
 					if buffer[position] != rune('0') {
-						goto l460
+						goto l464
 					}
 					position++
-					goto l459
-				l460:
-					position, tokenIndex, depth = position459, tokenIndex459, depth459
+					goto l463
+				l464:
+					position, tokenIndex, depth = position463, tokenIndex463, depth463
 					if c := buffer[position]; c < rune('1') || c > rune('9') {
-						goto l457
+						goto l461
 					}
 					position++
-				l461:
+				l465:
 					{
-						position462, tokenIndex462, depth462 := position, tokenIndex, depth
+						position466, tokenIndex466, depth466 := position, tokenIndex, depth
 						if c := buffer[position]; c < rune('0') || c > rune('9') {
-							goto l462
+							goto l466
 						}
 						position++
-						goto l461
-					l462:
-						position, tokenIndex, depth = position462, tokenIndex462, depth462
+						goto l465
+					l466:
+						position, tokenIndex, depth = position466, tokenIndex466, depth466
 					}
 				}
-			l459:
+			l463:
 				depth--
-				add(ruleNUMBER_NATURAL, position458)
+				add(ruleNUMBER_NATURAL, position462)
 			}
 			return true
-		l457:
-			position, tokenIndex, depth = position457, tokenIndex457, depth457
+		l461:
+			position, tokenIndex, depth = position461, tokenIndex461, depth461
 			return false
 		},
 		/* 46 NUMBER_FRACTION <- <('.' [0-9]+)> */
@@ -4263,54 +4296,6 @@ func (p *Parser) Init() {
 		nil,
 		/* 49 PAREN_OPEN <- <(_ '(' _)> */
 		func() bool {
-			position466, tokenIndex466, depth466 := position, tokenIndex, depth
-			{
-				position467 := position
-				depth++
-				if !_rules[rule_]() {
-					goto l466
-				}
-				if buffer[position] != rune('(') {
-					goto l466
-				}
-				position++
-				if !_rules[rule_]() {
-					goto l466
-				}
-				depth--
-				add(rulePAREN_OPEN, position467)
-			}
-			return true
-		l466:
-			position, tokenIndex, depth = position466, tokenIndex466, depth466
-			return false
-		},
-		/* 50 PAREN_CLOSE <- <(_ ')' _)> */
-		func() bool {
-			position468, tokenIndex468, depth468 := position, tokenIndex, depth
-			{
-				position469 := position
-				depth++
-				if !_rules[rule_]() {
-					goto l468
-				}
-				if buffer[position] != rune(')') {
-					goto l468
-				}
-				position++
-				if !_rules[rule_]() {
-					goto l468
-				}
-				depth--
-				add(rulePAREN_CLOSE, position469)
-			}
-			return true
-		l468:
-			position, tokenIndex, depth = position468, tokenIndex468, depth468
-			return false
-		},
-		/* 51 COMMA <- <(_ ',' _)> */
-		func() bool {
 			position470, tokenIndex470, depth470 := position, tokenIndex, depth
 			{
 				position471 := position
@@ -4318,7 +4303,7 @@ func (p *Parser) Init() {
 				if !_rules[rule_]() {
 					goto l470
 				}
-				if buffer[position] != rune(',') {
+				if buffer[position] != rune('(') {
 					goto l470
 				}
 				position++
@@ -4326,42 +4311,66 @@ func (p *Parser) Init() {
 					goto l470
 				}
 				depth--
-				add(ruleCOMMA, position471)
+				add(rulePAREN_OPEN, position471)
 			}
 			return true
 		l470:
 			position, tokenIndex, depth = position470, tokenIndex470, depth470
 			return false
 		},
-		/* 52 _ <- <SPACE*> */
+		/* 50 PAREN_CLOSE <- <(_ ')' _)> */
 		func() bool {
+			position472, tokenIndex472, depth472 := position, tokenIndex, depth
 			{
 				position473 := position
 				depth++
-			l474:
-				{
-					position475, tokenIndex475, depth475 := position, tokenIndex, depth
-					if !_rules[ruleSPACE]() {
-						goto l475
-					}
-					goto l474
-				l475:
-					position, tokenIndex, depth = position475, tokenIndex475, depth475
+				if !_rules[rule_]() {
+					goto l472
+				}
+				if buffer[position] != rune(')') {
+					goto l472
+				}
+				position++
+				if !_rules[rule_]() {
+					goto l472
 				}
 				depth--
-				add(rule_, position473)
+				add(rulePAREN_CLOSE, position473)
 			}
 			return true
+		l472:
+			position, tokenIndex, depth = position472, tokenIndex472, depth472
+			return false
 		},
-		/* 53 __ <- <SPACE+> */
+		/* 51 COMMA <- <(_ ',' _)> */
 		func() bool {
-			position476, tokenIndex476, depth476 := position, tokenIndex, depth
+			position474, tokenIndex474, depth474 := position, tokenIndex, depth
+			{
+				position475 := position
+				depth++
+				if !_rules[rule_]() {
+					goto l474
+				}
+				if buffer[position] != rune(',') {
+					goto l474
+				}
+				position++
+				if !_rules[rule_]() {
+					goto l474
+				}
+				depth--
+				add(ruleCOMMA, position475)
+			}
+			return true
+		l474:
+			position, tokenIndex, depth = position474, tokenIndex474, depth474
+			return false
+		},
+		/* 52 _ <- <SPACE*> */
+		func() bool {
 			{
 				position477 := position
 				depth++
-				if !_rules[ruleSPACE]() {
-					goto l476
-				}
 			l478:
 				{
 					position479, tokenIndex479, depth479 := position, tokenIndex, depth
@@ -4373,36 +4382,60 @@ func (p *Parser) Init() {
 					position, tokenIndex, depth = position479, tokenIndex479, depth479
 				}
 				depth--
-				add(rule__, position477)
+				add(rule_, position477)
 			}
 			return true
-		l476:
-			position, tokenIndex, depth = position476, tokenIndex476, depth476
-			return false
 		},
-		/* 54 SPACE <- <((&('\t') '\t') | (&('\n') '\n') | (&(' ') ' '))> */
+		/* 53 __ <- <SPACE+> */
 		func() bool {
 			position480, tokenIndex480, depth480 := position, tokenIndex, depth
 			{
 				position481 := position
 				depth++
+				if !_rules[ruleSPACE]() {
+					goto l480
+				}
+			l482:
+				{
+					position483, tokenIndex483, depth483 := position, tokenIndex, depth
+					if !_rules[ruleSPACE]() {
+						goto l483
+					}
+					goto l482
+				l483:
+					position, tokenIndex, depth = position483, tokenIndex483, depth483
+				}
+				depth--
+				add(rule__, position481)
+			}
+			return true
+		l480:
+			position, tokenIndex, depth = position480, tokenIndex480, depth480
+			return false
+		},
+		/* 54 SPACE <- <((&('\t') '\t') | (&('\n') '\n') | (&(' ') ' '))> */
+		func() bool {
+			position484, tokenIndex484, depth484 := position, tokenIndex, depth
+			{
+				position485 := position
+				depth++
 				{
 					switch buffer[position] {
 					case '\t':
 						if buffer[position] != rune('\t') {
-							goto l480
+							goto l484
 						}
 						position++
 						break
 					case '\n':
 						if buffer[position] != rune('\n') {
-							goto l480
+							goto l484
 						}
 						position++
 						break
 					default:
 						if buffer[position] != rune(' ') {
-							goto l480
+							goto l484
 						}
 						position++
 						break
@@ -4410,11 +4443,11 @@ func (p *Parser) Init() {
 				}
 
 				depth--
-				add(ruleSPACE, position481)
+				add(ruleSPACE, position485)
 			}
 			return true
-		l480:
-			position, tokenIndex, depth = position480, tokenIndex480, depth480
+		l484:
+			position, tokenIndex, depth = position484, tokenIndex484, depth484
 			return false
 		},
 		/* 56 Action0 <- <{

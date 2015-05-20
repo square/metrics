@@ -68,7 +68,8 @@ var inputs = []string{
 	"select x",
 	"select x from 0",
 	"select x resolution 10",
-	"select x sample 'max'",
+	"select x sample by 'max'",
+	"select x sample   by 'max'",
 }
 
 var parseOnly = []string{
@@ -93,6 +94,9 @@ var syntaxErrorQuery = []string{
 	"describe (",
 	"describe invalid_regex where key matches 'ab['",
 	"select x invalid_property 0",
+	"select x sampleby 0",
+	"select x sample 0",
+	"select x by 0",
 }
 
 func TestParse_success(t *testing.T) {

@@ -203,7 +203,7 @@ PROPERTY_KEY <-
   "from" /
   "to" /
   "resolution" /
-  "sample"
+  "sample" __ "by"
 
 PROPERTY_VALUE <- TIMESTAMP
 
