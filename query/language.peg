@@ -50,7 +50,7 @@ root <- (selectStmt / describeStmt) !.
 selectStmt <-   "select" __
   expressionList
   optionalPredicateClause
-  rangeClause {
+  propertyClause {
     p.makeSelect()
   }
 
@@ -63,8 +63,8 @@ describeSingleStmt <-
   optionalPredicateClause
   { p.makeDescribe() }
 
-rangeClause <-
-  _ "from" __ TIMESTAMP __ "to" __ TIMESTAMP
+propertyClause <-
+  (_ PROPERTY_KEY __ PROPERTY_VALUE)*
 
 optionalPredicateClause <-
   __ predicateClause / { p.addNullPredicate() }
@@ -198,21 +198,29 @@ ID_SEGMENT <-  ID_START ID_CONT*
 # If hyphens are needed, use backticks instead.
 ID_START <-    [a-zA-Z_]
 ID_CONT <-     ID_START / [0-9]
+
+PROPERTY_KEY <-
+  "from" /
+  "to" /
+  "resolution" /
+  "sample" __ "by"
+
+PROPERTY_VALUE <- TIMESTAMP
+
 KEYWORD <-     # List of keywrods used throughout the code.
   "all" /
   "and" /
   "as" /
   "by" /
   "describe" /
-  "from" /
   "group" /
   "in" /
   "matches" /
   "not" /
   "or" /
   "select" /
-  "to" /
-  "where"
+  "where" /
+  PROPERTY_KEY
 
 # Operators
 # =========
