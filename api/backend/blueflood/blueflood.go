@@ -18,12 +18,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/square/metrics/api"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
+
+	"github.com/golang/glog"
+	"github.com/square/metrics/api"
 )
 
 type Blueflood struct {
@@ -140,6 +141,10 @@ func bluefloodResolution(r int64) string {
 		return "min240"
 	}
 	return "min1440"
+}
+
+func resample(points []float64, currentResolution int64, expectedTimerange api.Timerange, sampleMethod api.SampleMethod) ([]float64, error) {
+	return nil, errors.New("Not implemented")
 }
 
 var _ api.Backend = (*Blueflood)(nil)

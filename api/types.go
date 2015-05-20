@@ -190,10 +190,3 @@ func (list SeriesList) IsValid() bool {
 	}
 	return true // validation is now successful.
 }
-
-// Sample converts the given serieslist to comform with the provided sampling strategy.
-func (list SeriesList) Sample(timerange Timerange, sampleMethod SampleMethod) SeriesList {
-	resultTimeseries := make([]float64, timerange.Slots())
-	_ = resultTimeseries
-	return list
-}
