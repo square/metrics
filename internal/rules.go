@@ -16,7 +16,6 @@ package internal
 
 import (
 	"bytes"
-	"errors"
 	"regexp"
 	"strings"
 
@@ -318,9 +317,11 @@ func interpolateTags(pattern string, tagSet api.TagSet, enforceAllTagsUsed bool)
 		}
 	}
 
-	for key := range tagSet {
-		if !usedTags[key] && enforceAllTagsUsed {
-			return "", errors.New("unused key " + key + " in tagset")
+	if enforceAllTagsUsed {
+		for key := range tagSet {
+			if !usedTags[key] {
+				return "", newUnusedTag(key)
+			}
 		}
 	}
 

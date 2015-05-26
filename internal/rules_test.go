@@ -214,26 +214,27 @@ func TestToGraphiteName_Error(t *testing.T) {
 func Test_interpolateTags(t *testing.T) {
 
 	for _, testCase := range []struct {
-		pattern string
-		tagSet  api.TagSet
-		enforce bool
-		result  string
+		pattern  string
+		tagSet   api.TagSet
+		enforce  bool
+		result   string
+		succeeds bool
 	}{
 		// note that the result <fail> indicates that the test case should fail to parse
-		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "cat.dog.foo.bar.box"},
-		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "cat.dog.foo.bar.box"},
-		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, false, "cat.dog.foo.bar.box"},
-		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, true, "<fail>"},
-		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "no.variable.test"},
-		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "<fail>"},
-		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "<fail>"},
-		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "<fail>"},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, false, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, true, "", false},
+		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "no.variable.test", true},
+		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "", false},
+		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "", false},
+		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "", false},
 	} {
 		pattern := testCase.pattern
 		tagSet := testCase.tagSet
 		result := testCase.result
 		enforce := testCase.enforce
-		succeeds := result != "<fail>" // a magic strict is used here for this purpose, to make maintanence easier
+		succeeds := testCase.succeeds
 		testResult, err := interpolateTags(pattern, tagSet, enforce)
 		if succeeds {
 			if err != nil {

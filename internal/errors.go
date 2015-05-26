@@ -31,6 +31,8 @@ const (
 	CannotInterpolate
 	// NoMatch is returned when no rule can reverse the given tagged metric.
 	NoMatch
+	// UnusedTag is returned during the reverse mapping, when a tag is present in the taglist but is not used
+	UnusedTag
 )
 
 // RuleError is the actual error object, wrapping RuleErrorCode and related metadata.
@@ -96,6 +98,13 @@ func newMissingTag(tag string) ConversionError {
 	return conversionError{
 		MissingTag,
 		fmt.Sprintf("Missing tag '%s'", tag),
+	}
+}
+
+func newUnusedTag(tag string) ConversionError {
+	return conversionError{
+		UnusedTag,
+		fmt.Sprintf("Unused tag '%s'", tag),
 	}
 }
 
