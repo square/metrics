@@ -150,7 +150,7 @@ func (p *Parser) pushNode(node Node) {
 // =======================
 // These operations are used by the embedded code snippets in language.peg
 func (p *Parser) makeDescribe() {
-	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
@@ -167,7 +167,7 @@ func (p *Parser) makeDescribe() {
 }
 
 func (p *Parser) makeSelect() {
-	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
@@ -238,7 +238,7 @@ func (p *Parser) addFunctionInvocation() {
 }
 
 func (p *Parser) addMetricExpression() {
-	predicateNode, ok := p.popNode(predicateType).(Predicate)
+	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
@@ -286,8 +286,8 @@ func (p *Parser) addLiteralMatcher() {
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagLiteral.tag,
-		matches: []string{stringLiteral.literal},
+		tag:    tagLiteral.tag,
+		values: []string{stringLiteral.literal},
 	})
 }
 
@@ -303,8 +303,8 @@ func (p *Parser) addListMatcher() {
 		return
 	}
 	p.pushNode(&listMatcher{
-		tag:     tagLiteral.tag,
-		matches: stringLiteral.literals,
+		tag:    tagLiteral.tag,
+		values: stringLiteral.literals,
 	})
 }
 
@@ -367,7 +367,7 @@ func (p *Parser) appendGroupBy(literal string) {
 }
 
 func (p *Parser) addNotPredicate() {
-	predicate, ok := p.popNode(predicateType).(Predicate)
+	predicate, ok := p.popNode(predicateType).(api.Predicate)
 	if ok {
 		p.pushNode(&notPredicate{predicate})
 	} else {
@@ -377,18 +377,18 @@ func (p *Parser) addNotPredicate() {
 }
 
 func (p *Parser) addOrPredicate() {
-	rightPredicate, ok := p.popNode(predicateType).(Predicate)
+	rightPredicate, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	leftPredicate, ok := p.popNode(predicateType).(Predicate)
+	leftPredicate, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&orPredicate{
-		predicates: []Predicate{
+		predicates: []api.Predicate{
 			leftPredicate,
 			rightPredicate,
 		},
@@ -396,22 +396,22 @@ func (p *Parser) addOrPredicate() {
 }
 
 func (p *Parser) addNullPredicate() {
-	p.pushNode(&andPredicate{predicates: []Predicate{}})
+	p.pushNode(&andPredicate{predicates: []api.Predicate{}})
 }
 
 func (p *Parser) addAndPredicate() {
-	rightPredicate, ok := p.popNode(predicateType).(Predicate)
+	rightPredicate, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	leftPredicate, ok := p.popNode(predicateType).(Predicate)
+	leftPredicate, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&andPredicate{
-		predicates: []Predicate{
+		predicates: []api.Predicate{
 			leftPredicate,
 			rightPredicate,
 		},
@@ -468,7 +468,7 @@ func functionName(depth int) string {
 
 // utility type variables
 var (
-	predicateType            = reflect.TypeOf((*Predicate)(nil)).Elem()
+	predicateType            = reflect.TypeOf((*api.Predicate)(nil)).Elem()
 	expressionType           = reflect.TypeOf((*Expression)(nil)).Elem()
 	expressionListPointer    = reflect.TypeOf((*expressionList)(nil))
 	groupByListPointer       = reflect.TypeOf((*groupByList)(nil))

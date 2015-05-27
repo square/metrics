@@ -18,14 +18,6 @@ import (
 	"github.com/square/metrics/api"
 )
 
-// Predicate is a boolean function applied against the given
-// metric alias and tagset. It determines whether the given metric
-// should be included in the query.
-type Predicate interface {
-	// checks the matcher.
-	Apply(tagSet api.TagSet) bool
-}
-
 func (matcher *andPredicate) Apply(tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
 		if !subPredicate.Apply(tagSet) {
@@ -53,7 +45,7 @@ func (matcher *listMatcher) Apply(tagSet api.TagSet) bool {
 		return false
 	}
 	tagValue := tagSet[matcher.tag]
-	for _, match := range matcher.matches {
+	for _, match := range matcher.values {
 		if match == tagValue {
 			return true
 		}

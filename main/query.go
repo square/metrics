@@ -19,14 +19,29 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
 	"os"
 )
 
+var (
+	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
+	BluefloodTenantId = flag.String("bluflood-tenant-id", "", "Blueflood tenant id")
+)
+
 func main() {
 	flag.Parse()
+	if *BluefloodUrl == "" {
+		common.ExitWithRequired("blueflood-url")
+	}
+	if *BluefloodTenantId == "" {
+		common.ExitWithRequired("blueflood-tenant-id")
+	}
+
 	apiInstance := common.NewAPI()
+	backend := blueflood.NewBlueflood(apiInstance, *BluefloodUrl, *BluefloodTenantId)
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		input := scanner.Text()
@@ -35,7 +50,7 @@ func main() {
 			fmt.Println("parsing error", err.Error())
 			continue
 		}
-		result, err := cmd.Execute(apiInstance)
+		result, err := cmd.Execute(backend)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

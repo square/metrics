@@ -15,7 +15,6 @@
 package query
 
 import (
-	"errors"
 	"github.com/square/metrics/api"
 )
 
@@ -24,7 +23,7 @@ import (
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(a api.API) (interface{}, error)
+	Execute(b api.Backend) (interface{}, error)
 	// Name is the human-readable identifier for the command.
 	Name() string
 }
@@ -32,7 +31,7 @@ type Command interface {
 // DescribeCommand describes the tag set managed by the given metric indexer.
 type DescribeCommand struct {
 	metricName api.MetricKey
-	predicate  Predicate
+	predicate  api.Predicate
 }
 
 // DescribeAllCommand returns all the metrics available in the system.
@@ -42,13 +41,13 @@ type DescribeAllCommand struct {
 // SelectCommand is the bread and butter of the metrics query engine.
 // It actually performs the query against the underlying metrics system.
 type SelectCommand struct {
-	predicate   Predicate
+	predicate   api.Predicate
 	expressions []Expression
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(a api.API) (interface{}, error) {
-	tags, _ := a.GetAllTags(cmd.metricName)
+func (cmd *DescribeCommand) Execute(b api.Backend) (interface{}, error) {
+	tags, _ := b.Api().GetAllTags(cmd.metricName)
 	output := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		if cmd.predicate.Apply(tag) {
@@ -64,8 +63,8 @@ func (cmd *DescribeCommand) Name() string {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(a api.API) (interface{}, error) {
-	return a.GetAllMetrics()
+func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
+	return b.Api().GetAllMetrics()
 }
 
 // Name of the command
@@ -79,6 +78,10 @@ func (cmd *SelectCommand) Name() string {
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(a api.API) (interface{}, error) {
-	return nil, errors.New("Not implemented.")
+func (cmd *SelectCommand) Execute(b api.Backend) (interface{}, error) {
+	return evaluateExpressions(EvaluationContext{
+		Backend:      b,
+		Timerange:    api.Timerange{}, // XXX Needs to come from somewhere
+		SampleMethod: api.SampleMean,  // XXX Needs to come from somewhere
+	}, cmd.expressions)
 }

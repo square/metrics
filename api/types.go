@@ -127,7 +127,9 @@ type SeriesType string
 // start = 0 mod resolution
 // end =   0 mod resolution
 //
-// This range is inclusive of Start and End (i.e. [Start, End])
+// This range is inclusive of Start and End (i.e. [Start, End]). Start and End
+// are Unix second timestamps. Resolution is in seconds.
+// TODO: Make these ms
 type Timerange struct {
 	Start      int64
 	End        int64
@@ -155,13 +157,13 @@ type Timeseries struct {
 	Metric TaggedMetric
 }
 
-// SamplingStrategy determines how the given time series should be sampled.
+// SampleMethod determines how the given time series should be sampled.
 // Note(This is currently unused).
-type SamplingStrategy int
+type SampleMethod int
 
 const (
 	// SamplingMax chooses the maximum value.
-	SampleMax SamplingStrategy = iota + 1
+	SampleMax SampleMethod = iota + 1
 	// SamplingMin chooses the minimum value.
 	SampleMin
 	// SamplingMean chooses the average value.
@@ -187,10 +189,4 @@ func (list SeriesList) IsValid() bool {
 		}
 	}
 	return true // validation is now successful.
-}
-
-// Sample converts the given serieslist to comform with the provided sampling strategy.
-func (list SeriesList) Sample(timerange Timerange, sampling SamplingStrategy) SeriesList {
-	// TODO - deal with the different range.
-	return list
 }

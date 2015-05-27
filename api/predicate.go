@@ -14,11 +14,10 @@
 
 package api
 
-// Backend describes how to fetch time-series data from a given backend.
-type Backend interface {
-	Api() API
-	// FetchSeries fetches the series described by the provided TaggedMetric
-	// corresponding to the Timerange, down/upsampling if necessary using
-	// SampleMethod
-	FetchSeries(metric TaggedMetric, predicate Predicate, sampleMethod SampleMethod, timerange Timerange) (*SeriesList, error)
+// Predicate is a boolean function applied against the given
+// metric alias and tagset. It determines whether the given metric
+// should be included in the query.
+type Predicate interface {
+	// checks the matcher.
+	Apply(tagSet TagSet) bool
 }
