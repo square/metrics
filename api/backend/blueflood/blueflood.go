@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
@@ -52,6 +54,15 @@ type MetricPoint struct {
 	Variance  float64 `json:"variance"`
 }
 
+const (
+	ResolutionFull    = "FULL"
+	Resolution5Min    = "MIN5"
+	Resolution20Min   = "MIN20"
+	Resolution60Min   = "MIN60"
+	Resolution240Min  = "MIN240"
+	Resolution1440Min = "MIN1440"
+)
+
 func NewBlueflood(api api.API, baseUrl string, tenantId string) *Blueflood {
 	return &Blueflood{api: api, baseUrl: baseUrl, tenantId: tenantId, client: http.DefaultClient}
 }
@@ -81,17 +92,24 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	}
 
 	// Issue GET to fetch metrics
-	queryUrl := fmt.Sprintf(
-		"%s/v2.0/%s/views/%s?from=%d&to=%d&resolution=%s&select=numPoints,%s",
+	queryUrl, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s",
 		b.baseUrl,
 		b.tenantId,
-		graphiteMetric,
-		timerange.Start*1000,
-		timerange.End*1000,
-		bluefloodResolution(timerange.Resolution),
-		strings.ToLower(selectResultField))
-	glog.V(2).Infof("Blueflood fetch: %s", queryUrl)
-	resp, err := b.client.Get(queryUrl)
+		graphiteMetric))
+	if err != nil {
+		return nil, err
+	}
+
+	params := url.Values{}
+	params.Set("from", strconv.FormatInt(timerange.Start*1000, 10))
+	params.Set("to", strconv.FormatInt(timerange.End*1000, 10))
+	params.Set("resolution", bluefloodResolution(timerange.Resolution))
+	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
+
+	queryUrl.RawQuery = params.Encode()
+
+	glog.V(2).Infof("Blueflood fetch: %s", queryUrl.String())
+	resp, err := http.Get(queryUrl.String())
 	if err != nil {
 		return nil, err
 	}
@@ -136,17 +154,17 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 func bluefloodResolution(r int64) string {
 	switch {
 	case r < 5*60:
-		return "full"
+		return ResolutionFull
 	case r < 20*60:
-		return "min5"
+		return Resolution5Min
 	case r < 60*60:
-		return "min20"
+		return Resolution20Min
 	case r < 240*60:
-		return "min60"
+		return Resolution60Min
 	case r < 1440*60:
-		return "min240"
+		return Resolution240Min
 	}
-	return "min1440"
+	return Resolution1440Min
 }
 
 func resample(points []float64, currentResolution int64, expectedTimerange api.Timerange, sampleMethod api.SampleMethod) ([]float64, error) {
