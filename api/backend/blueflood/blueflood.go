@@ -27,10 +27,16 @@ import (
 	"github.com/square/metrics/api"
 )
 
+type httpClient interface {
+	// our own client to mock out the standard golang HTTP Client.
+	Get(url string) (resp *http.Response, err error)
+}
+
 type Blueflood struct {
 	api      api.API
 	baseUrl  string
 	tenantId string
+	client   httpClient
 }
 
 type QueryResponse struct {
@@ -47,7 +53,7 @@ type MetricPoint struct {
 }
 
 func NewBlueflood(api api.API, baseUrl string, tenantId string) *Blueflood {
-	return &Blueflood{api: api, baseUrl: baseUrl, tenantId: tenantId}
+	return &Blueflood{api: api, baseUrl: baseUrl, tenantId: tenantId, client: http.DefaultClient}
 }
 
 func (b *Blueflood) Api() api.API {
@@ -85,7 +91,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 		bluefloodResolution(timerange.Resolution),
 		strings.ToLower(selectResultField))
 	glog.V(2).Infof("Blueflood fetch: %s", queryUrl)
-	resp, err := http.Get(queryUrl)
+	resp, err := b.client.Get(queryUrl)
 	if err != nil {
 		return nil, err
 	}
