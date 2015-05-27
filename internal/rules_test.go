@@ -210,3 +210,49 @@ func TestToGraphiteName_Error(t *testing.T) {
 	checkConversionErrorCode(t, err, CannotInterpolate)
 	a.EqString(string(reversed), "")
 }
+
+func Test_interpolateTags(t *testing.T) {
+
+	for _, testCase := range []struct {
+		pattern  string
+		tagSet   api.TagSet
+		enforce  bool
+		result   string
+		succeeds bool
+	}{
+		// note that the result <fail> indicates that the test case should fail to parse
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, false, "cat.dog.foo.bar.box", true},
+		{"%A%.%B%.foo.bar.%C%", map[string]string{"A": "cat", "B": "dog", "C": "box", "D": "other"}, true, "", false},
+		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "no.variable.test", true},
+		{"no.variable.test", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "", false},
+		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, false, "", false},
+		{"test.for.%extra%", map[string]string{"A": "cat", "B": "dog", "C": "box"}, true, "", false},
+	} {
+		pattern := testCase.pattern
+		tagSet := testCase.tagSet
+		result := testCase.result
+		enforce := testCase.enforce
+		succeeds := testCase.succeeds
+		testResult, err := interpolateTags(pattern, tagSet, enforce)
+		if succeeds {
+			if err != nil {
+				t.Errorf("pattern %s fails for tagset %+v", pattern, tagSet)
+				continue
+			}
+			if testResult != result {
+				t.Errorf("pattern %s for tagset %+v produces incorrect pattern %s instead of %s (enforce=%v)", pattern, tagSet, testResult, result, enforce)
+				continue
+			}
+			// otherwise, everything is okay since no error occurred and the results match
+		} else {
+			if err == nil {
+				t.Errorf("pattern %s succeeds for tagset %+v producing output %s when it should not succeed (enforce=%v)", pattern, tagSet, testResult, enforce)
+				continue
+			}
+			// otherwise, everything is okay since the match failed
+		}
+	}
+
+}

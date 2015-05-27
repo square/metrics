@@ -102,7 +102,7 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	if tagSet == nil {
 		return api.TaggedMetric{}, false
 	}
-	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet)
+	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet, false)
 	if err != nil {
 		return api.TaggedMetric{}, false
 	}
@@ -135,7 +135,7 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetr
 	// This is necessary because tags embedded in the metric are not
 	// exported to the tagset.
 	mergedTagSet := taggedMetric.TagSet.Merge(extractedTagSet)
-	interpolated, err := interpolateTags(rule.raw.Pattern, mergedTagSet)
+	interpolated, err := interpolateTags(rule.raw.Pattern, mergedTagSet, true)
 	if err != nil {
 		return "", err
 	}
@@ -297,14 +297,15 @@ func isTagPortion(index int) bool {
 	return index%2 == 1
 }
 
-func interpolateTags(pattern string, tagSet api.TagSet) (string, error) {
-	if !strings.Contains(pattern, "%") {
-		return pattern, nil // short circuit when there are no tags to interpolate.
-	}
+func interpolateTags(pattern string, tagSet api.TagSet, enforceAllTagsUsed bool) (string, error) {
+
+	usedTags := make(map[string]bool)
+
 	splitted := strings.Split(pattern, "%")
 	buffer := new(bytes.Buffer)
 	for index, token := range splitted {
 		if isTagPortion(index) {
+			usedTags[token] = true
 			tagValue, hasTag := tagSet[token]
 			if hasTag {
 				buffer.WriteString(tagValue)
@@ -315,5 +316,14 @@ func interpolateTags(pattern string, tagSet api.TagSet) (string, error) {
 			buffer.WriteString(token)
 		}
 	}
+
+	if enforceAllTagsUsed {
+		for key := range tagSet {
+			if !usedTags[key] {
+				return "", newUnusedTag(key)
+			}
+		}
+	}
+
 	return buffer.String(), nil
 }
