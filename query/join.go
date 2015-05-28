@@ -19,10 +19,8 @@ import (
 )
 
 type joinRow struct {
-	// The tagSet is used to improve performance, or, possibly in the future, for later queries
-	TagSet api.TagSet
-	// The Row consists of all Timeseries which got collected into this joinRow
-	Row []api.Timeseries
+	TagSet api.TagSet       // The tagSet is used to improve performance, or, possibly in the future, for later queries
+	Row    []api.Timeseries // The Row consists of all Timeseries which got collected into this joinRow
 }
 
 type joinResult struct {
