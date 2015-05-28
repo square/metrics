@@ -106,7 +106,8 @@ func Test_Blueflood(t *testing.T) {
 
 		seriesList, err := b.FetchSeries(test.queryMetric, test.predicate, test.sampleMethod, test.timerange)
 		if err != nil {
-			t.Errorf(err.Error())
+			a.CheckError(err)
+			continue
 		}
 
 		a.Eq(seriesList, &test.expectedSeriesList)
