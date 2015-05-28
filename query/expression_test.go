@@ -244,6 +244,56 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			true,
 			[][]float64{{8, 10, 12}, {14, 16, 18}, {12, 15, 18}, {21, 24, 27}},
 		},
+		{
+			emptyContext,
+			"add",
+			[]Expression{
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{ 103, 103, 103 },
+							api.TagSet{
+								"env" : "production",
+								"host" : "#1",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 203, 203, 203 },
+							api.TagSet{
+								"env" : "staging",
+								"host" : "#2",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 303, 303, 303 },
+							api.TagSet{
+								"env" : "staging",
+								"host" : "#3",
+							},
+						},
+					},
+				},
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{ 1, 2, 3 },
+							api.TagSet{
+								"env":"staging",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 3, 0, 3 },
+							api.TagSet{
+								"env":"production",
+							},
+						},
+					},
+				},
+			},
+			func(left, right float64) float64 { return left - right },
+			true,
+			[][]float64{{100, 103, 100},{202, 201, 200},{302, 301, 300}},
+		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
