@@ -1,3 +1,17 @@
+// Copyright 2015 Square Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package query
 
 import (
@@ -30,98 +44,48 @@ var (
 	voidList = api.SeriesList{[]api.Timeseries{voidSeries}, api.Timerange{}}
 )
 
-func Test_Join_Zero(t *testing.T) {
-	// attempt to join empty with empty, empty with many, and many with empty, etc.
-	// all should produce empty results
-	result := Join([]api.SeriesList{emptyList})
-	if len(result.Rows) != 0 {
-		t.Fatalf("Join of single empty row produces non-empty result")
-	}
-	result = Join([]api.SeriesList{emptyList, emptyList})
-	if len(result.Rows) != 0 {
-		t.Fatalf("Join of two empty rows produces non-empty result")
-	}
-	result = Join([]api.SeriesList{emptyList, basicList})
-	if len(result.Rows) != 0 {
-		t.Fatalf("Join of (empty row, nonempty row) produces non-empty result")
-	}
-	result = Join([]api.SeriesList{basicList, emptyList})
-	if len(result.Rows) != 0 {
-		t.Fatalf("Join of single (nonempty row, empty row) produces non-empty result")
-	}
-	result = Join([]api.SeriesList{basicList, basicList, basicList, emptyList, basicList})
-	if len(result.Rows) != 0 {
-		t.Fatalf("Join of many nonempty rows and one empty row produces non-empty result")
+var testCases = []struct {
+	joinArgument   []api.SeriesList
+	expectedLength int
+}{
+	// Cases with empty results:
+	{joinArgument: []api.SeriesList{emptyList}, expectedLength: 0},
+	{joinArgument: []api.SeriesList{emptyList, emptyList}, expectedLength: 0},
+	{joinArgument: []api.SeriesList{emptyList, basicList}, expectedLength: 0},
+	{joinArgument: []api.SeriesList{basicList, emptyList}, expectedLength: 0},
+	{joinArgument: []api.SeriesList{basicList, basicList, basicList, emptyList, basicList}, expectedLength: 0},
+	// Cases where the resulting length is the same as the input(s)
+	{joinArgument: []api.SeriesList{basicList}, expectedLength: len(basicList.Series)},
+	{joinArgument: []api.SeriesList{basicList, basicList}, expectedLength: len(basicList.Series)},
+	{joinArgument: []api.SeriesList{dcList}, expectedLength: len(dcList.Series)},
+	{joinArgument: []api.SeriesList{dcList, dcList}, expectedLength: len(dcList.Series)},
+	{joinArgument: []api.SeriesList{envList}, expectedLength: len(envList.Series)},
+	{joinArgument: []api.SeriesList{envList, envList}, expectedLength: len(envList.Series)},
+	// Cases where the resulting length is the maximum of the inputs'
+	{joinArgument: []api.SeriesList{basicList, dcList}, expectedLength: max(len(basicList.Series), len(dcList.Series))},
+	{joinArgument: []api.SeriesList{dcList, basicList}, expectedLength: max(len(basicList.Series), len(dcList.Series))},
+	{joinArgument: []api.SeriesList{basicList, voidList}, expectedLength: len(basicList.Series)},
+	{joinArgument: []api.SeriesList{voidList, basicList}, expectedLength: len(basicList.Series)},
+	{joinArgument: []api.SeriesList{basicList, dcList}, expectedLength: len(basicList.Series)},
+	// Cases where the resulting length is the product of the inputs'
+	{joinArgument: []api.SeriesList{basicList, envList}, expectedLength: len(basicList.Series) * len(envList.Series)},
+	{joinArgument: []api.SeriesList{envList, dcList}, expectedLength: len(envList.Series) * len(dcList.Series)},
+}
+
+func Test_join_ResultSizes(t *testing.T) {
+	for i, testCase := range testCases {
+		result := join(testCase.joinArgument)
+		if len(result.Rows) != testCase.expectedLength {
+			t.Errorf("join testcase %d results in %d; expected %d", i, len(result.Rows), testCase.expectedLength)
+			t.Errorf("testcase: %+v", testCase.joinArgument)
+		}
 	}
 }
 
-func Test_Join_Self(t *testing.T) {
-	// attempt to join (well-behaved) sets with themselves
-	// or with nothing
-	result := Join([]api.SeriesList{basicList})
-	if len(result.Rows) != len(basicList.Series) {
-		t.Fatalf("Join of a row with nothing else changes its length")
-	}
-
-	result = Join([]api.SeriesList{basicList, basicList})
-	if len(result.Rows) != len(basicList.Series) {
-		t.Fatalf("Join of a row with itself changes its length")
-	}
-
-	result = Join([]api.SeriesList{dcList, dcList})
-	if len(result.Rows) != len(dcList.Series) {
-		t.Fatalf("Join of a row with itself changes its length")
-	}
-
-	result = Join([]api.SeriesList{envList, envList})
-	if len(result.Rows) != len(envList.Series) {
-		t.Fatalf("Join of a row with itself changes its length")
-	}
-}
-
-func Test_Join_CartesianProduct(t *testing.T) {
-	// attempt to join two different sets with nothing in common
-	// and check that they multiply
-	result := Join([]api.SeriesList{basicList, envList})
-	if len(result.Rows) != len(basicList.Series)*len(envList.Series) {
-		t.Fatalf("Join with serieslists having disjoint key sets results in unexpected number of entries (should be %v but is %v)", len(basicList.Series)*len(envList.Series), len(result.Rows))
-	}
-}
-
-// A simple max function used in the Test_Join_KeySubsets which makes it less brittle
-// to modifications to the series lists used as example testcases
 func max(x, y int) int {
 	if x < y {
 		return y
 	} else {
 		return x
-	}
-}
-
-func Test_Join_KeySubsets(t *testing.T) {
-	// Attempt to join two different sets with partial keys in common
-	// but where in the one with fewer keys, the common keys are uniquely identifying.
-	// This is sufficient to obtain the desired behavior: len(result) = max(len(left), len(right))
-	result := Join([]api.SeriesList{basicList, dcList})
-	if len(result.Rows) != max(len(basicList.Series), len(dcList.Series)) {
-		t.Fatalf("Join with serieslists having keysets which are a subset of one another resulted in unexpected number of entries")
-	}
-	// switch the order:
-	result = Join([]api.SeriesList{dcList, basicList})
-	if len(result.Rows) != max(len(basicList.Series), len(dcList.Series)) {
-		t.Fatalf("Join with serieslists having keysets which are a subset of one another resulted in unexpected number of entries")
-	}
-}
-
-func Test_Join_Single(t *testing.T) {
-	// Attempt to join various series lists with a list containing a single, tagless list
-	// and verify that the lists go together
-	result := Join([]api.SeriesList{basicList, voidList})
-	if len(result.Rows) != len(basicList.Series) {
-		t.Fatalf("Join with tagless series list changed the length of the result")
-	}
-	result = Join([]api.SeriesList{voidList, basicList})
-	if len(result.Rows) != len(basicList.Series) {
-		t.Fatalf("Join with tagless series list changed the length of the result")
 	}
 }
