@@ -30,7 +30,7 @@ type joinResult struct {
 // This method takes a partial joinrow, and evaluates the validity of appending `series` to it.
 // If this is possible, return the new series and true; otherwise return false for "ok"
 func extendRow(row joinRow, series api.Timeseries) (joinRow, bool) {
-	for key, newValue := range series.Metric.TagSet {
+	for key, newValue := range series.TagSet {
 		oldValue, ok := map[string]string(row.TagSet)[key]
 		if ok && newValue != oldValue {
 			// If this occurs, then the candidate member (series) and the rest of the row are in
@@ -42,7 +42,7 @@ func extendRow(row joinRow, series api.Timeseries) (joinRow, bool) {
 	// if this point has been reached, then it is possible to extend the row without conflict
 	newTagSet := api.NewTagSet()
 	result := joinRow{newTagSet, append(row.Row, series)}
-	for key, newValue := range series.Metric.TagSet {
+	for key, newValue := range series.TagSet {
 		newTagSet[key] = newValue
 	}
 	for key, oldValue := range row.TagSet {

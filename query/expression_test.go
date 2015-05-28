@@ -37,8 +37,8 @@ type LiteralExpression struct {
 
 func (expr *LiteralExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
 	return &api.SeriesList{
-		[]api.Timeseries{api.Timeseries{expr.Values, api.TaggedMetric{}}},
-		api.Timerange{},
+		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
+		Timerange: api.Timerange{},
 	}, nil
 }
 
@@ -56,7 +56,7 @@ func Test_ScalarExpression(t *testing.T) {
 			[]api.Timeseries{
 				api.Timeseries{
 					[]float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
-					api.TaggedMetric{},
+					api.NewTagSet(),
 				},
 			},
 		},

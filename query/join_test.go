@@ -21,27 +21,27 @@ import (
 )
 
 var (
-	seriesA1 = api.Timeseries{[]float64{1, 2, 3}, api.TaggedMetric{"cpu", map[string]string{"dc": "A", "host": "#1"}}}
-	seriesA2 = api.Timeseries{[]float64{4, 5, 6}, api.TaggedMetric{"cpu", map[string]string{"dc": "A", "host": "#2"}}}
-	seriesB3 = api.Timeseries{[]float64{0, 1, 1}, api.TaggedMetric{"cpu", map[string]string{"dc": "B", "host": "#3"}}}
-	seriesB4 = api.Timeseries{[]float64{1, 3, 2}, api.TaggedMetric{"cpu", map[string]string{"dc": "B", "host": "#4"}}}
-	seriesC5 = api.Timeseries{[]float64{2, 2, 3}, api.TaggedMetric{"cpu", map[string]string{"dc": "C", "host": "#5"}}}
+	seriesA1 = api.Timeseries{[]float64{1, 2, 3}, map[string]string{"dc": "A", "host": "#1"}}
+	seriesA2 = api.Timeseries{[]float64{4, 5, 6}, map[string]string{"dc": "A", "host": "#2"}}
+	seriesB3 = api.Timeseries{[]float64{0, 1, 1}, map[string]string{"dc": "B", "host": "#3"}}
+	seriesB4 = api.Timeseries{[]float64{1, 3, 2}, map[string]string{"dc": "B", "host": "#4"}}
+	seriesC5 = api.Timeseries{[]float64{2, 2, 3}, map[string]string{"dc": "C", "host": "#5"}}
 
-	seriesDC_A = api.Timeseries{[]float64{2, 0, 1}, api.TaggedMetric{"cpu", map[string]string{"dc": "A"}}}
-	seriesDC_B = api.Timeseries{[]float64{2, 0, 1}, api.TaggedMetric{"cpu", map[string]string{"dc": "B"}}}
-	seriesDC_C = api.Timeseries{[]float64{2, 0, 1}, api.TaggedMetric{"cpu", map[string]string{"dc": "C"}}}
+	seriesDC_A = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "A"}}
+	seriesDC_B = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "B"}}
+	seriesDC_C = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "C"}}
 
-	seriesENV_PROD  = api.Timeseries{[]float64{2, 0, 1}, api.TaggedMetric{"cpu", map[string]string{"env": "production"}}}
-	seriesENV_STAGE = api.Timeseries{[]float64{2, 0, 1}, api.TaggedMetric{"cpu", map[string]string{"env": "staging"}}}
+	seriesENV_PROD  = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"env": "production"}}
+	seriesENV_STAGE = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"env": "staging"}}
 
-	voidSeries = api.Timeseries{[]float64{0, 0, 0}, api.TaggedMetric{"cpu", map[string]string{}}}
+	voidSeries = api.Timeseries{[]float64{0, 0, 0}, map[string]string{}}
 
-	emptyList = api.SeriesList{[]api.Timeseries{}, api.Timerange{}}
-	basicList = api.SeriesList{[]api.Timeseries{seriesA1, seriesA2, seriesB3, seriesB4, seriesC5}, api.Timerange{}}
-	dcList    = api.SeriesList{[]api.Timeseries{seriesDC_A, seriesDC_B, seriesDC_C}, api.Timerange{}}
-	envList   = api.SeriesList{[]api.Timeseries{seriesENV_PROD, seriesENV_STAGE}, api.Timerange{}}
+	emptyList = api.SeriesList{[]api.Timeseries{}, api.Timerange{}, ""}
+	basicList = api.SeriesList{[]api.Timeseries{seriesA1, seriesA2, seriesB3, seriesB4, seriesC5}, api.Timerange{}, ""}
+	dcList    = api.SeriesList{[]api.Timeseries{seriesDC_A, seriesDC_B, seriesDC_C}, api.Timerange{}, ""}
+	envList   = api.SeriesList{[]api.Timeseries{seriesENV_PROD, seriesENV_STAGE}, api.Timerange{}, ""}
 
-	voidList = api.SeriesList{[]api.Timeseries{voidSeries}, api.Timerange{}}
+	voidList = api.SeriesList{[]api.Timeseries{voidSeries}, api.Timerange{}, ""}
 )
 
 var testCases = []struct {

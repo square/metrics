@@ -142,7 +142,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 		Series: []api.Timeseries{
 			api.Timeseries{
 				Values: series,
-				Metric: metric,
+				TagSet: metric.TagSet,
 			},
 		},
 		Timerange: timerange,
