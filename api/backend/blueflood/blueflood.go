@@ -109,7 +109,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	queryUrl.RawQuery = params.Encode()
 
 	glog.V(2).Infof("Blueflood fetch: %s", queryUrl.String())
-	resp, err := http.Get(queryUrl.String())
+	resp, err := b.client.Get(queryUrl.String())
 	if err != nil {
 		return nil, err
 	}
