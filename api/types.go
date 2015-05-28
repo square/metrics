@@ -154,7 +154,7 @@ func (tr Timerange) Slots() int {
 // Timeseries is a single time series, identified with the associated tagset.
 type Timeseries struct {
 	Values []float64
-	Metric TaggedMetric
+	Metric TaggedMetric // TODO (jee) - change this to use TagSet instead of TaggedMetric.
 }
 
 // SampleMethod determines how the given time series should be sampled.
