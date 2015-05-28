@@ -11,11 +11,13 @@ Check out the project to the development directory.
 Project Structure
 -----------------
 ```
-├── api      # list of publically exposed APIs.
-├── assert   # helper functions to make test writing easier.
-├── internal # internal library - should not be exposed to the users.
-├── main     # entry point.
-└── schema   # CQL schema files.
+├── api        # list of publically exposed APIs.
+├── assert     # helper functions to make test writing easier.
+├── internal   # internal library - should not be exposed to the users.
+├── main       # entry point.
+│   └── common
+├── query      # logic around parsing & execution of the queries.
+└── schema     # CQL schema files.
 ```
 
 Cassandra
@@ -50,3 +52,12 @@ Testing
 go test ./...
 ```
 
+Committing code
+---------------
+
+Please ensure the code is correctly formatted and passes the linter.
+
+```
+go fmt ./...
+golint ./... # TODO - exclude generated files.
+```
