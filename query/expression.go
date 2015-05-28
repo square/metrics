@@ -64,7 +64,7 @@ func (expr *scalarExpression) Evaluate(context EvaluationContext) (*api.SeriesLi
 	}
 
 	return &api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{series, api.TaggedMetric{}}},
+		Series:    []api.Timeseries{api.Timeseries{series, api.NewTagSet()}},
 		Timerange: context.Timerange,
 	}, nil
 }
@@ -138,8 +138,8 @@ func evaluateBinaryOperation(
 	}
 
 	return &api.SeriesList{
-		[]api.Timeseries{api.Timeseries{result, api.TaggedMetric{}}},
-		context.Timerange,
+		Series:    []api.Timeseries{api.Timeseries{result, api.NewTagSet()}},
+		Timerange: context.Timerange,
 	}, nil
 }
 
