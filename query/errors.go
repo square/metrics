@@ -43,4 +43,11 @@ func (errors SyntaxErrors) Error() string {
 	return strings.Join(errorStrings, "\n")
 }
 
+type EmptyAggregateError struct {
+}
+
+func (err EmptyAggregateError) Error() string {
+	return "attempt to aggregate an empty series list"
+}
+
 var _ error = (*SyntaxError)(nil)
