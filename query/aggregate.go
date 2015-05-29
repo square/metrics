@@ -14,22 +14,25 @@
 
 package query
 
+// This file culminates in the definition of `aggregateBy`, which takes a SeriesList and an Aggregator and a list of tags,
+// and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
+
 import (
 	"github.com/square/metrics/api"
 )
 
-type groupRow struct {
+type group struct {
 	List   []api.Timeseries
 	TagSet api.TagSet
 }
 
 type groupResult struct {
-	Results []groupRow
+	Results []group
 }
 
-// If the given groupRow will accept this given series (since it belongs to this group)
+// If the given group will accept this given series (since it belongs to this group)
 // then bucketValid will return true.
-func bucketValid(row groupRow, series api.Timeseries, tags []string) bool {
+func bucketValid(row group, series api.Timeseries, tags []string) bool {
 	for _, tag := range tags {
 		if row.TagSet[tag] != series.TagSet[tag] {
 			return false
@@ -39,7 +42,7 @@ func bucketValid(row groupRow, series api.Timeseries, tags []string) bool {
 }
 
 // Adds the series to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
-func addToBucket(rows []groupRow, series api.Timeseries, tags []string) []groupRow {
+func addToBucket(rows []group, series api.Timeseries, tags []string) []group {
 	// First we delete all tags with names other than those found in 'tags'
 	newTags := api.NewTagSet()
 	for _, tag := range tags {
@@ -59,28 +62,26 @@ func addToBucket(rows []groupRow, series api.Timeseries, tags []string) []groupR
 	for _, tag := range tags {
 		tagSet[tag] = series.TagSet[tag]
 	}
-	return append(rows, groupRow{
+	return append(rows, group{
 		[]api.Timeseries{series},
 		tagSet,
 	})
 }
 
 // Groups the given SeriesList by tags, producing a list of lists (of type groupResult)
-func groupBy(list api.SeriesList, tags []string) groupResult {
-	result := []groupRow{}
+func groupBy(list api.SeriesList, tags []string) []group {
+	result := []group{}
 	for _, series := range list.Series {
 		result = addToBucket(result, series, tags)
 	}
-	return groupResult{
-		result,
-	}
+	return result
 }
 
 // The Aggregator interface is the public-facing way in which values are aggregated.
 // Aggregator objects are required to perform aggregation (max, min, range, mean, sum, etc.)
 // Their only interface method is the `beginAggregation()` method which returns an "aggregation".
 type Aggregator interface {
-	beginAggregation() aggregaton
+	beginAggregation() aggregation
 }
 
 // An aggregation is a private interface which aggregates values for a particular SeriesList.
@@ -123,7 +124,7 @@ func (aggregation *sumAggregation) accumulate(value float64) {
 }
 
 // The result just returns this value.
-func (aggregation *sumAggregation) result() {
+func (aggregation *sumAggregation) result() float64 {
 	return aggregation.sum
 }
 
@@ -153,12 +154,12 @@ func (aggregation *meanAggregation) accumulate(value float64) {
 
 // The result returns the quotient of the running `sum` and `count`, computed through `accumulate()`
 func (aggregation *meanAggregation) result() float64 {
-	return aggregation.sum / aggregation.count
+	return aggregation.sum / float64(aggregation.count)
 }
 
 func useAggregator(aggregator Aggregator, values []float64) float64 {
 	aggregation := aggregator.beginAggregation()
-	for _, v := range float64 {
+	for _, v := range values {
 		aggregation.accumulate(v)
 	}
 	return aggregation.result()
@@ -166,32 +167,56 @@ func useAggregator(aggregator Aggregator, values []float64) float64 {
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
 // the list must be non-empty, or an error is returned
-func applyAggregation(list api.SeriesList, aggregator Aggregator, tagSet TagSet) (api.SeriesList, error) {
-	if len(list.Series) == 0 {
-		return api.SeriesList{}, EmptyAggregateError{}
+func applyAggregation(group group, aggregator Aggregator) (api.Timeseries, error) {
+	list := group.List
+	tagSet := group.TagSet
+
+	if len(list) == 0 {
+		return api.Timeseries{}, EmptyAggregateError{}
 	}
 
 	series := api.Timeseries{
-		Values: make([]float64, len(list.Series[0].Values)), // The first Series in the given list is used to determine this length
-		TagSet: tagSet,                                      // The tagset is supplied by an argument (it will be the values grouped on)
+		Values: make([]float64, len(list[0].Values)), // The first Series in the given list is used to determine this length
+		TagSet: tagSet,                               // The tagset is supplied by an argument (it will be the values grouped on)
 	}
 
 	// Make a slice of time to reuse.
 	// Each entry corresponds to a particular Series, all having the same index within their corresponding Series.
-	timeSlice := make([]float64, len(list.Series))
+	timeSlice := make([]float64, len(list))
 
 	for i := range series.Values {
 		// We need to determine each value in turn.
 		for j := range timeSlice {
-			timeSlice[j] = list.Series[j].Values[i]
+			timeSlice[j] = list[j].Values[i]
 		}
 		// Find the aggregated value:
 		series.Values[i] = useAggregator(aggregator, timeSlice)
 	}
 
-	return api.SeriesList{
-		Series:    series,
+	return series, nil
+}
+
+// This function is the culmination of all others.
+// `aggregateBy` takes a series list, an aggregator, and a set of tags.
+// It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
+// into a single Series.
+func aggregateBy(list api.SeriesList, aggregator Aggregator, tags []string) (api.SeriesList, error) {
+	// Begin by grouping the input:
+	groups := groupBy(list, tags)
+
+	result := api.SeriesList{
+		Series:    make([]api.Timeseries, len(groups)),
 		Timerange: list.Timerange,
 		Name:      list.Name,
-	}, nil
+	}
+
+	for i, group := range groups {
+		// The group contains a list of Series and a TagSet.
+		aggregated, err := applyAggregation(group, aggregator)
+		if err != nil {
+			return api.SeriesList{}, err
+		}
+		result.Series[i] = aggregated
+	}
+	return result, nil
 }

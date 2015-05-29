@@ -107,11 +107,11 @@ var aggregateTestCases = []struct {
 func Test_groupBy(t *testing.T) {
 	for i, testCase := range aggregateTestCases {
 		result := groupBy(listA, testCase.Tags)
-		if len(result.Results) != testCase.ExpectedGroups {
-			t.Errorf("Testcase %d results in %d groups when %d are expected (tags %+v)", i, len(result.Results), testCase.ExpectedGroups, testCase.Tags)
+		if len(result) != testCase.ExpectedGroups {
+			t.Errorf("Testcase %d results in %d groups when %d are expected (tags %+v)", i, len(result), testCase.ExpectedGroups, testCase.Tags)
 			continue
 		}
-		for _, row := range result.Results {
+		for _, row := range result {
 			// Further consistency checks are needed
 			for _, series := range row.List {
 				for _, tag := range testCase.Tags {
