@@ -34,9 +34,9 @@ type groupResult struct {
 
 // If the given group will accept this given series (since it belongs to this group)
 // then bucketValid will return true.
-func bucketValid(row group, series api.Timeseries, tags []string) bool {
+func bucketValid(left api.TagSet, right api.TagSet, tags []string) bool {
 	for _, tag := range tags {
-		if row.TagSet[tag] != series.TagSet[tag] {
+		if left[tag] != right[tag] {
 			return false
 		}
 	}
@@ -55,18 +55,15 @@ func addToBucket(rows []group, series api.Timeseries, tags []string) []group {
 
 	// Next, find the best bucket for this series:
 	for i, row := range rows {
-		if bucketValid(row, series, tags) {
+		if bucketValid(row.TagSet, series.TagSet, tags) {
 			rows[i].List = append(rows[i].List, series)
 			return rows
 		}
 	}
-	tagSet := api.NewTagSet()
-	for _, tag := range tags {
-		tagSet[tag] = series.TagSet[tag]
-	}
+	// Otherwise, no bucket yet exists
 	return append(rows, group{
 		[]api.Timeseries{series},
-		tagSet,
+		newTags,
 	})
 }
 
