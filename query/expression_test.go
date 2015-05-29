@@ -42,6 +42,21 @@ func (expr *LiteralExpression) Evaluate(context EvaluationContext) (*api.SeriesL
 	}, nil
 }
 
+type LiteralSeriesExpression struct {
+	Values []api.Timeseries
+}
+
+func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
+	result := api.SeriesList{
+		Series:    make([]api.Timeseries, len(expr.Values)),
+		Timerange: api.Timerange{},
+	}
+	for i, values := range expr.Values {
+		result.Series[i] = values
+	}
+	return &result, nil
+}
+
 func Test_ScalarExpression(t *testing.T) {
 	for _, test := range []struct {
 		expectSuccess  bool
@@ -97,7 +112,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		operands             []Expression
 		evalFunction         func(float64, float64) float64
 		expectSuccess        bool
-		expectedResultValues []float64
+		expectedResultValues [][]float64
 	}{
 		{
 			emptyContext,
@@ -112,7 +127,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			func(left, right float64) float64 { return left + right },
 			true,
-			[]float64{5, 7, 4},
+			[][]float64{{5, 7, 4}},
 		},
 		{
 			emptyContext,
@@ -127,7 +142,157 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			func(left, right float64) float64 { return left - right },
 			true,
-			[]float64{-3, -3, 2},
+			[][]float64{{-3, -3, 2}},
+		},
+		{
+			emptyContext,
+			"add",
+			[]Expression{
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{1, 2, 3},
+							api.TagSet{
+								"env":  "production",
+								"host": "#1",
+							},
+						},
+						api.Timeseries{
+							[]float64{7, 7, 7},
+							api.TagSet{
+								"env":  "staging",
+								"host": "#2",
+							},
+						},
+						api.Timeseries{
+							[]float64{1, 0, 2},
+							api.TagSet{
+								"env":  "staging",
+								"host": "#3",
+							},
+						},
+					},
+				},
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{5, 5, 5},
+							api.TagSet{
+								"env": "staging",
+							},
+						},
+						api.Timeseries{
+							[]float64{10, 100, 1000},
+							api.TagSet{
+								"env": "production",
+							},
+						},
+					},
+				},
+			},
+			func(left, right float64) float64 { return left + right },
+			true,
+			[][]float64{{11, 102, 1003}, {12, 12, 12}, {6, 5, 7}},
+		},
+		{
+			emptyContext,
+			"add",
+			[]Expression{
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{1, 2, 3},
+							api.TagSet{
+								"env":  "production",
+								"host": "#1",
+							},
+						},
+						api.Timeseries{
+							[]float64{4, 5, 6},
+							api.TagSet{
+								"env":  "staging",
+								"host": "#2",
+							},
+						},
+						api.Timeseries{
+							[]float64{7, 8, 9},
+							api.TagSet{
+								"env":  "staging",
+								"host": "#3",
+							},
+						},
+					},
+				},
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{2, 2, 2},
+							api.TagSet{
+								"env": "staging",
+							},
+						},
+						api.Timeseries{
+							[]float64{3, 3, 3},
+							api.TagSet{
+								"env": "staging",
+							},
+						},
+					},
+				},
+			},
+			func(left, right float64) float64 { return left * right },
+			true,
+			[][]float64{{8, 10, 12}, {14, 16, 18}, {12, 15, 18}, {21, 24, 27}},
+		},
+		{
+			emptyContext,
+			"add",
+			[]Expression{
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{ 103, 103, 103 },
+							api.TagSet{
+								"env" : "production",
+								"host" : "#1",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 203, 203, 203 },
+							api.TagSet{
+								"env" : "staging",
+								"host" : "#2",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 303, 303, 303 },
+							api.TagSet{
+								"env" : "staging",
+								"host" : "#3",
+							},
+						},
+					},
+				},
+				&LiteralSeriesExpression{
+					[]api.Timeseries{
+						api.Timeseries{
+							[]float64{ 1, 2, 3 },
+							api.TagSet{
+								"env":"staging",
+							},
+						},
+						api.Timeseries{
+							[]float64{ 3, 0, 3 },
+							api.TagSet{
+								"env":"production",
+							},
+						},
+					},
+				},
+			},
+			func(left, right float64) float64 { return left - right },
+			true,
+			[][]float64{{100, 103, 100},{202, 201, 200},{302, 301, 300}},
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
@@ -145,10 +310,43 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		a.EqInt(len(result.Series), 1)
-		a.Eq(result.Series[0].Values, test.expectedResultValues)
+		// Our expected list should be the same length as the actual one:
+		a.EqInt(len(result.Series), len(test.expectedResultValues))
+
+		// The "expected" results are only true up to permutation (since guessing the order they'll come out of `join()` is hard)
+		// Provided that they're all unique then we just need to check that every member that's expected can be found
+		// This is a bit more annoying:
+
+		equal := func(left, right []float64) bool {
+			if len(left) != len(right) {
+				return false
+			}
+			for i := range left {
+				if left[i] != right[i] {
+					return false
+				}
+			}
+			return true
+		}
+
+		for _, expectedMember := range test.expectedResultValues {
+			found := false
+			// check that expectedMember is inside our result list
+			// look for it inside result.Series
+			for _, resultMember := range result.Series {
+				if equal(resultMember.Values, expectedMember) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("got %+v for test %+v", result, test)
+			}
+		}
+
 	}
 }
 
 var _ api.Backend = (*FakeBackend)(nil)
 var _ Expression = (*LiteralExpression)(nil)
+var _ Expression = (*LiteralSeriesExpression)(nil)

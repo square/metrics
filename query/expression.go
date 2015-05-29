@@ -123,22 +123,22 @@ func evaluateBinaryOperation(
 		return nil, err
 	}
 
-	for _, seriesList := range results {
-		if len(seriesList.Series) != 1 {
-			return nil, errors.New(fmt.Sprintf("Operand %+v must contain only one Timeseries", seriesList.Series))
+	joined := join(results)
+
+	result := make([]api.Timeseries, len(joined.Rows))
+
+	for i, row := range joined.Rows {
+		left := row.Row[0]
+		right := row.Row[1]
+		array := make([]float64, len(left.Values))
+		for j := 0; j < len(left.Values); j++ {
+			array[j] = evaluate(left.Values[j], right.Values[j])
 		}
-	}
-
-	left := results[0].Series[0]
-	right := results[1].Series[0]
-	result := make([]float64, len(left.Values))
-
-	for i := 0; i < len(left.Values); i += 1 {
-		result[i] = evaluate(left.Values[i], right.Values[i])
+		result[i] = api.Timeseries{array, row.TagSet}
 	}
 
 	return &api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{result, api.NewTagSet()}},
+		Series:    result,
 		Timerange: context.Timerange,
 	}, nil
 }
@@ -146,20 +146,20 @@ func evaluateBinaryOperation(
 // evaluateExpressions evaluates all provided Expressions in the
 // EvaluationContext. If any evaluations error, evaluateExpressions will
 // propagate that error. The resulting SeriesLists will be in an order
-// corresponding to the provided Expressions.
-func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]*api.SeriesList, error) {
+// corresponding to the provided Expresesions.
+func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]api.SeriesList, error) {
 	if len(expressions) == 0 {
-		return []*api.SeriesList{}, nil
+		return []api.SeriesList{}, nil
 	}
 
-	results := []*api.SeriesList{}
-	for _, expr := range expressions {
+	results := make([]api.SeriesList, len(expressions))
+	for i, expr := range expressions {
 		result, err := expr.Evaluate(context)
 		if err != nil {
-			return []*api.SeriesList{}, err
+			return []api.SeriesList{}, err
 		}
 
-		results = append(results, result)
+		results[i] = *result
 	}
 
 	return results, nil
