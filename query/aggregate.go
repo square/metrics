@@ -78,9 +78,9 @@ func groupBy(list api.SeriesList, tags []string) []group {
 
 // The aggregator interface is the public-facing way in which values are aggregated.
 // Aggregator objects are required to perform aggregation (max, min, range, mean, sum, etc.)
-// Their only interface method is the `beginAggregation()` method which returns an "aggregation".
+// Their only interface method is the `aggregate()` method which returns an "aggregation".
 type aggregator interface {
-	beginAggregation() aggregation
+	aggregate() aggregation
 }
 
 // An aggregation is a private interface which aggregates values for a particular SeriesList.
@@ -102,9 +102,9 @@ type aggregation interface {
 type sumAggregator struct {
 }
 
-// The `beginAggregation()` for sum returns a pointer to a new sumAggregation,
+// The `aggregate()` for sum returns a pointer to a new sumAggregation,
 // which has a sum set to 0.
-func (aggregator sumAggregator) beginAggregation() aggregation {
+func (aggregator sumAggregator) aggregate() aggregation {
 	return &sumAggregation{
 		sum: 0,
 	}
@@ -133,7 +133,7 @@ type meanAggregator struct {
 }
 
 // The mean aggregator returns a meanAggregation pointer with a `sum` and `count` both 0.
-func (aggregator meanAggregator) beginAggregation() aggregation {
+func (aggregator meanAggregator) aggregate() aggregation {
 	return &meanAggregation{
 		sum:   0,
 		count: 0,
@@ -161,7 +161,7 @@ func (aggregation *meanAggregation) result() float64 {
 type minAggregator struct {
 }
 
-func (aggregator minAggregator) beginAggregation() aggregation {
+func (aggregator minAggregator) aggregate() aggregation {
 	return &minAggregation{
 		min: math.Inf(1),
 	}
@@ -183,7 +183,7 @@ func (aggregation *minAggregation) result() float64 {
 type maxAggregator struct {
 }
 
-func (aggregator maxAggregator) beginAggregation() aggregation {
+func (aggregator maxAggregator) aggregate() aggregation {
 	return &maxAggregation{
 		max: math.Inf(-1),
 	}
@@ -202,7 +202,7 @@ func (aggregation *maxAggregation) result() float64 {
 }
 
 func useAggregator(aggregator aggregator, values []float64) float64 {
-	aggregation := aggregator.beginAggregation()
+	aggregation := aggregator.aggregate()
 	for _, v := range values {
 		aggregation.accumulate(v)
 	}
