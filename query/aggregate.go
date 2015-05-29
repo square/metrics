@@ -18,6 +18,8 @@ package query
 // and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
 
 import (
+	"math"
+
 	"github.com/square/metrics/api"
 )
 
@@ -155,6 +157,46 @@ func (aggregation *meanAggregation) accumulate(value float64) {
 // The result returns the quotient of the running `sum` and `count`, computed through `accumulate()`
 func (aggregation *meanAggregation) result() float64 {
 	return aggregation.sum / float64(aggregation.count)
+}
+
+type MinAggregator struct {
+}
+
+func (aggregator MinAggregator) beginAggregation() aggregation {
+	return &minAggregation{
+		min: math.Inf(1),
+	}
+}
+
+type minAggregation struct {
+	min float64
+}
+
+func (aggregation *minAggregation) accumulate(value float64) {
+	aggregation.min = math.Min(aggregation.min, value)
+}
+func (aggregation *minAggregation) result() float64 {
+	return aggregation.min
+}
+
+type MaxAggregator struct {
+}
+
+func (aggregator MaxAggregator) beginAggregation() aggregation {
+	return &maxAggregation{
+		max: math.Inf(-1),
+	}
+}
+
+type maxAggregation struct {
+	max float64
+}
+
+func (aggregation *maxAggregation) accumulate(value float64) {
+	aggregation.max = math.Max(aggregation.max, value)
+}
+func (aggregation *maxAggregation) result() float64 {
+	return aggregation.max
 }
 
 func useAggregator(aggregator Aggregator, values []float64) float64 {
