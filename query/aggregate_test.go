@@ -17,6 +17,7 @@ package query
 import (
 	"github.com/square/metrics/api"
 
+	"math"
 	"testing"
 )
 
@@ -204,17 +205,9 @@ func Test_applyAggregation(t *testing.T) {
 		}
 		// Next, compare the aggregated values:
 		for i, correct := range testCase.Expected {
-			if abs(result.Values[i]-correct) > 1e-10 {
+			if math.Abs(result.Values[i]-correct) > 1e-10 {
 				t.Fatalf("applyAggregation() produces incorrect values on aggregation %+v; should be %+v but is %+v", testCase.Aggregator, testCase.Expected, result.Values)
 			}
 		}
-	}
-}
-
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	} else {
-		return x
 	}
 }

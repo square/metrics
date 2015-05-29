@@ -79,10 +79,10 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-// The Aggregator interface is the public-facing way in which values are aggregated.
+// The aggregator interface is the public-facing way in which values are aggregated.
 // Aggregator objects are required to perform aggregation (max, min, range, mean, sum, etc.)
 // Their only interface method is the `beginAggregation()` method which returns an "aggregation".
-type Aggregator interface {
+type aggregator interface {
 	beginAggregation() aggregation
 }
 
@@ -102,12 +102,12 @@ type aggregation interface {
 // Aggregators will generally be empty structs (or an equivalent),
 // although they could alternatively store parameters which they can use
 // to which which aggregation to return, or to supply parameters to their aggregations.
-type SumAggregator struct {
+type sumAggregator struct {
 }
 
 // The `beginAggregation()` for sum returns a pointer to a new sumAggregation,
 // which has a sum set to 0.
-func (aggregator SumAggregator) beginAggregation() aggregation {
+func (aggregator sumAggregator) beginAggregation() aggregation {
 	return &sumAggregation{
 		sum: 0,
 	}
@@ -131,7 +131,8 @@ func (aggregation *sumAggregation) result() float64 {
 }
 
 // A mean aggregator is highly similar to a sum aggregator.
-type MeanAggregator struct {
+// It computes the aggregate mean for a seriesList
+type meanAggregator struct {
 }
 
 // The mean aggregator returns a meanAggregation pointer with a `sum` and `count` both 0.
@@ -159,7 +160,8 @@ func (aggregation *meanAggregation) result() float64 {
 	return aggregation.sum / float64(aggregation.count)
 }
 
-type MinAggregator struct {
+// The min aggregator is an aggregator that computes the aggregate minimum for a seriesList
+type minAggregator struct {
 }
 
 func (aggregator MinAggregator) beginAggregation() aggregation {
@@ -168,6 +170,7 @@ func (aggregator MinAggregator) beginAggregation() aggregation {
 	}
 }
 
+// The min aggregation is the aggregation for the min aggregator
 type minAggregation struct {
 	min float64
 }
@@ -179,15 +182,17 @@ func (aggregation *minAggregation) result() float64 {
 	return aggregation.min
 }
 
-type MaxAggregator struct {
+// The maxAggregator is an aggregator that computes the aggregate maximum for a seriesList
+type maxAggregator struct {
 }
 
-func (aggregator MaxAggregator) beginAggregation() aggregation {
+func (aggregator maxAggregator) beginAggregation() aggregation {
 	return &maxAggregation{
 		max: math.Inf(-1),
 	}
 }
 
+// The maxAggregation is an aggregation that computes the aggregate minimum for a seriesList
 type maxAggregation struct {
 	max float64
 }
