@@ -43,6 +43,7 @@ func (errors SyntaxErrors) Error() string {
 	return strings.Join(errorStrings, "\n")
 }
 
+// EmptyAggregateError is an Error for attempts to aggregate empty SeriesLists.
 type EmptyAggregateError struct {
 }
 
@@ -51,3 +52,4 @@ func (err EmptyAggregateError) Error() string {
 }
 
 var _ error = (*SyntaxError)(nil)
+var _ error = EmptyAggregateError{}

@@ -178,15 +178,15 @@ var testGroup = group{
 }
 
 var aggregationTestCases = []struct {
-	Aggregator Aggregator
+	Aggregator aggregator
 	Expected   []float64
 }{
 	{
-		SumAggregator{},
+		sumAggregator{},
 		[]float64{3, 6, 8, 11},
 	},
 	{
-		MeanAggregator{},
+		meanAggregator{},
 		[]float64{3.0 / 4.0, 6.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 	},
 }

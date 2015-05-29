@@ -136,7 +136,7 @@ type meanAggregator struct {
 }
 
 // The mean aggregator returns a meanAggregation pointer with a `sum` and `count` both 0.
-func (aggregator MeanAggregator) beginAggregation() aggregation {
+func (aggregator meanAggregator) beginAggregation() aggregation {
 	return &meanAggregation{
 		sum:   0,
 		count: 0,
@@ -164,7 +164,7 @@ func (aggregation *meanAggregation) result() float64 {
 type minAggregator struct {
 }
 
-func (aggregator MinAggregator) beginAggregation() aggregation {
+func (aggregator minAggregator) beginAggregation() aggregation {
 	return &minAggregation{
 		min: math.Inf(1),
 	}
@@ -204,7 +204,7 @@ func (aggregation *maxAggregation) result() float64 {
 	return aggregation.max
 }
 
-func useAggregator(aggregator Aggregator, values []float64) float64 {
+func useAggregator(aggregator aggregator, values []float64) float64 {
 	aggregation := aggregator.beginAggregation()
 	for _, v := range values {
 		aggregation.accumulate(v)
@@ -214,7 +214,7 @@ func useAggregator(aggregator Aggregator, values []float64) float64 {
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
 // the list must be non-empty, or an error is returned
-func applyAggregation(group group, aggregator Aggregator) (api.Timeseries, error) {
+func applyAggregation(group group, aggregator aggregator) (api.Timeseries, error) {
 	list := group.List
 	tagSet := group.TagSet
 
@@ -247,7 +247,7 @@ func applyAggregation(group group, aggregator Aggregator) (api.Timeseries, error
 // `aggregateBy` takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func aggregateBy(list api.SeriesList, aggregator Aggregator, tags []string) (api.SeriesList, error) {
+func aggregateBy(list api.SeriesList, aggregator aggregator, tags []string) (api.SeriesList, error) {
 	// Begin by grouping the input:
 	groups := groupBy(list, tags)
 
