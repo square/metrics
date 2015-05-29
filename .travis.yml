@@ -1,0 +1,11 @@
+language: go
+go: 1.4
+
+services:
+  - cassandra
+
+before_install:
+  - rm -r main
+
+before_script:
+  - cqlsh -f schema/schema_test.cql
