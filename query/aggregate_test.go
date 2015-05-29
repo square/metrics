@@ -137,5 +137,84 @@ func Test_groupBy(t *testing.T) {
 			}
 		}
 	}
+}
 
+var testGroup = group{
+	List: []api.Timeseries{
+		api.Timeseries{
+			Values: []float64{0, 1, 2, 3},
+			TagSet: api.TagSet{
+				"env": "production",
+				"dc":  "A",
+			},
+		},
+		api.Timeseries{
+			Values: []float64{4, 4, 4, 4},
+			TagSet: api.TagSet{
+				"env": "production",
+				"dc":  "A",
+			},
+		},
+		api.Timeseries{
+			Values: []float64{-1, -1, 2, 2},
+			TagSet: api.TagSet{
+				"env": "production",
+				"dc":  "A",
+			},
+		},
+		api.Timeseries{
+			Values: []float64{0, 2, 0, 2},
+			TagSet: api.TagSet{
+				"env": "production",
+				"dc":  "A",
+			},
+		},
+	},
+	TagSet: api.TagSet{
+		"env": "production",
+		"dc":  "A",
+	},
+}
+
+var aggregationTestCases = []struct {
+	Aggregator Aggregator
+	Expected   []float64
+}{
+	{
+		SumAggregator{},
+		[]float64{3, 6, 8, 11},
+	},
+	{
+		MeanAggregator{},
+		[]float64{3.0 / 4.0, 6.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
+	},
+}
+
+func Test_applyAggregation(t *testing.T) {
+	for _, testCase := range aggregationTestCases {
+		result, err := applyAggregation(testGroup, testCase.Aggregator)
+		if err != nil {
+			t.Error(err)
+		}
+		if result.TagSet["env"] != "production" {
+			t.Fatalf("applyAggregation() produces tagset with env=%s but expected env=production", result.TagSet["env"])
+		}
+		if result.TagSet["dc"] != "A" {
+			t.Fatalf("applyAggregation() produces tagset with dc=%s but expected dc=A", result.TagSet["dc"])
+		}
+		// Next, compare the aggregated values:
+		for i, correct := range testCase.Expected {
+			if abs(result.Values[i]-correct) > 1e-10 {
+				t.Fatalf("applyAggregation() produces incorrect values on aggregation %+v; should be %+v but is %+v", testCase.Aggregator, testCase.Expected, result.Values)
+			}
+		}
+	}
+}
+
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	} else {
+		return x
+	}
 }
