@@ -369,6 +369,16 @@ var aggregatedTests = []struct {
 			},
 		},
 	},
+	{
+		[]string{},
+		sumAggregator{},
+		[]api.Timeseries{
+			api.Timeseries{
+				Values: []float64{5, 6, 9},
+				TagSet: map[string]string{},
+			},
+		},
+	},
 }
 
 func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
