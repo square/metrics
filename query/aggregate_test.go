@@ -150,7 +150,7 @@ var testGroup = group{
 			},
 		},
 		api.Timeseries{
-			Values: []float64{4, 4, 4, 4},
+			Values: []float64{4, 0, 4, 4},
 			TagSet: api.TagSet{
 				"env": "production",
 				"dc":  "A",
@@ -183,15 +183,15 @@ var aggregationTestCases = []struct {
 }{
 	{
 		sumAggregator{},
-		[]float64{3, 6, 8, 11},
+		[]float64{3, 2, 8, 11},
 	},
 	{
 		meanAggregator{},
-		[]float64{3.0 / 4.0, 6.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
+		[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 	},
 	{
 		maxAggregator{},
-		[]float64{4, 4, 4, 4},
+		[]float64{4, 2, 4, 4},
 	},
 	{
 		minAggregator{},
