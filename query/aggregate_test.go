@@ -189,6 +189,14 @@ var aggregationTestCases = []struct {
 		meanAggregator{},
 		[]float64{3.0 / 4.0, 6.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 	},
+	{
+		maxAggregator{},
+		[]float64{4, 4, 4, 4},
+	},
+	{
+		minAggregator{},
+		[]float64{-1, -1, 0, 2},
+	},
 }
 
 const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error between correct test case answers and actual results
@@ -425,5 +433,4 @@ func Test_aggregateBy(t *testing.T) {
 			}
 		}
 	}
-
 }
