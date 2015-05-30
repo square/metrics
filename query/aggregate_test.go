@@ -440,6 +440,10 @@ func Test_aggregateBy(t *testing.T) {
 			// Any of the testCase results which it matches are candidates
 			for _, correct := range testCase.Results {
 				if tagSetsEqual(aggregate.TagSet, correct.TagSet) {
+					if len(aggregate.Values) != len(correct.Values) {
+						t.Errorf("For tagset %+v, result %+v has a different length than expected %+v", correct.TagSet, aggregate.Values, correct.Values)
+						continue
+					}
 					// Compare their values
 					for i := range aggregate.Values {
 						if math.Abs(aggregate.Values[i]-correct.Values[i]) > epsilon {
