@@ -404,6 +404,7 @@ func Test_aggregateBy(t *testing.T) {
 		aggregated, err := aggregateBy(testList, testCase.Aggregator, testCase.Tags)
 		if err != nil {
 			t.Error(err)
+			continue
 		}
 		// Check that aggregated looks correct.
 		// There should be two series
