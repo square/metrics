@@ -381,10 +381,17 @@ var aggregatedTests = []struct {
 	},
 }
 
+// tagSetsEqual verifies that two tag sets are equal (contain the same keys and have the same values for these)
 func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
 	for key, left := range leftSet {
 		right, ok := rightSet[key]
 		if !ok || left != right {
+			return false
+		}
+	}
+	for key := range rightSet {
+		_, ok := leftSet[key]
+		if !ok {
 			return false
 		}
 	}
