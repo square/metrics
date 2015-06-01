@@ -140,10 +140,10 @@ predicateClause <- "where" __ predicate_1
 # ...
 
 predicate_1 <-
-  predicate_2 (OP_AND predicate_2 { p.addAndPredicate() })*
+  predicate_2 (OP_OR predicate_2 { p.addOrPredicate() })*
 
 predicate_2 <-
-  predicate_3 (OP_OR predicate_3 { p.addAndPredicate() })*
+  predicate_3 (OP_AND predicate_3 { p.addAndPredicate() })*
 
 predicate_3 <-
   OP_NOT predicate_3 { p.addNotPredicate() } /

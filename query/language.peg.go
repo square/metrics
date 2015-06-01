@@ -925,7 +925,7 @@ func (p *Parser) Execute() {
 			p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 
 		case ruleAction23:
-			p.addAndPredicate()
+			p.addOrPredicate()
 		case ruleAction24:
 			p.addAndPredicate()
 		case ruleAction25:
@@ -2170,7 +2170,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 14 predicateClause <- <(('w' / 'W') ('h' / 'H') ('e' / 'E') ('r' / 'R') ('e' / 'E') __ predicate_1)> */
 		nil,
-		/* 15 predicate_1 <- <(predicate_2 (OP_AND predicate_2 Action23)*)> */
+		/* 15 predicate_1 <- <(predicate_2 (OP_OR predicate_2 Action23)*)> */
 		func() bool {
 			position176, tokenIndex176, depth176 := position, tokenIndex, depth
 			{
@@ -2190,14 +2190,14 @@ func (p *Parser) Init() {
 						}
 						{
 							position181, tokenIndex181, depth181 := position, tokenIndex, depth
-							if buffer[position] != rune('a') {
+							if buffer[position] != rune('o') {
 								goto l182
 							}
 							position++
 							goto l181
 						l182:
 							position, tokenIndex, depth = position181, tokenIndex181, depth181
-							if buffer[position] != rune('A') {
+							if buffer[position] != rune('O') {
 								goto l179
 							}
 							position++
@@ -2205,39 +2205,24 @@ func (p *Parser) Init() {
 					l181:
 						{
 							position183, tokenIndex183, depth183 := position, tokenIndex, depth
-							if buffer[position] != rune('n') {
+							if buffer[position] != rune('r') {
 								goto l184
 							}
 							position++
 							goto l183
 						l184:
 							position, tokenIndex, depth = position183, tokenIndex183, depth183
-							if buffer[position] != rune('N') {
+							if buffer[position] != rune('R') {
 								goto l179
 							}
 							position++
 						}
 					l183:
-						{
-							position185, tokenIndex185, depth185 := position, tokenIndex, depth
-							if buffer[position] != rune('d') {
-								goto l186
-							}
-							position++
-							goto l185
-						l186:
-							position, tokenIndex, depth = position185, tokenIndex185, depth185
-							if buffer[position] != rune('D') {
-								goto l179
-							}
-							position++
-						}
-					l185:
 						if !_rules[rule_]() {
 							goto l179
 						}
 						depth--
-						add(ruleOP_AND, position180)
+						add(ruleOP_OR, position180)
 					}
 					if !_rules[rulepredicate_2]() {
 						goto l179
@@ -2257,76 +2242,91 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position176, tokenIndex176, depth176
 			return false
 		},
-		/* 16 predicate_2 <- <(predicate_3 (OP_OR predicate_3 Action24)*)> */
+		/* 16 predicate_2 <- <(predicate_3 (OP_AND predicate_3 Action24)*)> */
 		func() bool {
-			position188, tokenIndex188, depth188 := position, tokenIndex, depth
+			position186, tokenIndex186, depth186 := position, tokenIndex, depth
 			{
-				position189 := position
+				position187 := position
 				depth++
 				if !_rules[rulepredicate_3]() {
-					goto l188
+					goto l186
 				}
-			l190:
+			l188:
 				{
-					position191, tokenIndex191, depth191 := position, tokenIndex, depth
+					position189, tokenIndex189, depth189 := position, tokenIndex, depth
 					{
-						position192 := position
+						position190 := position
 						depth++
 						if !_rules[rule_]() {
-							goto l191
+							goto l189
 						}
 						{
+							position191, tokenIndex191, depth191 := position, tokenIndex, depth
+							if buffer[position] != rune('a') {
+								goto l192
+							}
+							position++
+							goto l191
+						l192:
+							position, tokenIndex, depth = position191, tokenIndex191, depth191
+							if buffer[position] != rune('A') {
+								goto l189
+							}
+							position++
+						}
+					l191:
+						{
 							position193, tokenIndex193, depth193 := position, tokenIndex, depth
-							if buffer[position] != rune('o') {
+							if buffer[position] != rune('n') {
 								goto l194
 							}
 							position++
 							goto l193
 						l194:
 							position, tokenIndex, depth = position193, tokenIndex193, depth193
-							if buffer[position] != rune('O') {
-								goto l191
+							if buffer[position] != rune('N') {
+								goto l189
 							}
 							position++
 						}
 					l193:
 						{
 							position195, tokenIndex195, depth195 := position, tokenIndex, depth
-							if buffer[position] != rune('r') {
+							if buffer[position] != rune('d') {
 								goto l196
 							}
 							position++
 							goto l195
 						l196:
 							position, tokenIndex, depth = position195, tokenIndex195, depth195
-							if buffer[position] != rune('R') {
-								goto l191
+							if buffer[position] != rune('D') {
+								goto l189
 							}
 							position++
 						}
 					l195:
 						if !_rules[rule_]() {
-							goto l191
+							goto l189
 						}
 						depth--
-						add(ruleOP_OR, position192)
+						add(ruleOP_AND, position190)
 					}
 					if !_rules[rulepredicate_3]() {
-						goto l191
+						goto l189
 					}
 					{
 						add(ruleAction24, position)
 					}
-					goto l190
-				l191:
-					position, tokenIndex, depth = position191, tokenIndex191, depth191
+					goto l188
+				l189:
+					position, tokenIndex, depth = position189, tokenIndex189, depth189
 				}
 				depth--
-				add(rulepredicate_2, position189)
+				add(rulepredicate_2, position187)
 			}
 			return true
-		l188:
-			position, tokenIndex, depth = position188, tokenIndex188, depth188
+		l186:
+			position, tokenIndex, depth = position186, tokenIndex186, depth186
 			return false
 		},
 		/* 17 predicate_3 <- <((OP_NOT predicate_3 Action25) / (PAREN_OPEN predicate_1 PAREN_CLOSE) / tagMatcher)> */
@@ -4506,7 +4506,7 @@ func (p *Parser) Init() {
 		   p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 		   }> */
 		nil,
-		/* 80 Action23 <- <{ p.addAndPredicate() }> */
+		/* 80 Action23 <- <{ p.addOrPredicate() }> */
 		nil,
 		/* 81 Action24 <- <{ p.addAndPredicate() }> */
 		nil,
