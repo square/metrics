@@ -18,8 +18,9 @@ package query
 // show tags WHERE predicate
 
 import (
-	"github.com/square/metrics/assert"
 	"testing"
+
+	"github.com/square/metrics/assert"
 )
 
 // these queries should successfully parse,
@@ -63,18 +64,18 @@ var inputs = []string{
 	// testing escaping
 	"select `x` from 0 to 0",
 	// selects - timestamps
-	"select x * (y + 123), z from '2014-01-01' to '2014-01-02'",
+	"select x * (y + 123), z from '2011-2-4 PTZ' to '2015-6-1 PTZ'",
 	"select x * (y + 123), z from 0 to 10000",
 	// selects - function calls
 	"select foo(x) from 0 to 0",
 	"select bar(x, y) from 0 to 0",
 	"select baz(x, y, z+1+foo(1)) from 0 to 0",
 	// selects - testing out property values
-	"select x",
-	"select x from 0",
-	"select x resolution 10",
-	"select x sample by 'max'",
-	"select x sample   by 'max'",
+	"select x from 0 to 0",
+	"select x from 0 to 0",
+	"select x from 0 to 0 resolution 10",
+	"select x from 0 to 0 sample by 'max'",
+	"select x from 0 to 0 sample   by 'max'",
 }
 
 var parseOnly = []string{
@@ -94,27 +95,36 @@ var parseOnly = []string{
 
 // these queries should fail with a syntax error.
 var syntaxErrorQuery = []string{
-	"select (",
-	"select )",
-	"describe (",
-	"describe invalid_regex where key matches 'ab['",
-	"select x invalid_property 0",
-	"select x sampleby 0",
-	"select x sample 0",
-	"select x by 0",
+	"select ( from 0 to 0",
+	"select ) from 0 to 0",
+	"describe ( from 0 to 0",
+	"describe invalid_regex where key matches 'ab[' from 0 to 0",
+	"select x invalid_property 0 from 0 to 0",
+	"select x sampleby 0 from 0 to 0",
+	"select x sample 0 from 0 to 0",
+	"select x by 0 from 0 to 0",
+	"select x",
+	"select x from 0",
+	"select x to 0",
+	"select x from 0 from 1 to 0",
+	"select x from 0 to 1 to 0",
+	"select x from 0 resolution 30 resolution 25 to 0",
+	"select x from 0 from 1 sample by 'min' sample by 'min' to 0",
 }
 
 func TestParse_success(t *testing.T) {
 	for _, row := range inputs {
-		if err := checkSyntaxError(t, row); err != nil {
+		_, err := Parse(row)
+		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
 	}
-	for _, row := range parseOnly {
-		if err := checkSyntaxError(t, row); err != nil {
+	/*for _, row := range parseOnly {
+		_, err := Parse(row)
+		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
-	}
+	}*/
 }
 
 func TestParse_syntaxError(t *testing.T) {
@@ -141,12 +151,6 @@ func TestCompile(t *testing.T) {
 
 // Helper functions
 // ================
-
-func checkSyntaxError(t *testing.T, input string) error {
-	p := Parser{Buffer: input}
-	p.Init()
-	return p.Parse()
-}
 
 func testParserResult(a assert.Assert, p Parser) {
 	a.EqInt(len(p.assertions), 0)
