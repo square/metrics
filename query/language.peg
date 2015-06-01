@@ -140,12 +140,10 @@ predicateClause <- "where" __ predicate_1
 # ...
 
 predicate_1 <-
-  predicate_2 OP_AND predicate_1 { p.addAndPredicate() } /
-  predicate_2 /
+  predicate_2 (OP_AND predicate_2 { p.addAndPredicate() })*
 
 predicate_2 <-
-  predicate_3 OP_OR predicate_2 { p.addOrPredicate() } /
-  predicate_3
+  predicate_3 (OP_OR predicate_3 { p.addAndPredicate() })*
 
 predicate_3 <-
   OP_NOT predicate_3 { p.addNotPredicate() } /
@@ -229,8 +227,8 @@ OP_ADD  <- _ "+" _
 OP_SUB  <- _ "-" _
 OP_MULT <- _ "*" _
 OP_DIV  <- _ "/" _
-OP_AND  <- __ "and" __
-OP_OR   <- __ "or" __
+OP_AND  <- _ "and" _
+OP_OR   <- _ "or" _
 OP_NOT  <- "not" __
 
 STRING <-      "'" CHAR* "'" / '"' CHAR* '"'
