@@ -84,11 +84,12 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (*api.Series
 	case "/":
 		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
 			func(left, right float64) float64 { return left / right })
+	case "*":
+		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
+			func(left, right float64) float64 { return left * right })
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", functionName))
 	}
-
-	return nil, errors.New("I'm not sure how you got here...")
 }
 
 //
