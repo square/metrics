@@ -28,13 +28,9 @@ type group struct {
 	TagSet api.TagSet
 }
 
-type groupResult struct {
-	Results []group
-}
-
 // If the given group will accept this given series (since it belongs to this group)
-// then bucketValid will return true.
-func bucketValid(left api.TagSet, right api.TagSet, tags []string) bool {
+// then groupAccept will return true.
+func groupAccepts(left api.TagSet, right api.TagSet, tags []string) bool {
 	for _, tag := range tags {
 		if left[tag] != right[tag] {
 			return false
@@ -44,7 +40,7 @@ func bucketValid(left api.TagSet, right api.TagSet, tags []string) bool {
 }
 
 // Adds the series to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
-func addToBucket(rows []group, series api.Timeseries, tags []string) []group {
+func addToGroup(rows []group, series api.Timeseries, tags []string) []group {
 	// First we delete all tags with names other than those found in 'tags'
 	newTags := api.NewTagSet()
 	for _, tag := range tags {
@@ -55,7 +51,7 @@ func addToBucket(rows []group, series api.Timeseries, tags []string) []group {
 
 	// Next, find the best bucket for this series:
 	for i, row := range rows {
-		if bucketValid(row.TagSet, series.TagSet, tags) {
+		if groupAccepts(row.TagSet, series.TagSet, tags) {
 			rows[i].List = append(rows[i].List, series)
 			return rows
 		}
@@ -71,60 +67,30 @@ func addToBucket(rows []group, series api.Timeseries, tags []string) []group {
 func groupBy(list api.SeriesList, tags []string) []group {
 	result := []group{}
 	for _, series := range list.Series {
-		result = addToBucket(result, series, tags)
+		result = addToGroup(result, series, tags)
 	}
 	return result
 }
 
 // The aggregator interface is the public-facing way in which values are aggregated.
 // Aggregator objects are required to perform aggregation (max, min, range, mean, sum, etc.)
-// Their only interface method is the `aggregate()` method which returns an "aggregation".
+// Their interface is the `aggregate` method, which takes an array of floats.
 type aggregator interface {
-	aggregate() aggregation
+	aggregate([]float64) float64
 }
 
-// An aggregation is a private interface which aggregates values for a particular SeriesList.
-// Because this interface is private, there would be no way to create aggregator outside this package.
-// If extension is desirable, this may change.
-// They can `accumulate(...)` value, and they can compute their `result()`.
-// During aggregation, `accumulate(...)` is called with each value corresponding to a given index,
-// with one call for each Timeseries inside the SeriesList.
-// Then, to compute the resulting value, `result()` is invoked exactly once.
-type aggregation interface {
-	accumulate(float64)
-	result() float64
-}
-
-// Here are example aggregators and their aggregation types.
-// Aggregators will generally be empty structs (or an equivalent),
-// although they could alternatively store parameters which they can use
-// to which which aggregation to return, or to supply parameters to their aggregations.
 type sumAggregator struct {
 }
 
-// The `aggregate()` for sum returns a pointer to a new sumAggregation,
-// which has a sum set to 0.
-func (aggregator sumAggregator) aggregate() aggregation {
-	return &sumAggregation{
-		sum: 0,
+var _ aggregator = sumAggregator{}
+
+// The `aggregate()` for sum finds the sum of the given array.
+func (aggregator sumAggregator) aggregate(array []float64) float64 {
+	sum := 0.0
+	for _, v := range array {
+		sum += v
 	}
-}
-
-// The sumAggregation struct just contains the sum, which it will accumulate over time.
-type sumAggregation struct {
-	sum float64
-}
-
-// The accumulation for the sumAggregation consists of adding the value to the struct's sum.
-// Note that the interface is on the pointer `*sumAggregation` rather than `sumAggregation`
-// because it must be mutable.
-func (aggregation *sumAggregation) accumulate(value float64) {
-	aggregation.sum += value
-}
-
-// The result just returns this value.
-func (aggregation *sumAggregation) result() float64 {
-	return aggregation.sum
+	return sum
 }
 
 // A mean aggregator is highly similar to a sum aggregator.
@@ -132,91 +98,70 @@ func (aggregation *sumAggregation) result() float64 {
 type meanAggregator struct {
 }
 
-// The mean aggregator returns a meanAggregation pointer with a `sum` and `count` both 0.
-func (aggregator meanAggregator) aggregate() aggregation {
-	return &meanAggregation{
-		sum:   0,
-		count: 0,
+var _ aggregator = meanAggregator{}
+
+// The mean aggregator returns the mean of the given array
+func (aggregator meanAggregator) aggregate(array []float64) float64 {
+	if len(array) == 0 {
+		// The mean of an empty list is not well-defined
+		return math.NaN()
 	}
-}
-
-// The `sum` and `count` fields totally define the meanAggregation's state.
-type meanAggregation struct {
-	sum   float64
-	count int
-}
-
-// The accumulaton function adds the value to the mean's running `sum`, and increments its `count`.
-func (aggregation *meanAggregation) accumulate(value float64) {
-	aggregation.sum += value
-	aggregation.count++
-}
-
-// The result returns the quotient of the running `sum` and `count`, computed through `accumulate()`
-func (aggregation *meanAggregation) result() float64 {
-	return aggregation.sum / float64(aggregation.count)
+	sum := 0.0
+	for _, v := range array {
+		sum += v
+	}
+	return sum / float64(len(array))
 }
 
 // The min aggregator is an aggregator that computes the aggregate minimum for a seriesList
 type minAggregator struct {
 }
 
-func (aggregator minAggregator) aggregate() aggregation {
-	return &minAggregation{
-		min: math.Inf(1),
+var _ aggregator = minAggregator{}
+
+func (aggregator minAggregator) aggregate(array []float64) float64 {
+	if len(array) == 0 {
+		// The minimum of an empty list is not well-defined
+		return math.NaN()
 	}
-}
-
-// The min aggregation is the aggregation for the min aggregator
-type minAggregation struct {
-	min float64
-}
-
-func (aggregation *minAggregation) accumulate(value float64) {
-	aggregation.min = math.Min(aggregation.min, value)
-}
-func (aggregation *minAggregation) result() float64 {
-	return aggregation.min
+	min := array[0]
+	for _, v := range array {
+		min = math.Min(min, v)
+	}
+	return min
 }
 
 // The maxAggregator is an aggregator that computes the aggregate maximum for a seriesList
 type maxAggregator struct {
 }
 
-func (aggregator maxAggregator) aggregate() aggregation {
-	return &maxAggregation{
-		max: math.Inf(-1),
+var _ aggregator = maxAggregator{}
+
+func (aggregator maxAggregator) aggregate(array []float64) float64 {
+	if len(array) == 0 {
+		// The maximum of an empty list is not well-defined
+		return math.NaN()
 	}
-}
-
-// The maxAggregation is an aggregation that computes the aggregate minimum for a seriesList
-type maxAggregation struct {
-	max float64
-}
-
-func (aggregation *maxAggregation) accumulate(value float64) {
-	aggregation.max = math.Max(aggregation.max, value)
-}
-func (aggregation *maxAggregation) result() float64 {
-	return aggregation.max
-}
-
-func useAggregator(aggregator aggregator, values []float64) float64 {
-	aggregation := aggregator.aggregate()
-	for _, v := range values {
-		aggregation.accumulate(v)
+	max := array[0]
+	for _, v := range array {
+		max = math.Max(max, v)
 	}
-	return aggregation.result()
+	return max
 }
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
 // the list must be non-empty, or an error is returned
-func applyAggregation(group group, aggregator aggregator) (api.Timeseries, error) {
+func applyAggregation(group group, aggregator aggregator) api.Timeseries {
 	list := group.List
 	tagSet := group.TagSet
 
 	if len(list) == 0 {
-		return api.Timeseries{}, EmptyAggregateError{}
+		// This case cannot actually occur, provided the rest of the code has been implemented correctly.
+		// However, if it *does* occur, then we need to exit early to prevent a panic when we access list[0].
+		return api.Timeseries{
+			Values: []float64{},
+			TagSet: tagSet,
+		}
 	}
 
 	series := api.Timeseries{
@@ -234,17 +179,17 @@ func applyAggregation(group group, aggregator aggregator) (api.Timeseries, error
 			timeSlice[j] = list[j].Values[i]
 		}
 		// Find the aggregated value:
-		series.Values[i] = useAggregator(aggregator, timeSlice)
+		series.Values[i] = aggregator.aggregate(timeSlice)
 	}
 
-	return series, nil
+	return series
 }
 
 // This function is the culmination of all others.
 // `aggregateBy` takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func aggregateBy(list api.SeriesList, aggregator aggregator, tags []string) (api.SeriesList, error) {
+func aggregateBy(list api.SeriesList, aggregator aggregator, tags []string) api.SeriesList {
 	// Begin by grouping the input:
 	groups := groupBy(list, tags)
 
@@ -256,11 +201,7 @@ func aggregateBy(list api.SeriesList, aggregator aggregator, tags []string) (api
 
 	for i, group := range groups {
 		// The group contains a list of Series and a TagSet.
-		aggregated, err := applyAggregation(group, aggregator)
-		if err != nil {
-			return api.SeriesList{}, err
-		}
-		result.Series[i] = aggregated
+		result.Series[i] = applyAggregation(group, aggregator)
 	}
-	return result, nil
+	return result
 }

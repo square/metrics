@@ -203,10 +203,7 @@ const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error b
 
 func Test_applyAggregation(t *testing.T) {
 	for _, testCase := range aggregationTestCases {
-		result, err := applyAggregation(testGroup, testCase.Aggregator)
-		if err != nil {
-			t.Error(err)
-		}
+		result := applyAggregation(testGroup, testCase.Aggregator)
 		if result.TagSet["env"] != "production" {
 			t.Fatalf("applyAggregation() produces tagset with env=%s but expected env=production", result.TagSet["env"])
 		}
@@ -401,11 +398,7 @@ func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
 func Test_aggregateBy(t *testing.T) {
 
 	for _, testCase := range aggregatedTests {
-		aggregated, err := aggregateBy(testList, testCase.Aggregator, testCase.Tags)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+		aggregated := aggregateBy(testList, testCase.Aggregator, testCase.Tags)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
