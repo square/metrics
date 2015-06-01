@@ -55,7 +55,7 @@ func TestCommand_Describe(t *testing.T) {
 		{"describe m where dc='west' or env = 'production'", fakeBackend, 3},
 		{"describe m where dc='west' or env = 'production' and doesnotexist = ''", fakeBackend, 2},
 		{"describe m where env = 'production' and doesnotexist = '' or dc = 'west'", fakeBackend, 2},
-		// {"describe m where (dc='west' or env = 'production') and doesnotexist = ''", fakeBackend, 0},
+		// {"describe m where (dc='west' or env = 'production') and doesnotexist = ''", fakeBackend, 0}, // PARSER ERROR, currently.
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		rawCommand, err := Parse(test.query)
