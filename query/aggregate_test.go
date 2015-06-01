@@ -21,6 +21,8 @@ import (
 	"testing"
 )
 
+const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error between correct test case answers and actual results
+
 var (
 	listA = api.SeriesList{
 		Series: []api.Timeseries{
@@ -178,28 +180,26 @@ var testGroup = group{
 }
 
 var aggregationTestCases = []struct {
-	Aggregator aggregator
+	Aggregator func([]float64) float64
 	Expected   []float64
 }{
 	{
-		sumAggregator{},
+		aggregateMap[sumAggregate],
 		[]float64{3, 2, 8, 11},
 	},
 	{
-		meanAggregator{},
+		aggregateMap[meanAggregate],
 		[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 	},
 	{
-		maxAggregator{},
+		aggregateMap[maxAggregate],
 		[]float64{4, 2, 4, 4},
 	},
 	{
-		minAggregator{},
+		aggregateMap[minAggregate],
 		[]float64{-1, -1, 0, 2},
 	},
 }
-
-const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error between correct test case answers and actual results
 
 func Test_applyAggregation(t *testing.T) {
 	for _, testCase := range aggregationTestCases {
@@ -280,12 +280,12 @@ var testList = api.SeriesList{
 
 var aggregatedTests = []struct {
 	Tags       []string
-	Aggregator aggregator
+	Aggregator aggregate
 	Results    []api.Timeseries
 }{
 	{
 		[]string{"env"},
-		sumAggregator{},
+		sumAggregate,
 		[]api.Timeseries{
 			api.Timeseries{
 				Values: []float64{1, 1, 3},
@@ -303,7 +303,7 @@ var aggregatedTests = []struct {
 	},
 	{
 		[]string{"dc"},
-		maxAggregator{},
+		maxAggregate,
 		[]api.Timeseries{
 			api.Timeseries{
 				Values: []float64{0, 2, 2},
@@ -327,7 +327,7 @@ var aggregatedTests = []struct {
 	},
 	{
 		[]string{"dc", "env"},
-		meanAggregator{},
+		meanAggregate,
 		[]api.Timeseries{
 			api.Timeseries{
 				Values: []float64{0, 1, 2},
@@ -368,7 +368,7 @@ var aggregatedTests = []struct {
 	},
 	{
 		[]string{},
-		sumAggregator{},
+		sumAggregate,
 		[]api.Timeseries{
 			api.Timeseries{
 				Values: []float64{5, 6, 9},
@@ -398,7 +398,7 @@ func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
 func Test_aggregateBy(t *testing.T) {
 
 	for _, testCase := range aggregatedTests {
-		aggregated := aggregateBy(testList, testCase.Aggregator, testCase.Tags)
+		aggregated := aggregateBy(testList, aggregateMap[testCase.Aggregator], testCase.Tags)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {

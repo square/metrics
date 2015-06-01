@@ -72,96 +72,77 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-// The aggregator interface is the public-facing way in which values are aggregated.
-// Aggregator objects are required to perform aggregation (max, min, range, mean, sum, etc.)
-// Their interface is the `aggregate` method, which takes an array of floats.
-type aggregator interface {
-	aggregate([]float64) float64
-}
+type aggregate int
 
-type sumAggregator struct {
-}
+const (
+	sumAggregate aggregate = iota + 1
+	meanAggregate
+	minAggregate
+	maxAggregate
+)
 
-var _ aggregator = sumAggregator{}
+var aggregateMap = map[aggregate]func([]float64) float64{
+	sumAggregate:
+	// The aggregatefor sum finds the sum of the given array.
+	func(array []float64) float64 {
+		sum := 0.0
+		for _, v := range array {
+			sum += v
+		}
+		return sum
+	},
 
-// The `aggregate()` for sum finds the sum of the given array.
-func (aggregator sumAggregator) aggregate(array []float64) float64 {
-	sum := 0.0
-	for _, v := range array {
-		sum += v
-	}
-	return sum
-}
-
-// A mean aggregator is highly similar to a sum aggregator.
-// It computes the aggregate mean for a seriesList
-type meanAggregator struct {
-}
-
-var _ aggregator = meanAggregator{}
-
-// The mean aggregator returns the mean of the given array
-func (aggregator meanAggregator) aggregate(array []float64) float64 {
-	if len(array) == 0 {
-		// The mean of an empty list is not well-defined
-		return math.NaN()
-	}
-	sum := 0.0
-	for _, v := range array {
-		sum += v
-	}
-	return sum / float64(len(array))
-}
-
-// The min aggregator is an aggregator that computes the aggregate minimum for a seriesList
-type minAggregator struct {
-}
-
-var _ aggregator = minAggregator{}
-
-func (aggregator minAggregator) aggregate(array []float64) float64 {
-	if len(array) == 0 {
-		// The minimum of an empty list is not well-defined
-		return math.NaN()
-	}
-	min := array[0]
-	for _, v := range array {
-		min = math.Min(min, v)
-	}
-	return min
-}
-
-// The maxAggregator is an aggregator that computes the aggregate maximum for a seriesList
-type maxAggregator struct {
-}
-
-var _ aggregator = maxAggregator{}
-
-func (aggregator maxAggregator) aggregate(array []float64) float64 {
-	if len(array) == 0 {
-		// The maximum of an empty list is not well-defined
-		return math.NaN()
-	}
-	max := array[0]
-	for _, v := range array {
-		max = math.Max(max, v)
-	}
-	return max
+	meanAggregate:
+	// The mean aggregator returns the mean of the given array
+	func(array []float64) float64 {
+		if len(array) == 0 {
+			// The mean of an empty list is not well-defined
+			return math.NaN()
+		}
+		sum := 0.0
+		for _, v := range array {
+			sum += v
+		}
+		return sum / float64(len(array))
+	},
+	minAggregate:
+	// The minimum aggregator returns the minimum
+	func(array []float64) float64 {
+		if len(array) == 0 {
+			// The minimum of an empty list is not well-defined
+			return math.NaN()
+		}
+		min := array[0]
+		for _, v := range array {
+			min = math.Min(min, v)
+		}
+		return min
+	},
+	maxAggregate:
+	// The maximum aggregator returns the maximum
+	func(array []float64) float64 {
+		if len(array) == 0 {
+			// The maximum of an empty list is not well-defined
+			return math.NaN()
+		}
+		max := array[0]
+		for _, v := range array {
+			max = math.Max(max, v)
+		}
+		return max
+	},
 }
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
 // the list must be non-empty, or an error is returned
-func applyAggregation(group group, aggregator aggregator) api.Timeseries {
+func applyAggregation(group group, aggregator func([]float64) float64) api.Timeseries {
 	list := group.List
 	tagSet := group.TagSet
 
 	if len(list) == 0 {
-		// This case cannot actually occur, provided the rest of the code has been implemented correctly.
-		// However, if it *does* occur, then we need to exit early to prevent a panic when we access list[0].
-		return api.Timeseries{
-			Values: []float64{},
-			TagSet: tagSet,
-		}
+		// This case should not actually occur, provided the rest of the code has been implemented correctly.
+		// So when it does, issue a panic:
+		panic("applyAggregation given empty group for tagset")
 	}
 
 	series := api.Timeseries{
@@ -179,7 +160,7 @@ func applyAggregation(group group, aggregator aggregator) api.Timeseries {
 			timeSlice[j] = list[j].Values[i]
 		}
 		// Find the aggregated value:
-		series.Values[i] = aggregator.aggregate(timeSlice)
+		series.Values[i] = aggregator(timeSlice)
 	}
 
 	return series
@@ -189,7 +170,7 @@ func applyAggregation(group group, aggregator aggregator) api.Timeseries {
 // `aggregateBy` takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func aggregateBy(list api.SeriesList, aggregator aggregator, tags []string) api.SeriesList {
+func aggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string) api.SeriesList {
 	// Begin by grouping the input:
 	groups := groupBy(list, tags)
 
