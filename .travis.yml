@@ -7,5 +7,8 @@ services:
 before_install:
   - rm -r main
 
+script:
+  - build_verify.sh
+
 before_script:
   - cqlsh -f schema/schema_test.cql
