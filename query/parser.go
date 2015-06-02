@@ -320,15 +320,7 @@ func (p *Parser) insertPropertyKeyValue() {
 			})
 		}
 	case "from":
-
-		unix, err := parseDate(value)
-		if err != nil {
-			p.flagSyntaxError(SyntaxError{
-				token:   value,
-				message: err.Error(),
-			})
-		}
-		contextNode.Timerange.Start = unix
+		fallthrough
 	case "to":
 		unix, err := parseDate(value)
 		if err != nil {
@@ -337,7 +329,11 @@ func (p *Parser) insertPropertyKeyValue() {
 				message: err.Error(),
 			})
 		}
-		contextNode.Timerange.End = unix
+		if key == "from" {
+			contextNode.Timerange.Start = unix
+		} else {
+			contextNode.Timerange.End = unix
+		}
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
 		intValue, err := strconv.ParseInt(value, 10, 64)
