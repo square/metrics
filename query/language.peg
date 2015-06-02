@@ -229,8 +229,8 @@ OP_ADD  <- _ "+" _
 OP_SUB  <- _ "-" _
 OP_MULT <- _ "*" _
 OP_DIV  <- _ "/" _
-OP_AND  <- __ "and" __
-OP_OR   <- __ "or" __
+OP_AND  <- _ "and" _
+OP_OR   <- _ "or" _
 OP_NOT  <- "not" __
 
 STRING <-      "'" CHAR* "'" / '"' CHAR* '"'

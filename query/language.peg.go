@@ -2183,7 +2183,7 @@ func (p *Parser) Init() {
 					{
 						position180 := position
 						depth++
-						if !_rules[rule__]() {
+						if !_rules[rule_]() {
 							goto l179
 						}
 						{
@@ -2216,7 +2216,7 @@ func (p *Parser) Init() {
 							position++
 						}
 					l183:
-						if !_rules[rule__]() {
+						if !_rules[rule_]() {
 							goto l179
 						}
 						depth--
@@ -2258,7 +2258,7 @@ func (p *Parser) Init() {
 					{
 						position191 := position
 						depth++
-						if !_rules[rule__]() {
+						if !_rules[rule_]() {
 							goto l190
 						}
 						{
@@ -2306,7 +2306,7 @@ func (p *Parser) Init() {
 							position++
 						}
 					l196:
-						if !_rules[rule__]() {
+						if !_rules[rule_]() {
 							goto l190
 						}
 						depth--
@@ -4100,9 +4100,9 @@ func (p *Parser) Init() {
 		nil,
 		/* 37 OP_DIV <- <(_ '/' _)> */
 		nil,
-		/* 38 OP_AND <- <(__ (('a' / 'A') ('n' / 'N') ('d' / 'D')) __)> */
+		/* 38 OP_AND <- <(_ (('a' / 'A') ('n' / 'N') ('d' / 'D')) _)> */
 		nil,
-		/* 39 OP_OR <- <(__ (('o' / 'O') ('r' / 'R')) __)> */
+		/* 39 OP_OR <- <(_ (('o' / 'O') ('r' / 'R')) _)> */
 		nil,
 		/* 40 OP_NOT <- <(('n' / 'N') ('o' / 'O') ('t' / 'T') __)> */
 		nil,
