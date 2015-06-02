@@ -6,7 +6,8 @@
 GOFMT_RESULTS=`gofmt -l .`
 if [ "$GOFMT_RESULTS" ]
 then
-	echo "gofmt finds changes:"
+	echo "FAIL: UNFORMATTED FILES:"
+	echo "GOFMT FINDS"
 	echo "$GOFMT_RESULTS"
 	exit -1
 fi
@@ -31,7 +32,8 @@ done
 # run through again and print any output that occurs
 if [ $found ]
 then
-	echo "Golint has messages:"
+	echo "FAIL: UNLINTED FILES:"
+	echo "GOLINT FINDS"
 	for file in ${GOLINT_ARRAY[@]}; do
 		GOLINT_RESULT=`golint $file`
 		if [ "$GOLINT_RESULT" ]
@@ -50,8 +52,8 @@ newhash=$(md5 ./query/language.peg.go)
 
 if [ "$hash" != "$newhash" ]
 then
-	echo "Build scripts have not been run:"
-	echo "There were changes to query/language.peg without query/language.peg.go being updated"
+	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
+	echo "THERE WERE CHANGES TO query/language.peg WITHOUT CALLING ./query/build.sh"
 	exit -1
 fi
 
