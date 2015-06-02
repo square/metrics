@@ -1,3 +1,5 @@
+![Build status](https://travis-ci.org/square/metrics.svg?branch=master)
+
 Metrics
 =======
 
