@@ -1,6 +1,8 @@
 #/usr/bin/env bash 
 
 
+fails=""
+
 # Invoke gofmt on the current directory.
 # -l flag causes it to only list files
 GOFMT_RESULTS=`gofmt -l .`
@@ -9,7 +11,7 @@ then
 	echo "FAIL: UNFORMATTED FILES:"
 	echo "GOFMT FINDS"
 	echo "$GOFMT_RESULTS"
-	exit -1
+	fails="fails"
 fi
 
 
@@ -41,7 +43,7 @@ then
 			echo "$GOLINT_RESULT"
 		fi
 	done
-	exit -1
+	fails="fails"
 fi
 
 #Lastly, make sure calling ./query/build.sh doesn't cause ./query/language.peg.go to change
@@ -54,10 +56,13 @@ if [ "$hash" != "$newhash" ]
 then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
 	echo "THERE WERE CHANGES TO query/language.peg WITHOUT CALLING ./query/build.sh"
-	exit -1
+	fails="fails"
 fi
 
-
+if [ $fails ]
+then
+	exit -1
+fi
 
 
 
