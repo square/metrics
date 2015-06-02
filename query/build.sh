@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-peg -inline -switch language.peg
+
+# a hack to determine the location of this script:
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+peg -inline -switch DIR/language.peg
