@@ -7,8 +7,9 @@ services:
 before_install:
   - rm -r main
 
+before_script:
+  - go get -u github.com/golang/lint/golint
+  - cqlsh -f schema/schema_test.cql
+
 script:
   - ./build_verify.sh
-
-before_script:
-  - cqlsh -f schema/schema_test.cql
