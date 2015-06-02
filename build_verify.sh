@@ -48,11 +48,11 @@ fi
 
 #Lastly, make sure calling ./query/build.sh doesn't cause ./query/language.peg.go to change
 
-hash=$(md5 ./query/language.peg.go)
+before=$(cat ./query/language.peg.go)
 ./query/build.sh
-newhash=$(md5 ./query/language.peg.go)
+after=$(cat ./query/language.peg.go)
 
-if [ "$hash" != "$newhash" ]
+if [ "$before" != "$after" ]
 then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
 	echo "THERE WERE CHANGES TO query/language.peg WITHOUT CALLING ./query/build.sh"
