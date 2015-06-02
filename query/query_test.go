@@ -119,12 +119,12 @@ func TestParse_success(t *testing.T) {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
 	}
-	/*for _, row := range parseOnly {
+	for _, row := range parseOnly {
 		_, err := Parse(row)
 		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
-	}*/
+	}
 }
 
 func TestParse_syntaxError(t *testing.T) {
