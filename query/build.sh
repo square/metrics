@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-peg -inline -switch language.peg
+
+peg -inline -switch query/language.peg
