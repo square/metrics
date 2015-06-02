@@ -28,5 +28,5 @@ then
 			echo "$GOLINT_RESULT"
 		fi
 	done
-	fails="fails"
+	exit -1
 fi
