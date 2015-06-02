@@ -24,7 +24,8 @@ import (
 
 var (
 	// YamlFile is the location of the rule YAML file.
-	YamlFile = flag.String("yaml-file", "", "Location of YAML configuration file.")
+	YamlFile      = flag.String("yaml-file", "", "Location of YAML configuration file.")
+	CassandraHost = flag.String("cassandra-host", "localhost", "Cassandra host")
 )
 
 // ExitWithRequired terminates the program when a required flag is missing.
@@ -43,7 +44,7 @@ func ExitWithMessage(message string) {
 func NewAPI() api.API {
 	apiInstance, err := internal.NewAPI(api.Configuration{
 		RuleYamlFilePath: *YamlFile,
-		Hosts:            []string{"localhost"},
+		Hosts:            []string{*CassandraHost},
 		Keyspace:         "metrics_indexer",
 	})
 	if err != nil {

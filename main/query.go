@@ -27,7 +27,7 @@ import (
 
 var (
 	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
-	BluefloodTenantId = flag.String("bluflood-tenant-id", "", "Blueflood tenant id")
+	BluefloodTenantId = flag.String("blueflood-tenant-id", "", "Blueflood tenant id")
 )
 
 func main() {
