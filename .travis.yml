@@ -16,3 +16,4 @@ before_script:
 
 script:
   - ./build_verify.sh
+  - go test -v ./...
