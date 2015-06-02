@@ -6,7 +6,7 @@ fails=""
 # Invoke gofmt on the current directory.
 # -l flag causes it to only list files
 GOFMT_RESULTS=`gofmt -l .`
-if [ "$GOFMT_RESULTS" ] then
+if [ "$GOFMT_RESULTS" ]; then
 	echo "FAIL: UNFORMATTED FILES:"
 	echo "GOFMT FINDS"
 	echo "$GOFMT_RESULTS"
@@ -21,7 +21,7 @@ before=$(cat ./query/language.peg.go)
 gofmt -w ./query/language.peg.go
 after=$(cat ./query/language.peg.go)
 
-if [ "$before" != "$after" ] then
+if [ "$before" != "$after" ]; then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
 	echo "THERE WERE CHANGES TO query/language.peg AND NO CHANGES TO query/language.peg.go"
 	echo "Make sure you ran the build file, and that your version of peg is up to date."

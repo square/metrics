@@ -10,21 +10,18 @@ found=""
 IFS=$'\n' GOLINT_ARRAY=($GOLINT_FILES)
 for file in ${GOLINT_ARRAY[@]}; do
 	GOLINT_RESULT=`golint $file`
-	if [ "$GOLINT_RESULT" ]
-	then
+	if [ "$GOLINT_RESULT" ]; then
 		found="yes"
 	fi
 done
 # If one of them produced output,
 # run through again and print any output that occurs
-if [ $found ]
-then
+if [ $found ]; then
 	echo "FAIL: UNLINTED FILES:"
 	echo "GOLINT FINDS"
 	for file in ${GOLINT_ARRAY[@]}; do
 		GOLINT_RESULT=`golint $file`
-		if [ "$GOLINT_RESULT" ]
-		then
+		if [ "$GOLINT_RESULT" ]; then
 			echo "$GOLINT_RESULT"
 		fi
 	done
