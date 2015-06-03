@@ -35,8 +35,8 @@ type LiteralExpression struct {
 	Values []float64
 }
 
-func (expr *LiteralExpression) Evaluate(context EvaluationContext) (Value, error) {
-	return SeriesListValue(api.SeriesList{
+func (expr *LiteralExpression) Evaluate(context EvaluationContext) (value, error) {
+	return seriesListValue(api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
 		Timerange: api.Timerange{},
 	}), nil
@@ -46,7 +46,7 @@ type LiteralSeriesExpression struct {
 	Values []api.Timeseries
 }
 
-func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (Value, error) {
+func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(expr.Values)),
 		Timerange: api.Timerange{},
@@ -54,7 +54,7 @@ func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (Value,
 	for i, values := range expr.Values {
 		result.Series[i] = values
 	}
-	return SeriesListValue(result), nil
+	return seriesListValue(result), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -84,7 +84,7 @@ func Test_ScalarExpression(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		result, err := EvaluateToSeriesList(test.expr, EvaluationContext{
+		result, err := evaluateToSeriesList(test.expr, EvaluationContext{
 			Backend:      FakeBackend{},
 			Timerange:    test.timerange,
 			SampleMethod: api.SampleMean,
@@ -308,7 +308,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		result, err := value.ToSeriesList(test.context.Timerange)
+		result, err := value.toSeriesList(test.context.Timerange)
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue

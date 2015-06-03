@@ -37,53 +37,53 @@ type EvaluationContext struct {
 	SampleMethod api.SampleMethod
 }
 
-// A Value is the result of evaluating an expression.
+// A value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
-type Value interface {
-	ToSeriesList(api.Timerange) (api.SeriesList, error)
-	ToString() (string, error)
-	ToScalar() (float64, error)
+type value interface {
+	toSeriesList(api.Timerange) (api.SeriesList, error)
+	toString() (string, error)
+	toScalar() (float64, error)
 }
 
-type ConversionError struct {
+type conversionError struct {
 	from string
 	to   string
 }
 
-func (e ConversionError) Error() string {
+func (e conversionError) Error() string {
 	return fmt.Sprintf("cannot convert from type %s to type %s", e.from, e.to)
 }
 
-// A SeriesListValue is a value which holds a SeriesList
-type SeriesListValue api.SeriesList
+// A seriesListValue is a value which holds a SeriesList
+type seriesListValue api.SeriesList
 
-func (value SeriesListValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
+func (value seriesListValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList(value), nil
 }
-func (value SeriesListValue) ToString() (string, error) {
-	return "", ConversionError{"SeriesList", "string"}
+func (value seriesListValue) toString() (string, error) {
+	return "", conversionError{"SeriesList", "string"}
 }
-func (value SeriesListValue) ToScalar() (float64, error) {
-	return 0, ConversionError{"SeriesList", "scalar"}
+func (value seriesListValue) toScalar() (float64, error) {
+	return 0, conversionError{"SeriesList", "scalar"}
 }
 
-// A StringValue holds a string
-type StringValue string
+// A stringValue holds a string
+type stringValue string
 
-func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, ConversionError{"string", "SeriesList"}
+func (value stringValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList{}, conversionError{"string", "SeriesList"}
 }
-func (value StringValue) ToString() (string, error) {
+func (value stringValue) toString() (string, error) {
 	return string(value), nil
 }
-func (value StringValue) ToScalar() (float64, error) {
-	return 0, ConversionError{"string", "scalar"}
+func (value stringValue) toScalar() (float64, error) {
+	return 0, conversionError{"string", "scalar"}
 }
 
-// A ScalarValue holds a float and can be converted to a serieslist
-type ScalarValue float64
+// A scalarValue holds a float and can be converted to a serieslist
+type scalarValue float64
 
-func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
 	if !timerange.IsValid() {
 		return api.SeriesList{}, errors.New("Invalid context.Timerange")
 	}
@@ -99,11 +99,11 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 	}, nil
 }
 
-func (value ScalarValue) ToString() (string, error) {
-	return "", ConversionError{"scalar", "string"}
+func (value scalarValue) toString() (string, error) {
+	return "", conversionError{"scalar", "string"}
 }
 
-func (value ScalarValue) ToScalar() (float64, error) {
+func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
 
@@ -116,34 +116,34 @@ func (value ScalarValue) ToScalar() (float64, error) {
 // Expressions correspond to the timerange in the current EvaluationContext.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (Value, error)
+	Evaluate(context EvaluationContext) (value, error)
 }
 
-func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
+func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
 	value, err := e.Evaluate(context)
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return value.ToSeriesList(context.Timerange)
+	return value.toSeriesList(context.Timerange)
 }
 
 // Implementations
 // ===============
 
 // Generates a Timeseries from the encapsulated scalar.
-func (expr scalarExpression) Evaluate(context EvaluationContext) (Value, error) {
-	return ScalarValue(expr.value), nil
+func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) {
+	return scalarValue(expr.value), nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (Value, error) {
+func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
 	series, err := context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, expr.predicate, context.SampleMethod, context.Timerange)
 	if err != nil {
-		return SeriesListValue{}, err
+		return seriesListValue{}, err
 	}
-	return SeriesListValue(*series), err
+	return seriesListValue(*series), err
 }
 
-func (expr *functionExpression) Evaluate(context EvaluationContext) (Value, error) {
+func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
 	switch expr.functionName {
 	case "+":
 		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
@@ -168,7 +168,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (Value, erro
 // evaluateExpression wraps expr.Evaluate() to provide common messaging
 // for errors. This can get pretty messy if the Expression we evaluate
 // isn't a leaf node, but a leaf fails.
-func evaluateExpression(context EvaluationContext, expr Expression) (Value, error) {
+func evaluateExpression(context EvaluationContext, expr Expression) (value, error) {
 	result, err := expr.Evaluate(context)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Evaluation of expression %+v failed:\n%s\n", expr, err.Error()))
@@ -183,7 +183,7 @@ func evaluateBinaryOperation(
 	functionName string,
 	operands []Expression,
 	evaluate func(float64, float64) float64,
-) (Value, error) {
+) (value, error) {
 	if len(operands) != 2 {
 		return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", functionName, len(operands), operands))
 	}
@@ -193,11 +193,11 @@ func evaluateBinaryOperation(
 		return nil, err
 	}
 
-	leftList, err := results[0].ToSeriesList(context.Timerange)
+	leftList, err := results[0].toSeriesList(context.Timerange)
 	if err != nil {
 		return nil, err
 	}
-	rightList, err := results[1].ToSeriesList(context.Timerange)
+	rightList, err := results[1].toSeriesList(context.Timerange)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func evaluateBinaryOperation(
 		result[i] = api.Timeseries{array, row.TagSet}
 	}
 
-	return SeriesListValue(api.SeriesList{
+	return seriesListValue(api.SeriesList{
 		Series:    result,
 		Timerange: context.Timerange,
 	}), nil
@@ -226,12 +226,12 @@ func evaluateBinaryOperation(
 // EvaluationContext. If any evaluations error, evaluateExpressions will
 // propagate that error. The resulting SeriesLists will be in an order
 // corresponding to the provided Expresesions.
-func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]Value, error) {
+func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]value, error) {
 	if len(expressions) == 0 {
-		return []Value{}, nil
+		return []value{}, nil
 	}
 
-	results := make([]Value, len(expressions))
+	results := make([]value, len(expressions))
 	for i, expr := range expressions {
 		result, err := expr.Evaluate(context)
 		if err != nil {
