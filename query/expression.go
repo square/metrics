@@ -51,7 +51,7 @@ type ConversionError struct {
 }
 
 func (e ConversionError) Error() string {
-	return fmt.Sprintf("cannot convert from type %from to type %to%")
+	return fmt.Sprintf("cannot convert from type %s to type %s", e.from, e.to)
 }
 
 // A SeriesListValue is a value which holds a SeriesList
