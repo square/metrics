@@ -23,17 +23,25 @@ import (
 )
 
 type FakeApi struct {
-	metricMap map[api.GraphiteMetric]api.TaggedMetric
+	metricMap     map[api.GraphiteMetric]api.TaggedMetric
+	metricTagSets map[api.MetricKey][]api.TagSet
 }
 
 func NewFakeApi() *FakeApi {
 	return &FakeApi{
-		metricMap: make(map[api.GraphiteMetric]api.TaggedMetric),
+		metricMap:     make(map[api.GraphiteMetric]api.TaggedMetric),
+		metricTagSets: make(map[api.MetricKey][]api.TagSet),
 	}
 }
 
 func (fa *FakeApi) AddPair(tm api.TaggedMetric, gm api.GraphiteMetric) {
 	fa.metricMap[gm] = tm
+
+	if metricTagSets, ok := fa.metricTagSets[tm.MetricKey]; !ok {
+		fa.metricTagSets[tm.MetricKey] = []api.TagSet{tm.TagSet}
+	} else {
+		fa.metricTagSets[tm.MetricKey] = append(metricTagSets, tm.TagSet)
+	}
 }
 
 func (fa *FakeApi) AddMetric(metric api.TaggedMetric) error {
@@ -63,7 +71,7 @@ func (fa *FakeApi) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, er
 }
 
 func (fa *FakeApi) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
-	return nil, errors.New("Implement me")
+	return fa.metricTagSets[metricKey], nil
 }
 
 func (fa *FakeApi) GetAllMetrics() ([]api.MetricKey, error) {

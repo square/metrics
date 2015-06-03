@@ -72,11 +72,50 @@ func (b *Blueflood) Api() api.API {
 }
 
 func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate, sampleMethod api.SampleMethod, timerange api.Timerange) (*api.SeriesList, error) {
-	graphiteMetric, err := b.api.ToGraphiteName(metric)
+	metricTagSets, err := b.Api().GetAllTags(metric.MetricKey)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: Be a little smarter about this?
+	resultSeries := []api.Timeseries{}
+	for _, ts := range metricTagSets {
+		if predicate == nil || predicate.Apply(ts) {
+			graphiteName, err := b.Api().ToGraphiteName(api.TaggedMetric{
+				MetricKey: metric.MetricKey,
+				TagSet:    ts,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			queryResult, err := b.fetchSingleSeries(
+				graphiteName,
+				sampleMethod,
+				timerange,
+			)
+			// TODO: Be more tolerant of errors fetching a single metric?
+			// Though I guess this behavior is fine since skipping fetches
+			// that fail would end up in a result set that you don't quite
+			// expect.
+			if err != nil {
+				return nil, err
+			}
+
+			resultSeries = append(resultSeries, api.Timeseries{
+				Values: queryResult,
+				TagSet: ts,
+			})
+		}
+	}
+
+	return &api.SeriesList{
+		Series:    resultSeries,
+		Timerange: timerange,
+	}, nil
+}
+
+func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
 	// Use this lowercase of this as the select query param. Use the actual value
 	// to reflect into result MetricPoints to fetch the correct field.
 	var selectResultField string
@@ -95,7 +134,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	queryUrl, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s",
 		b.baseUrl,
 		b.tenantId,
-		graphiteMetric))
+		metric))
 	if err != nil {
 		return nil, err
 	}
@@ -138,15 +177,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 
 	// TODO: Resample to the requested resolution
 
-	return &api.SeriesList{
-		Series: []api.Timeseries{
-			api.Timeseries{
-				Values: series,
-				TagSet: metric.TagSet,
-			},
-		},
-		Timerange: timerange,
-	}, nil
+	return series, nil
 }
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
