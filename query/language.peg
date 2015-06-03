@@ -197,7 +197,7 @@ METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
 TIMESTAMP <-   <NUMBER> / <STRING>
-IDENTIFIER <-  "`" CHAR* "`" / !KEYWORD ID_SEGMENT ("." ID_SEGMENT)*
+IDENTIFIER <-  "`" CHAR* "`" / !(KEYWORD !ID_CONT) ID_SEGMENT ("." ID_SEGMENT)*
 ID_SEGMENT <-  ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
 # If hyphens are needed, use backticks instead.
