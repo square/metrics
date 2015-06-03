@@ -108,10 +108,10 @@ func newUnusedTag(tag string) ConversionError {
 	}
 }
 
-func newCannotInterpolate() ConversionError {
+func newCannotInterpolate(m interface{}) ConversionError {
 	return conversionError{
 		CannotInterpolate,
-		"Cannot interpolate",
+		fmt.Sprintf("Cannot interpolate %+v", m),
 	}
 }
 
