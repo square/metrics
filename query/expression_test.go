@@ -35,18 +35,18 @@ type LiteralExpression struct {
 	Values []float64
 }
 
-func (expr *LiteralExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
-	return &api.SeriesList{
+func (expr *LiteralExpression) Evaluate(context EvaluationContext) (Value, error) {
+	return SeriesListValue(api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
 		Timerange: api.Timerange{},
-	}, nil
+	}), nil
 }
 
 type LiteralSeriesExpression struct {
 	Values []api.Timeseries
 }
 
-func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
+func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (Value, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(expr.Values)),
 		Timerange: api.Timerange{},
@@ -54,7 +54,7 @@ func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (*api.S
 	for i, values := range expr.Values {
 		result.Series[i] = values
 	}
-	return &result, nil
+	return SeriesListValue(result), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -84,14 +84,14 @@ func Test_ScalarExpression(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		result, err := test.expr.Evaluate(EvaluationContext{
+		result, err := EvaluateToSeriesList(test.expr, EvaluationContext{
 			Backend:      FakeBackend{},
 			Timerange:    test.timerange,
 			SampleMethod: api.SampleMean,
 		})
 
 		a.EqBool(err == nil, test.expectSuccess)
-		// Nothing else to validate if we expect failure
+
 		if !test.expectSuccess {
 			continue
 		}
@@ -251,24 +251,24 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				&LiteralSeriesExpression{
 					[]api.Timeseries{
 						api.Timeseries{
-							[]float64{ 103, 103, 103 },
+							[]float64{103, 103, 103},
 							api.TagSet{
-								"env" : "production",
-								"host" : "#1",
+								"env":  "production",
+								"host": "#1",
 							},
 						},
 						api.Timeseries{
-							[]float64{ 203, 203, 203 },
+							[]float64{203, 203, 203},
 							api.TagSet{
-								"env" : "staging",
-								"host" : "#2",
+								"env":  "staging",
+								"host": "#2",
 							},
 						},
 						api.Timeseries{
-							[]float64{ 303, 303, 303 },
+							[]float64{303, 303, 303},
 							api.TagSet{
-								"env" : "staging",
-								"host" : "#3",
+								"env":  "staging",
+								"host": "#3",
 							},
 						},
 					},
@@ -276,15 +276,15 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				&LiteralSeriesExpression{
 					[]api.Timeseries{
 						api.Timeseries{
-							[]float64{ 1, 2, 3 },
+							[]float64{1, 2, 3},
 							api.TagSet{
-								"env":"staging",
+								"env": "staging",
 							},
 						},
 						api.Timeseries{
-							[]float64{ 3, 0, 3 },
+							[]float64{3, 0, 3},
 							api.TagSet{
-								"env":"production",
+								"env": "production",
 							},
 						},
 					},
@@ -292,21 +292,25 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			func(left, right float64) float64 { return left - right },
 			true,
-			[][]float64{{100, 103, 100},{202, 201, 200},{302, 301, 300}},
+			[][]float64{{100, 103, 100}, {202, 201, 200}, {302, 301, 300}},
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		result, err := evaluateBinaryOperation(
+		value, err := evaluateBinaryOperation(
 			test.context,
 			test.functionName,
 			test.operands,
 			test.evalFunction,
 		)
+		if err != nil {
+			a.EqBool(err == nil, test.expectSuccess)
+			continue
+		}
 
-		a.EqBool(err == nil, test.expectSuccess)
-		// Nothing else to validate if we expect failure
-		if !test.expectSuccess {
+		result, err := value.ToSeriesList(test.context.Timerange)
+		if err != nil {
+			a.EqBool(err == nil, test.expectSuccess)
 			continue
 		}
 
