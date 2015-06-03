@@ -70,12 +70,12 @@ import (
 // Time zones are ommitted where only the date is given (perhaps this should be changed)
 // TODO: use a less brittle method than putting the single quotes inside these
 var dateFormats = []string{
-	"'2006-1-2 15:04:05 MST'",
-	"'2006-1-2 15:04 MST'",
-	"'2006-1-2 15 MST'",
-	"'2006-1-2 MST'",
-	"'2006-1-2'",
-	"'2006-1'",
+	"2006-1-2 15:04:05 MST",
+	"2006-1-2 15:04 MST",
+	"2006-1-2 15 MST",
+	"2006-1-2 MST",
+	"2006-1-2",
+	"2006-1",
 }
 
 func parseDate(date string) (int64, error) {
@@ -307,11 +307,11 @@ func (p *Parser) insertPropertyKeyValue() {
 		// If the key is "sample", it means we're in a "sample by" declaration.
 		// Only three possible sample methods are defined: min, max, or mean.
 		switch value {
-		case "'max'":
+		case "max":
 			contextNode.SampleMethod = api.SampleMax
-		case "'min'":
+		case "min":
 			contextNode.SampleMethod = api.SampleMin
-		case "'mean'":
+		case "mean":
 			contextNode.SampleMethod = api.SampleMean
 		default:
 			p.flagSyntaxError(SyntaxError{
