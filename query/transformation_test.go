@@ -41,10 +41,11 @@ func TestTransformTimeseries(t *testing.T) {
 	testCases := []struct {
 		values    []float64
 		tagSet    api.TagSet
-		parameter transformationParameter
+		parameter transformParameter
 		tests     []struct {
-			fun      transformation
+			fun      transform
 			expected []float64
+			useParam bool
 		}
 	}{
 		{
@@ -54,29 +55,34 @@ func TestTransformTimeseries(t *testing.T) {
 				"host": "B",
 				"env":  "C",
 			},
-			parameter: transformationParameter{
-				scale:     30,
-				parameter: 100,
+			parameter: transformParameter{
+				scale:      30,
+				parameters: []value{scalarValue(100)},
 			},
 			tests: []struct {
-				fun      transformation
+				fun      transform
 				expected []float64
+				useParam bool
 			}{
 				{
 					fun:      transformDerivative,
 					expected: []float64{0.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
+					useParam: false,
 				},
 				{
 					fun:      transformIntegral,
 					expected: []float64{0.0, 1.0 * 30.0, 3.0 * 30.0, 6.0 * 30.0, 10.0 * 30.0, 15.0 * 30.0},
+					useParam: false,
 				},
 				{
 					fun:      transformMovingAverage,
 					expected: []float64{0.0, 0.5, 1.0, 2.0, 3.0, 4.0},
+					useParam: true,
 				},
 				{
 					fun:      transformMapMaker(func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
+					useParam: false,
 				},
 			},
 		},
@@ -88,9 +94,17 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			result := transformTimeseries(series, transform.fun, test.parameter)
+			param := test.parameter
+			if !transform.useParam {
+				param.parameters = []value{}
+			}
+			result, err := transformTimeseries(series, transform.fun, param)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
 			if !tagSetEquals(result.TagSet, test.tagSet) {
-				t.Errorf("Expected tagset to be unchanged by transformation, changed %+v into %+v", test.tagSet, result.TagSet)
+				t.Errorf("Expected tagset to be unchanged by transform, changed %+v into %+v", test.tagSet, result.TagSet)
 				continue
 			}
 			if len(result.Values) != len(transform.expected) {
@@ -108,7 +122,7 @@ func TestTransformTimeseries(t *testing.T) {
 	}
 }
 
-func TestApplyTransformation(t *testing.T) {
+func TestApplyTransform(t *testing.T) {
 	epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -139,13 +153,13 @@ func TestApplyTransformation(t *testing.T) {
 		Name: "test",
 	}
 	testCases := []struct {
-		transformation transformation
-		parameter      float64
-		expected       map[string][]float64
+		transform transform
+		parameter []value
+		expected  map[string][]float64
 	}{
 		{
-			transformation: transformDerivative,
-			parameter:      17, // parameter is unused by derivative
+			transform: transformDerivative,
+			parameter: []value{},
 			expected: map[string][]float64{
 				"A": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
 				"B": {0, 0, -1.0 / 30, 0, 2.0 / 30, 0},
@@ -153,8 +167,8 @@ func TestApplyTransformation(t *testing.T) {
 			},
 		},
 		{
-			transformation: transformIntegral,
-			parameter:      27, // parameter is unused by integral
+			transform: transformIntegral,
+			parameter: []value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
 				"B": {2 * 30, 4 * 30, 5 * 30, 6 * 30, 9 * 30, 12 * 30},
@@ -162,8 +176,8 @@ func TestApplyTransformation(t *testing.T) {
 			},
 		},
 		{
-			transformation: transformMovingAverage,
-			parameter:      100, // 100 seconds corresponds to roughly 3 samples
+			transform: transformMovingAverage,
+			parameter: []value{scalarValue(100)}, // 100 seconds corresponds to roughly 3 samples
 			expected: map[string][]float64{
 				"A": {0, 0.5, 1, 2, 3, 4},
 				"B": {2.0, 2.0, 5.0 / 3, 4.0 / 3, 5.0 / 3, 7.0 / 3},
@@ -172,7 +186,11 @@ func TestApplyTransformation(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		result := applyTransformation(list, test.transformation, test.parameter)
+		result, err := ApplyTransform(list, test.transform, test.parameter)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
 		alreadyUsed := make(map[string]bool)
 		for _, series := range result.Series {
 			name := series.TagSet["series"]

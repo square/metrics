@@ -17,45 +17,67 @@
 package query
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/square/metrics/api"
 )
 
-// A transformation takes the list of values, and a "scale" factor:
+// A transform takes the list of values, and a "scale" factor:
 // It is the unitless quotient (sample duration / 1s)
 // So if the resolution is "once every 5 minutes" them we get a scale factor of 5*60 = 300
-type transformation func([]float64, transformationParameter) []float64
+type transform func([]float64, transformParameter) ([]float64, error)
 
-type transformationParameter struct {
-	scale     float64
-	parameter float64
+type transformParameter struct {
+	scale      float64
+	parameters []value
 }
 
-func transformTimeseries(series api.Timeseries, transformation transformation, parameter transformationParameter) api.Timeseries {
-	return api.Timeseries{
-		Values: transformation(series.Values, parameter),
-		TagSet: series.TagSet,
+func transformTimeseries(series api.Timeseries, transform transform, parameter transformParameter) (api.Timeseries, error) {
+	values, err := transform(series.Values, parameter)
+	if err != nil {
+		return api.Timeseries{}, err
 	}
+	return api.Timeseries{
+		Values: values,
+		TagSet: series.TagSet,
+	}, nil
 }
 
-// applyTransformation applies the given transformation to the entire list of series.
-func applyTransformation(list api.SeriesList, transformation transformation, parameter float64) api.SeriesList {
+// applyTransform applies the given transform to the entire list of series.
+func ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(list.Series)),
 		Timerange: list.Timerange,
 		Name:      list.Name,
 	}
 	scale := float64(list.Timerange.Resolution)
+	var err error
 	for i, series := range list.Series {
-		result.Series[i] = transformTimeseries(series, transformation, transformationParameter{
-			scale:     scale,
-			parameter: parameter,
+		result.Series[i], err = transformTimeseries(series, transform, transformParameter{
+			scale:      scale,
+			parameters: parameters,
 		})
+		if err != nil {
+			return api.SeriesList{}, err
+		}
 	}
-	return result
+	return result, nil
+}
+
+func checkParameters(name string, expected int, parameter transformParameter) error {
+	args := parameter.parameters
+	if len(args) != expected {
+		return errors.New(fmt.Sprintf("Expected function %s to be given %d parameters but was given %d: main series and %+v", name, expected+1, len(args)+1, args))
+	}
+	return nil
 }
 
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func transformDerivative(values []float64, parameter transformationParameter) []float64 {
+func transformDerivative(values []float64, parameter transformParameter) ([]float64, error) {
+	if err := checkParameters("transform.derivative", 0, parameter); err != nil {
+		return nil, err
+	}
 	result := make([]float64, len(values))
 	for i := range values {
 		if i == 0 {
@@ -66,22 +88,28 @@ func transformDerivative(values []float64, parameter transformationParameter) []
 		// Otherwise, it's the scaled difference
 		result[i] = (values[i] - values[i-1]) / parameter.scale
 	}
-	return result
+	return result, nil
 }
 
 // transformIntegral integrates a series whose values are "X per second" to estimate "total X so far"
-func transformIntegral(values []float64, parameter transformationParameter) []float64 {
+func transformIntegral(values []float64, parameter transformParameter) ([]float64, error) {
+	if err := checkParameters("transform.integral", 0, parameter); err != nil {
+		return nil, err
+	}
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
 		integral += values[i]
 		result[i] = integral * parameter.scale
 	}
-	return result
+	return result, nil
 }
 
 // transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize
-func transformRate(values []float64, parameter transformationParameter) []float64 {
+func transformRate(values []float64, parameter transformParameter) ([]float64, error) {
+	if err := checkParameters("transform.rate", 0, parameter); err != nil {
+		return nil, err
+	}
 	result := make([]float64, len(values))
 	for i := range values {
 		if i == 0 {
@@ -93,13 +121,23 @@ func transformRate(values []float64, parameter transformationParameter) []float6
 			result[i] = 0
 		}
 	}
-	return result
+	return result, nil
 }
 
 // transformMovingAverage finds the average over the time period given in the parameter.parameter value
-func transformMovingAverage(values []float64, parameter transformationParameter) []float64 {
+func transformMovingAverage(values []float64, parameter transformParameter) ([]float64, error) {
+	if err := checkParameters("transform.moving_average", 1, parameter); err != nil {
+		return nil, err
+	}
 	result := make([]float64, len(values))
-	limit := int(parameter.parameter/parameter.scale + 0.5) // Limit is the number of items to include in the average
+	if len(parameter.parameters) != 1 {
+
+	}
+	size, err := parameter.parameters[0].toScalar()
+	if err != nil {
+		return nil, err
+	}
+	limit := int(size/parameter.scale + 0.5) // Limit is the number of items to include in the average
 	if limit < 1 {
 		// At least one value must be included at all times
 		limit = 1
@@ -121,17 +159,20 @@ func transformMovingAverage(values []float64, parameter transformationParameter)
 		}
 		result[i] = sum / float64(count)
 	}
-	return result
+	return result, nil
 }
 
-// transformMapMaker can be used to use a function as a transformation, such as 'math.Abs' (or similar):
-//  `transformMapMaker(math.Abs)` is a transformation function which can be used, e.g. with applyTransformation
-func transformMapMaker(fun func(float64) float64) func([]float64, transformationParameter) []float64 {
-	return func(values []float64, parameter transformationParameter) []float64 {
+// transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
+//  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with applyTransform
+func transformMapMaker(fun func(float64) float64) func([]float64, transformParameter) ([]float64, error) {
+	return func(values []float64, parameter transformParameter) ([]float64, error) {
+		if err := checkParameters("transform.map(???)", 0, parameter); err != nil {
+			return nil, err
+		}
 		result := make([]float64, len(values))
 		for i := range values {
 			result[i] = fun(values[i])
 		}
-		return result
+		return result, nil
 	}
 }
