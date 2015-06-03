@@ -175,6 +175,18 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		}
 		return evaluateBinaryOperation(context, name, left, right, operatorMap[name])
 	case "aggregate.sum":
+		fallthrough
+	case "aggregate.mean":
+		fallthrough
+	case "aggregate.min":
+		fallthrough
+	case "aggregate.max":
+		funMap := map[string]aggregate{
+			"aggregate.sum":  sumAggregate,
+			"aggregate.mean": meanAggregate,
+			"aggregate.min":  minAggregate,
+			"aggregate.max":  maxAggregate,
+		}
 		if len(arguments) != 1 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expected 2 operands but received %d (%+v)", name, len(arguments), arguments))
 		}
@@ -182,7 +194,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if err != nil {
 			return nil, err
 		}
-		return seriesListValue(aggregateBy(list, aggregateMap[sumAggregate], expr.groupBy)), nil
+		return seriesListValue(aggregateBy(list, aggregateMap[funMap[name]], expr.groupBy)), nil
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", functionName))
 	}
