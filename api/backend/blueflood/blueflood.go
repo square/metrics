@@ -19,12 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
-	"log"
 
 	"github.com/square/metrics/api"
 )
