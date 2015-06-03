@@ -155,19 +155,36 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
-	switch expr.functionName {
+	arguments := make([]value, len(expr.arguments))
+	var err error
+	for i := range arguments {
+		arguments[i], err = expr.arguments[i].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+	}
+	name := expr.functionName
+	switch name {
 	case "+":
-		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
-			func(left, right float64) float64 { return left + right })
+		fallthrough
 	case "-":
-		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
-			func(left, right float64) float64 { return left - right })
-	case "/":
-		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
-			func(left, right float64) float64 { return left / right })
+		fallthrough
 	case "*":
-		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
-			func(left, right float64) float64 { return left * right })
+		fallthrough
+	case "/":
+		// Evaluation of a binary operator:
+		if len(arguments) != 2 {
+			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(arguments), arguments))
+		}
+		left := arguments[0]
+		right := arguments[1]
+		operatorMap := map[string]func(float64, float64) float64{
+			"+": func(x, y float64) float64 { return x + y },
+			"-": func(x, y float64) float64 { return x - y },
+			"*": func(x, y float64) float64 { return x * y },
+			"/": func(x, y float64) float64 { return x / y },
+		}
+		return evaluateBinaryOperation(context, name, left, right, operatorMap[name])
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", expr.functionName))
 	}
@@ -193,23 +210,16 @@ func evaluateExpression(context EvaluationContext, expr Expression) (value, erro
 func evaluateBinaryOperation(
 	context EvaluationContext,
 	functionName string,
-	operands []Expression,
+	leftValue value,
+	rightValue value,
 	evaluate func(float64, float64) float64,
 ) (value, error) {
-	if len(operands) != 2 {
-		return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", functionName, len(operands), operands))
-	}
 
-	results, err := evaluateExpressions(context, operands)
+	leftList, err := leftValue.toSeriesList(context.Timerange)
 	if err != nil {
 		return nil, err
 	}
-
-	leftList, err := results[0].toSeriesList(context.Timerange)
-	if err != nil {
-		return nil, err
-	}
-	rightList, err := results[1].toSeriesList(context.Timerange)
+	rightList, err := rightValue.toSeriesList(context.Timerange)
 	if err != nil {
 		return nil, err
 	}
