@@ -174,6 +174,15 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 			"/": func(x, y float64) float64 { return x / y },
 		}
 		return evaluateBinaryOperation(context, name, left, right, operatorMap[name])
+	case "aggregate.sum":
+		if len(arguments) != 1 {
+			return nil, errors.New(fmt.Sprintf("Function `%s` expected 2 operands but received %d (%+v)", name, len(arguments), arguments))
+		}
+		list, err := arguments[0].toSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		return seriesListValue(aggregateBy(list, aggregateMap[sumAggregate], expr.groupBy)), nil
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", functionName))
 	}
