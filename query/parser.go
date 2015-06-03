@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/square/metrics/api"
 )
@@ -62,6 +63,37 @@ import (
 // * command
 // * SyntaxError (user error - query is invalid)
 // * AssertionError (programming error, and is a sign of a bug).
+
+// The dateFormats are tried in sequence until one of them succeeds.
+// This is the best way that I can see to allow multiple formats (which is reasonable for human input).
+// Keep in mind that the format is YEAR-MONTH-DAY.
+// Time zones are ommitted where only the date is given (perhaps this should be changed)
+// TODO: use a less brittle method than putting the single quotes inside these
+var dateFormats = []string{
+	"'2006-1-2 15:04:05 MST'",
+	"'2006-1-2 15:04 MST'",
+	"'2006-1-2 15 MST'",
+	"'2006-1-2 MST'",
+	"'2006-1-2'",
+	"'2006-1'",
+}
+
+func parseDate(date string) (int64, error) {
+	intValue, err := strconv.ParseInt(date, 10, 64)
+	if err == nil {
+		return intValue, nil
+	}
+	errorMessage := "Expected formatted date or unix timestamp number (seconds)"
+	for _, format := range dateFormats {
+		t, err := time.Parse(format, date)
+		if err == nil {
+			return t.Unix(), nil
+		}
+		errorMessage += "\nfailed: " + err.Error()
+	}
+	return 0, errors.New(errorMessage)
+}
+
 func Parse(query string) (Command, error) {
 	p := Parser{Buffer: query}
 	p.Init()
@@ -167,6 +199,11 @@ func (p *Parser) makeDescribe() {
 }
 
 func (p *Parser) makeSelect() {
+	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
 	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {
 		p.flagTypeAssertion()
@@ -180,6 +217,7 @@ func (p *Parser) makeSelect() {
 	p.command = &SelectCommand{
 		predicate:   predicateNode,
 		expressions: expressionList.expressions,
+		context:     contextNode,
 	}
 }
 
@@ -211,6 +249,127 @@ func (p *Parser) addOperatorFunction() {
 		functionName: operatorNode.operator,
 		arguments:    []Expression{left, right},
 	})
+}
+
+func (p *Parser) addPropertyKey(key string) {
+	p.pushNode(&evaluationContextKey{key})
+}
+
+func (p *Parser) addPropertyValue(value string) {
+	p.pushNode(&evaluationContextValue{value})
+}
+
+func (p *Parser) addEvaluationContext() {
+	p.pushNode(&evaluationContextNode{
+		api.Timerange{
+			Start:      0,
+			End:        0,
+			Resolution: 30,
+		},
+		api.SampleMean,
+		make(map[string]bool),
+	})
+}
+
+func (p *Parser) insertPropertyKeyValue() {
+	valueNode, ok := p.popNode(evaluationContextValuePointer).(*evaluationContextValue)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	keyNode, ok := p.popNode(evaluationContextKeyPointer).(*evaluationContextKey)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+
+	key := keyNode.key
+	value := valueNode.value
+	// Authenticate the validity of the given key and value...
+	// The key must be one of "sample"(by), "from", "to", "resolution"
+
+	// First check that the key has been assigned only once:
+	if contextNode.assigned[key] {
+		p.flagSyntaxError(SyntaxError{
+			token:   key,
+			message: fmt.Sprintf("Key %s has already been assigned", key),
+		})
+	}
+	contextNode.assigned[key] = true
+
+	switch key {
+	case "sample":
+		// If the key is "sample", it means we're in a "sample by" declaration.
+		// Only three possible sample methods are defined: min, max, or mean.
+		switch value {
+		case "'max'":
+			contextNode.SampleMethod = api.SampleMax
+		case "'min'":
+			contextNode.SampleMethod = api.SampleMin
+		case "'mean'":
+			contextNode.SampleMethod = api.SampleMean
+		default:
+			p.flagSyntaxError(SyntaxError{
+				token:   value,
+				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean'", value),
+			})
+		}
+	case "from":
+		fallthrough
+	case "to":
+		unix, err := parseDate(value)
+		if err != nil {
+			p.flagSyntaxError(SyntaxError{
+				token:   value,
+				message: err.Error(),
+			})
+		}
+		if key == "from" {
+			contextNode.Timerange.Start = unix
+		} else {
+			contextNode.Timerange.End = unix
+		}
+	case "resolution":
+		// The value must be determined to be an int if the key is "resolution".
+		intValue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			p.flagSyntaxError(SyntaxError{
+				token:   value,
+				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
+			})
+		}
+		contextNode.Timerange.Resolution = intValue
+	default:
+		p.flagSyntaxError(SyntaxError{
+			token:   key,
+			message: fmt.Sprintf("Unknown property key %s", key),
+		})
+	}
+	p.pushNode(contextNode)
+}
+
+// makePropertyClause verifies that all mandatory fields have been assigned in the evaluation context.
+func (p *Parser) checkPropertyClause() {
+	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	mandatoryFields := []string{"from", "to"} // Sample, resolution is optional (default to mean, 30s)
+	for _, field := range mandatoryFields {
+		if !contextNode.assigned[field] {
+			p.flagSyntaxError(SyntaxError{
+				token:   field,
+				message: fmt.Sprintf("Field %s is never assigned in property clause", field),
+			})
+		}
+	}
+	p.pushNode(contextNode)
 }
 
 func (p *Parser) addFunctionInvocation() {
@@ -468,12 +627,15 @@ func functionName(depth int) string {
 
 // utility type variables
 var (
-	predicateType            = reflect.TypeOf((*api.Predicate)(nil)).Elem()
-	expressionType           = reflect.TypeOf((*Expression)(nil)).Elem()
-	expressionListPointer    = reflect.TypeOf((*expressionList)(nil))
-	groupByListPointer       = reflect.TypeOf((*groupByList)(nil))
-	operatorLiteralPointer   = reflect.TypeOf((*operatorLiteral)(nil))
-	stringLiteralListPointer = reflect.TypeOf((*stringLiteralList)(nil))
-	stringLiteralPointer     = reflect.TypeOf((*stringLiteral)(nil))
-	tagLiteralPointer        = reflect.TypeOf((*tagLiteral)(nil))
+	predicateType                 = reflect.TypeOf((*api.Predicate)(nil)).Elem()
+	expressionType                = reflect.TypeOf((*Expression)(nil)).Elem()
+	expressionListPointer         = reflect.TypeOf((*expressionList)(nil))
+	groupByListPointer            = reflect.TypeOf((*groupByList)(nil))
+	operatorLiteralPointer        = reflect.TypeOf((*operatorLiteral)(nil))
+	stringLiteralListPointer      = reflect.TypeOf((*stringLiteralList)(nil))
+	stringLiteralPointer          = reflect.TypeOf((*stringLiteral)(nil))
+	tagLiteralPointer             = reflect.TypeOf((*tagLiteral)(nil))
+	evaluationContextValuePointer = reflect.TypeOf((*evaluationContextValue)(nil))
+	evaluationContextKeyPointer   = reflect.TypeOf((*evaluationContextKey)(nil))
+	evaluationContextNodePointer  = reflect.TypeOf((*evaluationContextNode)(nil))
 )

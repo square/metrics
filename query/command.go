@@ -43,6 +43,7 @@ type DescribeAllCommand struct {
 type SelectCommand struct {
 	predicate   api.Predicate
 	expressions []Expression
+	context     *evaluationContextNode
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
@@ -81,7 +82,7 @@ func (cmd *SelectCommand) Name() string {
 func (cmd *SelectCommand) Execute(b api.Backend) (interface{}, error) {
 	return evaluateExpressions(EvaluationContext{
 		Backend:      b,
-		Timerange:    api.Timerange{}, // XXX Needs to come from somewhere
-		SampleMethod: api.SampleMean,  // XXX Needs to come from somewhere
+		Timerange:    cmd.context.Timerange,
+		SampleMethod: cmd.context.SampleMethod,
 	}, cmd.expressions)
 }

@@ -88,9 +88,10 @@ type functionExpression struct {
 // ---------------
 // These nodes are only present during the parsing step and are not present
 // in the resulting command.
-// There are two types of temporary nodes:
+// There are three types of temporary nodes:
 // * literals (constants in the syntax tree).
 // * lists
+// * evaluation context nodes
 
 type stringLiteral struct {
 	literal string
@@ -117,6 +118,23 @@ type expressionList struct {
 
 type groupByList struct {
 	list []string
+}
+
+// evaluationContextKey represents a key (from, to, sampleby) for the evaluation context.
+type evaluationContextKey struct {
+	key string
+}
+
+// evaluationContextValue represents a value (date, samplingmode, etc.) for the evaluation context.
+type evaluationContextValue struct {
+	value string
+}
+
+// evaluationContextMap represents a collection of key-value pairs that form the evaluation context.
+type evaluationContextNode struct {
+	Timerange    api.Timerange    // Timerange to fetch data from
+	SampleMethod api.SampleMethod // to use when up/downsampling to match requested resolution
+	assigned     map[string]bool  // a map for knowing which elements of the context have been assigned
 }
 
 // Helper functions for printing
@@ -225,4 +243,21 @@ func (node *metricFetchExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, node.metricName)
 	printUnknown(buffer, indent+1, node.predicate)
+}
+
+func (node *evaluationContextKey) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printUnknown(buffer, indent+1, node.key)
+}
+
+func (node *evaluationContextValue) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printUnknown(buffer, indent+1, node.value)
+}
+
+func (node *evaluationContextNode) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printUnknown(buffer, indent+1, node.Timerange)
+	printUnknown(buffer, indent+1, node.SampleMethod)
+	printUnknown(buffer, indent+1, node.assigned)
 }

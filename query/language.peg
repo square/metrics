@@ -64,7 +64,12 @@ describeSingleStmt <-
   { p.makeDescribe() }
 
 propertyClause <-
-  (_ PROPERTY_KEY __ PROPERTY_VALUE)*
+  { p.addEvaluationContext() }
+  ( _  PROPERTY_KEY   { p.addPropertyKey(buffer[begin:end])   }
+    __ PROPERTY_VALUE { p.addPropertyValue(buffer[begin:end]) }
+    { p.insertPropertyKeyValue() }
+  )*
+  { p.checkPropertyClause() }
 
 optionalPredicateClause <-
   __ predicateClause / { p.addNullPredicate() }
@@ -191,7 +196,7 @@ COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
-TIMESTAMP <-   NUMBER_NATURAL / STRING
+TIMESTAMP <-   <NUMBER> / <STRING>
 IDENTIFIER <-  "`" CHAR* "`" / !KEYWORD ID_SEGMENT ("." ID_SEGMENT)*
 ID_SEGMENT <-  ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
@@ -200,10 +205,10 @@ ID_START <-    [a-zA-Z_]
 ID_CONT <-     ID_START / [0-9]
 
 PROPERTY_KEY <-
-  "from" /
-  "to" /
-  "resolution" /
-  "sample" __ "by"
+  <"from"> /
+  <"to"> /
+  <"resolution"> /
+  <"sample"> __ "by"
 
 PROPERTY_VALUE <- TIMESTAMP
 
