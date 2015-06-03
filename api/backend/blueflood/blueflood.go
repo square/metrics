@@ -24,8 +24,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"log"
 
-	"github.com/golang/glog"
 	"github.com/square/metrics/api"
 )
 
@@ -108,7 +108,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 
 	queryUrl.RawQuery = params.Encode()
 
-	glog.V(2).Infof("Blueflood fetch: %s", queryUrl.String())
+	log.Printf("Blueflood fetch: %s", queryUrl.String())
 	resp, err := b.client.Get(queryUrl.String())
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 		return nil, err
 	}
 
-	glog.V(2).Infof("Fetch result: %s", string(body))
+	log.Printf("Fetch result: %s", string(body))
 
 	var result QueryResponse
 	err = json.Unmarshal(body, &result)
@@ -134,7 +134,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 		series[i] = reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
 	}
 
-	glog.V(2).Infof("Constructed timeseries from result: %v", series)
+	log.Printf("Constructed timeseries from result: %v", series)
 
 	// TODO: Resample to the requested resolution
 
