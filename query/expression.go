@@ -155,14 +155,7 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
-	arguments := make([]value, len(expr.arguments))
-	var err error
-	for i := range arguments {
-		arguments[i], err = expr.arguments[i].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	name := expr.functionName
 	switch name {
 	case "+":
@@ -172,6 +165,14 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	case "*":
 		fallthrough
 	case "/":
+		arguments := make([]value, len(expr.arguments))
+		var err error
+		for i := range arguments {
+			arguments[i], err = expr.arguments[i].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+		}
 		// Evaluation of a binary operator:
 		if len(arguments) != 2 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(arguments), arguments))
@@ -192,6 +193,14 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	case "aggregate.min":
 		fallthrough
 	case "aggregate.max":
+		arguments := make([]value, len(expr.arguments))
+		var err error
+		for i := range arguments {
+			arguments[i], err = expr.arguments[i].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+		}
 		funMap := map[string]aggregate{
 			"aggregate.sum":  sumAggregate,
 			"aggregate.mean": meanAggregate,
