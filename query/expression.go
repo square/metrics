@@ -37,6 +37,76 @@ type EvaluationContext struct {
 	SampleMethod api.SampleMethod
 }
 
+// A value is the result of evaluating an expression.
+// They can be floating point values, strings, or series lists.
+type value interface {
+	toSeriesList(api.Timerange) (api.SeriesList, error)
+	toString() (string, error)
+	toScalar() (float64, error)
+}
+
+type conversionError struct {
+	from string
+	to   string
+}
+
+func (e conversionError) Error() string {
+	return fmt.Sprintf("cannot convert from type %s to type %s", e.from, e.to)
+}
+
+// A seriesListValue is a value which holds a SeriesList
+type seriesListValue api.SeriesList
+
+func (value seriesListValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList(value), nil
+}
+func (value seriesListValue) toString() (string, error) {
+	return "", conversionError{"SeriesList", "string"}
+}
+func (value seriesListValue) toScalar() (float64, error) {
+	return 0, conversionError{"SeriesList", "scalar"}
+}
+
+// A stringValue holds a string
+type stringValue string
+
+func (value stringValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList{}, conversionError{"string", "SeriesList"}
+}
+func (value stringValue) toString() (string, error) {
+	return string(value), nil
+}
+func (value stringValue) toScalar() (float64, error) {
+	return 0, conversionError{"string", "scalar"}
+}
+
+// A scalarValue holds a float and can be converted to a serieslist
+type scalarValue float64
+
+func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+	if !timerange.IsValid() {
+		return api.SeriesList{}, errors.New("Invalid context.Timerange")
+	}
+
+	series := make([]float64, timerange.Slots())
+	for i := range series {
+		series[i] = float64(value)
+	}
+
+	return api.SeriesList{
+		Series:    []api.Timeseries{api.Timeseries{series, api.NewTagSet()}},
+		Timerange: timerange,
+	}, nil
+}
+
+func (value scalarValue) toString() (string, error) {
+	return "", conversionError{"scalar", "string"}
+}
+
+func (value scalarValue) toScalar() (float64, error) {
+	return float64(value), nil
+}
+
 // Expression is a piece of code, which can be evaluated in a given
 // EvaluationContext. EvaluationContext must never be changed in an Evalute().
 //
@@ -46,34 +116,34 @@ type EvaluationContext struct {
 // Expressions correspond to the timerange in the current EvaluationContext.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (*api.SeriesList, error)
+	Evaluate(context EvaluationContext) (value, error)
+}
+
+func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
+	value, err := e.Evaluate(context)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
+	return value.toSeriesList(context.Timerange)
 }
 
 // Implementations
 // ===============
 
 // Generates a Timeseries from the encapsulated scalar.
-func (expr *scalarExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
-	if !context.Timerange.IsValid() {
-		return nil, errors.New("Invalid context.Timerange")
-	}
-
-	series := []float64{}
-	for i := 0; i < context.Timerange.Slots(); i += 1 {
-		series = append(series, expr.value)
-	}
-
-	return &api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{series, api.NewTagSet()}},
-		Timerange: context.Timerange,
-	}, nil
+func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) {
+	return scalarValue(expr.value), nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
-	return context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, expr.predicate, context.SampleMethod, context.Timerange)
+func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
+	series, err := context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, expr.predicate, context.SampleMethod, context.Timerange)
+	if err != nil {
+		return seriesListValue{}, err
+	}
+	return seriesListValue(*series), err
 }
 
-func (expr *functionExpression) Evaluate(context EvaluationContext) (*api.SeriesList, error) {
+func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
 	switch expr.functionName {
 	case "+":
 		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
@@ -99,7 +169,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (*api.Series
 // evaluateExpression wraps expr.Evaluate() to provide common messaging
 // for errors. This can get pretty messy if the Expression we evaluate
 // isn't a leaf node, but a leaf fails.
-func evaluateExpression(context EvaluationContext, expr Expression) (*api.SeriesList, error) {
+func evaluateExpression(context EvaluationContext, expr Expression) (value, error) {
 	result, err := expr.Evaluate(context)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Evaluation of expression %+v failed:\n%s\n", expr, err.Error()))
@@ -114,7 +184,7 @@ func evaluateBinaryOperation(
 	functionName string,
 	operands []Expression,
 	evaluate func(float64, float64) float64,
-) (*api.SeriesList, error) {
+) (value, error) {
 	if len(operands) != 2 {
 		return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", functionName, len(operands), operands))
 	}
@@ -124,7 +194,16 @@ func evaluateBinaryOperation(
 		return nil, err
 	}
 
-	joined := join(results)
+	leftList, err := results[0].toSeriesList(context.Timerange)
+	if err != nil {
+		return nil, err
+	}
+	rightList, err := results[1].toSeriesList(context.Timerange)
+	if err != nil {
+		return nil, err
+	}
+
+	joined := join([]api.SeriesList{leftList, rightList})
 
 	result := make([]api.Timeseries, len(joined.Rows))
 
@@ -138,29 +217,29 @@ func evaluateBinaryOperation(
 		result[i] = api.Timeseries{array, row.TagSet}
 	}
 
-	return &api.SeriesList{
+	return seriesListValue(api.SeriesList{
 		Series:    result,
 		Timerange: context.Timerange,
-	}, nil
+	}), nil
 }
 
 // evaluateExpressions evaluates all provided Expressions in the
 // EvaluationContext. If any evaluations error, evaluateExpressions will
 // propagate that error. The resulting SeriesLists will be in an order
 // corresponding to the provided Expresesions.
-func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]api.SeriesList, error) {
+func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]value, error) {
 	if len(expressions) == 0 {
-		return []api.SeriesList{}, nil
+		return []value{}, nil
 	}
 
-	results := make([]api.SeriesList, len(expressions))
+	results := make([]value, len(expressions))
 	for i, expr := range expressions {
 		result, err := expr.Evaluate(context)
 		if err != nil {
-			return []api.SeriesList{}, err
+			return nil, err
 		}
 
-		results[i] = *result
+		results[i] = result
 	}
 
 	return results, nil

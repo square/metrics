@@ -138,10 +138,10 @@ type Timerange struct {
 
 // IsValid determines whether the given timerange meets the constraint.
 func (tr Timerange) IsValid() bool {
-	return (tr.Start%tr.Resolution == 0 &&
+	return tr.Resolution > 0 &&
+		tr.Start%tr.Resolution == 0 &&
 		tr.End%tr.Resolution == 0 &&
-		tr.Resolution > 0 &&
-		tr.Start <= tr.End)
+		tr.Start <= tr.End
 }
 
 // Slots represent the total # of data points
