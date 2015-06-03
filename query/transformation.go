@@ -17,8 +17,6 @@
 package query
 
 import (
-	"math"
-
 	"github.com/square/metrics/api"
 )
 
@@ -136,21 +134,4 @@ func transformMapMaker(fun func(float64) float64) func([]float64, transformation
 		}
 		return result
 	}
-}
-
-func transformTimeOffset(values []float64, parameter transformationParameter) []float64 {
-	result := make([]float64, len(values))
-	// Shifting the time series by the given number of samples (by dividing the parameter by scale)
-	shift := int(parameter.parameter/parameter.scale + math.Copysign(0.5, parameter.parameter)) // The (+ 0.5) causes it to round.
-	// Positive shift means forward in time (so result[shift] = values[0])
-	// Negative shift means backwards in time.
-	// Values outside this range are assigned 0
-	for i := range values {
-		if i-shift < 0 || i-shift >= len(values) {
-			result[i] = 0
-			continue
-		}
-		result[i] = values[i-shift]
-	}
-	return result
 }

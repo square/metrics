@@ -78,10 +78,6 @@ func TestTransformTimeseries(t *testing.T) {
 					fun:      transformMapMaker(func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
 				},
-				{
-					fun:      transformTimeOffset,
-					expected: []float64{0, 0, 0, 0, 1, 2},
-				},
 			},
 		},
 	}
@@ -172,15 +168,6 @@ func TestApplyTransformation(t *testing.T) {
 				"A": {0, 0.5, 1, 2, 3, 4},
 				"B": {2.0, 2.0, 5.0 / 3, 4.0 / 3, 5.0 / 3, 7.0 / 3},
 				"C": {0, 0.5, 1, 2, 7.0 / 3, 2},
-			},
-		},
-		{
-			transformation: transformTimeOffset,
-			parameter:      -55, // 55 seconds is about 2 samples
-			expected: map[string][]float64{
-				"A": {2, 3, 4, 5, 0, 0},
-				"B": {1, 1, 3, 3, 0, 0},
-				"C": {2, 3, 2, 1, 0, 0},
 			},
 		},
 	}
