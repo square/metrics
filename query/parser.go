@@ -68,14 +68,35 @@ import (
 // This is the best way that I can see to allow multiple formats (which is reasonable for human input).
 // Keep in mind that the format is YEAR-MONTH-DAY.
 // Time zones are ommitted where only the date is given (perhaps this should be changed)
-// TODO: use a less brittle method than putting the single quotes inside these
 var dateFormats = []string{
-	"'2006-1-2 15:04:05 MST'",
-	"'2006-1-2 15:04 MST'",
-	"'2006-1-2 15 MST'",
-	"'2006-1-2 MST'",
-	"'2006-1-2'",
-	"'2006-1'",
+	"2006-1-2 15:04:05 MST",
+	"2006-1-2 15:04 MST",
+	"2006-1-2 15 MST",
+	"2006-1-2 MST",
+	"2006-1-2",
+	"2006-1",
+	"2006/1/2 15:04:05 MST",
+	"2006/1/2 15:04 MST",
+	"2006/1/2 15 MST",
+	"2006/1/2 MST",
+	"2006/1/2",
+	"2006/1",
+	"Jan 2 2006 15:04:05 MST",
+	"Jan 2 2006 15:04 MST",
+	"Jan 2 2006 15 MST",
+	"Jan 2 2006 MST",
+	"Jan 2 2006",
+	"Jan 2006",
+	"2 Jan 2006 15:04:05 MST",
+	"2 Jan 2006 15:04 MST",
+	"2 Jan 2006 15 MST",
+	"2 Jan 2006 MST",
+	"2 Jan 2006",
+	time.ANSIC,
+	time.UnixDate,
+	time.RubyDate,
+	time.RFC822,
+	time.RFC822Z,
 }
 
 func parseDate(date string) (int64, error) {
@@ -307,11 +328,11 @@ func (p *Parser) insertPropertyKeyValue() {
 		// If the key is "sample", it means we're in a "sample by" declaration.
 		// Only three possible sample methods are defined: min, max, or mean.
 		switch value {
-		case "'max'":
+		case "max":
 			contextNode.SampleMethod = api.SampleMax
-		case "'min'":
+		case "min":
 			contextNode.SampleMethod = api.SampleMin
-		case "'mean'":
+		case "mean":
 			contextNode.SampleMethod = api.SampleMean
 		default:
 			p.flagSyntaxError(SyntaxError{
