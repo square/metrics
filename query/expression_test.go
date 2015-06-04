@@ -105,7 +105,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{FakeBackend{}, api.Timerange{}, api.SampleMean}
+	emptyContext := EvaluationContext{FakeBackend{}, api.Timerange{}, api.SampleMean, nil}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string
