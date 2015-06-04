@@ -660,13 +660,13 @@ func (p *Parser) Execute() {
 		case ruleAction12:
 			p.appendExpression()
 		case ruleAction13:
-			p.addOperatorLiteral("*")
+			p.addOperatorLiteral("+")
 		case ruleAction14:
 			p.addOperatorLiteral("-")
 		case ruleAction15:
 			p.addOperatorFunction()
 		case ruleAction16:
-			p.addOperatorLiteral("*")
+			p.addOperatorLiteral("/")
 		case ruleAction17:
 			p.addOperatorLiteral("*")
 		case ruleAction18:
@@ -4378,13 +4378,13 @@ func (p *Parser) Init() {
 		nil,
 		/* 71 Action12 <- <{ p.appendExpression() }> */
 		nil,
-		/* 72 Action13 <- <{ p.addOperatorLiteral("*") }> */
+		/* 72 Action13 <- <{ p.addOperatorLiteral("+") }> */
 		nil,
 		/* 73 Action14 <- <{ p.addOperatorLiteral("-") }> */
 		nil,
 		/* 74 Action15 <- <{ p.addOperatorFunction() }> */
 		nil,
-		/* 75 Action16 <- <{ p.addOperatorLiteral("*") }> */
+		/* 75 Action16 <- <{ p.addOperatorLiteral("/") }> */
 		nil,
 		/* 76 Action17 <- <{ p.addOperatorLiteral("*") }> */
 		nil,

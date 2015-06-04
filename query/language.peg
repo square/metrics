@@ -86,14 +86,14 @@ expressionList <-
 expression_1 <-
   expression_2
   (
-    (OP_ADD { p.addOperatorLiteral("*") } / OP_SUB { p.addOperatorLiteral("-") })
+    (OP_ADD { p.addOperatorLiteral("+") } / OP_SUB { p.addOperatorLiteral("-") })
     expression_2 { p.addOperatorFunction() }
   ) *
 
 expression_2 <-
   expression_3
   (
-    (OP_DIV { p.addOperatorLiteral("*") } / OP_MULT { p.addOperatorLiteral("*") })
+    (OP_DIV { p.addOperatorLiteral("/") } / OP_MULT { p.addOperatorLiteral("*") })
     expression_3 { p.addOperatorFunction() }
   ) *
 
