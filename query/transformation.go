@@ -68,7 +68,8 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 func checkParameters(name string, expected int, parameter transformParameter) error {
 	args := parameter.parameters
 	if len(args) != expected {
-		return errors.New(fmt.Sprintf("Expected function %s to be given %d parameters but was given %d: main series and %+v", name, expected+1, len(args)+1, args))
+		printArgs := append([]value{stringValue("(SeriesList)")}, args...)
+		return errors.New(fmt.Sprintf("expected %s to be given %d parameters but was given %d: %+v", name, expected+1, len(args)+1, printArgs))
 	}
 	return nil
 }
@@ -163,10 +164,11 @@ func transformMovingAverage(values []float64, parameter transformParameter) ([]f
 }
 
 // transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
-//  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with applyTransform
-func transformMapMaker(fun func(float64) float64) func([]float64, transformParameter) ([]float64, error) {
+//  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
+// The name is used for error-checking purposes.
+func transformMapMaker(name string, fun func(float64) float64) func([]float64, transformParameter) ([]float64, error) {
 	return func(values []float64, parameter transformParameter) ([]float64, error) {
-		if err := checkParameters("transform.map(???)", 0, parameter); err != nil {
+		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameter); err != nil {
 			return nil, err
 		}
 		result := make([]float64, len(values))

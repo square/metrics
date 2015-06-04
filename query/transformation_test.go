@@ -80,7 +80,7 @@ func TestTransformTimeseries(t *testing.T) {
 					useParam: true,
 				},
 				{
-					fun:      transformMapMaker(func(x float64) float64 { return -x }),
+					fun:      transformMapMaker("negate", func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
 					useParam: false,
 				},
@@ -216,6 +216,67 @@ func TestApplyTransform(t *testing.T) {
 					break
 				}
 			}
+		}
+	}
+}
+
+func TestApplyTransformFailure(t *testing.T) {
+	list := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{0, 1, 2, 3, 4, 5},
+				TagSet: api.TagSet{
+					"series": "A",
+				},
+			},
+			{
+				Values: []float64{2, 2, 1, 1, 3, 3},
+				TagSet: api.TagSet{
+					"series": "B",
+				},
+			},
+			{
+				Values: []float64{0, 1, 2, 3, 2, 1},
+				TagSet: api.TagSet{
+					"series": "C",
+				},
+			},
+		},
+		Timerange: api.Timerange{
+			Start:      758300,
+			End:        758300 + 30*5,
+			Resolution: 30,
+		},
+		Name: "test",
+	}
+	testCases := []struct {
+		transform transform
+		parameter []value
+		expected  string
+	}{
+		{
+			transform: transformDerivative,
+			parameter: []value{scalarValue(3)},
+			expected:  "expected transform.derivative to be given 1 parameters but was given 2: [(SeriesList) 3]",
+		},
+		{
+			transform: transformMapMaker("abs", math.Abs),
+			parameter: []value{scalarValue(3)},
+			expected:  "expected transform.abs to be given 1 parameters but was given 2: [(SeriesList) 3]",
+		},
+		{
+			transform: transformMovingAverage,
+			parameter: []value{},
+			expected:  "expected transform.moving_average to be given 2 parameters but was given 1: [(SeriesList)]",
+		},
+	}
+	for _, test := range testCases {
+		_, err := ApplyTransform(list, test.transform, test.parameter)
+		if err == nil {
+			t.Fatalf("expected failure for testcase %+v", test)
+		}
+		if err.Error() != test.expected {
+			t.Fatalf("expected error message `%s` but got `%s`", test.expected, err.Error())
 		}
 	}
 }
