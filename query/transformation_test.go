@@ -260,31 +260,25 @@ func TestApplyTransformFailure(t *testing.T) {
 	testCases := []struct {
 		transform transform
 		parameter []value
-		expected  string
 	}{
 		{
 			transform: transformDerivative,
 			parameter: []value{scalarValue(3)},
-			expected:  "expected transform.derivative to be given 1 parameters but was given 2: [(SeriesList) 3]",
 		},
 		{
 			transform: transformMapMaker("abs", math.Abs),
 			parameter: []value{scalarValue(3)},
-			expected:  "expected transform.abs to be given 1 parameters but was given 2: [(SeriesList) 3]",
 		},
 		{
 			transform: transformMovingAverage,
 			parameter: []value{},
-			expected:  "expected transform.moving_average to be given 2 parameters but was given 1: [(SeriesList)]",
 		},
 	}
 	for _, test := range testCases {
 		_, err := ApplyTransform(list, test.transform, test.parameter)
 		if err == nil {
-			t.Fatalf("expected failure for testcase %+v", test)
-		}
-		if err.Error() != test.expected {
-			t.Fatalf("expected error message `%s` but got `%s`", test.expected, err.Error())
+			t.Errorf("expected failure for testcase %+v", test)
+			continue
 		}
 	}
 }
