@@ -39,10 +39,11 @@ func tagSetEquals(a, b api.TagSet) bool {
 
 func TestTransformTimeseries(t *testing.T) {
 	testCases := []struct {
-		values    []float64
-		tagSet    api.TagSet
-		parameter transformParameter
-		tests     []struct {
+		values     []float64
+		tagSet     api.TagSet
+		parameters []value
+		scale      float64
+		tests      []struct {
 			fun      transform
 			expected []float64
 			useParam bool
@@ -55,10 +56,8 @@ func TestTransformTimeseries(t *testing.T) {
 				"host": "B",
 				"env":  "C",
 			},
-			parameter: transformParameter{
-				scale:      30,
-				parameters: []value{scalarValue(100)},
-			},
+			scale:      30,
+			parameters: []value{scalarValue(100)},
 			tests: []struct {
 				fun      transform
 				expected []float64
@@ -94,11 +93,11 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			param := test.parameter
+			params := test.parameters
 			if !transform.useParam {
-				param.parameters = []value{}
+				params = []value{}
 			}
-			result, err := transformTimeseries(series, transform.fun, param)
+			result, err := transformTimeseries(series, transform.fun, params, api.Timerange{0, int64(test.scale), int64(test.scale)})
 			if err != nil {
 				t.Error(err)
 				continue
@@ -173,6 +172,15 @@ func TestApplyTransform(t *testing.T) {
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
 				"B": {2 * 30, 4 * 30, 5 * 30, 6 * 30, 9 * 30, 12 * 30},
 				"C": {0, 1 * 30, 3 * 30, 6 * 30, 8 * 30, 9 * 30},
+			},
+		},
+		{
+			transform: transformCumulative,
+			parameter: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1, 3, 6, 10, 15},
+				"B": {2, 4, 5, 6, 9, 12},
+				"C": {0, 1, 3, 6, 8, 9},
 			},
 		},
 		{

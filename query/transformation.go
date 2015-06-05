@@ -23,18 +23,19 @@ import (
 	"github.com/square/metrics/api"
 )
 
-// A transform takes the list of values, and a "scale" factor:
-// It is the unitless quotient (sample duration / 1s)
-// So if the resolution is "once every 5 minutes" them we get a scale factor of 5*60 = 300
-type transform func([]float64, transformParameter) ([]float64, error)
+// A transform takes the list of values, other parameters, and the timerange of the query.
+type transform func([]float64, []value, api.Timerange) ([]float64, error)
 
-type transformParameter struct {
-	scale      float64
-	parameters []value
+// timerangeScale takes an api.Timerange and computes the "scale" or duration of one sample (in seconds).
+// It is useful for transformations that normalize on time (like derivative or integral).
+func timerangeScale(timerange api.Timerange) float64 {
+	return float64(timerange.Resolution)
 }
 
-func transformTimeseries(series api.Timeseries, transform transform, parameter transformParameter) (api.Timeseries, error) {
-	values, err := transform(series.Values, parameter)
+// transformTimeseries transforms an individual series (rather than an entire serieslist) taking the same parameters as a transform,
+// but with the serieslist standing in for the simplified []float64 argument.
+func transformTimeseries(series api.Timeseries, transform transform, parameters []value, timerange api.Timerange) (api.Timeseries, error) {
+	values, err := transform(series.Values, parameters, timerange)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
@@ -51,13 +52,9 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 		Timerange: list.Timerange,
 		Name:      list.Name,
 	}
-	scale := float64(list.Timerange.Resolution)
 	var err error
 	for i, series := range list.Series {
-		result.Series[i], err = transformTimeseries(series, transform, transformParameter{
-			scale:      scale,
-			parameters: parameters,
-		})
+		result.Series[i], err = transformTimeseries(series, transform, parameters, list.Timerange)
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -65,18 +62,18 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 	return result, nil
 }
 
-func checkParameters(name string, expected int, parameter transformParameter) error {
-	args := parameter.parameters
-	if len(args) != expected {
-		printArgs := append([]value{stringValue("(SeriesList)")}, args...)
-		return errors.New(fmt.Sprintf("expected %s to be given %d parameters but was given %d: %+v", name, expected+1, len(args)+1, printArgs))
+// checkParameters is used to make sure that each transform is given the right number of parameters.
+func checkParameters(name string, expected int, parameters []value) error {
+	if len(parameters) != expected {
+		printArgs := append([]value{stringValue("(SeriesList)")}, parameters...)
+		return errors.New(fmt.Sprintf("expected %s to be given %d parameters but was given %d: %+v", name, expected+1, len(parameters)+1, printArgs))
 	}
 	return nil
 }
 
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func transformDerivative(values []float64, parameter transformParameter) ([]float64, error) {
-	if err := checkParameters("transform.derivative", 0, parameter); err != nil {
+func transformDerivative(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
 		return nil, err
 	}
 	result := make([]float64, len(values))
@@ -87,28 +84,30 @@ func transformDerivative(values []float64, parameter transformParameter) ([]floa
 			continue
 		}
 		// Otherwise, it's the scaled difference
-		result[i] = (values[i] - values[i-1]) / parameter.scale
+		result[i] = (values[i] - values[i-1]) / timerangeScale(timerange)
 	}
 	return result, nil
 }
 
 // transformIntegral integrates a series whose values are "X per second" to estimate "total X so far"
-func transformIntegral(values []float64, parameter transformParameter) ([]float64, error) {
-	if err := checkParameters("transform.integral", 0, parameter); err != nil {
+// if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
+func transformIntegral(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+	if err := checkParameters("transform.integral", 0, parameters); err != nil {
 		return nil, err
 	}
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
 		integral += values[i]
-		result[i] = integral * parameter.scale
+		result[i] = integral * timerangeScale(timerange)
 	}
 	return result, nil
 }
 
-// transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize
-func transformRate(values []float64, parameter transformParameter) ([]float64, error) {
-	if err := checkParameters("transform.rate", 0, parameter); err != nil {
+// transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
+// That is, it returns consecutive differences which are at least 0.
+func transformRate(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+	if err := checkParameters("transform.rate", 0, parameters); err != nil {
 		return nil, err
 	}
 	result := make([]float64, len(values))
@@ -117,7 +116,7 @@ func transformRate(values []float64, parameter transformParameter) ([]float64, e
 			result[i] = 0
 			continue
 		}
-		result[i] = (values[i] - values[i-1]) / parameter.scale
+		result[i] = (values[i] - values[i-1]) / timerangeScale(timerange)
 		if result[i] < 0 {
 			result[i] = 0
 		}
@@ -125,20 +124,36 @@ func transformRate(values []float64, parameter transformParameter) ([]float64, e
 	return result, nil
 }
 
-// transformMovingAverage finds the average over the time period given in the parameter.parameter value
-func transformMovingAverage(values []float64, parameter transformParameter) ([]float64, error) {
-	if err := checkParameters("transform.moving_average", 1, parameter); err != nil {
+// transformCumulative computes the cumulative sum of the given values.
+func transformCumulative(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
 		return nil, err
 	}
 	result := make([]float64, len(values))
-	if len(parameter.parameters) != 1 {
+	sum := 0.0
+	for i := range values {
+		sum += values[i]
+		result[i] = sum
+	}
+	return result, nil
+}
+
+// transformMovingAverage finds the average over the time period given in the parameters[0] value,
+// which is the second argument in the transform (the first being the serieslist itself). This value
+// must be numeric (not a series). It is currently assumed to be seconds.
+func transformMovingAverage(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+	if err := checkParameters("transform.moving_average", 1, parameters); err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	if len(parameters) != 1 {
 
 	}
-	size, err := parameter.parameters[0].toScalar()
+	size, err := parameters[0].toScalar()
 	if err != nil {
 		return nil, err
 	}
-	limit := int(size/parameter.scale + 0.5) // Limit is the number of items to include in the average
+	limit := int(size/timerangeScale(timerange) + 0.5) // Limit is the number of items to include in the average
 	if limit < 1 {
 		// At least one value must be included at all times
 		limit = 1
@@ -166,9 +181,9 @@ func transformMovingAverage(values []float64, parameter transformParameter) ([]f
 // transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func transformMapMaker(name string, fun func(float64) float64) func([]float64, transformParameter) ([]float64, error) {
-	return func(values []float64, parameter transformParameter) ([]float64, error) {
-		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameter); err != nil {
+func transformMapMaker(name string, fun func(float64) float64) func([]float64, []value, api.Timerange) ([]float64, error) {
+	return func(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameters); err != nil {
 			return nil, err
 		}
 		result := make([]float64, len(values))
