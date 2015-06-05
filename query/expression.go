@@ -35,6 +35,7 @@ type EvaluationContext struct {
 	Timerange api.Timerange
 	// SampleMethod to use when up/downsampling to match the requested resolution
 	SampleMethod api.SampleMethod
+	Predicate    api.Predicate
 }
 
 // A value is the result of evaluating an expression.
@@ -136,7 +137,17 @@ func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) 
 }
 
 func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
-	series, err := context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, expr.predicate, context.SampleMethod, context.Timerange)
+	// Merge predicates appropriately
+	var predicate api.Predicate
+	if context.Predicate == nil {
+		predicate = expr.predicate
+	} else if expr.predicate == nil {
+		predicate = context.Predicate
+	} else {
+		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
+	}
+
+	series, err := context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, predicate, context.SampleMethod, context.Timerange)
 	if err != nil {
 		return seriesListValue{}, err
 	}

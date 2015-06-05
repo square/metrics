@@ -129,7 +129,7 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetr
 	extractedTagSet := extractTagValues(rule.metricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
 	if extractedTagSet == nil {
 		// no match found. not a correct rule to interpolate.
-		return "", newCannotInterpolate()
+		return "", newCannotInterpolate(taggedMetric)
 	}
 	// Merge the tags in the provided tag set, and tags extracted from the metric.
 	// This is necessary because tags embedded in the metric are not
@@ -163,7 +163,7 @@ func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (api.Graphi
 			return reversed, nil
 		}
 	}
-	return "", newCannotInterpolate()
+	return "", newCannotInterpolate(taggedMetric)
 }
 
 // checkTagRegexes sees if any of the custom regular expressions are invalid.

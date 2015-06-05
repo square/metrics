@@ -14,10 +14,17 @@
 
 package api
 
+import (
+	"bytes"
+)
+
 // Predicate is a boolean function applied against the given
 // metric alias and tagset. It determines whether the given metric
 // should be included in the query.
 type Predicate interface {
+	// Since all Predicates satisfy the query.Node interface anyways,
+	// embed it here.
+	Print(buf *bytes.Buffer, indent int)
 	// checks the matcher.
 	Apply(tagSet TagSet) bool
 }

@@ -50,6 +50,7 @@ func main() {
 			fmt.Println("parsing error", err.Error())
 			continue
 		}
+		fmt.Println(cmd.String())
 		result, err := cmd.Execute(backend)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
