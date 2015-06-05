@@ -184,19 +184,19 @@ func Test_applyAggregation(t *testing.T) {
 		Expected   []float64
 	}{
 		{
-			aggregateMap[sumAggregate],
+			AggregateMap[sumAggregate],
 			[]float64{3, 2, 8, 11},
 		},
 		{
-			aggregateMap[meanAggregate],
+			AggregateMap[meanAggregate],
 			[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 		},
 		{
-			aggregateMap[maxAggregate],
+			AggregateMap[maxAggregate],
 			[]float64{4, 2, 4, 4},
 		},
 		{
-			aggregateMap[minAggregate],
+			AggregateMap[minAggregate],
 			[]float64{-1, -1, 0, 2},
 		},
 	}
@@ -235,7 +235,7 @@ func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
 	return true
 }
 
-func Test_aggregateBy(t *testing.T) {
+func Test_AggregateBy(t *testing.T) {
 
 	var testList = api.SeriesList{
 		[]api.Timeseries{
@@ -397,7 +397,7 @@ func Test_aggregateBy(t *testing.T) {
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregated := aggregateBy(testList, aggregateMap[testCase.Aggregator], testCase.Tags)
+		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {

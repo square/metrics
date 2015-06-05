@@ -214,7 +214,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if err != nil {
 			return nil, err
 		}
-		return seriesListValue(aggregateBy(list, aggregateMap[funMap[name]], expr.groupBy)), nil
+		return seriesListValue(AggregateBy(list, funMap[name], expr.groupBy)), nil
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", expr.functionName))
 	}

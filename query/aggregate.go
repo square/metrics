@@ -81,7 +81,7 @@ const (
 	maxAggregate
 )
 
-var aggregateMap = map[aggregate]func([]float64) float64{
+var AggregateMap = map[aggregate]func([]float64) float64{
 	sumAggregate:
 	// The aggregatefor sum finds the sum of the given array.
 	func(array []float64) float64 {
@@ -170,7 +170,7 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 // `aggregateBy` takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func aggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string) api.SeriesList {
+func AggregateBy(list api.SeriesList, aggregator aggregate, tags []string) api.SeriesList {
 	// Begin by grouping the input:
 	groups := groupBy(list, tags)
 
@@ -182,7 +182,7 @@ func aggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags [
 
 	for i, group := range groups {
 		// The group contains a list of Series and a TagSet.
-		result.Series[i] = applyAggregation(group, aggregator)
+		result.Series[i] = applyAggregation(group, AggregateMap[aggregator])
 	}
 	return result
 }
