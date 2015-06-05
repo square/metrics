@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package aggregate
 
 // This file culminates in the definition of `aggregateBy`, which takes a SeriesList and an Aggregator and a list of tags,
 // and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
 
 import (
+	"errors"
+	"fmt"
 	"math"
 
 	"github.com/square/metrics/api"
@@ -72,17 +74,8 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-type aggregate int
-
-const (
-	sumAggregate aggregate = iota + 1
-	meanAggregate
-	minAggregate
-	maxAggregate
-)
-
-var AggregateMap = map[aggregate]func([]float64) float64{
-	sumAggregate:
+var aggregateMap = map[string]func([]float64) float64{
+	"aggregate.sum":
 	// The aggregatefor sum finds the sum of the given array.
 	func(array []float64) float64 {
 		sum := 0.0
@@ -91,8 +84,7 @@ var AggregateMap = map[aggregate]func([]float64) float64{
 		}
 		return sum
 	},
-
-	meanAggregate:
+	"aggregate.mean":
 	// The mean aggregator returns the mean of the given array
 	func(array []float64) float64 {
 		if len(array) == 0 {
@@ -105,7 +97,7 @@ var AggregateMap = map[aggregate]func([]float64) float64{
 		}
 		return sum / float64(len(array))
 	},
-	minAggregate:
+	"aggregate.min":
 	// The minimum aggregator returns the minimum
 	func(array []float64) float64 {
 		if len(array) == 0 {
@@ -118,7 +110,7 @@ var AggregateMap = map[aggregate]func([]float64) float64{
 		}
 		return min
 	},
-	maxAggregate:
+	"aggregate.max":
 	// The maximum aggregator returns the maximum
 	func(array []float64) float64 {
 		if len(array) == 0 {
@@ -170,7 +162,11 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 // `aggregateBy` takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func AggregateBy(list api.SeriesList, aggregator aggregate, tags []string) api.SeriesList {
+func AggregateBy(list api.SeriesList, name string, tags []string) (api.SeriesList, error) {
+	aggregator, ok := aggregateMap[name]
+	if !ok {
+		return api.SeriesList{}, errors.New(fmt.Sprintf("no such aggregation function '%s'", name))
+	}
 	// Begin by grouping the input:
 	groups := groupBy(list, tags)
 
@@ -182,7 +178,7 @@ func AggregateBy(list api.SeriesList, aggregator aggregate, tags []string) api.S
 
 	for i, group := range groups {
 		// The group contains a list of Series and a TagSet.
-		result.Series[i] = applyAggregation(group, AggregateMap[aggregator])
+		result.Series[i] = applyAggregation(group, aggregator)
 	}
-	return result
+	return result, nil
 }

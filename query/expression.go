@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/aggregate"
 )
 
 // EvaluationContext is the central piece of logic, providing
@@ -201,12 +202,6 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 				return nil, err
 			}
 		}
-		funMap := map[string]aggregate{
-			"aggregate.sum":  sumAggregate,
-			"aggregate.mean": meanAggregate,
-			"aggregate.min":  minAggregate,
-			"aggregate.max":  maxAggregate,
-		}
 		if len(arguments) != 1 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expected 1 operand but received %d (%+v)", name, len(arguments), arguments))
 		}
@@ -214,7 +209,11 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if err != nil {
 			return nil, err
 		}
-		return seriesListValue(AggregateBy(list, funMap[name], expr.groupBy)), nil
+		series, err := aggregate.AggregateBy(list, name, expr.groupBy)
+		if err != nil {
+			return nil, err
+		}
+		return seriesListValue(series), nil
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid function: %s", expr.functionName))
 	}
