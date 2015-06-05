@@ -36,15 +36,12 @@ func NewTagSet() TagSet {
 }
 
 func (left TagSet) Equals(right TagSet) bool {
+	if len(left) != len(right) {
+		return false
+	}
 	for k := range left {
 		_, ok := right[k]
 		if !ok || left[k] != right[k] {
-			return false
-		}
-	}
-	for k := range right {
-		_, ok := left[k]
-		if !ok {
 			return false
 		}
 	}
