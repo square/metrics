@@ -337,7 +337,7 @@ func (p *Parser) insertPropertyKeyValue() {
 		default:
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
-				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean'", value),
+				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean' but got %s", value),
 			})
 		}
 	case "from":

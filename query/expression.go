@@ -158,7 +158,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		return evaluateBinaryOperation(context, expr.functionName, expr.arguments,
 			func(left, right float64) float64 { return left * right })
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid function: %s", functionName))
+		return nil, errors.New(fmt.Sprintf("Invalid function: %s", expr.functionName))
 	}
 }
 

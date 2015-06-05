@@ -47,7 +47,7 @@ type QueryResponse struct {
 
 type MetricPoint struct {
 	Points    int     `json:"numPoints"`
-	Timestamp int64   `json:"timestamp`
+	Timestamp int64   `json:"timestamp"`
 	Average   float64 `json:"average"`
 	Max       float64 `json:"max"`
 	Min       float64 `json:"min"`
@@ -88,7 +88,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	case api.SampleMax:
 		selectResultField = "Max"
 	default:
-		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %s", sampleMethod))
+		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 	}
 
 	// Issue GET to fetch metrics
