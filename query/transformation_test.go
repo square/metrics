@@ -81,7 +81,7 @@ func TestTransformTimeseries(t *testing.T) {
 			if !transform.useParam {
 				params = []value{}
 			}
-			result, err := transformTimeseries(series, transform.fun, params, api.Timerange{0, int64(test.scale), int64(test.scale)})
+			result, err := transformTimeseries(series, transform.fun, params, test.scale)
 			if err != nil {
 				t.Error(err)
 				continue

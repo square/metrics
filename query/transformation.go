@@ -23,19 +23,13 @@ import (
 	"github.com/square/metrics/api"
 )
 
-// A transform takes the list of values, other parameters, and the timerange of the query.
-type transform func([]float64, []value, api.Timerange) ([]float64, error)
-
-// timerangeScale takes an api.Timerange and computes the "scale" or duration of one sample (in seconds).
-// It is useful for transformations that normalize on time (like derivative or integral).
-func timerangeScale(timerange api.Timerange) float64 {
-	return float64(timerange.Resolution)
-}
+// A transform takes the list of values, other parameters, and the resolution (as a float64) of the query.
+type transform func([]float64, []value, float64) ([]float64, error)
 
 // transformTimeseries transforms an individual series (rather than an entire serieslist) taking the same parameters as a transform,
 // but with the serieslist standing in for the simplified []float64 argument.
-func transformTimeseries(series api.Timeseries, transform transform, parameters []value, timerange api.Timerange) (api.Timeseries, error) {
-	values, err := transform(series.Values, parameters, timerange)
+func transformTimeseries(series api.Timeseries, transform transform, parameters []value, scale float64) (api.Timeseries, error) {
+	values, err := transform(series.Values, parameters, scale)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
@@ -43,6 +37,12 @@ func transformTimeseries(series api.Timeseries, transform transform, parameters 
 		Values: values,
 		TagSet: series.TagSet,
 	}, nil
+}
+
+// timerangeScale takes an api.Timerange and computes the "scale" or duration of one sample (in seconds).
+// It is useful for transformations that normalize on time (like derivative or integral).
+func timerangeScale(timerange api.Timerange) float64 {
+	return float64(timerange.Resolution)
 }
 
 // applyTransform applies the given transform to the entire list of series.
@@ -54,7 +54,7 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 	}
 	var err error
 	for i, series := range list.Series {
-		result.Series[i], err = transformTimeseries(series, transform, parameters, list.Timerange)
+		result.Series[i], err = transformTimeseries(series, transform, parameters, timerangeScale(list.Timerange))
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -72,7 +72,7 @@ func checkParameters(name string, expected int, parameters []value) error {
 }
 
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func transformDerivative(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformDerivative(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -84,14 +84,14 @@ func transformDerivative(values []float64, parameters []value, timerange api.Tim
 			continue
 		}
 		// Otherwise, it's the scaled difference
-		result[i] = (values[i] - values[i-1]) / timerangeScale(timerange)
+		result[i] = (values[i] - values[i-1]) / scale
 	}
 	return result, nil
 }
 
 // transformIntegral integrates a series whose values are "X per second" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
-func transformIntegral(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformIntegral(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.integral", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -99,14 +99,14 @@ func transformIntegral(values []float64, parameters []value, timerange api.Timer
 	integral := 0.0
 	for i := range values {
 		integral += values[i]
-		result[i] = integral * timerangeScale(timerange)
+		result[i] = integral * scale
 	}
 	return result, nil
 }
 
 // transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
 // That is, it returns consecutive differences which are at least 0.
-func transformRate(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformRate(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.rate", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func transformRate(values []float64, parameters []value, timerange api.Timerange
 			result[i] = 0
 			continue
 		}
-		result[i] = (values[i] - values[i-1]) / timerangeScale(timerange)
+		result[i] = (values[i] - values[i-1]) / scale
 		if result[i] < 0 {
 			result[i] = 0
 		}
@@ -125,7 +125,7 @@ func transformRate(values []float64, parameters []value, timerange api.Timerange
 }
 
 // transformCumulative computes the cumulative sum of the given values.
-func transformCumulative(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformCumulative(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func transformCumulative(values []float64, parameters []value, timerange api.Tim
 // transformMovingAverage finds the average over the time period given in the parameters[0] value,
 // which is the second argument in the transform (the first being the serieslist itself). This value
 // must be numeric (not a series). It is currently assumed to be seconds.
-func transformMovingAverage(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformMovingAverage(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.moving_average", 1, parameters); err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func transformMovingAverage(values []float64, parameters []value, timerange api.
 	if err != nil {
 		return nil, err
 	}
-	limit := int(size/timerangeScale(timerange) + 0.5) // Limit is the number of items to include in the average
+	limit := int(size/scale + 0.5) // Limit is the number of items to include in the average
 	if limit < 1 {
 		// At least one value must be included at all times
 		limit = 1
@@ -181,8 +181,8 @@ func transformMovingAverage(values []float64, parameters []value, timerange api.
 // transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func transformMapMaker(name string, fun func(float64) float64) func([]float64, []value, api.Timerange) ([]float64, error) {
-	return func(values []float64, parameters []value, timerange api.Timerange) ([]float64, error) {
+func transformMapMaker(name string, fun func(float64) float64) func([]float64, []value, float64) ([]float64, error) {
+	return func(values []float64, parameters []value, scale float64) ([]float64, error) {
 		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameters); err != nil {
 			return nil, err
 		}
