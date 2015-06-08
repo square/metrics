@@ -208,9 +208,10 @@ func GetTransformation(name string) (transform, bool) {
 	return transform, ok
 }
 
-func NewTransformation(name string, transform transform) {
+func RegisterTransformation(name string, transform transform) error {
 	if _, ok := transformTable[name]; ok {
-		panic(fmt.Sprintf("transformation `%s` has already been declared", name))
+		return errors.New(fmt.Sprintf("transformation `%s` has already been declared", name))
 	}
 	transformTable[name] = transform
+	return nil
 }
