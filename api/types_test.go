@@ -193,12 +193,12 @@ func TestTimerangeLater(t *testing.T) {
 	}
 	for _, offset := range offsets {
 		for _, time := range ranges {
-			later := time.Later(offset)
+			later := time.Shift(offset)
 			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", time, offset, later)
 				continue
 			}
-			later = time.Later(-offset)
+			later = time.Shift(-offset)
 			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", time, -offset, later)
 				continue

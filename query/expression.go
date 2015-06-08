@@ -262,7 +262,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 			return nil, err
 		}
 		newContext := context
-		newContext.Timerange = newContext.Timerange.Later(int64(duration))
+		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
 		value, err := expr.arguments[0].Evaluate(newContext)
 		if err != nil {
 			return nil, err

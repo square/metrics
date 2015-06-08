@@ -157,30 +157,30 @@ func (tr Timerange) IsValid() bool {
 		tr.Start <= tr.End
 }
 
-func rounder(x, r int64) int64 {
-	if x < 0 {
-		return -rounder(-x, r)
+func snap(n, boundary int64) int64 {
+	if n < 0 {
+		return -snap(-n, boundary)
 	}
 	// This performs a round
-	return (x + r/2) / r * r
+	return (n + boundary/2) / boundary * boundary
 }
 
 // Round() will fix some invalid timeranges by rounding their starts and ends.
-func (tr Timerange) Round() Timerange {
+func (tr Timerange) Snap() Timerange {
 
 	if tr.Resolution == 0 {
 		return tr
 	}
-	tr.Start = rounder(tr.Start, tr.Resolution)
-	tr.End = rounder(tr.End, tr.Resolution)
+	tr.Start = snap(tr.Start, tr.Resolution)
+	tr.End = snap(tr.End, tr.Resolution)
 	return tr
 }
 
 // Later() returns a timerange which is forward in time by the amount given
-func (tr Timerange) Later(time int64) Timerange {
+func (tr Timerange) Shift(time int64) Timerange {
 	tr.Start += time
 	tr.End += time
-	return tr.Round()
+	return tr.Snap()
 }
 
 // Slots represent the total # of data points
