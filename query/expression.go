@@ -159,13 +159,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 
 	name := expr.functionName
 	switch name {
-	case "+":
-		fallthrough
-	case "-":
-		fallthrough
-	case "*":
-		fallthrough
-	case "/":
+	case "+", "-", "*", "/":
 		arguments := make([]value, len(expr.arguments))
 		var err error
 		for i := range arguments {
@@ -187,13 +181,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 			"/": func(x, y float64) float64 { return x / y },
 		}
 		return evaluateBinaryOperation(context, name, left, right, operatorMap[name])
-	case "aggregate.sum":
-		fallthrough
-	case "aggregate.mean":
-		fallthrough
-	case "aggregate.min":
-		fallthrough
-	case "aggregate.max":
+	case "aggregate.sum", "aggregate.mean", "aggregate.min", "aggregate.max":
 		arguments := make([]value, len(expr.arguments))
 		var err error
 		for i := range arguments {
