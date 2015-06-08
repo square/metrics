@@ -157,13 +157,22 @@ func (tr Timerange) IsValid() bool {
 		tr.Start <= tr.End
 }
 
+func rounder(x, r int64) int64 {
+	if x < 0 {
+		return -rounder(-x, r)
+	}
+	// This performs a round
+	return (x + r/2) / r * r
+}
+
 // Round() will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Round() Timerange {
+
 	if tr.Resolution == 0 {
 		return tr
 	}
-	tr.Start = (tr.Start + tr.Resolution/2) / tr.Resolution * tr.Resolution // This performs a round
-	tr.End = (tr.End + tr.Resolution/2) / tr.Resolution * tr.Resolution     // This performs a round
+	tr.Start = rounder(tr.Start, tr.Resolution)
+	tr.End = rounder(tr.End, tr.Resolution)
 	return tr
 }
 
