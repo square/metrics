@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package aggregate
 
 import (
 	"github.com/square/metrics/api"
@@ -184,19 +184,19 @@ func Test_applyAggregation(t *testing.T) {
 		Expected   []float64
 	}{
 		{
-			aggregateMap[sumAggregate],
+			aggregateMap["aggregate.sum"],
 			[]float64{3, 2, 8, 11},
 		},
 		{
-			aggregateMap[meanAggregate],
+			aggregateMap["aggregate.mean"],
 			[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 		},
 		{
-			aggregateMap[maxAggregate],
+			aggregateMap["aggregate.max"],
 			[]float64{4, 2, 4, 4},
 		},
 		{
-			aggregateMap[minAggregate],
+			aggregateMap["aggregate.min"],
 			[]float64{-1, -1, 0, 2},
 		},
 	}
@@ -235,7 +235,7 @@ func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
 	return true
 }
 
-func Test_aggregateBy(t *testing.T) {
+func Test_AggregateBy(t *testing.T) {
 
 	var testList = api.SeriesList{
 		[]api.Timeseries{
@@ -298,12 +298,12 @@ func Test_aggregateBy(t *testing.T) {
 
 	var aggregatedTests = []struct {
 		Tags       []string
-		Aggregator aggregate
+		Aggregator string
 		Results    []api.Timeseries
 	}{
 		{
 			[]string{"env"},
-			sumAggregate,
+			"aggregate.sum",
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{1, 1, 3},
@@ -321,7 +321,7 @@ func Test_aggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc"},
-			maxAggregate,
+			"aggregate.max",
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 2, 2},
@@ -345,7 +345,7 @@ func Test_aggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc", "env"},
-			meanAggregate,
+			"aggregate.mean",
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 1, 2},
@@ -386,7 +386,7 @@ func Test_aggregateBy(t *testing.T) {
 		},
 		{
 			[]string{},
-			sumAggregate,
+			"aggregate.sum",
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{5, 6, 9},
@@ -397,7 +397,11 @@ func Test_aggregateBy(t *testing.T) {
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregated := aggregateBy(testList, aggregateMap[testCase.Aggregator], testCase.Tags)
+		aggregate, ok := GetAggregate(testCase.Aggregator)
+		if !ok {
+			t.Fatalf("expected aggregator %s to exist", testCase.Aggregator)
+		}
+		aggregated := AggregateBy(testList, aggregate, testCase.Tags)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
