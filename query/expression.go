@@ -263,7 +263,17 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		}
 		newContext := context
 		newContext.Timerange = newContext.Timerange.Later(durationNano)
-		return expr.arguments[0].Evaluate(newContext)
+		value, err := expr.arguments[0].Evaluate(newContext)
+		if err != nil {
+			return nil, err
+		}
+		if series, ok := value.(seriesListValue); ok {
+			// If it's a series, then we need to reset its timerange to the original.
+			// Although it's questionably useful to use timeshifting for a non-series,
+			// it seems sensible to allow it anyway.
+			series.Timerange = context.Timerange
+		}
+		return value, nil
 	}
 
 	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
