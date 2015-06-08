@@ -141,7 +141,7 @@ type evaluationContextNode struct {
 // =============================
 func printHelper(buffer *bytes.Buffer, indent int, value string) {
 	for i := 0; i < indent; i++ {
-		buffer.WriteString(" ")
+		buffer.WriteString("  ")
 	}
 	buffer.WriteString(value)
 	buffer.WriteString("\n")
@@ -154,11 +154,13 @@ func printType(buffer *bytes.Buffer, indent int, node Node) {
 // printUnknown is used to print an item that may or may not be Node.
 func printUnknown(buffer *bytes.Buffer, indent int, object interface{}) {
 	if node, ok := object.(Node); ok {
-		node.Print(buffer, indent+1)
+		node.Print(buffer, indent)
 	} else {
 		printHelper(buffer, indent, fmt.Sprintf("%+v", object))
 	}
 }
+
+// Predicates
 
 func (node *andPredicate) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
@@ -215,6 +217,8 @@ func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
 }
 
+// Expressions
+
 func (node *scalarExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%f", node.value))
@@ -260,4 +264,28 @@ func (node *evaluationContextNode) Print(buffer *bytes.Buffer, indent int) {
 	printUnknown(buffer, indent+1, node.Timerange)
 	printUnknown(buffer, indent+1, node.SampleMethod)
 	printUnknown(buffer, indent+1, node.assigned)
+}
+
+// Commands
+
+func (node *DescribeCommand) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	indent++
+	printUnknown(buffer, indent, node.metricName)
+	printUnknown(buffer, indent, node.predicate)
+}
+
+func (node *DescribeAllCommand) Print(buffer *bytes.Buffer, indent int) {
+	buffer.WriteString("describe all\n")
+}
+
+func (node *SelectCommand) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+
+	indent++
+	printUnknown(buffer, indent, node.context)
+	printUnknown(buffer, indent, node.predicate)
+	for _, expr := range node.expressions {
+		printUnknown(buffer, indent, expr)
+	}
 }
