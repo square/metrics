@@ -21,22 +21,6 @@ import (
 	"github.com/square/metrics/api"
 )
 
-func tagSetEquals(a, b api.TagSet) bool {
-	for k, v := range a {
-		w, ok := b[k]
-		if !ok || v != w {
-			return false
-		}
-	}
-	for k := range b {
-		_, ok := a[k]
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
-
 func TestTransformTimeseries(t *testing.T) {
 	testCases := []struct {
 		values     []float64
@@ -102,7 +86,7 @@ func TestTransformTimeseries(t *testing.T) {
 				t.Error(err)
 				continue
 			}
-			if !tagSetEquals(result.TagSet, test.tagSet) {
+			if !result.TagSet.Equals(test.tagSet) {
 				t.Errorf("Expected tagset to be unchanged by transform, changed %+v into %+v", test.tagSet, result.TagSet)
 				continue
 			}

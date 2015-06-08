@@ -218,25 +218,7 @@ func Test_applyAggregation(t *testing.T) {
 	}
 }
 
-// tagSetsEqual verifies that two tag sets are equal (contain the same keys and have the same values for these)
-func tagSetsEqual(leftSet api.TagSet, rightSet api.TagSet) bool {
-	for key, left := range leftSet {
-		right, ok := rightSet[key]
-		if !ok || left != right {
-			return false
-		}
-	}
-	for key := range rightSet {
-		_, ok := leftSet[key]
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
-
 func Test_AggregateBy(t *testing.T) {
-
 	var testList = api.SeriesList{
 		[]api.Timeseries{
 			api.Timeseries{
@@ -421,7 +403,7 @@ func Test_AggregateBy(t *testing.T) {
 		for _, series := range testCase.Results {
 			found := false
 			for _, aggregate := range aggregated.Series {
-				if tagSetsEqual(series.TagSet, aggregate.TagSet) {
+				if series.TagSet.Equals(aggregate.TagSet) {
 					found = true
 					break
 				}
@@ -435,7 +417,7 @@ func Test_AggregateBy(t *testing.T) {
 		for _, aggregate := range aggregated.Series {
 			// Any of the testCase results which it matches are candidates
 			for _, correct := range testCase.Results {
-				if tagSetsEqual(aggregate.TagSet, correct.TagSet) {
+				if aggregate.TagSet.Equals(correct.TagSet) {
 					if len(aggregate.Values) != len(correct.Values) {
 						t.Errorf("For tagset %+v, result %+v has a different length than expected %+v", correct.TagSet, aggregate.Values, correct.Values)
 						continue
