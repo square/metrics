@@ -157,6 +157,23 @@ func (tr Timerange) IsValid() bool {
 		tr.Start <= tr.End
 }
 
+// Round() will fix some invalid timeranges by rounding their starts and ends.
+func (tr Timerange) Round() Timerange {
+	if tr.Resolution == 0 {
+		return tr
+	}
+	tr.Start = (tr.Start + tr.Resolution/2) / tr.Resolution * tr.Resolution // This performs a round
+	tr.End = (tr.End + tr.Resolution/2) / tr.Resolution * tr.Resolution     // This performs a round
+	return tr
+}
+
+// Later() returns a timerange which is forward in time by the amount given
+func (tr Timerange) Later(time int64) Timerange {
+	tr.Start += time
+	tr.End += time
+	return tr.Round()
+}
+
 // Slots represent the total # of data points
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
