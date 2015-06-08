@@ -105,10 +105,12 @@ func TestTransformTimeseries(t *testing.T) {
 	}
 }
 
-// Skip handling the error and assume the timerange is well-formed.
-var testTimerange, _ = api.NewTimerange(758300, 758300+30*5, 30)
-
 func TestApplyTransform(t *testing.T) {
+	var testTimerange, err = api.NewTimerange(758300, 758300+30*5, 30)
+	if err != nil {
+		t.Fatalf("invalid timerange used for testcase")
+		return
+	}
 	epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -131,7 +133,7 @@ func TestApplyTransform(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
+		Timerange: *testTimerange,
 		Name:      "test",
 	}
 	testCases := []struct {
@@ -212,6 +214,11 @@ func TestApplyTransform(t *testing.T) {
 }
 
 func TestApplyTransformFailure(t *testing.T) {
+	var testTimerange, err = api.NewTimerange(758300, 758300+30*5, 30)
+	if err != nil {
+		t.Fatalf("invalid timerange used for testcase")
+		return
+	}
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -233,7 +240,7 @@ func TestApplyTransformFailure(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
+		Timerange: *testTimerange,
 		Name:      "test",
 	}
 	testCases := []struct {

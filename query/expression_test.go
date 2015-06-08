@@ -58,7 +58,11 @@ func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value,
 }
 
 func Test_ScalarExpression(t *testing.T) {
-	timerangeA, _ := api.NewTimerange(0, 10, 2)
+	timerangeA, err := api.NewTimerange(0, 10, 2)
+	if err != nil {
+		t.Fatalf("invalid timerange used for testcase")
+		return
+	}
 	for _, test := range []struct {
 		expr           scalarExpression
 		timerange      api.Timerange
@@ -66,7 +70,7 @@ func Test_ScalarExpression(t *testing.T) {
 	}{
 		{
 			scalarExpression{5},
-			timerangeA,
+			*timerangeA,
 			[]api.Timeseries{
 				api.Timeseries{
 					[]float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},

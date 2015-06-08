@@ -67,7 +67,7 @@ func (cmd *SelectCommand) Execute(b api.Backend) (interface{}, error) {
 	}
 	return evaluateExpressions(EvaluationContext{
 		Backend:      b,
-		Timerange:    timerange,
+		Timerange:    *timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 	}, cmd.expressions)

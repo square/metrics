@@ -170,20 +170,12 @@ func (tr Timerange) Resolution() int64 {
 	return tr.start
 }
 
-func NewTimerange(start, end, resolution int64) (Timerange, error) {
-	result := Timerange{start: start, end: end, resolution: resolution}
-	if !result.isValid() {
-		return Timerange{}, errors.New("invalid timerange")
+// NewTimerange creates a timerange which is validated, providing error otherwise.
+func NewTimerange(start, end, resolution int64) (*Timerange, error) {
+	if resolution == 0 || start%resolution != 0 || end%resolution != 0 || start > end {
+		return nil, errors.New("invalid timernage")
 	}
-	return result, nil
-}
-
-// IsValid determines whether the given timerange meets the constraint.
-func (tr Timerange) isValid() bool {
-	return tr.resolution > 0 &&
-		tr.start%tr.resolution == 0 &&
-		tr.end%tr.resolution == 0 &&
-		tr.start <= tr.end
+	return &Timerange{start: start, end: end, resolution: resolution}, nil
 }
 
 func snap(n, boundary int64) int64 {
@@ -254,10 +246,6 @@ type SeriesList struct {
 
 // IsValid determines whether the given time series is valid.
 func (list SeriesList) isValid() bool {
-	if !list.Timerange.isValid() {
-		// timerange must be valid.
-		return false
-	}
 	for _, series := range list.Series {
 		// # of slots per series must be valid.
 		if len(series.Values) != list.Timerange.Slots() {

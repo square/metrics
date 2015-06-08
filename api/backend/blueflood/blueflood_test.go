@@ -23,7 +23,11 @@ import (
 )
 
 func Test_Blueflood(t *testing.T) {
-	timerange, _ := api.NewTimerange(100, 105, 5)
+	timerange, err := api.NewTimerange(100, 105, 5)
+	if err != nil {
+		t.Fatalf("invalid testcase timerange")
+		return
+	}
 	for _, test := range []struct {
 		metricMap          map[api.GraphiteMetric]api.TaggedMetric
 		queryMetric        api.TaggedMetric
@@ -53,7 +57,7 @@ func Test_Blueflood(t *testing.T) {
 			},
 			predicate:    nil,
 			sampleMethod: api.SampleMean,
-			timerange:    timerange,
+			timerange:    *timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
 			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=1000&resolution=FULL&select=numPoints%2Caverage&to=6000",
@@ -87,7 +91,7 @@ func Test_Blueflood(t *testing.T) {
 						}),
 					},
 				},
-				Timerange: timerange,
+				Timerange: *timerange,
 				Name:      "",
 			},
 		},
