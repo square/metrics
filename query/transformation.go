@@ -193,3 +193,24 @@ func transformMapMaker(name string, fun func(float64) float64) func([]float64, [
 		return result, nil
 	}
 }
+
+// transformTable holds transformations so that they can be looked up by name for evaluation.
+var transformTable = map[string]transform{
+	"transform.derivative":     transformDerivative,
+	"transform.integral":       transformIntegral,
+	"transform.rate":           transformRate,
+	"transform.cumulative":     transformCumulative,
+	"transform.moving_average": transformMovingAverage,
+}
+
+func GetTransformation(name string) (transform, bool) {
+	transform, ok := transformTable[name]
+	return transform, ok
+}
+
+func NewTransformation(name string, transform transform) {
+	if _, ok := transformTable[name]; ok {
+		panic(fmt.Sprintf("transformation `%s` has already been declared", name))
+	}
+	transformTable[name] = transform
+}
