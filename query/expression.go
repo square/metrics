@@ -203,7 +203,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 
 	if transform, ok := GetTransformation(name); ok {
 		//Verify that at least one argument is given.
-		if len(expr.arguments) != 1 {
+		if len(expr.arguments) == 0 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects at least 1 argument but was given 0", name))
 		}
 		first, err := expr.arguments[0].Evaluate(context)
