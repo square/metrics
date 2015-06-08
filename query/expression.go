@@ -201,6 +201,35 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		return seriesListValue(series), nil
 	}
 
+	if transform, ok := GetTransformation(name); ok {
+		//Verify that at least one argument is given.
+		if len(expr.arguments) != 1 {
+			return nil, errors.New(fmt.Sprintf("Function `%s` expects at least 1 argument but was given 0", name))
+		}
+		first, err := expr.arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := first.toSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		// Evaluate all the other parameters:
+		rest := expr.arguments[1:]
+		parameters := make([]value, len(rest))
+		for i := range parameters {
+			parameters[i], err = rest[i].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+		}
+		series, err := ApplyTransform(list, transform, parameters)
+		if err != nil {
+			return nil, err
+		}
+		return seriesListValue(series), nil
+	}
+
 	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
 }
 
