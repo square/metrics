@@ -105,6 +105,9 @@ func TestTransformTimeseries(t *testing.T) {
 	}
 }
 
+// Skip handling the error and assume the timerange is well-formed.
+var testTimerange, _ = api.NewTimerange(758300, 758300+30*5, 30)
+
 func TestApplyTransform(t *testing.T) {
 	epsilon := 1e-10
 	list := api.SeriesList{
@@ -128,12 +131,8 @@ func TestApplyTransform(t *testing.T) {
 				},
 			},
 		},
-		Timerange: api.Timerange{
-			Start:      758300,
-			End:        758300 + 30*5,
-			Resolution: 30,
-		},
-		Name: "test",
+		Timerange: testTimerange,
+		Name:      "test",
 	}
 	testCases := []struct {
 		transform transform
@@ -234,12 +233,8 @@ func TestApplyTransformFailure(t *testing.T) {
 				},
 			},
 		},
-		Timerange: api.Timerange{
-			Start:      758300,
-			End:        758300 + 30*5,
-			Resolution: 30,
-		},
-		Name: "test",
+		Timerange: testTimerange,
+		Name:      "test",
 	}
 	testCases := []struct {
 		transform transform

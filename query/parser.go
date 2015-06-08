@@ -282,11 +282,7 @@ func (p *Parser) addPropertyValue(value string) {
 
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
-		api.Timerange{
-			Start:      0,
-			End:        0,
-			Resolution: 30,
-		},
+		api.DefaultTimerange(),
 		api.SampleMean,
 		make(map[string]bool),
 	})
@@ -351,9 +347,9 @@ func (p *Parser) insertPropertyKeyValue() {
 			})
 		}
 		if key == "from" {
-			contextNode.Timerange.Start = unix
+			contextNode.Timerange, _ = api.NewTimerange(unix, contextNode.Timerange.End(), contextNode.Timerange.Resolution())
 		} else {
-			contextNode.Timerange.End = unix
+			contextNode.Timerange, _ = api.NewTimerange(contextNode.Timerange.Start(), unix, contextNode.Timerange.Resolution())
 		}
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
@@ -364,7 +360,7 @@ func (p *Parser) insertPropertyKeyValue() {
 				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
 			})
 		}
-		contextNode.Timerange.Resolution = intValue
+		contextNode.Timerange, _ = api.NewTimerange(contextNode.Timerange.Start(), contextNode.Timerange.End(), intValue)
 	default:
 		p.flagSyntaxError(SyntaxError{
 			token:   key,

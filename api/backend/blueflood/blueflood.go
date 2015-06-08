@@ -140,9 +140,9 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	}
 
 	params := url.Values{}
-	params.Set("from", strconv.FormatInt(timerange.Start*1000, 10))
-	params.Set("to", strconv.FormatInt(timerange.End*1000, 10))
-	params.Set("resolution", bluefloodResolution(timerange.Resolution))
+	params.Set("from", strconv.FormatInt(timerange.Start()*1000, 10))
+	params.Set("to", strconv.FormatInt(timerange.End()*1000, 10))
+	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
 
 	queryUrl.RawQuery = params.Encode()

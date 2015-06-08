@@ -4,6 +4,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"regexp"
 	"sort"
 )
@@ -141,20 +142,48 @@ type SeriesType string
 // end =   0 mod resolution
 //
 // This range is inclusive of Start and End (i.e. [Start, End]). Start and End
-// are Unix second timestamps. Resolution is in seconds.
-// TODO: Make these ms
+// are Unix milliseconds timestamps. Resolution is in milliseconds.
+// (Millisecond precision allows an effective range of 290 million years in each direction)
 type Timerange struct {
-	Start      int64
-	End        int64
-	Resolution int64
+	start      int64
+	end        int64
+	resolution int64
+}
+
+// DefaultTimerange is a valid timerange which can be safely used
+func DefaultTimerange() Timerange {
+	return Timerange{start: 0, end: 0, resolution: 30}
+}
+
+// Start() returns the .start field
+func (tr Timerange) Start() int64 {
+	return tr.start
+}
+
+// End() returns the .end field
+func (tr Timerange) End() int64 {
+	return tr.start
+}
+
+// Resolution() returns the .resolution field
+func (tr Timerange) Resolution() int64 {
+	return tr.start
+}
+
+func NewTimerange(start, end, resolution int64) (Timerange, error) {
+	result := Timerange{start: start, end: end, resolution: resolution}
+	if !result.isValid() {
+		return Timerange{}, errors.New("invalid timerange")
+	}
+	return result, nil
 }
 
 // IsValid determines whether the given timerange meets the constraint.
-func (tr Timerange) IsValid() bool {
-	return tr.Resolution > 0 &&
-		tr.Start%tr.Resolution == 0 &&
-		tr.End%tr.Resolution == 0 &&
-		tr.Start <= tr.End
+func (tr Timerange) isValid() bool {
+	return tr.resolution > 0 &&
+		tr.start%tr.resolution == 0 &&
+		tr.end%tr.resolution == 0 &&
+		tr.start <= tr.end
 }
 
 func snap(n, boundary int64) int64 {
@@ -194,7 +223,7 @@ func (tr Timerange) Shift(time int64) Timerange {
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
 func (tr Timerange) Slots() int {
-	return int((tr.End-tr.Start)/tr.Resolution) + 1
+	return int((tr.end-tr.start)/tr.resolution) + 1
 }
 
 // Timeseries is a single time series, identified with the associated tagset.
@@ -224,8 +253,8 @@ type SeriesList struct {
 }
 
 // IsValid determines whether the given time series is valid.
-func (list SeriesList) IsValid() bool {
-	if !list.Timerange.IsValid() {
+func (list SeriesList) isValid() bool {
+	if !list.Timerange.isValid() {
 		// timerange must be valid.
 		return false
 	}

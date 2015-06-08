@@ -123,11 +123,11 @@ func TestTimerange(t *testing.T) {
 		{Timerange{0, 100, 200}, false, 0},
 	} {
 		a := assert.New(t).Contextf("input=%d:%d:%d",
-			suite.Timerange.Start,
-			suite.Timerange.End,
-			suite.Timerange.Resolution,
+			suite.Timerange.start,
+			suite.Timerange.end,
+			suite.Timerange.resolution,
 		)
-		a.EqBool(suite.Timerange.IsValid(), suite.ExpectedValid)
+		a.EqBool(suite.Timerange.isValid(), suite.ExpectedValid)
 		// If invalid, nothing else to check
 		if !suite.ExpectedValid {
 			continue

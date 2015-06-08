@@ -58,28 +58,21 @@ func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value,
 }
 
 func Test_ScalarExpression(t *testing.T) {
+	timerangeA, _ := api.NewTimerange(0, 10, 2)
 	for _, test := range []struct {
-		expectSuccess  bool
 		expr           scalarExpression
 		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
-			true,
 			scalarExpression{5},
-			api.Timerange{0, 10, 2},
+			timerangeA,
 			[]api.Timeseries{
 				api.Timeseries{
 					[]float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 					api.NewTagSet(),
 				},
 			},
-		},
-		{
-			false,
-			scalarExpression{5},
-			api.Timerange{0, 10, 3},
-			[]api.Timeseries{},
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
@@ -90,10 +83,8 @@ func Test_ScalarExpression(t *testing.T) {
 			SampleMethod: api.SampleMean,
 		})
 
-		a.EqBool(err == nil, test.expectSuccess)
-
-		if !test.expectSuccess {
-			continue
+		if err != nil {
+			t.Fatalf("failed to convert number into serieslist")
 		}
 
 		a.EqInt(len(result.Series), len(test.expectedSeries))

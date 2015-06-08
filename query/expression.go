@@ -87,9 +87,6 @@ func (value stringValue) toScalar() (float64, error) {
 type scalarValue float64
 
 func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	if !timerange.IsValid() {
-		return api.SeriesList{}, errors.New("Invalid context.Timerange")
-	}
 
 	series := make([]float64, timerange.Slots())
 	for i := range series {
