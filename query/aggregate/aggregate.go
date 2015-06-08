@@ -18,6 +18,7 @@ package aggregate
 // and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -131,11 +132,12 @@ func GetAggregate(name string) (func([]float64) float64, bool) {
 }
 
 // AddAggregate adds an aggregate of a given name to the aggregate map.
-func NewAggregate(name string, aggregate func([]float64) float64) {
+func NewAggregate(name string, aggregate func([]float64) float64) error {
 	if _, ok := aggregateMap[name]; ok {
-		panic(fmt.Sprintf("aggregate %s has already been declared", name))
+		return errors.New(fmt.Sprintf("aggregate %s has already been declared", name))
 	}
 	aggregateMap[name] = aggregate
+	return nil
 }
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
