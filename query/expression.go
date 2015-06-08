@@ -113,7 +113,7 @@ func (value scalarValue) toScalar() (float64, error) {
 // toDuration will take a value, convert it to a string, and then parse it.
 // It produces a nanosecond count as a signed int64.
 // the valid ns, us (µs), ms, s, m, h
-func toDuration(value value) (int64, error) {
+func toDuration(value value) (time.Duration, error) {
 	timeString, err := value.toString()
 	if err != nil {
 		return 0, err
@@ -122,7 +122,7 @@ func toDuration(value value) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int64(duration), nil
+	return duration, nil
 }
 
 // Expression is a piece of code, which can be evaluated in a given
@@ -257,12 +257,12 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if err != nil {
 			return nil, err
 		}
-		durationNano, err := toDuration(shift)
+		duration, err := toDuration(shift)
 		if err != nil {
 			return nil, err
 		}
 		newContext := context
-		newContext.Timerange = newContext.Timerange.Later(durationNano)
+		newContext.Timerange = newContext.Timerange.Later(int64(duration))
 		value, err := expr.arguments[0].Evaluate(newContext)
 		if err != nil {
 			return nil, err
