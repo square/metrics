@@ -157,6 +157,39 @@ func (tr Timerange) IsValid() bool {
 		tr.Start <= tr.End
 }
 
+func snap(n, boundary int64) int64 {
+	if n < 0 {
+		return -snap(-n, boundary)
+	}
+	// This performs a round.
+	// Dividing by `boundary` truncates towards zero.
+	// The resulting integer is then multiplied by `boundary` again.
+	// Thus the result is a multiple of `boundary`.
+	// For integer division, x/r*r = (x/r)*r in general rounds to a multiple of r towards 0.
+	// Adding `boundary/2` changes this instead to a "round to nearest" rather than "round towards 0".
+	// (Where "up" is the round for values exactly halfway between).
+	// These halfway points round "away from zero" (rather than "towards -infinity").
+	return (n + boundary/2) / boundary * boundary
+}
+
+// Round() will fix some invalid timeranges by rounding their starts and ends.
+func (tr Timerange) Snap() Timerange {
+
+	if tr.Resolution == 0 {
+		return tr
+	}
+	tr.Start = snap(tr.Start, tr.Resolution)
+	tr.End = snap(tr.End, tr.Resolution)
+	return tr
+}
+
+// Later() returns a timerange which is forward in time by the amount given
+func (tr Timerange) Shift(time int64) Timerange {
+	tr.Start += time
+	tr.End += time
+	return tr.Snap()
+}
+
 // Slots represent the total # of data points
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.

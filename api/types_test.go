@@ -136,3 +136,73 @@ func TestTimerange(t *testing.T) {
 		a.EqInt(suite.Timerange.Slots(), suite.ExpectedSlots)
 	}
 }
+
+func TestTimerangeLater(t *testing.T) {
+	// Check that when moving forward, when moving backward, etc., time ranges work as expected.
+	ranges := []Timerange{
+		{
+			Start:      400,
+			End:        900,
+			Resolution: 100,
+		},
+		{
+			Start:      400,
+			End:        900,
+			Resolution: 1,
+		},
+		{
+			Start:      120,
+			End:        150,
+			Resolution: 30,
+		},
+		{
+			Start:      400,
+			End:        520,
+			Resolution: 40,
+		},
+	}
+	for _, time := range ranges {
+		// A sanity check for the above calculations.
+		if !time.IsValid() {
+			panic("Invalid timerange used as test case")
+		}
+	}
+	offsets := []int64{
+		0,
+		1,
+		10,
+		100,
+		28,
+		30,
+		40,
+		50,
+		51,
+		56,
+		76,
+		99,
+		100,
+		101,
+		110,
+		140,
+		149,
+		150,
+		151,
+		199,
+		200,
+		201,
+	}
+	for _, offset := range offsets {
+		for _, time := range ranges {
+			later := time.Shift(offset)
+			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
+				t.Errorf("Range %+v on offset %d fails; produces %+v", time, offset, later)
+				continue
+			}
+			later = time.Shift(-offset)
+			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
+				t.Errorf("Range %+v on offset %d fails; produces %+v", time, -offset, later)
+				continue
+			}
+		}
+	}
+}

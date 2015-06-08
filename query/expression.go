@@ -17,6 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -107,6 +108,21 @@ func (value scalarValue) toString() (string, error) {
 
 func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
+}
+
+// toDuration will take a value, convert it to a string, and then parse it.
+// It produces a nanosecond count as a signed int64.
+// the valid ns, us (µs), ms, s, m, h
+func toDuration(value value) (time.Duration, error) {
+	timeString, err := value.toString()
+	if err != nil {
+		return 0, err
+	}
+	duration, err := time.ParseDuration(timeString)
+	if err != nil {
+		return 0, err
+	}
+	return duration, nil
 }
 
 // Expression is a piece of code, which can be evaluated in a given
@@ -228,6 +244,36 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 			return nil, err
 		}
 		return seriesListValue(series), nil
+	}
+
+	if name == "timeshift" {
+		// A timeshift performs a modification to the evaluation context.
+		// In the future, it may be one of a class of functions which performs a similar modification.
+		// A timeshift has two parameters: its first (which it evaluates), and its second (the time offset).
+		if len(expr.arguments) != 2 {
+			return nil, errors.New(fmt.Sprintf("Function `timeshift` expects 2 parameters but is given %d (%+v)", len(expr.arguments), expr.arguments))
+		}
+		shift, err := expr.arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		duration, err := toDuration(shift)
+		if err != nil {
+			return nil, err
+		}
+		newContext := context
+		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
+		value, err := expr.arguments[0].Evaluate(newContext)
+		if err != nil {
+			return nil, err
+		}
+		if series, ok := value.(seriesListValue); ok {
+			// If it's a series, then we need to reset its timerange to the original.
+			// Although it's questionably useful to use timeshifting for a non-series,
+			// it seems sensible to allow it anyway.
+			series.Timerange = context.Timerange
+		}
+		return value, nil
 	}
 
 	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
