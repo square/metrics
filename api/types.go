@@ -35,6 +35,19 @@ func NewTagSet() TagSet {
 	return make(map[string]string)
 }
 
+func (left TagSet) Equals(right TagSet) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for k := range left {
+		_, ok := right[k]
+		if !ok || left[k] != right[k] {
+			return false
+		}
+	}
+	return true
+}
+
 // Merge two tagsets, and return a new tagset.
 // If keys conflict, the first tag set is preferred.
 func (tagSet TagSet) Merge(other TagSet) TagSet {

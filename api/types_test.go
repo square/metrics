@@ -29,6 +29,63 @@ func TestTagSet_Serialize(t *testing.T) {
 	a.EqString(ts.Serialize(), "dc=sjc1b,env=production")
 }
 
+func TestTagSetEquals(t *testing.T) {
+	sets := []TagSet{
+		TagSet{ // Case 0
+			"A": "x",
+			"B": "y",
+			"C": "z",
+		},
+		TagSet{ // Case 1
+			"A": "x",
+			"B": "y",
+			"C": "z",
+		},
+		TagSet{ // Case 2
+			"A": "q",
+			"B": "y",
+			"C": "z",
+		},
+		TagSet{ // Case 3
+			"A": "x",
+			"C": "z",
+		},
+		TagSet{ // Case 4
+			"A": "x",
+			"C": "z",
+		},
+	}
+	tests := []struct {
+		left     int
+		right    int
+		expected bool
+	}{
+		{0, 0, true}, // Compare to self
+		{1, 1, true},
+		{2, 2, true},
+		{3, 3, true},
+		{4, 4, true},
+		{0, 1, true}, // Compare to identical
+		{3, 4, true},
+		{0, 2, false}, // Compare to different
+		{1, 2, false},
+		{0, 3, false}, // Compare to missing
+		{1, 3, false},
+		{0, 4, false},
+		{1, 4, false},
+	}
+	for i, test := range tests {
+		if sets[test.left].Equals(sets[test.right]) != test.expected {
+			t.Errorf("Test %d on sets %d and %d fails (expected %t)", i, test.left, test.right, test.expected)
+			continue
+		}
+		if sets[test.right].Equals(sets[test.left]) != test.expected {
+			t.Errorf("Test %d on sets %d and %d fails (expected %t)", i, test.right, test.left, test.expected)
+			continue
+		}
+	}
+}
+
 func TestTagSet_Serialize_Escape(t *testing.T) {
 	a := assert.New(t)
 	ts := NewTagSet()
