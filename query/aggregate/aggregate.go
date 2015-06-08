@@ -132,7 +132,7 @@ func GetAggregate(name string) (func([]float64) float64, bool) {
 }
 
 // AddAggregate adds an aggregate of a given name to the aggregate map.
-func NewAggregate(name string, aggregate func([]float64) float64) error {
+func RegisterAggregate(name string, aggregate func([]float64) float64) error {
 	if _, ok := aggregateMap[name]; ok {
 		return errors.New(fmt.Sprintf("aggregate %s has already been declared", name))
 	}
