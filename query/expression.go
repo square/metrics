@@ -183,7 +183,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		return evaluateBinaryOperation(context, name, left, right, operator)
 	}
 
-	if aggregator, ok := aggregate.AggregateMap[name]; ok {
+	if aggregator, ok := aggregate.GetAggregate(name); ok {
 		// Verify that exactly 1 argument is given.
 		if len(expr.arguments) != 1 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects 1 argument but received %d (%+v)", name, len(expr.arguments), expr.arguments))

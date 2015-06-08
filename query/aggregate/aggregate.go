@@ -72,7 +72,7 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-var AggregateMap = map[string]func([]float64) float64{
+var aggregateMap = map[string]func([]float64) float64{
 	"aggregate.sum":
 	// The aggregatefor sum finds the sum of the given array.
 	func(array []float64) float64 {
@@ -121,6 +121,17 @@ var AggregateMap = map[string]func([]float64) float64{
 		}
 		return max
 	},
+}
+
+// GetAggregate gives the aggregate of the given name (and false if it doesn't exist).
+func GetAggregate(name string) (func([]float64) float64, bool) {
+	aggregate, ok := aggregateMap[name]
+	return aggregate, ok
+}
+
+// AddAggregate adds an aggregate of a given name to the aggregate map.
+func NewAggregate(name string, aggregate func([]float64) float64) {
+	aggregateMap[name] = aggregate
 }
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
