@@ -50,7 +50,14 @@ func main() {
 			fmt.Println("parsing error", err.Error())
 			continue
 		}
-		fmt.Println(cmd.String())
+
+		n, ok := cmd.(query.Node)
+		if !ok {
+			fmt.Println("error: %+v doesn't implement Node", cmd)
+			continue
+		}
+		fmt.Println(query.PrintNode(n))
+
 		result, err := cmd.Execute(backend)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())

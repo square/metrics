@@ -15,7 +15,6 @@
 package query
 
 import (
-	"fmt"
 	"github.com/square/metrics/api"
 )
 
@@ -25,9 +24,6 @@ import (
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
 	Execute(b api.Backend) (interface{}, error)
-	// Name is the human-readable identifier for the command.
-	Name() string
-	String() string
 }
 
 // DescribeCommand describes the tag set managed by the given metric indexer.
@@ -36,16 +32,8 @@ type DescribeCommand struct {
 	predicate  api.Predicate
 }
 
-func (cmd *DescribeCommand) String() string {
-	return fmt.Sprintf("describe %s: %s", string(cmd.metricName), PrintNode(cmd.predicate))
-}
-
 // DescribeAllCommand returns all the metrics available in the system.
 type DescribeAllCommand struct {
-}
-
-func (cmd *DescribeAllCommand) String() string {
-	return "describe all"
 }
 
 // SelectCommand is the bread and butter of the metrics query engine.
@@ -54,10 +42,6 @@ type SelectCommand struct {
 	predicate   api.Predicate
 	expressions []Expression
 	context     *evaluationContextNode
-}
-
-func (cmd *SelectCommand) String() string {
-	return fmt.Sprintf("select{context: %+v, expressions: %+v, predicate: %s}", cmd.context, cmd.expressions, PrintNode(cmd.predicate))
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
@@ -72,24 +56,9 @@ func (cmd *DescribeCommand) Execute(b api.Backend) (interface{}, error) {
 	return output, nil
 }
 
-// Name of the command
-func (cmd *DescribeCommand) Name() string {
-	return "describe"
-}
-
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
 	return b.Api().GetAllMetrics()
-}
-
-// Name of the command
-func (cmd *DescribeAllCommand) Name() string {
-	return "describe all"
-}
-
-// Name of the command
-func (cmd *SelectCommand) Name() string {
-	return "select"
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
