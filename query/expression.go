@@ -158,53 +158,50 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
 
 	name := expr.functionName
-	switch name {
-	case "+", "-", "*", "/":
-		arguments := make([]value, len(expr.arguments))
-		var err error
-		for i := range arguments {
-			arguments[i], err = expr.arguments[i].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-		}
-		// Evaluation of a binary operator:
-		if len(arguments) != 2 {
-			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(arguments), arguments))
-		}
-		left := arguments[0]
-		right := arguments[1]
-		operatorMap := map[string]func(float64, float64) float64{
-			"+": func(x, y float64) float64 { return x + y },
-			"-": func(x, y float64) float64 { return x - y },
-			"*": func(x, y float64) float64 { return x * y },
-			"/": func(x, y float64) float64 { return x / y },
-		}
-		return evaluateBinaryOperation(context, name, left, right, operatorMap[name])
-	case "aggregate.sum", "aggregate.mean", "aggregate.min", "aggregate.max":
-		arguments := make([]value, len(expr.arguments))
-		var err error
-		for i := range arguments {
-			arguments[i], err = expr.arguments[i].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if len(arguments) != 1 {
-			return nil, errors.New(fmt.Sprintf("Function `%s` expected 1 operand but received %d (%+v)", name, len(arguments), arguments))
-		}
-		list, err := arguments[0].toSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		series, err := aggregate.AggregateBy(list, name, expr.groupBy)
-		if err != nil {
-			return nil, err
-		}
-		return seriesListValue(series), nil
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid function: %s", expr.functionName))
+
+	operatorMap := map[string]func(float64, float64) float64{
+		"+": func(x, y float64) float64 { return x + y },
+		"-": func(x, y float64) float64 { return x - y },
+		"*": func(x, y float64) float64 { return x * y },
+		"/": func(x, y float64) float64 { return x / y },
 	}
+
+	if operator, ok := operatorMap[name]; ok {
+		// Evaluation of a binary operator:
+		// Verify that exactly 2 arguments are given.
+		if len(expr.arguments) != 2 {
+			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(expr.arguments), expr.arguments))
+		}
+		left, err := expr.arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		right, err := expr.arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		return evaluateBinaryOperation(context, name, left, right, operator)
+	}
+
+	if aggregator, ok := aggregate.AggregateMap[name]; ok {
+		// Verify that exactly 1 argument is given.
+		if len(expr.arguments) != 1 {
+			return nil, errors.New(fmt.Sprintf("Function `%s` expects 1 argument but received %d (%+v)", name, len(expr.arguments), expr.arguments))
+		}
+		argument := expr.arguments[0]
+		value, err := argument.Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := value.toSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		series := aggregate.AggregateBy(list, aggregator, expr.groupBy)
+		return seriesListValue(series), nil
+	}
+
+	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
 }
 
 //
