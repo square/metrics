@@ -161,7 +161,14 @@ func snap(n, boundary int64) int64 {
 	if n < 0 {
 		return -snap(-n, boundary)
 	}
-	// This performs a round
+	// This performs a round.
+	// Dividing by `boundary` truncates towards zero.
+	// The resulting integer is then multiplied by `boundary` again.
+	// Thus the result is a multiple of `boundary`.
+	// For integer division, x/r*r = (x/r)*r in general rounds to a multiple of r towards 0.
+	// Adding `boundary/2` changes this instead to a "round to nearest" rather than "round towards 0".
+	// (Where "up" is the round for values exactly halfway between).
+	// These halfway points round "away from zero" (rather than "towards -infinity").
 	return (n + boundary/2) / boundary * boundary
 }
 
