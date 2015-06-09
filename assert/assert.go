@@ -93,7 +93,7 @@ func (assert Assert) EqFloat(actual, expected float64) {
 // Eq fails the test if two arguments are not equal.
 func (assert Assert) Eq(actual, expected interface{}) {
 	if !reflect.DeepEqual(actual, expected) {
-		assert.withCaller("Expected=%s, actual=%s", expected, actual)
+		assert.withCaller("\nExpected=%+v\nActual  =%+v", expected, actual)
 	}
 }
 
