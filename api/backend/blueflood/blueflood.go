@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -139,8 +139,10 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	}
 
 	params := url.Values{}
+	// Pull a bit outside of the requested range from blueflood so we
+	// have enough data to generate all snapped values.
 	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
-	params.Set("to", strconv.FormatInt(timerange.End(), 10))
+	params.Set("to", strconv.FormatInt(timerange.End()+timerange.Resolution(), 10))
 	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
 
@@ -166,21 +168,19 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 		return nil, err
 	}
 
-	// Construct a Timeseries from the result
-	series := make([]float64, len(result.Values))
-	for i, metricPoint := range result.Values {
-		series[i] = reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
+	series, err := resample(result.Values, timerange, sampleMethod)
+	if err == nil {
+		log.Printf("Constructed timeseries from result: %v", series)
 	}
 
-	log.Printf("Constructed timeseries from result: %v", series)
-
-	// TODO: Resample to the requested resolution
-
-	return series, nil
+	return series, err
 }
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
 // between them.
+// TODO: This is currently only based on the requested resolution to minimize
+// the amount of data we work on. We'll need to be aware of blueflood's
+// retention policies for each resolution as well.
 func bluefloodResolution(r int64) string {
 	switch {
 	case r < 5*60*1000:
@@ -197,8 +197,56 @@ func bluefloodResolution(r int64) string {
 	return Resolution1440Min
 }
 
-func resample(points []float64, currentResolution int64, expectedTimerange api.Timerange, sampleMethod api.SampleMethod) ([]float64, error) {
-	return nil, errors.New("Not implemented")
+// Resamples the original data returned from Blueflood. Returns raw values
+// corresponding to the `timerange`.
+//
+// Snaps data left to the `timerange` buckets. Resampling buckets using data
+// to the right of the timestamp (i.e. the data point at time 123000 with
+// resolution 60 is generated from [123000, 123060). If there is no data, that
+// point is filled with NaN (note: this means upsampling doesn't work).
+//
+// Assumes `points` is sorted chronologically.
+func resample(points []MetricPoint, timerange api.Timerange, sampleMethod api.SampleMethod) ([]float64, error) {
+	series := make([]float64, timerange.Slots())
+
+	// Cursor into `series`
+	idx := 0
+	// Cursors into `points` for working data windows
+	windowStart, windowEnd := 0, 0
+	// Generate points at timestamps corresponding to the timerange
+	for t := timerange.Start(); t <= timerange.End(); t, idx = t+timerange.Resolution(), idx+1 {
+		// Set up our series window
+		for ; windowStart < len(points)-1 && points[windowStart].Timestamp < t; windowStart++ {
+		}
+		// No data points in [t, t + resolution) becomes NaN
+		if points[windowStart].Timestamp >= (t + timerange.Resolution()) {
+			series[idx] = math.NaN()
+			continue
+		}
+		for windowEnd = windowStart; windowEnd < len(points)-1 && points[windowEnd+1].Timestamp < (t+timerange.Resolution()); windowEnd++ {
+		}
+
+		switch sampleMethod {
+		case api.SampleMean:
+			// Uses weighted average over [t, t + resolution)
+			totalPoints, runningTotal := 0, 0.0
+			for i := windowStart; i <= windowEnd; i++ {
+				totalPoints += points[i].Points
+				runningTotal += points[i].Average * float64(points[i].Points)
+			}
+
+			series[idx] = runningTotal / float64(totalPoints)
+
+		case api.SampleMax:
+			return nil, errors.New("Not implemented")
+		case api.SampleMin:
+			return nil, errors.New("Not implemented")
+		default:
+			return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
+		}
+	}
+
+	return series, nil
 }
 
 var _ api.Backend = (*Blueflood)(nil)

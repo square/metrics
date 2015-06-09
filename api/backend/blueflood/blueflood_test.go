@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"math"
 	"testing"
 
 	"github.com/square/metrics/api"
@@ -23,22 +24,19 @@ import (
 )
 
 func Test_Blueflood(t *testing.T) {
-	timerange, err := api.NewTimerange(1000, 6000, 5)
-	if err != nil {
-		t.Fatalf("invalid testcase timerange")
-		return
-	}
 	for _, test := range []struct {
-		metricMap          map[api.GraphiteMetric]api.TaggedMetric
-		queryMetric        api.TaggedMetric
-		predicate          api.Predicate
-		sampleMethod       api.SampleMethod
-		timerange          api.Timerange
-		baseUrl            string
-		tenantId           string
-		queryUrl           string
-		queryResponse      string
-		expectedSeriesList api.SeriesList
+		metricMap           map[api.GraphiteMetric]api.TaggedMetric
+		queryMetric         api.TaggedMetric
+		predicate           api.Predicate
+		sampleMethod        api.SampleMethod
+		timerangeStart      int64
+		timerangeEnd        int64
+		timerangeResolution int64
+		baseUrl             string
+		tenantId            string
+		queryUrl            string
+		queryResponse       string
+		expectedSeriesList  api.SeriesList
 	}{
 		{
 			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
@@ -55,12 +53,14 @@ func Test_Blueflood(t *testing.T) {
 					"tag": "value",
 				}),
 			},
-			predicate:    nil,
-			sampleMethod: api.SampleMean,
-			timerange:    *timerange,
-			baseUrl:      "https://blueflood.url",
-			tenantId:     "square",
-			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=1000&resolution=FULL&select=numPoints%2Caverage&to=6000",
+			predicate:           nil,
+			sampleMethod:        api.SampleMean,
+			timerangeStart:      1000,
+			timerangeEnd:        6000,
+			timerangeResolution: 1000,
+			baseUrl:             "https://blueflood.url",
+			tenantId:            "square",
+			queryUrl:            "https://blueflood.url/v2.0/square/views/some.key.graphite?from=1000&resolution=FULL&select=numPoints%2Caverage&to=7000",
 			queryResponse: `{
         "unit": "unknown", 
         "values": [
@@ -85,17 +85,19 @@ func Test_Blueflood(t *testing.T) {
 			expectedSeriesList: api.SeriesList{
 				Series: []api.Timeseries{
 					api.Timeseries{
-						Values: []float64{5, 3},
+						Values: []float64{5, math.NaN(), math.NaN(), math.NaN(), math.NaN(), 3},
 						TagSet: api.TagSet(map[string]string{
 							"tag": "value",
 						}),
 					},
 				},
-				Timerange: *timerange,
+				// Set this from the built timerange
+				Timerange: api.Timerange{},
 				Name:      "",
 			},
 		},
 	} {
+		// Setup
 		a := assert.New(t)
 
 		fakeApi := mocks.NewFakeApi()
@@ -109,8 +111,17 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.baseUrl, test.tenantId)
 		b.client = fakeHttpClient
 
+		timerange, err := api.NewTimerange(test.timerangeStart, test.timerangeEnd, test.timerangeResolution)
+		if err != nil {
+			a.CheckError(err)
+			continue
+		}
+
+		test.expectedSeriesList.Timerange = *timerange
+
+		// Do the fetch
 		seriesList, err := b.FetchSeries(api.FetchSeriesRequest{
-			test.queryMetric, test.predicate, test.sampleMethod, test.timerange,
+			test.queryMetric, test.predicate, test.sampleMethod, *timerange,
 			fakeApi,
 		})
 		if err != nil {
@@ -118,6 +129,19 @@ func Test_Blueflood(t *testing.T) {
 			continue
 		}
 
-		a.Eq(seriesList, &test.expectedSeriesList)
+		// Do deep comparisons of the SeriesList ourselves because NaN != NaN
+		a.Eq(seriesList.Timerange, test.expectedSeriesList.Timerange)
+		a.Eq(seriesList.Name, test.expectedSeriesList.Name)
+		a.EqInt(len(seriesList.Series), len(test.expectedSeriesList.Series))
+		for i := 0; i < len(seriesList.Series); i++ {
+			actualSeries := seriesList.Series[i]
+			expectedSeries := test.expectedSeriesList.Series[i]
+
+			a.Eq(actualSeries.TagSet, expectedSeries.TagSet)
+			a.EqInt(len(actualSeries.Values), len(expectedSeries.Values))
+			for j := 0; j < len(actualSeries.Values); j++ {
+				a.EqFloat(actualSeries.Values[j], expectedSeries.Values[j])
+			}
+		}
 	}
 }
