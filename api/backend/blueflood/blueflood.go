@@ -116,6 +116,33 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	}, nil
 }
 
+func assignMetricPoint(metricPoint MetricPoint, resultField string, timerange api.Timerange, values []float64) error {
+	// TODO: check the result of .FieldByName against nil (or a panic will occur)
+	value := reflect.ValueOf(metricPoint).FieldByName(resultField).Float()
+	// TODO: check the result of .FieldByName against nil (or a panic will occur)
+	timestamp := reflect.ValueOf(metricPoint).FieldByName("Timestamp").Int()
+	// The index to assign within the array is computed using the timestamp.
+	// It rounds to the nearest index.
+	index := (timestamp - timerange.Start() + timerange.Resolution()/2) / timerange.Resolution()
+	if index < 0 || index >= int64(timerange.Slots()) {
+		return errors.New("index out of range")
+	}
+	values[index] = value
+	return nil
+}
+
+func seriesFromMetricPoints(metricPoints []MetricPoint, resultField string, timerange api.Timerange) []float64 {
+	values := make([]float64, timerange.Slots())
+	// Initialize it to NaN:
+	for i := range values {
+		values[i] = math.NaN()
+	}
+	for _, point := range metricPoints {
+		assignMetricPoint(point, resultField, timerange, values)
+	}
+	return values
+}
+
 func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
 	// Use this lowercase of this as the select query param. Use the actual value
 	// to reflect into result MetricPoints to fetch the correct field.
@@ -170,26 +197,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 
 	// Construct a Timeseries from the result
 
-	values := make([]float64, timerange.Slots())
-	// The array is initialized to NaN.
-	for i := range values {
-		values[i] = math.NaN()
-	}
-
-	for _, metricPoint := range result.Values {
-		// TODO: check the result of .FieldByName against nil (or a panic will occur)
-		value := reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
-		// TODO: check the result of .FieldByName against nil (or a panic will occur)
-		timestamp := reflect.ValueOf(metricPoint).FieldByName("Timestamp").Int()
-		// The index to assign within the array is computed using the timestamp.
-		// It rounds to the nearest index.
-		index := (timestamp - timerange.Start() + timerange.Resolution()/2) / timerange.Resolution()
-		if index >= 0 && index < int64(timerange.Slots()) {
-			values[index] = value
-		}
-		// TODO: error otherwise?
-	}
-
+	values := seriesFromMetricPoints(result.Values, selectResultField, timerange)
 	log.Printf("Constructed timeseries from result: %v", values)
 
 	// TODO: Resample to the requested resolution
