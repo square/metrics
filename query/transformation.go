@@ -42,7 +42,7 @@ func transformTimeseries(series api.Timeseries, transform transform, parameters 
 // timerangeScale takes an api.Timerange and computes the "scale" or duration of one sample (in seconds).
 // It is useful for transformations that normalize on time (like derivative or integral).
 func timerangeScale(timerange api.Timerange) float64 {
-	return float64(timerange.Resolution())
+	return float64(timerange.Resolution()) / 1000.0
 }
 
 // applyTransform applies the given transform to the entire list of series.

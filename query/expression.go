@@ -108,9 +108,9 @@ func (value scalarValue) toScalar() (float64, error) {
 }
 
 // toDuration will take a value, convert it to a string, and then parse it.
-// It produces a nanosecond count as a signed int64.
+// It produces a millisecond count as a signed int64.
 // the valid ns, us (µs), ms, s, m, h
-func toDuration(value value) (time.Duration, error) {
+func toDuration(value value) (int64, error) {
 	timeString, err := value.toString()
 	if err != nil {
 		return 0, err
@@ -119,7 +119,10 @@ func toDuration(value value) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	return duration, nil
+	// Divide by 1000000 = 1,000,000 = 1 million
+	// to convert from the "nanoseconds" produced by Duration into
+	// the MILLISECONDS used by timeranges
+	return duration / 1000000, nil
 }
 
 // Expression is a piece of code, which can be evaluated in a given
