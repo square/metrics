@@ -216,9 +216,9 @@ func resample(points []MetricPoint, timerange api.Timerange, sampleMethod api.Sa
 	// Generate points at timestamps corresponding to the timerange
 	for t := timerange.Start(); t <= timerange.End(); t, idx = t+timerange.Resolution(), idx+1 {
 		// Set up our series window
-		for ; points[windowStart].Timestamp < t; windowStart++ {
+		for ; windowStart < len(points)-1 && points[windowStart].Timestamp < t; windowStart++ {
 		}
-		// No data points in [t, t + resolution] becomes NaN
+		// No data points in [t, t + resolution) becomes NaN
 		if points[windowStart].Timestamp >= (t + timerange.Resolution()) {
 			series[idx] = math.NaN()
 			continue
