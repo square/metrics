@@ -108,8 +108,8 @@ func (value scalarValue) toScalar() (float64, error) {
 }
 
 // toDuration will take a value, convert it to a string, and then parse it.
-// It produces a millisecond count as a signed int64.
-// the valid ns, us (µs), ms, s, m, h
+// the valid suffixes are: ns, us (µs), ms, s, m, h
+// It converts the return value to milliseconds.
 func toDuration(value value) (int64, error) {
 	timeString, err := value.toString()
 	if err != nil {
@@ -119,9 +119,6 @@ func toDuration(value value) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// Divide by 1000000 = 1,000,000 = 1 million
-	// to convert from the "nanoseconds" produced by Duration into
-	// the MILLISECONDS used by timeranges
 	return int64(duration / 1000000), nil
 }
 

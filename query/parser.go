@@ -99,6 +99,7 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
+// parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string) (int64, error) {
 	intValue, err := strconv.ParseInt(date, 10, 64)
 	if err == nil {
@@ -108,8 +109,6 @@ func parseDate(date string) (int64, error) {
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {
-			// Multiply the number of seconds by 1000 to convert to milliseconds,
-			// and divide the number of extra nanoseconds by 1 million to convert to milliseconds.
 			return t.Unix()*1000 + int64(t.Nanosecond()/1000000), nil
 		}
 		errorMessage += "\nfailed: " + err.Error()
