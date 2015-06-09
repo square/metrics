@@ -814,6 +814,9 @@ func (p *Parser) Init() {
 					{
 						position4 := position
 						depth++
+						if !_rules[rule_]() {
+							goto l3
+						}
 						{
 							position5, tokenIndex5, depth5 := position, tokenIndex, depth
 							if buffer[position] != rune('s') {
@@ -984,6 +987,9 @@ func (p *Parser) Init() {
 						{
 							add(ruleAction0, position)
 						}
+						if !_rules[rule_]() {
+							goto l3
+						}
 						depth--
 						add(ruleselectStmt, position4)
 					}
@@ -993,6 +999,9 @@ func (p *Parser) Init() {
 					{
 						position31 := position
 						depth++
+						if !_rules[rule_]() {
+							goto l0
+						}
 						{
 							position32, tokenIndex32, depth32 := position, tokenIndex, depth
 							if buffer[position] != rune('d') {
@@ -1207,6 +1216,9 @@ func (p *Parser) Init() {
 							}
 						}
 					l48:
+						if !_rules[rule_]() {
+							goto l0
+						}
 						depth--
 						add(ruledescribeStmt, position31)
 					}
@@ -1229,9 +1241,9 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position0, tokenIndex0, depth0
 			return false
 		},
-		/* 1 selectStmt <- <(('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T') __ expressionList optionalPredicateClause propertyClause Action0)> */
+		/* 1 selectStmt <- <(_ (('s' / 'S') ('e' / 'E') ('l' / 'L') ('e' / 'E') ('c' / 'C') ('t' / 'T')) __ expressionList optionalPredicateClause propertyClause Action0 _)> */
 		nil,
-		/* 2 describeStmt <- <(('d' / 'D') ('e' / 'E') ('s' / 'S') ('c' / 'C') ('r' / 'R') ('i' / 'I') ('b' / 'B') ('e' / 'E') __ (describeAllStmt / describeSingleStmt))> */
+		/* 2 describeStmt <- <(_ (('d' / 'D') ('e' / 'E') ('s' / 'S') ('c' / 'C') ('r' / 'R') ('i' / 'I') ('b' / 'B') ('e' / 'E')) __ (describeAllStmt / describeSingleStmt) _)> */
 		nil,
 		/* 3 describeAllStmt <- <(('a' / 'A') ('l' / 'L') ('l' / 'L') Action1)> */
 		nil,

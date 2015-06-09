@@ -78,6 +78,10 @@ var inputs = []string{
 	"select x from 0 to 0 resolution 10",
 	"select x from 0 to 0 sample by 'max'",
 	"select x from 0 to 0 sample   by 'max'",
+	// Leading/trailing whitespace
+	" describe all ",
+	" describe x ",
+	" select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0 ",
 }
 
 var parseOnly = []string{
