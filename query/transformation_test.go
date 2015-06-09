@@ -91,7 +91,7 @@ func TestTransformTimeseries(t *testing.T) {
 				continue
 			}
 			if len(result.Values) != len(transform.expected) {
-				t.Errorf("Expected result to have length %d but has length %d", transform.expected, result.Values)
+				t.Errorf("Expected result to have length %d but has length %d", len(transform.expected), len(result.Values))
 				continue
 			}
 			// Now check that the values are approximately equal
