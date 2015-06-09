@@ -23,7 +23,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -116,11 +115,11 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	}, nil
 }
 
-func assignMetricPoint(metricPoint MetricPoint, resultField string, timerange api.Timerange, values []float64) error {
+func assignMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, values []float64) error {
 	// TODO: check the result of .FieldByName against nil (or a panic will occur)
-	value := reflect.ValueOf(metricPoint).FieldByName(resultField).Float()
+	value := field(metricPoint)
 	// TODO: check the result of .FieldByName against nil (or a panic will occur)
-	timestamp := reflect.ValueOf(metricPoint).FieldByName("Timestamp").Int()
+	timestamp := metricPoint.Timestamp
 	// The index to assign within the array is computed using the timestamp.
 	// It rounds to the nearest index.
 	index := (timestamp - timerange.Start() + timerange.Resolution()/2) / timerange.Resolution()
@@ -131,7 +130,7 @@ func assignMetricPoint(metricPoint MetricPoint, resultField string, timerange ap
 	return nil
 }
 
-func seriesFromMetricPoints(metricPoints []MetricPoint, resultField string, timerange api.Timerange) []float64 {
+func seriesFromMetricPoints(metricPoints []MetricPoint, resultField func(MetricPoint) float64, timerange api.Timerange) []float64 {
 	values := make([]float64, timerange.Slots())
 	// Initialize it to NaN:
 	for i := range values {
@@ -146,14 +145,20 @@ func seriesFromMetricPoints(metricPoints []MetricPoint, resultField string, time
 func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
 	// Use this lowercase of this as the select query param. Use the actual value
 	// to reflect into result MetricPoints to fetch the correct field.
-	var selectResultField string
+	var (
+		fieldExtractor    string
+		selectResultField func(MetricPoint) float64
+	)
 	switch sampleMethod {
 	case api.SampleMean:
-		selectResultField = "Average"
+		fieldExtractor = "average"
+		selectResultField = func(point MetricPoint) float64 { return point.Average }
 	case api.SampleMin:
-		selectResultField = "Min"
+		fieldExtractor = "min"
+		selectResultField = func(point MetricPoint) float64 { return point.Min }
 	case api.SampleMax:
-		selectResultField = "Max"
+		fieldExtractor = "max"
+		selectResultField = func(point MetricPoint) float64 { return point.Max }
 	default:
 		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 	}
@@ -171,7 +176,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
 	params.Set("to", strconv.FormatInt(timerange.End(), 10))
 	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
-	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
+	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(fieldExtractor)))
 
 	queryUrl.RawQuery = params.Encode()
 

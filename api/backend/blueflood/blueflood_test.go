@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"math"
 	"testing"
 
 	"github.com/square/metrics/api"
@@ -116,5 +117,54 @@ func Test_Blueflood(t *testing.T) {
 		}
 
 		a.Eq(seriesList, &test.expectedSeriesList)
+	}
+}
+
+func TestSeriesFromMetricPoints(t *testing.T) {
+	timerange, err := api.NewTimerange(4000, 4800, 100)
+	if err != nil {
+		t.Fatalf("testcase timerange is invalid")
+		return
+	}
+	points := []MetricPoint{
+		{
+			Timestamp: 4100,
+			Average:   1,
+		},
+		{
+			Timestamp: 4199, // Slightly off to test rounding
+			Average:   2,
+		},
+		{
+			Timestamp: 4403, // Slightly off to test rounding
+			Average:   3,
+		},
+		{
+			Timestamp: 4500,
+			Average:   4,
+		},
+		{
+			Timestamp: 4700,
+			Average:   5,
+		},
+	}
+	expected := []float64{math.NaN(), 1, 2, math.NaN(), 3, 4, math.NaN(), 5, math.NaN()}
+	result := seriesFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, *timerange)
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, result)
+		return
+	}
+	for i, expect := range expected {
+		if math.IsNaN(expect) != math.IsNaN(result[i]) {
+			t.Fatalf("Expected %+v but got %+v", expected, result)
+			return
+		}
+		if math.IsNaN(expect) {
+			continue
+		}
+		if expect != result[i] {
+			t.Fatalf("Expected %+v but got %+v", expected, result)
+			return
+		}
 	}
 }
