@@ -14,7 +14,10 @@
 
 package query
 
-import "github.com/square/metrics/api"
+import (
+	"github.com/square/metrics/api"
+	"sort"
+)
 
 // Command is the final result of the parsing.
 // A command contains all the information to execute the
@@ -51,12 +54,17 @@ func (cmd *DescribeCommand) Execute(b api.Backend) (interface{}, error) {
 			output = append(output, tag.Serialize())
 		}
 	}
+	sort.Strings(output)
 	return output, nil
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
-	return b.Api().GetAllMetrics()
+	result, err := b.Api().GetAllMetrics()
+	if err == nil {
+		sort.Sort(api.MetricKeys(result))
+	}
+	return result, err
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
