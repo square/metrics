@@ -38,7 +38,7 @@ type LiteralExpression struct {
 func (expr *LiteralExpression) Evaluate(context EvaluationContext) (value, error) {
 	return seriesListValue(api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
-		Timerange: api.Timerange{},
+		Timerange: api.DefaultTimerange(),
 	}), nil
 }
 
@@ -49,7 +49,7 @@ type LiteralSeriesExpression struct {
 func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(expr.Values)),
-		Timerange: api.Timerange{},
+		Timerange: api.DefaultTimerange(),
 	}
 	for i, values := range expr.Values {
 		result.Series[i] = values
@@ -58,28 +58,25 @@ func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value,
 }
 
 func Test_ScalarExpression(t *testing.T) {
+	timerangeA, err := api.NewTimerange(0, 10, 2)
+	if err != nil {
+		t.Fatalf("invalid timerange used for testcase")
+		return
+	}
 	for _, test := range []struct {
-		expectSuccess  bool
 		expr           scalarExpression
 		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
-			true,
 			scalarExpression{5},
-			api.Timerange{0, 10, 2},
+			*timerangeA,
 			[]api.Timeseries{
 				api.Timeseries{
 					[]float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 					api.NewTagSet(),
 				},
 			},
-		},
-		{
-			false,
-			scalarExpression{5},
-			api.Timerange{0, 10, 3},
-			[]api.Timeseries{},
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
@@ -90,10 +87,8 @@ func Test_ScalarExpression(t *testing.T) {
 			SampleMethod: api.SampleMean,
 		})
 
-		a.EqBool(err == nil, test.expectSuccess)
-
-		if !test.expectSuccess {
-			continue
+		if err != nil {
+			t.Fatalf("failed to convert number into serieslist")
 		}
 
 		a.EqInt(len(result.Series), len(test.expectedSeries))
@@ -105,7 +100,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{FakeBackend{}, api.Timerange{}, api.SampleMean, nil}
+	emptyContext := EvaluationContext{FakeBackend{}, api.DefaultTimerange(), api.SampleMean, nil}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string
@@ -125,7 +120,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						TagSet: api.TagSet{},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			seriesListValue(api.SeriesList{
@@ -135,7 +130,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						TagSet: api.TagSet{},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			func(left, right float64) float64 { return left + right },
@@ -151,7 +146,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						Values: []float64{1, 2, 3},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			seriesListValue(api.SeriesList{
@@ -160,7 +155,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						Values: []float64{4, 5, 1},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			func(left, right float64) float64 { return left - right },
@@ -194,7 +189,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			seriesListValue(api.SeriesList{
@@ -212,7 +207,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			func(left, right float64) float64 { return left + right },
@@ -246,7 +241,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			seriesListValue(api.SeriesList{
@@ -264,7 +259,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			func(left, right float64) float64 { return left * right },
@@ -298,7 +293,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			seriesListValue(api.SeriesList{
@@ -316,7 +311,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 						},
 					},
 				},
-				api.Timerange{},
+				api.DefaultTimerange(),
 				"",
 			}),
 			func(left, right float64) float64 { return left - right },

@@ -4,6 +4,8 @@ package api
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"regexp"
 	"sort"
 )
@@ -141,20 +143,49 @@ type SeriesType string
 // end =   0 mod resolution
 //
 // This range is inclusive of Start and End (i.e. [Start, End]). Start and End
-// are Unix second timestamps. Resolution is in seconds.
-// TODO: Make these ms
+// are Unix milliseconds timestamps. Resolution is in milliseconds.
+// (Millisecond precision allows an effective range of 290 million years in each direction)
 type Timerange struct {
-	Start      int64
-	End        int64
-	Resolution int64
+	start      int64
+	end        int64
+	resolution int64
 }
 
-// IsValid determines whether the given timerange meets the constraint.
-func (tr Timerange) IsValid() bool {
-	return tr.Resolution > 0 &&
-		tr.Start%tr.Resolution == 0 &&
-		tr.End%tr.Resolution == 0 &&
-		tr.Start <= tr.End
+// DefaultTimerange is a valid timerange which can be safely used
+func DefaultTimerange() Timerange {
+	return Timerange{start: 0, end: 0, resolution: 30}
+}
+
+// Start() returns the .start field
+func (tr Timerange) Start() int64 {
+	return tr.start
+}
+
+// End() returns the .end field
+func (tr Timerange) End() int64 {
+	return tr.end
+}
+
+// Resolution() returns the .resolution field
+func (tr Timerange) Resolution() int64 {
+	return tr.resolution
+}
+
+// NewTimerange creates a timerange which is validated, providing error otherwise.
+func NewTimerange(start, end, resolution int64) (*Timerange, error) {
+	if resolution <= 0 {
+		return nil, errors.New(fmt.Sprintf("resolution must be more than 0 (resolution=%d)", resolution))
+	}
+	if start%resolution != 0 {
+		return nil, errors.New(fmt.Sprintf("start %% resolution (mod) must be 0 (start=%d, resolution=%d)", start, resolution))
+	}
+	if end%resolution != 0 {
+		return nil, errors.New(fmt.Sprintf("end %% resolution (mod) must be 0 (end=%d, resolution=%d)", end, resolution))
+	}
+	if start > end {
+		return nil, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+	}
+	return &Timerange{start: start, end: end, resolution: resolution}, nil
 }
 
 func snap(n, boundary int64) int64 {
@@ -175,18 +206,18 @@ func snap(n, boundary int64) int64 {
 // Round() will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Snap() Timerange {
 
-	if tr.Resolution == 0 {
+	if tr.resolution == 0 {
 		return tr
 	}
-	tr.Start = snap(tr.Start, tr.Resolution)
-	tr.End = snap(tr.End, tr.Resolution)
+	tr.start = snap(tr.start, tr.resolution)
+	tr.end = snap(tr.end, tr.resolution)
 	return tr
 }
 
 // Later() returns a timerange which is forward in time by the amount given
 func (tr Timerange) Shift(time int64) Timerange {
-	tr.Start += time
-	tr.End += time
+	tr.start += time
+	tr.end += time
 	return tr.Snap()
 }
 
@@ -194,7 +225,7 @@ func (tr Timerange) Shift(time int64) Timerange {
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
 func (tr Timerange) Slots() int {
-	return int((tr.End-tr.Start)/tr.Resolution) + 1
+	return int((tr.end-tr.start)/tr.resolution) + 1
 }
 
 // Timeseries is a single time series, identified with the associated tagset.
@@ -224,11 +255,7 @@ type SeriesList struct {
 }
 
 // IsValid determines whether the given time series is valid.
-func (list SeriesList) IsValid() bool {
-	if !list.Timerange.IsValid() {
-		// timerange must be valid.
-		return false
-	}
+func (list SeriesList) isValid() bool {
 	for _, series := range list.Series {
 		// # of slots per series must be valid.
 		if len(series.Values) != list.Timerange.Slots() {

@@ -16,9 +16,10 @@
 package query
 
 import (
+	"testing"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/assert"
-	"testing"
 )
 
 type fakeApiBackend struct {

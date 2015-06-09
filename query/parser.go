@@ -99,6 +99,7 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
+// parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string) (int64, error) {
 	intValue, err := strconv.ParseInt(date, 10, 64)
 	if err == nil {
@@ -108,7 +109,7 @@ func parseDate(date string) (int64, error) {
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {
-			return t.Unix(), nil
+			return t.Unix()*1000 + int64(t.Nanosecond()/1000000), nil
 		}
 		errorMessage += "\nfailed: " + err.Error()
 	}
@@ -282,11 +283,7 @@ func (p *Parser) addPropertyValue(value string) {
 
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
-		api.Timerange{
-			Start:      0,
-			End:        0,
-			Resolution: 30,
-		},
+		0, 0, 30,
 		api.SampleMean,
 		make(map[string]bool),
 	})
@@ -351,9 +348,9 @@ func (p *Parser) insertPropertyKeyValue() {
 			})
 		}
 		if key == "from" {
-			contextNode.Timerange.Start = unix
+			contextNode.Start = unix
 		} else {
-			contextNode.Timerange.End = unix
+			contextNode.End = unix
 		}
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
@@ -364,7 +361,7 @@ func (p *Parser) insertPropertyKeyValue() {
 				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
 			})
 		}
-		contextNode.Timerange.Resolution = intValue
+		contextNode.Resolution = intValue
 	default:
 		p.flagSyntaxError(SyntaxError{
 			token:   key,

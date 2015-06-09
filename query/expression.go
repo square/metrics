@@ -87,9 +87,6 @@ func (value stringValue) toScalar() (float64, error) {
 type scalarValue float64
 
 func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	if !timerange.IsValid() {
-		return api.SeriesList{}, errors.New("Invalid context.Timerange")
-	}
 
 	series := make([]float64, timerange.Slots())
 	for i := range series {
@@ -111,9 +108,9 @@ func (value scalarValue) toScalar() (float64, error) {
 }
 
 // toDuration will take a value, convert it to a string, and then parse it.
-// It produces a nanosecond count as a signed int64.
-// the valid ns, us (µs), ms, s, m, h
-func toDuration(value value) (time.Duration, error) {
+// the valid suffixes are: ns, us (µs), ms, s, m, h
+// It converts the return value to milliseconds.
+func toDuration(value value) (int64, error) {
 	timeString, err := value.toString()
 	if err != nil {
 		return 0, err
@@ -122,7 +119,7 @@ func toDuration(value value) (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	return duration, nil
+	return int64(duration / 1000000), nil
 }
 
 // Expression is a piece of code, which can be evaluated in a given

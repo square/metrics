@@ -69,7 +69,7 @@ func Test_groupBy(t *testing.T) {
 					},
 				},
 			},
-			Timerange: api.Timerange{},
+			Timerange: api.DefaultTimerange(),
 			Name:      "",
 		}
 	)
@@ -219,6 +219,13 @@ func Test_applyAggregation(t *testing.T) {
 }
 
 func Test_AggregateBy(t *testing.T) {
+
+	timerange, err := api.NewTimerange(42, 270, 6)
+	if err != nil {
+		t.Fatalf("Timerange for test is invalid")
+		return
+	}
+
 	var testList = api.SeriesList{
 		[]api.Timeseries{
 			api.Timeseries{
@@ -270,11 +277,7 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
-		api.Timerange{
-			40,
-			280,
-			6,
-		},
+		*timerange,
 		"Test.List",
 	}
 

@@ -15,8 +15,9 @@
 package query
 
 import (
-	"github.com/square/metrics/assert"
 	"testing"
+
+	"github.com/square/metrics/assert"
 )
 
 func TestUnescapeLiteral(t *testing.T) {

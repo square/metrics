@@ -140,9 +140,9 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	}
 
 	params := url.Values{}
-	params.Set("from", strconv.FormatInt(timerange.Start*1000, 10))
-	params.Set("to", strconv.FormatInt(timerange.End*1000, 10))
-	params.Set("resolution", bluefloodResolution(timerange.Resolution))
+	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
+	params.Set("to", strconv.FormatInt(timerange.End(), 10))
+	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
 
 	queryUrl.RawQuery = params.Encode()
@@ -184,15 +184,15 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 // between them.
 func bluefloodResolution(r int64) string {
 	switch {
-	case r < 5*60:
+	case r < 5*60*1000:
 		return ResolutionFull
-	case r < 20*60:
+	case r < 20*60*1000:
 		return Resolution5Min
-	case r < 60*60:
+	case r < 60*60*1000:
 		return Resolution20Min
-	case r < 240*60:
+	case r < 240*60*1000:
 		return Resolution60Min
-	case r < 1440*60:
+	case r < 1440*60*1000:
 		return Resolution240Min
 	}
 	return Resolution1440Min

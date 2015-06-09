@@ -19,10 +19,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
-	"os"
 )
 
 var (
@@ -53,7 +54,7 @@ func main() {
 
 		n, ok := cmd.(query.Node)
 		if !ok {
-			fmt.Println("error: %+v doesn't implement Node", cmd)
+			fmt.Println(fmt.Sprintf("error: %+v doesn't implement Node", cmd))
 			continue
 		}
 		fmt.Println(query.PrintNode(n))
