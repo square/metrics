@@ -31,12 +31,10 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	// Backend to fetch data from
-	Backend api.Backend
-	// Timerange to fetch data from
-	Timerange api.Timerange
-	// SampleMethod to use when up/downsampling to match the requested resolution
-	SampleMethod api.SampleMethod
+	Backend      api.Backend      // Backend to fetch data from
+	API          api.API          // Api to obtain metadata from
+	Timerange    api.Timerange    // Timerange to fetch data from
+	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate    api.Predicate
 }
 
@@ -161,7 +159,10 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	series, err := context.Backend.FetchSeries(api.TaggedMetric{api.MetricKey(expr.metricName), nil}, predicate, context.SampleMethod, context.Timerange)
+	series, err := context.Backend.FetchSeries(api.FetchSeriesRequest{
+		api.TaggedMetric{api.MetricKey(expr.metricName), nil}, predicate, context.SampleMethod, context.Timerange,
+		context.API,
+	})
 	if err != nil {
 		return seriesListValue{}, err
 	}

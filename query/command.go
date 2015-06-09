@@ -24,7 +24,7 @@ import (
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(b api.Backend) (interface{}, error)
+	Execute(api.Backend, api.API) (interface{}, error)
 }
 
 // DescribeCommand describes the tag set managed by the given metric indexer.
@@ -46,8 +46,8 @@ type SelectCommand struct {
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(b api.Backend) (interface{}, error) {
-	tags, _ := b.Api().GetAllTags(cmd.metricName)
+func (cmd *DescribeCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
+	tags, _ := a.GetAllTags(cmd.metricName)
 	output := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		if cmd.predicate.Apply(tag) {
@@ -59,8 +59,8 @@ func (cmd *DescribeCommand) Execute(b api.Backend) (interface{}, error) {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
-	result, err := b.Api().GetAllMetrics()
+func (cmd *DescribeAllCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
+	result, err := a.GetAllMetrics()
 	if err == nil {
 		sort.Sort(api.MetricKeys(result))
 	}
@@ -68,7 +68,7 @@ func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(b api.Backend) (interface{}, error) {
+func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
 	timerange, err := api.NewTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return nil, err

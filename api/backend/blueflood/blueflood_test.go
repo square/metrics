@@ -106,10 +106,13 @@ func Test_Blueflood(t *testing.T) {
 		fakeHttpClient := mocks.NewFakeHttpClient()
 		fakeHttpClient.SetResponse(test.queryUrl, test.queryResponse)
 
-		b := NewBlueflood(fakeApi, test.baseUrl, test.tenantId)
+		b := NewBlueflood(test.baseUrl, test.tenantId)
 		b.client = fakeHttpClient
 
-		seriesList, err := b.FetchSeries(test.queryMetric, test.predicate, test.sampleMethod, test.timerange)
+		seriesList, err := b.FetchSeries(api.FetchSeriesRequest{
+			test.queryMetric, test.predicate, test.sampleMethod, test.timerange,
+			fakeApi,
+		})
 		if err != nil {
 			a.CheckError(err)
 			continue

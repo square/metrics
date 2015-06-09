@@ -27,7 +27,7 @@ func (b FakeBackend) Api() api.API {
 	return nil
 }
 
-func (b FakeBackend) FetchSeries(metric api.TaggedMetric, tagConstraints api.Predicate, sampleMethod api.SampleMethod, timerange api.Timerange) (*api.SeriesList, error) {
+func (b FakeBackend) FetchSeries(api.FetchSeriesRequest) (*api.SeriesList, error) {
 	return &api.SeriesList{}, nil
 }
 
@@ -100,7 +100,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{FakeBackend{}, api.DefaultTimerange(), api.SampleMean, nil}
+	emptyContext := EvaluationContext{FakeBackend{}, nil, api.DefaultTimerange(), api.SampleMean, nil}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string

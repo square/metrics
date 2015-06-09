@@ -41,7 +41,7 @@ func main() {
 	}
 
 	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(apiInstance, *BluefloodUrl, *BluefloodTenantId)
+	backend := blueflood.NewBlueflood(*BluefloodUrl, *BluefloodTenantId)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -59,7 +59,7 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(backend)
+		result, err := cmd.Execute(backend, apiInstance)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

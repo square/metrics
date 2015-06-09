@@ -15,10 +15,17 @@
 package api
 
 // Backend describes how to fetch time-series data from a given backend.
+type FetchSeriesRequest struct {
+	Metric       TaggedMetric
+	Predicate    Predicate
+	SampleMethod SampleMethod
+	Timerange    Timerange
+	Api          API
+}
+
 type Backend interface {
-	Api() API
 	// FetchSeries fetches the series described by the provided TaggedMetric
 	// corresponding to the Timerange, down/upsampling if necessary using
 	// SampleMethod
-	FetchSeries(metric TaggedMetric, predicate Predicate, sampleMethod SampleMethod, timerange Timerange) (*SeriesList, error)
+	FetchSeries(request FetchSeriesRequest) (*SeriesList, error)
 }
