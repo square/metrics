@@ -5,6 +5,7 @@ package api
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"regexp"
 	"sort"
 )
@@ -172,8 +173,17 @@ func (tr Timerange) Resolution() int64 {
 
 // NewTimerange creates a timerange which is validated, providing error otherwise.
 func NewTimerange(start, end, resolution int64) (*Timerange, error) {
-	if resolution == 0 || start%resolution != 0 || end%resolution != 0 || start > end {
-		return nil, errors.New("invalid timernage")
+	if resolution <= 0 {
+		return nil, errors.New(fmt.Sprintf("resolution must be more than 0 (resolution=%d)", resolution))
+	}
+	if start%resolution != 0 {
+		return nil, errors.New(fmt.Sprintf("start % resolution must be 0 (start=%d, resolution=%d)", start, resolution))
+	}
+	if end%resolution != 0 {
+		return nil, errors.new(fmt.Sprintf("end % resolution must be 0 (end=%d, resolution=%d)", end, resolution))
+	}
+	if start > end {
+		return nil, errors.new(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
 	}
 	return &Timerange{start: start, end: end, resolution: resolution}, nil
 }
