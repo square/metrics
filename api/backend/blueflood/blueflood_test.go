@@ -23,7 +23,7 @@ import (
 )
 
 func Test_Blueflood(t *testing.T) {
-	timerange, err := api.NewTimerange(100, 105, 5)
+	timerange, err := api.NewTimerange(1000, 6000, 5)
 	if err != nil {
 		t.Fatalf("invalid testcase timerange")
 		return
