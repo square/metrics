@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -168,16 +169,32 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	}
 
 	// Construct a Timeseries from the result
-	series := make([]float64, len(result.Values))
-	for i, metricPoint := range result.Values {
-		series[i] = reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
+
+	values := make([]float64, timerange.Slots())
+	// The array is initialized to NaN.
+	for i := range values {
+		values[i] = math.NaN()
 	}
 
-	log.Printf("Constructed timeseries from result: %v", series)
+	for _, metricPoint := range result.Values {
+		// TODO: check the result of .FieldByName against nil (or a panic will occur)
+		value := reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
+		// TODO: check the result of .FieldByName against nil (or a panic will occur)
+		timestamp := reflect.ValueOf(metricPoint).FieldByName("Timestamp").Int()
+		// The index to assign within the array is computed using the timestamp.
+		// It rounds to the nearest index.
+		index := (timestamp - timerange.Start() + timerange.Resolution()/2) / timerange.Resolution()
+		if index >= 0 && index < int64(timerange.Slots()) {
+			values[index] = value
+		}
+		// TODO: error otherwise?
+	}
+
+	log.Printf("Constructed timeseries from result: %v", values)
 
 	// TODO: Resample to the requested resolution
 
-	return series, nil
+	return values, nil
 }
 
 // Blueflood keys the resolution param to a java enum, so we have to convert

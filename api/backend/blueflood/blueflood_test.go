@@ -23,7 +23,7 @@ import (
 )
 
 func Test_Blueflood(t *testing.T) {
-	timerange, err := api.NewTimerange(1000, 6000, 5)
+	timerange, err := api.NewTimerange(12000, 13000, 1000)
 	if err != nil {
 		t.Fatalf("invalid testcase timerange")
 		return
@@ -60,18 +60,18 @@ func Test_Blueflood(t *testing.T) {
 			timerange:    *timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
-			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=1000&resolution=FULL&select=numPoints%2Caverage&to=6000",
+			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=13000",
 			queryResponse: `{
         "unit": "unknown", 
         "values": [
           {
             "numPoints": 1,
-            "timestamp": 1000,
+            "timestamp": 12000,
             "average": 5
           },
           {
             "numPoints": 1,
-            "timestamp": 6000,
+            "timestamp": 13000,
             "average": 3
           }
         ],
