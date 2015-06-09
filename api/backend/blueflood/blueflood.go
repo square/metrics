@@ -35,7 +35,6 @@ type httpClient interface {
 }
 
 type Blueflood struct {
-	api      api.API
 	baseUrl  string
 	tenantId string
 	client   httpClient
@@ -63,16 +62,16 @@ const (
 	Resolution1440Min = "MIN1440"
 )
 
-func NewBlueflood(api api.API, baseUrl string, tenantId string) *Blueflood {
-	return &Blueflood{api: api, baseUrl: baseUrl, tenantId: tenantId, client: http.DefaultClient}
+func NewBlueflood(baseUrl string, tenantId string) *Blueflood {
+	return &Blueflood{baseUrl: baseUrl, tenantId: tenantId, client: http.DefaultClient}
 }
 
-func (b *Blueflood) Api() api.API {
-	return b.api
-}
-
-func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate, sampleMethod api.SampleMethod, timerange api.Timerange) (*api.SeriesList, error) {
-	metricTagSets, err := b.Api().GetAllTags(metric.MetricKey)
+func (b *Blueflood) FetchSeries(request api.FetchSeriesRequest) (*api.SeriesList, error) {
+	metric := request.Metric
+	predicate := request.Predicate
+	sampleMethod := request.SampleMethod
+	timerange := request.Timerange
+	metricTagSets, err := request.Api.GetAllTags(metric.MetricKey)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	resultSeries := []api.Timeseries{}
 	for _, ts := range metricTagSets {
 		if predicate == nil || predicate.Apply(ts) {
-			graphiteName, err := b.Api().ToGraphiteName(api.TaggedMetric{
+			graphiteName, err := request.Api.ToGraphiteName(api.TaggedMetric{
 				MetricKey: metric.MetricKey,
 				TagSet:    ts,
 			})

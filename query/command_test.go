@@ -38,15 +38,9 @@ func (f simpleFakeApi) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error)
 	}, nil
 }
 
-func (f fakeApiBackend) Api() api.API {
-	return simpleFakeApi{}
-}
-
-func (f fakeApiBackend) FetchSeries(
-	metric api.TaggedMetric,
-	predicate api.Predicate,
-	sampleMethod api.SampleMethod,
-	timerange api.Timerange) (*api.SeriesList, error) {
+func (f fakeApiBackend) FetchSeries(request api.FetchSeriesRequest) (*api.SeriesList, error) {
+	metric := request.Metric
+	timerange := request.Timerange
 	if metric.MetricKey == "error_series" {
 		return nil, errors.New("backend error")
 	} else if metric.MetricKey == "series_1" {
@@ -99,7 +93,7 @@ func TestCommand_Describe(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*DescribeCommand)
-		rawResult, _ := command.Execute(test.backend)
+		rawResult, _ := command.Execute(test.backend, simpleFakeApi{})
 		parsedResult := rawResult.([]string)
 		a.EqInt(len(parsedResult), test.length)
 	}
@@ -159,7 +153,7 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(fakeBackend)
+		rawResult, err := command.Execute(fakeBackend, simpleFakeApi{})
 		if err != nil {
 			if !test.expectError {
 				a.Errorf("Unexpected error while executing: %s", err.Error())
