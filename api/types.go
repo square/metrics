@@ -180,10 +180,10 @@ func NewTimerange(start, end, resolution int64) (*Timerange, error) {
 		return nil, errors.New(fmt.Sprintf("start % resolution must be 0 (start=%d, resolution=%d)", start, resolution))
 	}
 	if end%resolution != 0 {
-		return nil, errors.new(fmt.Sprintf("end % resolution must be 0 (end=%d, resolution=%d)", end, resolution))
+		return nil, errors.New(fmt.Sprintf("end % resolution must be 0 (end=%d, resolution=%d)", end, resolution))
 	}
 	if start > end {
-		return nil, errors.new(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+		return nil, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, endg))
 	}
 	return &Timerange{start: start, end: end, resolution: resolution}, nil
 }
