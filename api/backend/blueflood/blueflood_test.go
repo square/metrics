@@ -15,7 +15,6 @@
 package blueflood
 
 import (
-	"math"
 	"testing"
 
 	"github.com/square/metrics/api"
@@ -147,24 +146,27 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 			Timestamp: 4700,
 			Average:   5,
 		},
+		{
+			Timestamp: 4749,
+			Average:   6,
+		},
 	}
-	expected := []float64{math.NaN(), 1, 2, math.NaN(), 3, 4, math.NaN(), 5, math.NaN()}
-	result := seriesFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, *timerange)
+	expected := [][]float64{{}, {1}, {2}, {}, {3}, {4}, {}, {5, 6}, {}}
+	result := bucketsFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, *timerange)
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %+v but got %+v", expected, result)
 		return
 	}
 	for i, expect := range expected {
-		if math.IsNaN(expect) != math.IsNaN(result[i]) {
-			t.Fatalf("Expected %+v but got %+v", expected, result)
+		if len(result[i]) != len(expect) {
+			t.Fatalf("Exected %+v but got %+v", expected, result)
 			return
 		}
-		if math.IsNaN(expect) {
-			continue
-		}
-		if expect != result[i] {
-			t.Fatalf("Expected %+v but got %+v", expected, result)
-			return
+		for j := range expect {
+			if result[i][j] != expect[j] {
+				t.Fatalf("Expected %+v but got %+v", expected, result)
+				return
+			}
 		}
 	}
 }

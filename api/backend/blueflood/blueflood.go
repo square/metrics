@@ -115,7 +115,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	}, nil
 }
 
-func assignMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, values []float64) error {
+func addMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, buckets [][]float64) error {
 	// TODO: check the result of .FieldByName against nil (or a panic will occur)
 	value := field(metricPoint)
 	// TODO: check the result of .FieldByName against nil (or a panic will occur)
@@ -126,20 +126,20 @@ func assignMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64,
 	if index < 0 || index >= int64(timerange.Slots()) {
 		return errors.New("index out of range")
 	}
-	values[index] = value
+	buckets[index] = append(buckets[index], value)
 	return nil
 }
 
-func seriesFromMetricPoints(metricPoints []MetricPoint, resultField func(MetricPoint) float64, timerange api.Timerange) []float64 {
-	values := make([]float64, timerange.Slots())
-	// Initialize it to NaN:
-	for i := range values {
-		values[i] = math.NaN()
+func bucketsFromMetricPoints(metricPoints []MetricPoint, resultField func(MetricPoint) float64, timerange api.Timerange) [][]float64 {
+	buckets := make([][]float64, timerange.Slots())
+	// Make the buckets:
+	for i := range buckets {
+		buckets[i] = []float64{}
 	}
 	for _, point := range metricPoints {
-		assignMetricPoint(point, resultField, timerange, values)
+		addMetricPoint(point, resultField, timerange, buckets)
 	}
-	return values
+	return buckets
 }
 
 func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
@@ -202,7 +202,28 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 
 	// Construct a Timeseries from the result
 
-	values := seriesFromMetricPoints(result.Values, selectResultField, timerange)
+	buckets := bucketsFromMetricPoints(result.Values, selectResultField, timerange)
+
+	values := make([]float64, timerange.Slots())
+
+	for i, bucket := range buckets {
+		if len(bucket) == 0 {
+			values[i] = math.NaN()
+			continue
+		}
+		switch sampleMethod {
+		case api.SampleMean:
+			value := 0.0
+			for _, v := range bucket {
+				value += v
+			}
+			values[i] = value / float64(len(bucket))
+		default:
+			return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
+		}
+		values[i] = bucket[0]
+	}
+
 	log.Printf("Constructed timeseries from result: %v", values)
 
 	// TODO: Resample to the requested resolution
