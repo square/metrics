@@ -39,12 +39,6 @@ func transformTimeseries(series api.Timeseries, transform transform, parameters 
 	}, nil
 }
 
-// timerangeScale takes an api.Timerange and computes the "scale" or duration of one sample (in seconds).
-// It is useful for transformations that normalize on time (like derivative or integral).
-func timerangeScale(timerange api.Timerange) float64 {
-	return float64(timerange.Resolution()) / 1000.0
-}
-
 // applyTransform applies the given transform to the entire list of series.
 func ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error) {
 	result := api.SeriesList{
@@ -54,7 +48,7 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 	}
 	var err error
 	for i, series := range list.Series {
-		result.Series[i], err = transformTimeseries(series, transform, parameters, timerangeScale(list.Timerange))
+		result.Series[i], err = transformTimeseries(series, transform, parameters, float64(list.Timerange.Resolution()))
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -89,7 +83,7 @@ func transformDerivative(values []float64, parameters []value, scale float64) ([
 	return result, nil
 }
 
-// transformIntegral integrates a series whose values are "X per second" to estimate "total X so far"
+// transformIntegral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
 func transformIntegral(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.integral", 0, parameters); err != nil {
@@ -140,7 +134,7 @@ func transformCumulative(values []float64, parameters []value, scale float64) ([
 
 // transformMovingAverage finds the average over the time period given in the parameters[0] value,
 // which is the second argument in the transform (the first being the serieslist itself). This value
-// must be numeric (not a series). It is currently assumed to be seconds.
+// must be numeric (not a series). It is in units of milliseconds.
 func transformMovingAverage(values []float64, parameters []value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.moving_average", 1, parameters); err != nil {
 		return nil, err

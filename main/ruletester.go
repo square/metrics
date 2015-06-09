@@ -22,12 +22,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/square/metrics/api"
-	"github.com/square/metrics/internal"
-	"github.com/square/metrics/main/common"
 	"io/ioutil"
 	"os"
 	"sort"
+
+	"github.com/square/metrics/api"
+	"github.com/square/metrics/internal"
+	"github.com/square/metrics/main/common"
 )
 
 var (

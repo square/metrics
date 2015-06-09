@@ -17,9 +17,10 @@ package common
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/internal"
-	"os"
 )
 
 var (

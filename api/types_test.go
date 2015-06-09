@@ -144,29 +144,29 @@ func TestTimerangeLater(t *testing.T) {
 	// Check that when moving forward, when moving backward, etc., time ranges work as expected.
 	ranges := []Timerange{
 		{
-			Start:      400,
-			End:        900,
-			Resolution: 100,
+			start:      400,
+			end:        900,
+			resolution: 100,
 		},
 		{
-			Start:      400,
-			End:        900,
-			Resolution: 1,
+			start:      400,
+			end:        900,
+			resolution: 1,
 		},
 		{
-			Start:      120,
-			End:        150,
-			Resolution: 30,
+			start:      120,
+			end:        150,
+			resolution: 30,
 		},
 		{
-			Start:      400,
-			End:        520,
-			Resolution: 40,
+			start:      400,
+			end:        520,
+			resolution: 40,
 		},
 	}
 	for _, time := range ranges {
 		// A sanity check for the above calculations.
-		if !time.IsValid() {
+		if _, err := NewTimerange(time.start, time.end, time.resolution); err != nil {
 			panic("Invalid timerange used as test case")
 		}
 	}
@@ -197,12 +197,12 @@ func TestTimerangeLater(t *testing.T) {
 	for _, offset := range offsets {
 		for _, time := range ranges {
 			later := time.Shift(offset)
-			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
+			if later.End()-later.Start() != time.End()-time.Start() || later.Resolution() != time.Resolution() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", time, offset, later)
 				continue
 			}
 			later = time.Shift(-offset)
-			if later.End-later.Start != time.End-time.Start || later.Resolution != time.Resolution || !later.IsValid() {
+			if later.End()-later.Start() != time.End()-time.Start() || later.Resolution() != time.Resolution() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", time, -offset, later)
 				continue
 			}

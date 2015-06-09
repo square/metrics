@@ -122,7 +122,7 @@ func toDuration(value value) (int64, error) {
 	// Divide by 1000000 = 1,000,000 = 1 million
 	// to convert from the "nanoseconds" produced by Duration into
 	// the MILLISECONDS used by timeranges
-	return duration / 1000000, nil
+	return int64(duration / 1000000), nil
 }
 
 // Expression is a piece of code, which can be evaluated in a given

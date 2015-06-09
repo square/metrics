@@ -162,12 +162,12 @@ func (tr Timerange) Start() int64 {
 
 // End() returns the .end field
 func (tr Timerange) End() int64 {
-	return tr.start
+	return tr.end
 }
 
 // Resolution() returns the .resolution field
 func (tr Timerange) Resolution() int64 {
-	return tr.start
+	return tr.resolution
 }
 
 // NewTimerange creates a timerange which is validated, providing error otherwise.
@@ -196,18 +196,18 @@ func snap(n, boundary int64) int64 {
 // Round() will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Snap() Timerange {
 
-	if tr.Resolution == 0 {
+	if tr.resolution == 0 {
 		return tr
 	}
-	tr.Start = snap(tr.Start, tr.Resolution)
-	tr.End = snap(tr.End, tr.Resolution)
+	tr.start = snap(tr.start, tr.resolution)
+	tr.end = snap(tr.end, tr.resolution)
 	return tr
 }
 
 // Later() returns a timerange which is forward in time by the amount given
 func (tr Timerange) Shift(time int64) Timerange {
-	tr.Start += time
-	tr.End += time
+	tr.start += time
+	tr.end += time
 	return tr.Snap()
 }
 

@@ -19,10 +19,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
-	"os"
 )
 
 var (

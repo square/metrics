@@ -108,7 +108,9 @@ func parseDate(date string) (int64, error) {
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {
-			return t.Unix(), nil
+			// Multiply the number of seconds by 1000 to convert to milliseconds,
+			// and divide the number of extra nanoseconds by 1 million to convert to milliseconds.
+			return t.Unix()*1000 + int64(t.Nanosecond()/1000000), nil
 		}
 		errorMessage += "\nfailed: " + err.Error()
 	}

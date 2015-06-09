@@ -49,7 +49,7 @@ type LiteralSeriesExpression struct {
 func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(expr.Values)),
-		Timerange: DefaultTimerange(),
+		Timerange: api.DefaultTimerange(),
 	}
 	for i, values := range expr.Values {
 		result.Series[i] = values
