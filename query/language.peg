@@ -47,14 +47,15 @@ type Parser Peg {
 
 root <- (selectStmt / describeStmt) !.
 
-selectStmt <-   "select" __
+selectStmt <- _ "select" __
   expressionList
   optionalPredicateClause
   propertyClause {
     p.makeSelect()
   }
+  _
 
-describeStmt <- "describe" __ (describeAllStmt / describeSingleStmt)
+describeStmt <- _ "describe" __ (describeAllStmt / describeSingleStmt) _
 
 describeAllStmt <- "all" { p.makeDescribeAll() }
 
