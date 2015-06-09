@@ -14,9 +14,7 @@
 
 package query
 
-import (
-	"github.com/square/metrics/api"
-)
+import "github.com/square/metrics/api"
 
 // Command is the final result of the parsing.
 // A command contains all the information to execute the
@@ -63,9 +61,13 @@ func (cmd *DescribeAllCommand) Execute(b api.Backend) (interface{}, error) {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(b api.Backend) (interface{}, error) {
+	timerange, err := api.NewTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
+	if err != nil {
+		return nil, err
+	}
 	return evaluateExpressions(EvaluationContext{
 		Backend:      b,
-		Timerange:    cmd.context.Timerange,
+		Timerange:    timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 	}, cmd.expressions)

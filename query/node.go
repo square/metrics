@@ -132,7 +132,9 @@ type evaluationContextValue struct {
 
 // evaluationContextMap represents a collection of key-value pairs that form the evaluation context.
 type evaluationContextNode struct {
-	Timerange    api.Timerange    // Timerange to fetch data from
+	Start        int64            // Start of data timerange
+	End          int64            // End of data timerange
+	Resolution   int64            // Resolution of data timerange
 	SampleMethod api.SampleMethod // to use when up/downsampling to match requested resolution
 	assigned     map[string]bool  // a map for knowing which elements of the context have been assigned
 }
@@ -261,7 +263,9 @@ func (node *evaluationContextValue) Print(buffer *bytes.Buffer, indent int) {
 
 func (node *evaluationContextNode) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
-	printUnknown(buffer, indent+1, node.Timerange)
+	printUnknown(buffer, indent+1, node.Start)
+	printUnknown(buffer, indent+1, node.End)
+	printUnknown(buffer, indent+1, node.Resolution)
 	printUnknown(buffer, indent+1, node.SampleMethod)
 	printUnknown(buffer, indent+1, node.assigned)
 }
