@@ -220,7 +220,7 @@ func Test_applyAggregation(t *testing.T) {
 
 func Test_AggregateBy(t *testing.T) {
 
-	timerange, err := api.NewTimerange(40, 280, 6)
+	timerange, err := api.NewTimerange(42, 270, 6)
 	if err != nil {
 		t.Fatalf("Timerange for test is invalid")
 		return

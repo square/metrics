@@ -106,7 +106,7 @@ func TestTransformTimeseries(t *testing.T) {
 }
 
 func TestApplyTransform(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758300, 758300+30*5, 30)
+	var testTimerange, err = api.NewTimerange(758400, 758400+30*5, 30)
 	if err != nil {
 		t.Fatalf("invalid timerange used for testcase")
 		return
@@ -214,7 +214,7 @@ func TestApplyTransform(t *testing.T) {
 }
 
 func TestApplyTransformFailure(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758300, 758300+30*5, 30)
+	var testTimerange, err = api.NewTimerange(758400, 758400+30*5, 30)
 	if err != nil {
 		t.Fatalf("invalid timerange used for testcase")
 		return
