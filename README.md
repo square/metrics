@@ -13,13 +13,17 @@ Check out the project to the development directory.
 Project Structure
 -----------------
 ```
-├── api        # list of publically exposed APIs.
-├── assert     # helper functions to make test writing easier.
-├── internal   # internal library - should not be exposed to the users.
-├── main       # entry point.
+├── api                # list of publically exposed APIs.
+│   └── backend
+│       └── blueflood  # implementation of the blueflood backend.
+├── assert             # helper functions to make test writing easier.
+├── internal           # internal library - should not be exposed to the users.
+├── main               # entry point.
 │   └── common
-├── query      # logic around parsing & execution of the queries.
-└── schema     # CQL schema files.
+├── mocks              # helper code to mock HTTP calls.
+├── query              # logic around parsing & execution of the queries.
+│   └── aggregate
+└── schema             # CQL schema files.
 ```
 
 Cassandra
