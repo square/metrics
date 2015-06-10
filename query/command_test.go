@@ -100,6 +100,7 @@ func TestCommand_Describe(t *testing.T) {
 }
 
 func TestCommand_Select(t *testing.T) {
+	epsilon := 1e-10
 	var fakeBackend fakeApiBackend
 	testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
@@ -147,6 +148,7 @@ func TestCommand_Select(t *testing.T) {
 		}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
+		expected := test.expected
 		rawCommand, err := Parse(test.query)
 		if err != nil {
 			a.Errorf("Unexpected error while parsing")
@@ -160,9 +162,21 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			casted := rawResult.([]value)
-			first, _ := casted[0].toSeriesList(api.Timerange{})
-			a.Eq(first.Series[0].Values, test.expected.Series[0].Values)
-			a.Eq(first.Series[0].TagSet, test.expected.Series[0].TagSet)
+			actual, _ := casted[0].toSeriesList(api.Timerange{})
+			a.EqInt(len(actual.Series), len(expected.Series))
+			if len(actual.Series) == len(expected.Series) {
+				for i := 0; i < len(expected.Series); i++ {
+					a.Eq(actual.Series[i].TagSet, expected.Series[i].TagSet)
+					actualLength := len(actual.Series[i].Values)
+					expectedLength := len(actual.Series[i].Values)
+					a.Eq(actualLength, expectedLength)
+					if actualLength == expectedLength {
+						for j := 0; j < actualLength; j++ {
+							a.EqFloat(actual.Series[i].Values[j], expected.Series[i].Values[j], epsilon)
+						}
+					}
+				}
+			}
 		}
 	}
 }
