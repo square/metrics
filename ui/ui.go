@@ -16,7 +16,6 @@ package ui
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -68,13 +67,6 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusBadRequest, err)
 		return
 	}
-
-	n, ok := cmd.(query.Node)
-	if !ok {
-		errorResponse(writer, http.StatusInternalServerError, err)
-		return
-	}
-	fmt.Println(query.PrintNode(n))
 
 	result, err := cmd.Execute(q.Backend, q.API)
 	if err != nil {
