@@ -178,7 +178,7 @@ func TestCommand_Select(t *testing.T) {
 					a.Eq(actualLength, expectedLength)
 					if actualLength == expectedLength {
 						for j := 0; j < actualLength; j++ {
-							a.EqApproximate(actual.Series[i].Values[j], expected.Series[i].Values[j], epsilon)
+							a.EqFloat(actual.Series[i].Values[j], expected.Series[i].Values[j], epsilon)
 						}
 					}
 				}
