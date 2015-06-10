@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -114,17 +114,70 @@ func (b *Blueflood) FetchSeries(request api.FetchSeriesRequest) (*api.SeriesList
 	}, nil
 }
 
+func addMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, buckets [][]float64) bool {
+	value := field(metricPoint)
+	// The index to assign within the array is computed using the timestamp.
+	// It floors to the nearest index.
+	index := (metricPoint.Timestamp - timerange.Start()) / timerange.Resolution()
+	if index < 0 || index >= int64(timerange.Slots()) {
+		return false
+	}
+	buckets[index] = append(buckets[index], value)
+	return true
+}
+
+func bucketsFromMetricPoints(metricPoints []MetricPoint, resultField func(MetricPoint) float64, timerange api.Timerange) [][]float64 {
+	buckets := make([][]float64, timerange.Slots())
+	// Make the buckets:
+	for i := range buckets {
+		buckets[i] = []float64{}
+	}
+	for _, point := range metricPoints {
+		addMetricPoint(point, resultField, timerange, buckets)
+	}
+	return buckets
+}
+
 func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
 	// Use this lowercase of this as the select query param. Use the actual value
 	// to reflect into result MetricPoints to fetch the correct field.
-	var selectResultField string
+	var (
+		fieldExtractor    string
+		selectResultField func(MetricPoint) float64
+		bucketSampler     func([]float64) float64 // bucketSampler describes { bucket []float64 => values[i] float64 }.
+		// It may assume that the bucket it is given is non-empty (so indexing 0 is always valid).
+	)
 	switch sampleMethod {
 	case api.SampleMean:
-		selectResultField = "Average"
+		fieldExtractor = "average"
+		selectResultField = func(point MetricPoint) float64 { return point.Average }
+		bucketSampler = func(bucket []float64) float64 {
+			value := 0.0
+			for _, v := range bucket {
+				value += v
+			}
+			return value / float64(len(bucket))
+		}
 	case api.SampleMin:
-		selectResultField = "Min"
+		fieldExtractor = "min"
+		selectResultField = func(point MetricPoint) float64 { return point.Min }
+		bucketSampler = func(bucket []float64) float64 {
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Min(value, v)
+			}
+			return value
+		}
 	case api.SampleMax:
-		selectResultField = "Max"
+		fieldExtractor = "max"
+		selectResultField = func(point MetricPoint) float64 { return point.Max }
+		bucketSampler = func(bucket []float64) float64 {
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Max(value, v)
+			}
+			return value
+		}
 	default:
 		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 	}
@@ -142,7 +195,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
 	params.Set("to", strconv.FormatInt(timerange.End(), 10))
 	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
-	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(selectResultField)))
+	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(fieldExtractor)))
 
 	queryUrl.RawQuery = params.Encode()
 
@@ -166,17 +219,27 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 		return nil, err
 	}
 
-	// Construct a Timeseries from the result
-	series := make([]float64, len(result.Values))
-	for i, metricPoint := range result.Values {
-		series[i] = reflect.ValueOf(metricPoint).FieldByName(selectResultField).Float()
+	// Construct a Timeseries from the result:
+
+	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
+	buckets := bucketsFromMetricPoints(result.Values, selectResultField, timerange)
+
+	// values will hold the final values to be returned as the series.
+	values := make([]float64, timerange.Slots())
+
+	for i, bucket := range buckets {
+		if len(bucket) == 0 {
+			values[i] = math.NaN()
+			continue
+		}
+		values[i] = bucketSampler(bucket)
 	}
 
-	log.Printf("Constructed timeseries from result: %v", series)
+	log.Printf("Constructed timeseries from result: %v", values)
 
 	// TODO: Resample to the requested resolution
 
-	return series, nil
+	return values, nil
 }
 
 // Blueflood keys the resolution param to a java enum, so we have to convert

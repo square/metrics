@@ -23,7 +23,7 @@ import (
 )
 
 func Test_Blueflood(t *testing.T) {
-	timerange, err := api.NewTimerange(1000, 6000, 5)
+	timerange, err := api.NewTimerange(12000, 13000, 1000)
 	if err != nil {
 		t.Fatalf("invalid testcase timerange")
 		return
@@ -60,18 +60,18 @@ func Test_Blueflood(t *testing.T) {
 			timerange:    *timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
-			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=1000&resolution=FULL&select=numPoints%2Caverage&to=6000",
+			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=13000",
 			queryResponse: `{
         "unit": "unknown", 
         "values": [
           {
             "numPoints": 1,
-            "timestamp": 1000,
+            "timestamp": 12000,
             "average": 5
           },
           {
             "numPoints": 1,
-            "timestamp": 6000,
+            "timestamp": 13000,
             "average": 3
           }
         ],
@@ -119,5 +119,57 @@ func Test_Blueflood(t *testing.T) {
 		}
 
 		a.Eq(seriesList, &test.expectedSeriesList)
+	}
+}
+
+func TestSeriesFromMetricPoints(t *testing.T) {
+	timerange, err := api.NewTimerange(4000, 4800, 100)
+	if err != nil {
+		t.Fatalf("testcase timerange is invalid")
+		return
+	}
+	points := []MetricPoint{
+		{
+			Timestamp: 4100,
+			Average:   1,
+		},
+		{
+			Timestamp: 4299, // Test flooring behavior
+			Average:   2,
+		},
+		{
+			Timestamp: 4403, // Test flooring behavior
+			Average:   3,
+		},
+		{
+			Timestamp: 4500,
+			Average:   4,
+		},
+		{
+			Timestamp: 4700,
+			Average:   5,
+		},
+		{
+			Timestamp: 4749,
+			Average:   6,
+		},
+	}
+	expected := [][]float64{{}, {1}, {2}, {}, {3}, {4}, {}, {5, 6}, {}}
+	result := bucketsFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, *timerange)
+	if len(result) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, result)
+		return
+	}
+	for i, expect := range expected {
+		if len(result[i]) != len(expect) {
+			t.Fatalf("Exected %+v but got %+v", expected, result)
+			return
+		}
+		for j := range expect {
+			if result[i][j] != expect[j] {
+				t.Fatalf("Expected %+v but got %+v", expected, result)
+				return
+			}
+		}
 	}
 }
