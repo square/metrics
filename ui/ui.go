@@ -15,20 +15,85 @@
 package ui
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/square/"
+	"github.com/square/metrics/api"
+	"github.com/square/metrics/query"
 )
 
-func queryHandler(writer http.ResponseWriter, request *http.Request) {
-	writer.Write([]byte("Hello, world!"))
+type QueryHandler struct {
+	API     api.API
+	Backend api.Backend
+}
+
+type Response struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message,omitempty"`
+	Body    interface{} `json:"body,omitempty"`
+}
+
+func errorResponse(writer http.ResponseWriter, code int, err error) {
+	writer.WriteHeader(code)
+	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
+	if err != nil {
+		writer.Write([]byte("{success:false, message:'failed to encode error message'}"))
+		return
+	}
+	writer.Write(encoded)
+}
+
+func bodyResponse(writer http.ResponseWriter, body interface{}) {
+	encoded, err := json.MarshalIndent(Response{Success: true, Body: body}, "", "  ")
+	if err != nil {
+		writer.Write([]byte("{success:false, message:'failed to encode result message'"))
+		return
+	}
+	writer.Write(encoded)
+}
+
+func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	err := request.ParseForm()
+	if err != nil {
+		errorResponse(writer, http.StatusBadRequest, err)
+		return
+	}
+	input := request.Form.Get("query")
+
+	cmd, err := query.Parse(input)
+	if err != nil {
+		errorResponse(writer, http.StatusBadRequest, err)
+		return
+	}
+
+	n, ok := cmd.(query.Node)
+	if !ok {
+		errorResponse(writer, http.StatusInternalServerError, err)
+		return
+	}
+	fmt.Println(query.PrintNode(n))
+
+	result, err := cmd.Execute(q.Backend, q.API)
+	if err != nil {
+		errorResponse(writer, http.StatusInternalServerError, err)
+		return
+	}
+	bodyResponse(writer, result)
+
 }
 
 func Main(apiInstance api.API, backend api.Backend) {
+
+	handler := QueryHandler{
+		API:     apiInstance,
+		Backend: backend,
+	}
+
 	httpMux := http.NewServeMux()
-	httpMux.HandleFunc("/query", queryHandler)
+	httpMux.Handle("/query", handler)
 
 	server := &http.Server{
 		Addr:           ":8080",

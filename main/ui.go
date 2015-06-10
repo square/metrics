@@ -15,13 +15,17 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/ui"
 )
 
 func main() {
+	flag.Parse()
+
 	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(*BluefloodUrl, *BluefloodTenantId)
+	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
 	ui.Main(apiInstance, backend)
 }

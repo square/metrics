@@ -26,22 +26,17 @@ import (
 	"github.com/square/metrics/query"
 )
 
-var (
-	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
-	BluefloodTenantId = flag.String("blueflood-tenant-id", "", "Blueflood tenant id")
-)
-
 func main() {
 	flag.Parse()
-	if *BluefloodUrl == "" {
+	if *common.BluefloodUrl == "" {
 		common.ExitWithRequired("blueflood-url")
 	}
-	if *BluefloodTenantId == "" {
+	if *common.BluefloodTenantId == "" {
 		common.ExitWithRequired("blueflood-tenant-id")
 	}
 
 	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(*BluefloodUrl, *BluefloodTenantId)
+	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {

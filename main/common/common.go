@@ -25,8 +25,10 @@ import (
 
 var (
 	// YamlFile is the location of the rule YAML file.
-	YamlFile      = flag.String("yaml-file", "", "Location of YAML configuration file.")
-	CassandraHost = flag.String("cassandra-host", "localhost", "Cassandra host")
+	YamlFile          = flag.String("yaml-file", "", "Location of YAML configuration file.")
+	CassandraHost     = flag.String("cassandra-host", "localhost", "Cassandra host")
+	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
+	BluefloodTenantId = flag.String("blueflood-tenant-id", "", "Blueflood tenant id")
 )
 
 // ExitWithRequired terminates the program when a required flag is missing.
