@@ -15,8 +15,9 @@
 package query
 
 import (
-	"github.com/square/metrics/api"
 	"sort"
+
+	"github.com/square/metrics/api"
 )
 
 // Command is the final result of the parsing.
