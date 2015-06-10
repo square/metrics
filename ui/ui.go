@@ -34,6 +34,7 @@ type QueryHandler struct {
 
 type Response struct {
 	Success bool        `json:"success"`
+	Name    string      `json:"name,omitempty"`
 	Message string      `json:"message,omitempty"`
 	Body    interface{} `json:"body,omitempty"`
 }
@@ -48,8 +49,8 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.Write(encoded)
 }
 
-func bodyResponse(writer http.ResponseWriter, body interface{}) {
-	encoded, err := json.MarshalIndent(Response{Success: true, Body: body}, "", "  ")
+func bodyResponse(writer http.ResponseWriter, body interface{}, name string) {
+	encoded, err := json.MarshalIndent(Response{Success: true, Name: name, Body: body}, "", "  ")
 	if err != nil {
 		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode result message'"))
 		return
@@ -76,7 +77,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
-	bodyResponse(writer, result)
+	bodyResponse(writer, result, cmd.Name())
 }
 
 type StaticHandler struct {
