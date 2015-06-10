@@ -218,6 +218,18 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 				value += v
 			}
 			values[i] = value / float64(len(bucket))
+		case api.SampleMin:
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Min(value, v)
+			}
+			values[i] = value
+		case api.SampleMax:
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Max(value, v)
+			}
+			values[i] = value
 		default:
 			return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 		}
