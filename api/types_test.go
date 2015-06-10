@@ -15,6 +15,8 @@
 package api
 
 import (
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/square/metrics/assert"
@@ -104,6 +106,33 @@ func TestTagSet_ParseTagSet(t *testing.T) {
 	a.EqString(ParseTagSet("a=1,b=2").Serialize(), "a=1,b=2")
 	a.EqString(ParseTagSet("a\\,b=1").Serialize(), "a\\,b=1")
 	a.EqString(ParseTagSet("a\\=b=1").Serialize(), "a\\=b=1")
+}
+
+func TestTimeseries_MarshalJSON(t *testing.T) {
+	for _, suite := range []struct {
+		input    Timeseries
+		expected string
+	}{
+		{
+			Timeseries{
+				TagSet: ParseTagSet("foo=bar"),
+				Values: []float64{0, 1, -1, math.NaN()},
+			},
+			`{"tagset":{"foo":"bar"},"values":[0,1,-1,null]}`,
+		},
+		{
+			Timeseries{
+				TagSet: NewTagSet(),
+				Values: []float64{0, 1, -1, math.NaN()},
+			},
+			`{"tagset":{},"values":[0,1,-1,null]}`,
+		},
+	} {
+		a := assert.New(t).Contextf("expected=%s", suite.expected)
+		encoded, err := json.Marshal(suite.input)
+		a.CheckError(err)
+		a.Eq(string(encoded), suite.expected)
+	}
 }
 
 func TestTimerange(t *testing.T) {
