@@ -115,16 +115,16 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 	}, nil
 }
 
-func addMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, buckets [][]float64) error {
+func addMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, buckets [][]float64) bool {
 	value := field(metricPoint)
 	// The index to assign within the array is computed using the timestamp.
 	// It floors to the nearest index.
 	index := (metricPoint.Timestamp - timerange.Start()) / timerange.Resolution()
 	if index < 0 || index >= int64(timerange.Slots()) {
-		return errors.New("index out of range")
+		return false
 	}
 	buckets[index] = append(buckets[index], value)
-	return nil
+	return true
 }
 
 func bucketsFromMetricPoints(metricPoints []MetricPoint, resultField func(MetricPoint) float64, timerange api.Timerange) [][]float64 {
