@@ -60,7 +60,7 @@ func Test_Blueflood(t *testing.T) {
 			timerange:    *timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
-			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=13000",
+			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=14000",
 			queryResponse: `{
         "unit": "unknown", 
         "values": [
