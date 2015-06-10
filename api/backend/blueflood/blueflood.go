@@ -139,47 +139,53 @@ func bucketsFromMetricPoints(metricPoints []MetricPoint, resultField func(Metric
 	return buckets
 }
 
-func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
-	// Use this lowercase of this as the select query param. Use the actual value
-	// to reflect into result MetricPoints to fetch the correct field.
-	var (
-		fieldExtractor    string
-		selectResultField func(MetricPoint) float64
-		bucketSampler     func([]float64) float64 // bucketSampler describes { bucket []float64 => values[i] float64 }.
-		// It may assume that the bucket it is given is non-empty (so indexing 0 is always valid).
-	)
-	switch sampleMethod {
-	case api.SampleMean:
-		fieldExtractor = "average"
-		selectResultField = func(point MetricPoint) float64 { return point.Average }
-		bucketSampler = func(bucket []float64) float64 {
+var samplerMap map[api.SampleMethod]struct {
+	fieldName     string
+	fieldSelector func(point MetricPoint) float64
+	bucketSampler func([]float64) float64
+} = map[api.SampleMethod]struct {
+	fieldName     string
+	fieldSelector func(point MetricPoint) float64
+	bucketSampler func([]float64) float64
+}{
+	api.SampleMean: {
+		fieldName:     "average",
+		fieldSelector: func(point MetricPoint) float64 { return point.Average },
+		bucketSampler: func(bucket []float64) float64 {
 			value := 0.0
 			for _, v := range bucket {
 				value += v
 			}
 			return value / float64(len(bucket))
-		}
-	case api.SampleMin:
-		fieldExtractor = "min"
-		selectResultField = func(point MetricPoint) float64 { return point.Min }
-		bucketSampler = func(bucket []float64) float64 {
+		},
+	},
+	api.SampleMin: {
+		fieldName:     "min",
+		fieldSelector: func(point MetricPoint) float64 { return point.Min },
+		bucketSampler: func(bucket []float64) float64 {
 			value := bucket[0]
 			for _, v := range bucket {
 				value = math.Min(value, v)
 			}
 			return value
-		}
-	case api.SampleMax:
-		fieldExtractor = "max"
-		selectResultField = func(point MetricPoint) float64 { return point.Max }
-		bucketSampler = func(bucket []float64) float64 {
+		},
+	},
+	api.SampleMax: {
+		fieldName:     "max",
+		fieldSelector: func(point MetricPoint) float64 { return point.Max },
+		bucketSampler: func(bucket []float64) float64 {
 			value := bucket[0]
 			for _, v := range bucket {
 				value = math.Max(value, v)
 			}
 			return value
-		}
-	default:
+		},
+	},
+}
+
+func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
+	sampler, ok := samplerMap[sampleMethod]
+	if !ok {
 		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 	}
 
@@ -198,7 +204,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	// have enough data to generate all snapped values
 	params.Set("to", strconv.FormatInt(timerange.End()+timerange.Resolution(), 10))
 	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
-	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(fieldExtractor)))
+	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
 
 	queryUrl.RawQuery = params.Encode()
 
@@ -225,7 +231,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	// Construct a Timeseries from the result:
 
 	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
-	buckets := bucketsFromMetricPoints(result.Values, selectResultField, timerange)
+	buckets := bucketsFromMetricPoints(result.Values, sampler.fieldSelector, timerange)
 
 	// values will hold the final values to be returned as the series.
 	values := make([]float64, timerange.Slots())
@@ -235,7 +241,7 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 			values[i] = math.NaN()
 			continue
 		}
-		values[i] = bucketSampler(bucket)
+		values[i] = sampler.bucketSampler(bucket)
 	}
 
 	log.Printf("Constructed timeseries from result: %v", values)
