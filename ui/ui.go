@@ -16,8 +16,11 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -76,6 +79,16 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	bodyResponse(writer, result)
 }
 
+type StaticHandler struct {
+	Directory string
+}
+
+func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	res := h.Directory + request.URL.Path
+	fmt.Printf("res = %s\n", res)
+	http.ServeFile(writer, request, res)
+}
+
 func Main(apiInstance api.API, backend api.Backend) {
 	handler := QueryHandler{
 		API:     apiInstance,
@@ -84,6 +97,12 @@ func Main(apiInstance api.API, backend api.Backend) {
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
+	here, err := filepath.Abs("")
+	if err != nil {
+		fmt.Printf("ERROR [%s]\n", err.Error())
+		return
+	}
+	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
 
 	server := &http.Server{
 		Addr:           ":8080",
@@ -92,7 +111,7 @@ func Main(apiInstance api.API, backend api.Backend) {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}
