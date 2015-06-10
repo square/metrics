@@ -131,11 +131,11 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 			Average:   1,
 		},
 		{
-			Timestamp: 4199, // Slightly off to test rounding
+			Timestamp: 4299, // Test flooring behavior
 			Average:   2,
 		},
 		{
-			Timestamp: 4403, // Slightly off to test rounding
+			Timestamp: 4403, // Test flooring behavior
 			Average:   3,
 		},
 		{
