@@ -194,7 +194,9 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 
 	params := url.Values{}
 	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
-	params.Set("to", strconv.FormatInt(timerange.End(), 10))
+	// Pull a bit outside of the requested range from blueflood so we
+	// have enough data to generate all snapped values
+	params.Set("to", strconv.FormatInt(timerange.End()+timerange.Resolution(), 10))
 	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(fieldExtractor)))
 
