@@ -206,34 +206,36 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 
 	values := make([]float64, timerange.Slots())
 
+	bucketSamplers := map[api.SampleMethod]func([]float64) float64{
+		api.SampleMean: func(bucket []float64) float64 {
+			value := 0.0
+			for _, v := range bucket {
+				value += v
+			}
+			return value / float64(len(bucket))
+		},
+		api.SampleMin: func(bucket []float64) float64 { // These functions may assume bucket is non-empty.
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Min(value, v)
+			}
+			return value
+		},
+		api.SampleMax: func(bucket []float64) float64 {
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Max(value, v)
+			}
+			return value
+		},
+	}
+
 	for i, bucket := range buckets {
 		if len(bucket) == 0 {
 			values[i] = math.NaN()
 			continue
 		}
-		switch sampleMethod {
-		case api.SampleMean:
-			value := 0.0
-			for _, v := range bucket {
-				value += v
-			}
-			values[i] = value / float64(len(bucket))
-		case api.SampleMin:
-			value := bucket[0]
-			for _, v := range bucket {
-				value = math.Min(value, v)
-			}
-			values[i] = value
-		case api.SampleMax:
-			value := bucket[0]
-			for _, v := range bucket {
-				value = math.Max(value, v)
-			}
-			values[i] = value
-		default:
-			return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
-		}
-		values[i] = bucket[0]
+		values[i] = bucketSamplers[sampleMethod](bucket)
 	}
 
 	log.Printf("Constructed timeseries from result: %v", values)
