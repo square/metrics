@@ -40,7 +40,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.WriteHeader(code)
 	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{success:false, message:'failed to encode error message'}"))
+		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode error message'}"))
 		return
 	}
 	writer.Write(encoded)
@@ -49,7 +49,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 func bodyResponse(writer http.ResponseWriter, body interface{}) {
 	encoded, err := json.MarshalIndent(Response{Success: true, Body: body}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{success:false, message:'failed to encode result message'"))
+		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode result message'"))
 		return
 	}
 	writer.Write(encoded)
@@ -82,11 +82,9 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	bodyResponse(writer, result)
-
 }
 
 func Main(apiInstance api.API, backend api.Backend) {
-
 	handler := QueryHandler{
 		API:     apiInstance,
 		Backend: backend,
