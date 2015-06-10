@@ -446,7 +446,7 @@ func Test_AggregateBy(t *testing.T) {
 					// Compare their values
 					for i := range aggregate.Values {
 						a = a.Contextf("for tagset %+v, result %+v did not match expected %+v", correct.TagSet, aggregate.Values, correct.Values)
-						a.EqFloat(aggregate.Values[i], correct.Values[i])
+						a.EqFloat(aggregate.Values[i], correct.Values[i], epsilon)
 					}
 				}
 			}
