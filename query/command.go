@@ -78,5 +78,6 @@ func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error)
 		Timerange:    *timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
+		API:          a,
 	}, cmd.expressions)
 }
