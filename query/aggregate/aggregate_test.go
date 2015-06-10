@@ -16,6 +16,7 @@ package aggregate
 
 import (
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/assert"
 
 	"math"
 	"testing"
@@ -219,6 +220,7 @@ func Test_applyAggregation(t *testing.T) {
 }
 
 func Test_AggregateBy(t *testing.T) {
+	a := assert.New(t)
 
 	timerange, err := api.NewTimerange(42, 270, 6)
 	if err != nil {
@@ -276,6 +278,22 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "b38",
 				},
 			},
+			api.Timeseries{
+				Values: []float64{math.NaN(), math.NaN(), math.NaN()},
+				TagSet: api.TagSet{
+					"env":  "staging",
+					"dc":   "A",
+					"host": "n44",
+				},
+			},
+			api.Timeseries{
+				Values: []float64{math.NaN(), 10, math.NaN()},
+				TagSet: api.TagSet{
+					"env":  "production",
+					"dc":   "B",
+					"host": "n10",
+				},
+			},
 		},
 		*timerange,
 		"Test.List",
@@ -291,7 +309,7 @@ func Test_AggregateBy(t *testing.T) {
 			"aggregate.sum",
 			[]api.Timeseries{
 				api.Timeseries{
-					Values: []float64{1, 1, 3},
+					Values: []float64{1, 11, 3},
 					TagSet: map[string]string{
 						"env": "production",
 					},
@@ -315,7 +333,7 @@ func Test_AggregateBy(t *testing.T) {
 					},
 				},
 				api.Timeseries{
-					Values: []float64{4, 4, 4},
+					Values: []float64{4, 10, 4},
 					TagSet: map[string]string{
 						"dc": "B",
 					},
@@ -354,7 +372,7 @@ func Test_AggregateBy(t *testing.T) {
 					},
 				},
 				api.Timeseries{
-					Values: []float64{2, 0, 0},
+					Values: []float64{2, 5, 0},
 					TagSet: map[string]string{
 						"dc":  "B",
 						"env": "production",
@@ -374,7 +392,7 @@ func Test_AggregateBy(t *testing.T) {
 			"aggregate.sum",
 			[]api.Timeseries{
 				api.Timeseries{
-					Values: []float64{5, 6, 9},
+					Values: []float64{5, 16, 9},
 					TagSet: map[string]string{},
 				},
 			},
@@ -427,10 +445,8 @@ func Test_AggregateBy(t *testing.T) {
 					}
 					// Compare their values
 					for i := range aggregate.Values {
-						if math.Abs(aggregate.Values[i]-correct.Values[i]) > epsilon {
-							t.Errorf("For tagset %+v, result %+v does not match expected %+v", correct.TagSet, aggregate.Values, correct.Values)
-							break
-						}
+						a = a.Contextf("for tagset %+v, result %+v did not match expected %+v", correct.TagSet, aggregate.Values, correct.Values)
+						a.EqFloat(aggregate.Values[i], correct.Values[i], epsilon)
 					}
 				}
 			}

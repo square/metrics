@@ -159,15 +159,26 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 
 	// Make a slice of time to reuse.
 	// Each entry corresponds to a particular Series, all having the same index within their corresponding Series.
-	timeSlice := make([]float64, len(list))
+	// The timeslice has 0 size but len(list) capacity so that it won't need to be resized.
+	timeSlice := make([]float64, 0, len(list))
 
 	for i := range series.Values {
+		// Re-slice the timeslice to be empty again, but with the same capacity.
+		// (So that we re-use it rather than re-allocating it)
+		timeSlice = timeSlice[:0]
 		// We need to determine each value in turn.
-		for j := range timeSlice {
-			timeSlice[j] = list[j].Values[i]
+		for j := range list {
+			value := list[j].Values[i]
+			if !math.IsNaN(value) {
+				timeSlice = append(timeSlice, value)
+			}
 		}
-		// Find the aggregated value:
-		series.Values[i] = aggregator(timeSlice)
+		if len(timeSlice) == 0 {
+			series.Values[i] = math.NaN()
+		} else {
+			// Find the aggregated value:
+			series.Values[i] = aggregator(timeSlice)
+		}
 	}
 
 	return series
