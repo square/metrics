@@ -116,9 +116,7 @@ func (b *Blueflood) FetchSeries(metric api.TaggedMetric, predicate api.Predicate
 }
 
 func addMetricPoint(metricPoint MetricPoint, field func(MetricPoint) float64, timerange api.Timerange, buckets [][]float64) error {
-	// TODO: check the result of .FieldByName against nil (or a panic will occur)
 	value := field(metricPoint)
-	// TODO: check the result of .FieldByName against nil (or a panic will occur)
 	timestamp := metricPoint.Timestamp
 	// The index to assign within the array is computed using the timestamp.
 	// It rounds to the nearest index.
