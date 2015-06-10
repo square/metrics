@@ -146,17 +146,40 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	var (
 		fieldExtractor    string
 		selectResultField func(MetricPoint) float64
+		bucketSampler     func([]float64) float64 // bucketSampler describes { bucket []float64 => values[i] float64 }.
+		// It may assume that the bucket it is given is non-empty (so indexing 0 is always valid).
 	)
 	switch sampleMethod {
 	case api.SampleMean:
 		fieldExtractor = "average"
 		selectResultField = func(point MetricPoint) float64 { return point.Average }
+		bucketSampler = func(bucket []float64) float64 {
+			value := 0.0
+			for _, v := range bucket {
+				value += v
+			}
+			return value / float64(len(bucket))
+		}
 	case api.SampleMin:
 		fieldExtractor = "min"
 		selectResultField = func(point MetricPoint) float64 { return point.Min }
+		bucketSampler = func(bucket []float64) float64 {
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Min(value, v)
+			}
+			return value
+		}
 	case api.SampleMax:
 		fieldExtractor = "max"
 		selectResultField = func(point MetricPoint) float64 { return point.Max }
+		bucketSampler = func(bucket []float64) float64 {
+			value := bucket[0]
+			for _, v := range bucket {
+				value = math.Max(value, v)
+			}
+			return value
+		}
 	default:
 		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
 	}
@@ -206,40 +229,12 @@ func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod ap
 	// values will hold the final values to be returned as the series.
 	values := make([]float64, timerange.Slots())
 
-	// bucketSamplers is a map describing how to transform { bucket []float64 => values[i] float64 }.
-	// each function may assume that the bucket it is given is non-empty (so indexing 0 is valid),
-	// which is enforced by the caller (who substitutes NaN for such empty buckets).
-	bucketSamplers := map[api.SampleMethod]func([]float64) float64{
-		api.SampleMean: func(bucket []float64) float64 {
-			value := 0.0
-			for _, v := range bucket {
-				value += v
-			}
-			return value / float64(len(bucket))
-		},
-		api.SampleMin: func(bucket []float64) float64 {
-			value := bucket[0]
-			for _, v := range bucket {
-				value = math.Min(value, v)
-			}
-			return value
-		},
-		api.SampleMax: func(bucket []float64) float64 {
-			value := bucket[0]
-			for _, v := range bucket {
-				value = math.Max(value, v)
-			}
-			return value
-		},
-	}
-	// sampler is the desired function based on the given sampleMethod.
-	sampler := bucketSamplers[sampleMethod]
 	for i, bucket := range buckets {
 		if len(bucket) == 0 {
 			values[i] = math.NaN()
 			continue
 		}
-		values[i] = sampler(bucket)
+		values[i] = bucketSampler(bucket)
 	}
 
 	log.Printf("Constructed timeseries from result: %v", values)
