@@ -169,6 +169,14 @@ func (tr Timerange) End() int64 {
 	return tr.end
 }
 
+func (tr Timerange) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Start      int64 `json:"start"`
+		End        int64 `json:"end"`
+		Resolution int64 `json:"resolution"`
+	}{tr.start, tr.end, tr.resolution})
+}
+
 // Resolution() returns the .resolution field
 func (tr Timerange) Resolution() int64 {
 	return tr.resolution
