@@ -113,37 +113,37 @@ func TestCommand_Select(t *testing.T) {
 		expectError bool
 		expected    api.SeriesList
 	}{
-		{"select error_series from 0 to 120", true, api.SeriesList{}},
-		{"select series_1 from 0 to 120", false, api.SeriesList{
+		{"select error_series from 0 to 120 resolution 30", true, api.SeriesList{}},
+		{"select series_1 from 0 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3, 4, 5},
 				api.ParseTagSet("dc=west"),
 			}},
-			Timerange: *testTimerange,
+			Timerange: testTimerange,
 			Name:      "series_1",
 		}},
-		{"select series_1 + 1 from 0 to 120", false, api.SeriesList{
+		{"select series_1 + 1 from 0 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
 				api.ParseTagSet("dc=west"),
 			}},
-			Timerange: *testTimerange,
+			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select series_1 * 2 from 0 to 120", false, api.SeriesList{
+		{"select series_1 * 2 from 0 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 4, 6, 8, 10},
 				api.ParseTagSet("dc=west"),
 			}},
-			Timerange: *testTimerange,
+			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select aggregate.max(series_2) from 0 to 120", false, api.SeriesList{
+		{"select aggregate.max(series_2) from 0 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 2, 3, 6, 5},
 				api.NewTagSet(),
 			}},
-			Timerange: *testTimerange,
+			Timerange: testTimerange,
 			Name:      "series_2",
 		}},
 	} {

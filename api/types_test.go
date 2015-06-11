@@ -159,7 +159,6 @@ func TestTimerange(t *testing.T) {
 			suite.Resolution,
 		)
 		timerange, err := NewTimerange(suite.Start, suite.End, suite.Resolution)
-		a.EqBool(timerange != nil, suite.ExpectedValid)
 		a.EqBool(err == nil, suite.ExpectedValid)
 		if !suite.ExpectedValid {
 			continue

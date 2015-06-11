@@ -15,12 +15,11 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 
+	"github.com/peterh/liner"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
@@ -38,9 +37,16 @@ func main() {
 	apiInstance := common.NewAPI()
 	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		input := scanner.Text()
+	l := liner.NewLiner()
+	defer l.Close()
+	for {
+		input, err := l.Prompt("> ")
+		if err != nil {
+			return
+		}
+
+		l.AppendHistory(input)
+
 		cmd, err := query.Parse(input)
 		if err != nil {
 			fmt.Println("parsing error", err.Error())

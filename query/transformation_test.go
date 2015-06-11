@@ -133,7 +133,7 @@ func TestApplyTransform(t *testing.T) {
 				},
 			},
 		},
-		Timerange: *testTimerange,
+		Timerange: testTimerange,
 		Name:      "test",
 	}
 	testCases := []struct {
@@ -240,7 +240,7 @@ func TestApplyTransformFailure(t *testing.T) {
 				},
 			},
 		},
-		Timerange: *testTimerange,
+		Timerange: testTimerange,
 		Name:      "test",
 	}
 	testCases := []struct {

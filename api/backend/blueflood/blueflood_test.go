@@ -57,7 +57,7 @@ func Test_Blueflood(t *testing.T) {
 			},
 			predicate:    nil,
 			sampleMethod: api.SampleMean,
-			timerange:    *timerange,
+			timerange:    timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
 			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=14000",
@@ -91,7 +91,7 @@ func Test_Blueflood(t *testing.T) {
 						}),
 					},
 				},
-				Timerange: *timerange,
+				Timerange: timerange,
 				Name:      "",
 			},
 		},
@@ -155,7 +155,7 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 		},
 	}
 	expected := [][]float64{{}, {1}, {2}, {}, {3}, {4}, {}, {5, 6}, {}}
-	result := bucketsFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, *timerange)
+	result := bucketsFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, timerange)
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %+v but got %+v", expected, result)
 		return

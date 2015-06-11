@@ -70,7 +70,7 @@ func Test_groupBy(t *testing.T) {
 					},
 				},
 			},
-			Timerange: api.DefaultTimerange(),
+			Timerange: api.Timerange{},
 			Name:      "",
 		}
 	)
@@ -295,7 +295,7 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
-		*timerange,
+		timerange,
 		"Test.List",
 	}
 
