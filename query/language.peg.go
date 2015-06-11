@@ -1251,14 +1251,14 @@ func (p *Parser) Init() {
 		nil,
 		/* 5 propertyClause <- <(Action4 (_ PROPERTY_KEY Action5 __ PROPERTY_VALUE Action6 Action7)* Action8)> */
 		nil,
-		/* 6 optionalPredicateClause <- <((__ predicateClause) / Action9)> */
+		/* 6 optionalPredicateClause <- <((_ predicateClause) / Action9)> */
 		func() bool {
 			{
 				position70 := position
 				depth++
 				{
 					position71, tokenIndex71, depth71 := position, tokenIndex, depth
-					if !_rules[rule__]() {
+					if !_rules[rule_]() {
 						goto l72
 					}
 					{

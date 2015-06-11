@@ -73,7 +73,7 @@ propertyClause <-
   { p.checkPropertyClause() }
 
 optionalPredicateClause <-
-  __ predicateClause / { p.addNullPredicate() }
+  _ predicateClause / { p.addNullPredicate() }
 
 # expression_X are layered to maintain the order of operations.
 
