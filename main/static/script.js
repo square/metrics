@@ -23,8 +23,6 @@ var chart;
 
 function onload() {
 	google.load('visualization', '1.0', {'packages':['corechart']});
-	// Perform this callback once the package has loaded:
-	google.setOnLoadCallback(drawChart);
 }
 
 function resultUpdate(object) {
