@@ -16,8 +16,11 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -31,6 +34,7 @@ type QueryHandler struct {
 
 type Response struct {
 	Success bool        `json:"success"`
+	Name    string      `json:"name,omitempty"`
 	Message string      `json:"message,omitempty"`
 	Body    interface{} `json:"body,omitempty"`
 }
@@ -39,16 +43,18 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.WriteHeader(code)
 	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode error message'}"))
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode error message\"}"))
 		return
 	}
 	writer.Write(encoded)
 }
 
-func bodyResponse(writer http.ResponseWriter, body interface{}) {
-	encoded, err := json.MarshalIndent(Response{Success: true, Body: body}, "", "  ")
+func bodyResponse(writer http.ResponseWriter, body interface{}, name string) {
+	encoded, err := json.MarshalIndent(Response{Success: true, Name: name, Body: body}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode result message'"))
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode result message\"}"))
 		return
 	}
 	writer.Write(encoded)
@@ -61,6 +67,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	input := request.Form.Get("query")
+	fmt.Printf("INPUT: %+v\n", input)
 
 	cmd, err := query.Parse(input)
 	if err != nil {
@@ -73,7 +80,17 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
-	bodyResponse(writer, result)
+	bodyResponse(writer, result, cmd.Name())
+}
+
+type StaticHandler struct {
+	Directory string
+}
+
+func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	res := h.Directory + request.URL.Path
+	fmt.Printf("res = %s\n", res)
+	http.ServeFile(writer, request, res)
 }
 
 func Main(apiInstance api.API, backend api.Backend) {
@@ -84,6 +101,12 @@ func Main(apiInstance api.API, backend api.Backend) {
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
+	here, err := filepath.Abs("")
+	if err != nil {
+		fmt.Printf("ERROR [%s]\n", err.Error())
+		return
+	}
+	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
 
 	server := &http.Server{
 		Addr:           ":8080",
@@ -92,7 +115,7 @@ func Main(apiInstance api.API, backend api.Backend) {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -26,6 +26,7 @@ import (
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
 	Execute(api.Backend, api.API) (interface{}, error)
+	Name() string
 }
 
 // DescribeCommand describes the tag set managed by the given metric indexer.
@@ -58,6 +59,9 @@ func (cmd *DescribeCommand) Execute(b api.Backend, a api.API) (interface{}, erro
 	sort.Strings(output)
 	return output, nil
 }
+func (cmd *DescribeCommand) Name() string {
+	return "describe"
+}
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
@@ -66,6 +70,9 @@ func (cmd *DescribeAllCommand) Execute(b api.Backend, a api.API) (interface{}, e
 		sort.Sort(api.MetricKeys(result))
 	}
 	return result, err
+}
+func (cmd *DescribeAllCommand) Name() string {
+	return "describe all"
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
@@ -81,4 +88,7 @@ func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error)
 		Predicate:    cmd.predicate,
 		API:          a,
 	}, cmd.expressions)
+}
+func (cmd *SelectCommand) Name() string {
+	return "select"
 }
