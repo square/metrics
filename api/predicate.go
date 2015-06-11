@@ -21,3 +21,14 @@ type Predicate interface {
 	// checks the matcher.
 	Apply(tagSet TagSet) bool
 }
+
+var TruePredicate = constantPredicate{true}
+var FalsePredicate = constantPredicate{false}
+
+type constantPredicate struct {
+	value bool
+}
+
+func (p constantPredicate) Apply(TagSet) bool {
+	return p.value
+}
