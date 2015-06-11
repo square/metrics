@@ -151,7 +151,9 @@ func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) 
 func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
-	if context.Predicate == nil {
+	if context.Predicate == nil && expr.predicate == nil {
+		predicate = api.TruePredicate
+	} else if context.Predicate == nil {
 		predicate = expr.predicate
 	} else if expr.predicate == nil {
 		predicate = context.Predicate
@@ -159,14 +161,28 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	series, err := context.Backend.FetchSeries(api.FetchSeriesRequest{
-		api.TaggedMetric{api.MetricKey(expr.metricName), nil}, predicate, context.SampleMethod, context.Timerange,
-		context.API,
-	})
+	metricTagSets, err := context.API.GetAllTags(api.MetricKey(expr.metricName))
 	if err != nil {
-		return seriesListValue{}, err
+		return nil, err
 	}
-	return seriesListValue(*series), err
+	filtered := applyPredicates(metricTagSets, predicate)
+
+	resultSeries := []api.Timeseries{}
+	for _, ts := range filtered {
+		result, err := context.Backend.FetchSingleSeries(api.FetchSeriesRequest{
+			api.TaggedMetric{api.MetricKey(expr.metricName), ts}, context.SampleMethod, context.Timerange,
+			context.API,
+		})
+		if err != nil {
+			return nil, err
+		}
+		resultSeries = append(resultSeries, result)
+	}
+
+	return seriesListValue(api.SeriesList{
+		Series:    resultSeries,
+		Timerange: context.Timerange,
+	}), nil
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
@@ -352,4 +368,14 @@ func evaluateExpressions(context EvaluationContext, expressions []Expression) ([
 	}
 
 	return results, nil
+}
+
+func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet {
+	output := []api.TagSet{}
+	for _, ts := range tagSets {
+		if predicate.Apply(ts) {
+			output = append(output, ts)
+		}
+	}
+	return output
 }

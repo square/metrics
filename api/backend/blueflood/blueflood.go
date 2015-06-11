@@ -66,51 +66,79 @@ func NewBlueflood(baseUrl string, tenantId string) *Blueflood {
 	return &Blueflood{baseUrl: baseUrl, tenantId: tenantId, client: http.DefaultClient}
 }
 
-func (b *Blueflood) FetchSeries(request api.FetchSeriesRequest) (*api.SeriesList, error) {
-	metric := request.Metric
-	predicate := request.Predicate
-	sampleMethod := request.SampleMethod
-	timerange := request.Timerange
-	metricTagSets, err := request.Api.GetAllTags(metric.MetricKey)
+func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
+	sampler, ok := samplerMap[request.SampleMethod]
+	if !ok {
+		return api.Timeseries{}, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", request.SampleMethod))
+	}
+
+	graphiteName, err := request.Api.ToGraphiteName(request.Metric)
+
 	if err != nil {
-		return nil, err
+		return api.Timeseries{}, err
 	}
 
-	// TODO: Be a little smarter about this?
-	resultSeries := []api.Timeseries{}
-	for _, ts := range metricTagSets {
-		if predicate == nil || predicate.Apply(ts) {
-			graphiteName, err := request.Api.ToGraphiteName(api.TaggedMetric{
-				MetricKey: metric.MetricKey,
-				TagSet:    ts,
-			})
-			if err != nil {
-				return nil, err
-			}
+	// Issue GET to fetch metrics
+	queryUrl, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s",
+		b.baseUrl,
+		b.tenantId,
+		graphiteName))
 
-			queryResult, err := b.fetchSingleSeries(
-				graphiteName,
-				sampleMethod,
-				timerange,
-			)
-			// TODO: Be more tolerant of errors fetching a single metric?
-			// Though I guess this behavior is fine since skipping fetches
-			// that fail would end up in a result set that you don't quite
-			// expect.
-			if err != nil {
-				return nil, err
-			}
+	if err != nil {
+		return api.Timeseries{}, err
+	}
 
-			resultSeries = append(resultSeries, api.Timeseries{
-				Values: queryResult,
-				TagSet: ts,
-			})
+	params := url.Values{}
+	params.Set("from", strconv.FormatInt(request.Timerange.Start(), 10))
+	// Pull a bit outside of the requested range from blueflood so we
+	// have enough data to generate all snapped values
+	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.Resolution(), 10))
+	params.Set("resolution", bluefloodResolution(request.Timerange.Resolution()))
+	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
+
+	queryUrl.RawQuery = params.Encode()
+
+	log.Printf("Blueflood fetch: %s", queryUrl.String())
+	resp, err := b.client.Get(queryUrl.String())
+	if err != nil {
+		return api.Timeseries{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return api.Timeseries{}, err
+	}
+
+	log.Printf("Fetch result: %s", string(body))
+
+	var result QueryResponse
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return api.Timeseries{}, err
+	}
+
+	// Construct a Timeseries from the result:
+
+	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
+	buckets := bucketsFromMetricPoints(result.Values, sampler.fieldSelector, request.Timerange)
+
+	// values will hold the final values to be returned as the series.
+	values := make([]float64, request.Timerange.Slots())
+
+	for i, bucket := range buckets {
+		if len(bucket) == 0 {
+			values[i] = math.NaN()
+			continue
 		}
+		values[i] = sampler.bucketSampler(bucket)
 	}
 
-	return &api.SeriesList{
-		Series:    resultSeries,
-		Timerange: timerange,
+	log.Printf("Constructed timeseries from result: %v", values)
+
+	return api.Timeseries{
+		Values: values,
+		TagSet: request.Metric.TagSet,
 	}, nil
 }
 
@@ -182,74 +210,6 @@ var samplerMap map[api.SampleMethod]struct {
 	},
 }
 
-func (b *Blueflood) fetchSingleSeries(metric api.GraphiteMetric, sampleMethod api.SampleMethod, timerange api.Timerange) ([]float64, error) {
-	sampler, ok := samplerMap[sampleMethod]
-	if !ok {
-		return nil, errors.New(fmt.Sprintf("Unsupported SampleMethod %d", sampleMethod))
-	}
-
-	// Issue GET to fetch metrics
-	queryUrl, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s",
-		b.baseUrl,
-		b.tenantId,
-		metric))
-	if err != nil {
-		return nil, err
-	}
-
-	params := url.Values{}
-	params.Set("from", strconv.FormatInt(timerange.Start(), 10))
-	// Pull a bit outside of the requested range from blueflood so we
-	// have enough data to generate all snapped values
-	params.Set("to", strconv.FormatInt(timerange.End()+timerange.Resolution(), 10))
-	params.Set("resolution", bluefloodResolution(timerange.Resolution()))
-	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
-
-	queryUrl.RawQuery = params.Encode()
-
-	log.Printf("Blueflood fetch: %s", queryUrl.String())
-	resp, err := b.client.Get(queryUrl.String())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("Fetch result: %s", string(body))
-
-	var result QueryResponse
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	// Construct a Timeseries from the result:
-
-	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
-	buckets := bucketsFromMetricPoints(result.Values, sampler.fieldSelector, timerange)
-
-	// values will hold the final values to be returned as the series.
-	values := make([]float64, timerange.Slots())
-
-	for i, bucket := range buckets {
-		if len(bucket) == 0 {
-			values[i] = math.NaN()
-			continue
-		}
-		values[i] = sampler.bucketSampler(bucket)
-	}
-
-	log.Printf("Constructed timeseries from result: %v", values)
-
-	// TODO: Resample to the requested resolution
-
-	return values, nil
-}
-
 // Blueflood keys the resolution param to a java enum, so we have to convert
 // between them.
 func bluefloodResolution(r int64) string {
@@ -266,10 +226,6 @@ func bluefloodResolution(r int64) string {
 		return Resolution240Min
 	}
 	return Resolution1440Min
-}
-
-func resample(points []float64, currentResolution int64, expectedTimerange api.Timerange, sampleMethod api.SampleMethod) ([]float64, error) {
-	return nil, errors.New("Not implemented")
 }
 
 var _ api.Backend = (*Blueflood)(nil)

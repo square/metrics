@@ -19,72 +19,56 @@ import (
 	"errors"
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/assert"
+	"github.com/square/metrics/mocks"
 	"testing"
 )
 
-type fakeApiBackend struct {
-}
+var emptyGraphiteName = api.GraphiteMetric("")
 
-type simpleFakeApi struct {
-	api.API
-}
+type fakeApiBackend struct{}
 
-func (f simpleFakeApi) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
-	return []api.TagSet{
-		api.ParseTagSet("dc=west,env=production,host=a"),
-		api.ParseTagSet("dc=west,env=staging,host=b"),
-		api.ParseTagSet("dc=east,env=production,host=c"),
-		api.ParseTagSet("dc=east,env=staging,host=d"),
-	}, nil
-}
-
-func (f fakeApiBackend) FetchSeries(request api.FetchSeriesRequest) (*api.SeriesList, error) {
+func (f fakeApiBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	metric := request.Metric
-	timerange := request.Timerange
-	if metric.MetricKey == "error_series" {
-		return nil, errors.New("backend error")
-	} else if metric.MetricKey == "series_1" {
-		return &api.SeriesList{
-			Series: []api.Timeseries{{
-				[]float64{1, 2, 3, 4, 5},
-				api.ParseTagSet("dc=west"),
-			}},
-			Timerange: timerange,
-			Name:      string(metric.MetricKey),
+	if metric.MetricKey == "series_1" {
+		return api.Timeseries{
+			[]float64{1, 2, 3, 4, 5},
+			api.ParseTagSet("dc=west"),
 		}, nil
 	} else if metric.MetricKey == "series_2" {
-		return &api.SeriesList{
-			Series: []api.Timeseries{
-				{
-					[]float64{1, 2, 3, 4, 5},
-					api.ParseTagSet("dc=west"),
-				},
-				{
-					[]float64{3, 0, 3, 6, 2},
-					api.ParseTagSet("dc=east"),
-				},
-			},
-			Timerange: timerange,
-			Name:      string(metric.MetricKey),
-		}, nil
+		if metric.TagSet.Serialize() == "dc=west" {
+			return api.Timeseries{
+				[]float64{1, 2, 3, 4, 5},
+				api.ParseTagSet("dc=west"),
+			}, nil
+		}
+		if metric.TagSet.Serialize() == "dc=east" {
+			return api.Timeseries{
+				[]float64{3, 0, 3, 6, 2},
+				api.ParseTagSet("dc=west"),
+			}, nil
+		}
 	}
-	return nil, errors.New("internal error")
+	return api.Timeseries{}, errors.New("internal error")
 }
 
 func TestCommand_Describe(t *testing.T) {
-	var fakeBackend fakeApiBackend
+	fakeApi := mocks.NewFakeApi()
+	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")}, emptyGraphiteName)
 
 	for _, test := range []struct {
 		query   string
-		backend api.Backend
+		backend api.API
 		length  int // expected length of the result.
 	}{
-		{"describe m", fakeBackend, 4},
-		{"describe m where dc='west'", fakeBackend, 2},
-		{"describe m where dc='west' or env = 'production'", fakeBackend, 3},
-		{"describe m where dc='west' or env = 'production' and doesnotexist = ''", fakeBackend, 2},
-		{"describe m where env = 'production' and doesnotexist = '' or dc = 'west'", fakeBackend, 2},
-		{"describe m where (dc='west' or env = 'production') and doesnotexist = ''", fakeBackend, 0}, // PARSER ERROR, currently.
+		{"describe series_0", fakeApi, 4},
+		{"describe series_0 where dc='west'", fakeApi, 2},
+		{"describe series_0 where dc='west' or env = 'production'", fakeApi, 3},
+		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", fakeApi, 2},
+		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", fakeApi, 2},
+		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeApi, 0}, // PARSER ERROR, currently.
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		rawCommand, err := Parse(test.query)
@@ -93,7 +77,7 @@ func TestCommand_Describe(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*DescribeCommand)
-		rawResult, _ := command.Execute(test.backend, simpleFakeApi{})
+		rawResult, _ := command.Execute(nil, test.backend)
 		parsedResult := rawResult.([]string)
 		a.EqInt(len(parsedResult), test.length)
 	}
@@ -101,6 +85,10 @@ func TestCommand_Describe(t *testing.T) {
 
 func TestCommand_Select(t *testing.T) {
 	epsilon := 1e-10
+	fakeApi := mocks.NewFakeApi()
+	fakeApi.AddPair(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")}, emptyGraphiteName)
 	var fakeBackend fakeApiBackend
 	testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
@@ -113,7 +101,7 @@ func TestCommand_Select(t *testing.T) {
 		expectError bool
 		expected    api.SeriesList
 	}{
-		{"select error_series from 0 to 120 resolution 30", true, api.SeriesList{}},
+		{"select does_not_exist from 0 to 120 resolution 30", true, api.SeriesList{}},
 		{"select series_1 from 0 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3, 4, 5},
@@ -155,7 +143,7 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(fakeBackend, simpleFakeApi{})
+		rawResult, err := command.Execute(fakeBackend, fakeApi)
 		if err != nil {
 			if !test.expectError {
 				a.Errorf("Unexpected error while executing: %s", err.Error())

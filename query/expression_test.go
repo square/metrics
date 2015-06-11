@@ -21,14 +21,8 @@ import (
 	"github.com/square/metrics/assert"
 )
 
-type FakeBackend struct{}
-
-func (b FakeBackend) Api() api.API {
-	return nil
-}
-
-func (b FakeBackend) FetchSeries(api.FetchSeriesRequest) (*api.SeriesList, error) {
-	return &api.SeriesList{}, nil
+type FakeBackend struct {
+	api.Backend
 }
 
 type LiteralExpression struct {

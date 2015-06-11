@@ -31,14 +31,13 @@ func Test_Blueflood(t *testing.T) {
 	for _, test := range []struct {
 		metricMap          map[api.GraphiteMetric]api.TaggedMetric
 		queryMetric        api.TaggedMetric
-		predicate          api.Predicate
 		sampleMethod       api.SampleMethod
 		timerange          api.Timerange
 		baseUrl            string
 		tenantId           string
 		queryUrl           string
 		queryResponse      string
-		expectedSeriesList api.SeriesList
+		expectedSeriesList api.Timeseries
 	}{
 		{
 			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
@@ -55,7 +54,6 @@ func Test_Blueflood(t *testing.T) {
 					"tag": "value",
 				}),
 			},
-			predicate:    nil,
 			sampleMethod: api.SampleMean,
 			timerange:    timerange,
 			baseUrl:      "https://blueflood.url",
@@ -82,17 +80,11 @@ func Test_Blueflood(t *testing.T) {
           "marker": null
         }
       }`,
-			expectedSeriesList: api.SeriesList{
-				Series: []api.Timeseries{
-					api.Timeseries{
-						Values: []float64{5, 3},
-						TagSet: api.TagSet(map[string]string{
-							"tag": "value",
-						}),
-					},
-				},
-				Timerange: timerange,
-				Name:      "",
+			expectedSeriesList: api.Timeseries{
+				Values: []float64{5, 3},
+				TagSet: api.TagSet(map[string]string{
+					"tag": "value",
+				}),
 			},
 		},
 	} {
@@ -109,8 +101,8 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.baseUrl, test.tenantId)
 		b.client = fakeHttpClient
 
-		seriesList, err := b.FetchSeries(api.FetchSeriesRequest{
-			test.queryMetric, test.predicate, test.sampleMethod, test.timerange,
+		seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
+			test.queryMetric, test.sampleMethod, test.timerange,
 			fakeApi,
 		})
 		if err != nil {
@@ -118,7 +110,7 @@ func Test_Blueflood(t *testing.T) {
 			continue
 		}
 
-		a.Eq(seriesList, &test.expectedSeriesList)
+		a.Eq(seriesList, test.expectedSeriesList)
 	}
 }
 
