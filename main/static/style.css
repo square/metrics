@@ -1,6 +1,25 @@
 
 
 body {
-	background: #EEE;
 	font-family: sans-serif;
+	padding:30px;
+}
+
+textarea {
+	width:100%;
+}
+
+
+#chart-div-container {
+	position:relative;
+	height:0;
+	padding-bottom:50%;
+}
+
+#chart-div {
+	position:absolute;
+	border: solid black 2px;
+	background:#EEE;
+	width:100%;
+	height:100%;
 }

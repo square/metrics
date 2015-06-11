@@ -111,8 +111,8 @@ func Main(apiInstance api.API, backend api.Backend) {
 	server := &http.Server{
 		Addr:           ":8080",
 		Handler:        httpMux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	err = server.ListenAndServe()
