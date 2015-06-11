@@ -4,6 +4,8 @@ var module = angular.module("main",[]);
 
 var chartsReady = false;
 
+
+
 module.controller("mainCtrl", function($scope, $http) {
 	$scope.queryResult = "";
 	$scope.queryText = "";
@@ -20,15 +22,22 @@ module.controller("mainCtrl", function($scope, $http) {
 
 	$scope.$watch("queryResult", resultUpdate);
 
-	var urlQuery = window.location.hash
-	if (urlQuery != "") {
-		// Drop the leading '#'
-		urlQuery = urlQuery.substring(1);
-		// The remainder is the query to perform.
-		// Decode it (if neccesarry).
-		$scope.queryText = decodeURIComponent(urlQuery);
-		$scope.onSubmitQuery();
+	function readHash() {
+		var urlQuery = window.location.hash
+		if (urlQuery != "") {
+			// Drop the leading '#'
+			urlQuery = urlQuery.substring(1);
+			// The remainder is the query to perform.
+			// Decode it (if neccesarry).
+			$scope.queryText = decodeURIComponent(urlQuery);
+			$scope.onSubmitQuery();
+		}
 	}
+
+	readHash(); // Read the current hash (if present).
+
+	// Whenever the user changes the hash (such as pasting in a new URL), call readHash() again.
+	window.addEventListener("hashchange", readHash, false);
 });
 
 var chart;
