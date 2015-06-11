@@ -1,14 +1,16 @@
 
 
 body {
-	font-family: sans-serif;
-	padding:30px;
+	margin-top: 50px;
 }
 
 textarea {
 	width:100%;
 }
 
+.queryinput {
+	font-family: Consolas, monospace;
+}
 
 #chart-div-container {
 	position:relative;
@@ -18,7 +20,6 @@ textarea {
 
 #chart-div {
 	position:absolute;
-	border: solid black 2px;
 	background:#EEE;
 	width:100%;
 	height:100%;
