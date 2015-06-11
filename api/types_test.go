@@ -169,7 +169,22 @@ func TestTimerange(t *testing.T) {
 	}
 }
 
-func TestTimerangeLater(t *testing.T) {
+func TestTimerange_MarshalJSON(t *testing.T) {
+	for _, suite := range []struct {
+		input    Timerange
+		expected string
+	}{
+		{Timerange{0, 100, 10}, `{"start":0,"end":100,"resolution":10}`},
+		{Timerange{100, 10000, 50}, `{"start":100,"end":10000,"resolution":50}`},
+	} {
+		a := assert.New(t).Contextf("expected=%s", suite.expected)
+		encoded, err := json.Marshal(suite.input)
+		a.CheckError(err)
+		a.Eq(string(encoded), suite.expected)
+	}
+}
+
+func TestTimerange_Later(t *testing.T) {
 	// Check that when moving forward, when moving backward, etc., time ranges work as expected.
 	ranges := []Timerange{
 		{
