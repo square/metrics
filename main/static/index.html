@@ -3,13 +3,16 @@
 <head>
 	<title>Static Page</title>
 	<script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
-	<script type="text/ecmascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.js"></script>
+	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 	<script type="text/ecmascript" src="script.js"></script>
+	<link rel="stylesheet" href="style.css">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
 
 </head>
 <body>
-<canvas id="graphCanvas" width="1000" height="700"></canvas>
+<div id="chart_div_container">
+	<div id="chart_div"></div>
+</div>
 <div ng-app="main">
 	<div ng-controller="mainCtrl">
 		<textarea ng-model="queryText"></textarea>
