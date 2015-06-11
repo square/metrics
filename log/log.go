@@ -12,21 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// package used to control logging within the square/metrics framework.
+package log
 
-import (
-	"flag"
+var appLogger Logger
 
-	"github.com/square/metrics/api/backend/blueflood"
-	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/ui"
-)
+type Logger interface {
+	Infof(format string, args ...interface{})
+	Warningf(format string, args ...interface{})
+}
 
-func main() {
-	flag.Parse()
-	common.SetupLogger()
+func Infof(format string, args ...interface{}) {
+	if appLogger != nil {
+		appLogger.Infof(format, args)
+	}
+}
 
-	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
-	ui.Main(apiInstance, backend)
+func Warningf(format string, args ...interface{}) {
+	if appLogger != nil {
+		appLogger.Warningf(format, args)
+	}
+}
+
+func InitLogger(logger Logger) {
+	appLogger = logger
 }

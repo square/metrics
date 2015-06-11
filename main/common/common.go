@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"os"
 
+	standard_log "log"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/internal"
+	"github.com/square/metrics/log"
 )
 
 var (
@@ -29,6 +32,7 @@ var (
 	CassandraHost     = flag.String("cassandra-host", "localhost", "Cassandra host")
 	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
 	BluefloodTenantId = flag.String("blueflood-tenant-id", "", "Blueflood tenant id")
+	Verbose           = flag.Bool("verbose", false, "Set to true to enable logging")
 )
 
 // ExitWithRequired terminates the program when a required flag is missing.
@@ -54,4 +58,21 @@ func NewAPI() api.API {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API: %s\n", err.Error()))
 	}
 	return apiInstance
+}
+
+type StandardLogger struct {
+	wrapped *standard_log.Logger
+}
+
+func (s StandardLogger) Infof(format string, args ...interface{}) {
+	s.wrapped.Printf(format, args...)
+}
+func (s StandardLogger) Warningf(format string, args ...interface{}) {
+	s.wrapped.Printf(format, args...)
+}
+
+func SetupLogger() {
+	if *Verbose {
+		log.InitLogger(StandardLogger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
+	}
 }

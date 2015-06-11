@@ -72,6 +72,7 @@ type PerMetricStatistics struct {
 
 func main() {
 	flag.Parse()
+	common.SetupLogger()
 	if *common.YamlFile == "" {
 		common.ExitWithRequired("yaml-file")
 	}

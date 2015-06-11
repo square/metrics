@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -27,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/log"
 )
 
 type httpClient interface {
@@ -98,7 +98,7 @@ func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 
 	queryUrl.RawQuery = params.Encode()
 
-	log.Printf("Blueflood fetch: %s", queryUrl.String())
+	log.Infof("Blueflood fetch: %s", queryUrl.String())
 	resp, err := b.client.Get(queryUrl.String())
 	if err != nil {
 		return api.Timeseries{}, err
@@ -110,7 +110,7 @@ func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		return api.Timeseries{}, err
 	}
 
-	log.Printf("Fetch result: %s", string(body))
+	log.Infof("Fetch result: %s", string(body))
 
 	var result QueryResponse
 	err = json.Unmarshal(body, &result)
@@ -134,7 +134,7 @@ func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		values[i] = sampler.bucketSampler(bucket)
 	}
 
-	log.Printf("Constructed timeseries from result: %v", values)
+	log.Infof("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
 		Values: values,
