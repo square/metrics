@@ -1,8 +1,8 @@
 package query
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
 // SyntaxError is raised when the user query is invalid.
@@ -15,18 +15,36 @@ type SyntaxError struct {
 }
 
 type ArgumentLengthError struct {
-	Name     string
-	Expected int
-	Actual   int
+	Name        string
+	ExpectedMin int
+	ExpectedMax int
+	Actual      int
 }
 
 func (err ArgumentLengthError) Error() string {
-	return fmt.Sprintf(
-		"Function `%s` expected %d arguments but received %d.",
-		err.Name,
-		err.Expected,
-		err.Actual,
-	)
+	if err.ExpectedMin == err.ExpectedMax {
+		return fmt.Sprintf(
+			"Function `%s` expected %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.Actual,
+		)
+	} else if err.ExpectedMax == -1 {
+		return fmt.Sprintf(
+			"Function `%s` expected at least %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.Actual,
+		)
+	} else {
+		return fmt.Sprintf(
+			"Function `%s` expected between %d and %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.ExpectedMax,
+			err.Actual,
+		)
+	}
 }
 
 // AssertionError is raised when an internal invariant is violated,

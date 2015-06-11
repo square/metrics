@@ -97,12 +97,6 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
 	name := expr.functionName
 	length := len(expr.arguments)
-	values, err := evaluateExpressions(context, expr.arguments)
-
-	if err != nil {
-		return nil, err
-	}
-
 	operatorMap := map[string]func(float64, float64) float64{
 		"+": func(x, y float64) float64 { return x + y },
 		"-": func(x, y float64) float64 { return x - y },
@@ -114,7 +108,11 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		// Evaluation of a binary operator:
 		// Verify that exactly 2 arguments are given.
 		if length != 2 {
-			return nil, ArgumentLengthError{name, 2, length}
+			return nil, ArgumentLengthError{name, 2, 2, length}
+		}
+		values, err := evaluateExpressions(context, expr.arguments)
+		if err != nil {
+			return nil, err
 		}
 		return evaluateBinaryOperation(context, name, values[0], values[1], operator)
 	}
@@ -122,10 +120,13 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	if aggregator, ok := aggregate.GetAggregate(name); ok {
 		// Verify that exactly 1 argument is given.
 		if length != 1 {
-			return nil, ArgumentLengthError{name, 1, length}
+			return nil, ArgumentLengthError{name, 1, 1, length}
 		}
-		value := values[0]
-		list, err := value.toSeriesList(context.Timerange)
+		values, err := evaluateExpressions(context, expr.arguments)
+		if err != nil {
+			return nil, err
+		}
+		list, err := values[0].toSeriesList(context.Timerange)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +137,11 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	if transform, ok := GetTransformation(name); ok {
 		//Verify that at least one argument is given.
 		if length == 0 {
-			return nil, ArgumentLengthError{name, 1, length}
+			return nil, ArgumentLengthError{name, 1, -1, length}
+		}
+		values, err := evaluateExpressions(context, expr.arguments)
+		if err != nil {
+			return nil, err
 		}
 		first := values[0]
 		list, err := first.toSeriesList(context.Timerange)
@@ -156,17 +161,23 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		// A timeshift performs a modification to the evaluation context.
 		// In the future, it may be one of a class of functions which performs a similar modification.
 		// A timeshift has two parameters: its first (which it evaluates), and its second (the time offset).
-		if len(expr.arguments) != 2 {
-			return nil, ArgumentLengthError{name, 2, length}
+		if length != 2 {
+			return nil, ArgumentLengthError{name, 2, 2, length}
 		}
-		shift := values[1]
+		shift, err := expr.arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
 		duration, err := toDuration(shift)
 		if err != nil {
 			return nil, err
 		}
 		newContext := context
 		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
-		value := values[0]
+		value, err := expr.arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
 		if series, ok := value.(seriesListValue); ok {
 			// If it's a series, then we need to reset its timerange to the original.
 			// Although it's questionably useful to use timeshifting for a non-series,
