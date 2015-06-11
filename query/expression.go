@@ -22,26 +22,6 @@ import (
 	"github.com/square/metrics/query/aggregate"
 )
 
-// Expression is a piece of code, which can be evaluated in a given
-// EvaluationContext. EvaluationContext must never be changed in an Evalute().
-//
-// The contract of Expressions is that leaf nodes must sample a resulting
-// timeseries according to the resolution specified in its EvaluationContext's
-// Timerange. Internal nodes may assume that results from evaluating child
-// Expressions correspond to the timerange in the current EvaluationContext.
-type Expression interface {
-	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (value, error)
-}
-
-func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
-	value, err := e.Evaluate(context)
-	if err != nil {
-		return api.SeriesList{}, err
-	}
-	return value.toSeriesList(context.Timerange)
-}
-
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
 // metrics query.
@@ -55,6 +35,18 @@ type EvaluationContext struct {
 	Timerange    api.Timerange    // Timerange to fetch data from
 	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate    api.Predicate
+}
+
+// Expression is a piece of code, which can be evaluated in a given
+// EvaluationContext. EvaluationContext must never be changed in an Evalute().
+//
+// The contract of Expressions is that leaf nodes must sample a resulting
+// timeseries according to the resolution specified in its EvaluationContext's
+// Timerange. Internal nodes may assume that results from evaluating child
+// Expressions correspond to the timerange in the current EvaluationContext.
+type Expression interface {
+	// Evaluate the given expression.
+	Evaluate(context EvaluationContext) (value, error)
 }
 
 // Implementations
@@ -122,7 +114,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		// Evaluation of a binary operator:
 		// Verify that exactly 2 arguments are given.
 		if length != 2 {
-			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(expr.arguments), expr.arguments))
+			return nil, ArgumentLengthError{name, 2, length}
 		}
 		return evaluateBinaryOperation(context, name, values[0], values[1], operator)
 	}
@@ -130,7 +122,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	if aggregator, ok := aggregate.GetAggregate(name); ok {
 		// Verify that exactly 1 argument is given.
 		if length != 1 {
-			return nil, errors.New(fmt.Sprintf("Function `%s` expects 1 argument but received %d (%+v)", name, len(expr.arguments), expr.arguments))
+			return nil, ArgumentLengthError{name, 1, length}
 		}
 		value := values[0]
 		list, err := value.toSeriesList(context.Timerange)
@@ -144,12 +136,9 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	if transform, ok := GetTransformation(name); ok {
 		//Verify that at least one argument is given.
 		if length == 0 {
-			return nil, errors.New(fmt.Sprintf("Function `%s` expects at least 1 argument but was given 0", name))
+			return nil, ArgumentLengthError{name, 1, length}
 		}
-		first, err := expr.arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
+		first := values[0]
 		list, err := first.toSeriesList(context.Timerange)
 		if err != nil {
 			return nil, err
@@ -168,7 +157,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		// In the future, it may be one of a class of functions which performs a similar modification.
 		// A timeshift has two parameters: its first (which it evaluates), and its second (the time offset).
 		if len(expr.arguments) != 2 {
-			return nil, errors.New(fmt.Sprintf("Function `timeshift` expects 2 parameters but is given %d (%+v)", len(expr.arguments), expr.arguments))
+			return nil, ArgumentLengthError{name, 2, length}
 		}
 		shift := values[1]
 		duration, err := toDuration(shift)
@@ -260,4 +249,3 @@ func evaluateExpressions(context EvaluationContext, expressions []Expression) ([
 	}
 	return results, nil
 }
-

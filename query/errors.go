@@ -2,6 +2,7 @@ package query
 
 import (
 	"strings"
+	"fmt"
 )
 
 // SyntaxError is raised when the user query is invalid.
@@ -11,6 +12,21 @@ import (
 type SyntaxError struct {
 	token   string
 	message string
+}
+
+type ArgumentLengthError struct {
+	Name     string
+	Expected int
+	Actual   int
+}
+
+func (err ArgumentLengthError) Error() string {
+	return fmt.Sprintf(
+		"Function `%s` expected %d arguments but received %d.",
+		err.Name,
+		err.Expected,
+		err.Actual,
+	)
 }
 
 // AssertionError is raised when an internal invariant is violated,

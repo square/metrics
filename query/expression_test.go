@@ -370,6 +370,14 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
+func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
+	value, err := e.Evaluate(context)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
+	return value.toSeriesList(context.Timerange)
+}
+
 var _ api.Backend = (*FakeBackend)(nil)
 var _ Expression = (*LiteralExpression)(nil)
 var _ Expression = (*LiteralSeriesExpression)(nil)
