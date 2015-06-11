@@ -4,10 +4,13 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
+	"strconv"
 )
 
 // MetricKey is the logical name of a given metric.
@@ -234,6 +237,42 @@ type Timeseries struct {
 	TagSet TagSet
 }
 
+// This function exists to manually encode floats.
+func (ts Timeseries) MarshalJSON() ([]byte, error) {
+	var buffer bytes.Buffer
+	var scratch [64]byte
+	buffer.WriteByte('{')
+	buffer.WriteString("\"tagset\":")
+	tagset, err := json.Marshal(ts.TagSet)
+	if err != nil {
+		return []byte{}, err
+	}
+	buffer.Write(tagset)
+	buffer.WriteByte(',')
+	buffer.WriteString("\"values\":")
+	buffer.WriteByte('[')
+	n := len(ts.Values)
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			buffer.WriteByte(',')
+		}
+		f := ts.Values[i]
+		if math.IsInf(f, 1) {
+			buffer.WriteString("null") // TODO - positive infinity
+		} else if math.IsInf(f, -1) {
+			buffer.WriteString("null") // TODO - negative infinity
+		} else if math.IsNaN(f) {
+			buffer.WriteString("null")
+		} else {
+			b := strconv.AppendFloat(scratch[:0], f, 'g', -1, 64)
+			buffer.Write(b)
+		}
+	}
+	buffer.WriteByte(']')
+	buffer.WriteByte('}')
+	return buffer.Bytes(), err
+}
+
 // SampleMethod determines how the given time series should be sampled.
 // Note(This is currently unused).
 type SampleMethod int
@@ -249,9 +288,9 @@ const (
 
 // SeriesList is a list of time series sharing the same time range.
 type SeriesList struct {
-	Series    []Timeseries
-	Timerange Timerange
-	Name      string // human-readable description of the given time series.
+	Series    []Timeseries `json:"series"`
+	Timerange Timerange    `json:"timerange"`
+	Name      string       `json:"name"` // human-readable description of the given time series.
 }
 
 // IsValid determines whether the given time series is valid.
