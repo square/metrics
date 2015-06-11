@@ -103,8 +103,13 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
-
 	name := expr.functionName
+	length := len(expr.arguments)
+	values, err := evaluateExpressions(context, expr.arguments)
+
+	if err != nil {
+		return nil, err
+	}
 
 	operatorMap := map[string]func(float64, float64) float64{
 		"+": func(x, y float64) float64 { return x + y },
@@ -116,31 +121,18 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	if operator, ok := operatorMap[name]; ok {
 		// Evaluation of a binary operator:
 		// Verify that exactly 2 arguments are given.
-		if len(expr.arguments) != 2 {
+		if length != 2 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects 2 operands but received %d (%+v)", name, len(expr.arguments), expr.arguments))
 		}
-		left, err := expr.arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		right, err := expr.arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-
-		return evaluateBinaryOperation(context, name, left, right, operator)
+		return evaluateBinaryOperation(context, name, values[0], values[1], operator)
 	}
 
 	if aggregator, ok := aggregate.GetAggregate(name); ok {
 		// Verify that exactly 1 argument is given.
-		if len(expr.arguments) != 1 {
+		if length != 1 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects 1 argument but received %d (%+v)", name, len(expr.arguments), expr.arguments))
 		}
-		argument := expr.arguments[0]
-		value, err := argument.Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
+		value := values[0]
 		list, err := value.toSeriesList(context.Timerange)
 		if err != nil {
 			return nil, err
@@ -151,7 +143,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 
 	if transform, ok := GetTransformation(name); ok {
 		//Verify that at least one argument is given.
-		if len(expr.arguments) == 0 {
+		if length == 0 {
 			return nil, errors.New(fmt.Sprintf("Function `%s` expects at least 1 argument but was given 0", name))
 		}
 		first, err := expr.arguments[0].Evaluate(context)
@@ -163,15 +155,8 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 			return nil, err
 		}
 		// Evaluate all the other parameters:
-		rest := expr.arguments[1:]
-		parameters := make([]value, len(rest))
-		for i := range parameters {
-			parameters[i], err = rest[i].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-		}
-		series, err := ApplyTransform(list, transform, parameters)
+		rest := values[1:]
+		series, err := ApplyTransform(list, transform, rest)
 		if err != nil {
 			return nil, err
 		}
@@ -185,20 +170,14 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if len(expr.arguments) != 2 {
 			return nil, errors.New(fmt.Sprintf("Function `timeshift` expects 2 parameters but is given %d (%+v)", len(expr.arguments), expr.arguments))
 		}
-		shift, err := expr.arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
+		shift := values[1]
 		duration, err := toDuration(shift)
 		if err != nil {
 			return nil, err
 		}
 		newContext := context
 		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
-		value, err := expr.arguments[0].Evaluate(newContext)
-		if err != nil {
-			return nil, err
-		}
+		value := values[0]
 		if series, ok := value.(seriesListValue); ok {
 			// If it's a series, then we need to reset its timerange to the original.
 			// Although it's questionably useful to use timeshifting for a non-series,
@@ -211,20 +190,8 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
 }
 
-//
 // Auxiliary functions
-//
-
-// evaluateExpression wraps expr.Evaluate() to provide common messaging
-// for errors. This can get pretty messy if the Expression we evaluate
-// isn't a leaf node, but a leaf fails.
-func evaluateExpression(context EvaluationContext, expr Expression) (value, error) {
-	result, err := expr.Evaluate(context)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Evaluation of expression %+v failed:\n%s\n", expr, err.Error()))
-	}
-	return result, err
-}
+// ===================
 
 // evaluateBinaryOperation applies an arbirary binary operation to two
 // Expressions.
@@ -265,28 +232,6 @@ func evaluateBinaryOperation(
 	}), nil
 }
 
-// evaluateExpressions evaluates all provided Expressions in the
-// EvaluationContext. If any evaluations error, evaluateExpressions will
-// propagate that error. The resulting SeriesLists will be in an order
-// corresponding to the provided Expresesions.
-func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]value, error) {
-	if len(expressions) == 0 {
-		return []value{}, nil
-	}
-
-	results := make([]value, len(expressions))
-	for i, expr := range expressions {
-		result, err := expr.Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-
-		results[i] = result
-	}
-
-	return results, nil
-}
-
 func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet {
 	output := []api.TagSet{}
 	for _, ts := range tagSets {
@@ -296,3 +241,23 @@ func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet
 	}
 	return output
 }
+
+// evaluateExpressions evaluates all provided Expressions in the
+// EvaluationContext. If any evaluations error, evaluateExpressions will
+// propagate that error. The resulting SeriesLists will be in an order
+// corresponding to the provided Expresesions.
+func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]value, error) {
+	if len(expressions) == 0 {
+		return []value{}, nil
+	}
+	results := make([]value, len(expressions))
+	for i, expr := range expressions {
+		result, err := expr.Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = result
+	}
+	return results, nil
+}
+
