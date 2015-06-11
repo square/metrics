@@ -48,6 +48,10 @@ var inputs = []string{
 	"describe cpu_usage where (key = 'value') and key = 'value'",
 	"describe cpu_usage where (key = 'value') and (key = 'value')",
 	"describe cpu_usage where (key = 'value' and key = 'value')",
+	// selects - parenthesis
+	"select 0 from 0 to 0",
+	"select (0) from 0 to 0",
+	"select (0) where foo = 'bar' from 0 to 0",
 	// selects - numbers
 	"select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0",
 	"select 10, 100, 1000 from 0 to 0",
