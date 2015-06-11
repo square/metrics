@@ -25,6 +25,10 @@ function onload() {
 	google.load('visualization', '1.0', {'packages':['corechart']});
 }
 
+function dateFromIndex(index, timerange) {
+	return new Date(timerange.start + timerange.resolution * index);
+}
+
 function resultUpdate(object) {
 	if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
 		return;
@@ -47,21 +51,20 @@ function resultUpdate(object) {
 	var table = [labels];
 	// Next, add each row.
 
-
 	var timerange = object.body[0].timerange;
 	for (var t = 0; t < series[0].values.length; t++) {
-		var row = [new Date(timerange.start + timerange.resolution * t)];
+		var row = [dateFromIndex(t, timerange)];
 		for (var i = 0; i < series.length; i++) {
 			row.push(series[i].values[t] || 0);
 		}
 		table.push(row);
 	}
-	var trueTable = google.visualization.arrayToDataTable(table);
+	var dataTable = google.visualization.arrayToDataTable(table);
 	var options = {
 		title: "Select Result",
 		legend: {position: "bottom"}
 	}
 
 	var chart = new google.visualization.LineChart(document.getElementById('chart-div'));
-	chart.draw(trueTable, options);
+	chart.draw(dataTable, options);
 }
