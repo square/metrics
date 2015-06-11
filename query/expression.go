@@ -23,6 +23,57 @@ import (
 	"github.com/square/metrics/query/aggregate"
 )
 
+const simultaneousFetchLimit = 4
+
+// fetchTicketsQueue holds tickets, which a worker must pick up in order to make a query.
+var fetchTicketsQueue = make(chan bool, simultaneousFetchLimit)
+
+// init() adds all the tickets needed to the fetchTicketsQueue.
+func init() {
+	for i := 0; i < simultaneousFetchLimit; i++ {
+		fetchTicketsQueue <- true
+	}
+}
+
+// fetchLazy issues a goroutine to compute the timeseries once a fetchticket becomes available.
+// It returns a channel to wait for the response to finish (the error).
+// It stores the result of the function invokation in the series pointer it is given.
+func fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error)) chan error {
+	channel := make(chan error)
+	go func() {
+		ticket := <-fetchTicketsQueue
+		series, err := fun()
+		// Put the ticket back (regardless of whether caller drops)
+		fetchTicketsQueue <- ticket
+		// Store the result
+		*result = series
+		// Return the error (and sync up with the caller).
+		channel <- err
+	}()
+	return channel
+}
+
+// fetchManyLazy abstracts upon fetchLazy so that looping over the resulting channels is not needed.
+// It returns any overall error, as well as a slice of the resulting timeseries.
+func fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+	results := make([]api.Timeseries, len(funs))
+	channels := make([]chan error, len(funs))
+	for i := range results {
+		channels[i] = fetchLazy(&results[i], funs[i])
+	}
+	var err error = nil
+	for i := range channels {
+		thisErr := <-channels[i]
+		if thisErr != nil {
+			err = thisErr
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
 // metrics query.
@@ -167,16 +218,22 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	resultSeries := []api.Timeseries{}
-	for _, ts := range filtered {
-		result, err := context.Backend.FetchSingleSeries(api.FetchSeriesRequest{
-			api.TaggedMetric{api.MetricKey(expr.metricName), ts}, context.SampleMethod, context.Timerange,
-			context.API,
-		})
-		if err != nil {
-			return nil, err
+	funs := make([]func() (api.Timeseries, error), len(filtered))
+	for i, ts := range filtered {
+		// Since we want to create a closure, we want to close over this particular ts,
+		// rather than the variable itself (which is the same between iterations).
+		tagset := ts
+		funs[i] = func() (api.Timeseries, error) {
+			return context.Backend.FetchSingleSeries(api.FetchSeriesRequest{
+				api.TaggedMetric{api.MetricKey(expr.metricName), tagset}, context.SampleMethod, context.Timerange,
+				context.API,
+			})
 		}
-		resultSeries = append(resultSeries, result)
+	}
+
+	resultSeries, err := fetchManyLazy(funs)
+	if err != nil {
+		return nil, err
 	}
 
 	return seriesListValue(api.SeriesList{
