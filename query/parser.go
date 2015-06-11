@@ -99,6 +99,50 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
+// `now` isn't captured in this regex
+var relativeTimeRegexp = regexp.MustCompile(`^-(\d+)([a-zA-Z])$`)
+
+// parseRelativeTime transforms a relative time string (e.g. `-10m`) to a
+// timestamp in millis.
+func parseRelativeTime(s string, now time.Time) (int64, error) {
+	if s == "now" {
+		return now.Unix() * 1000, nil
+	}
+
+	matches := relativeTimeRegexp.FindStringSubmatch(s)
+	if matches != nil {
+		offsetSeconds, err := strconv.ParseInt(matches[1], 10, 0)
+		if err != nil {
+			// This should never happen since the regex should be valid
+			panic(fmt.Sprintf("Invalid offset `%s` in relative timestamp `%s`", matches[1], s))
+		}
+
+		offset := offsetSeconds * 1000
+		specifier := matches[2]
+
+		switch specifier {
+		case "s":
+			// Already in millis, do nothing.
+		case "m":
+			offset *= 60
+		case "h":
+			offset *= 60 * 60
+		case "d":
+			offset *= 60 * 60 * 24
+		case "M":
+			offset *= 60 * 60 * 24 * 30
+		case "y":
+			offset *= 60 * 60 * 24 * 365
+		default:
+			return -1, fmt.Errorf("invalid relative timestamp %s", s)
+		}
+
+		return now.Unix()*1000 - offset, nil
+	}
+
+	return -1, fmt.Errorf("invalid relative timestamp %s", s)
+}
+
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string) (int64, error) {
 	intValue, err := strconv.ParseInt(date, 10, 64)
@@ -340,8 +384,12 @@ func (p *Parser) insertPropertyKeyValue() {
 	case "from":
 		fallthrough
 	case "to":
-		unix, err := parseDate(value)
-		if err != nil {
+		var unix int64
+		var err error
+		if unix, err = parseDate(value); err == nil {
+			// Valid, so do nothing.
+		} else if unix, err = parseRelativeTime(value, time.Now().UTC()); err != nil {
+			fmt.Printf("`%s` is invalid: %s\n", value, err.Error())
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
 				message: err.Error(),
