@@ -27,6 +27,7 @@ import (
 
 func main() {
 	flag.Parse()
+	common.SetupLogger()
 	if *common.BluefloodUrl == "" {
 		common.ExitWithRequired("blueflood-url")
 	}

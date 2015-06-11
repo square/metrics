@@ -17,10 +17,11 @@ package query
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/assert"
 	"github.com/square/metrics/mocks"
-	"testing"
 )
 
 var emptyGraphiteName = api.GraphiteMetric("")

@@ -17,13 +17,13 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/log"
 	"github.com/square/metrics/query"
 )
 
@@ -117,6 +117,6 @@ func Main(apiInstance api.API, backend api.Backend) {
 	}
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatal(err)
+		log.Infof(err.Error())
 	}
 }
