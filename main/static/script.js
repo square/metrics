@@ -8,7 +8,7 @@ module.controller("mainCtrl", function($scope, $http) {
 	$scope.queryResult = "";
 	$scope.queryText = "";
 	$scope.onSubmitQuery = function() {
-		window.location.hash = "#" + $scope.queryText;
+		window.location.hash = "#" + encodeURIComponent($scope.queryText);
 		$http.get('/query', {params:{query: $scope.queryText}}).
 		  success(function(data, status, headers, config) {
 		    $scope.queryResult = data;
