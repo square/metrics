@@ -3,24 +3,30 @@
 <head>
 	<title>Static Page</title>
 	<script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
+	<script type="text/ecmascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.js"></script>
 	<script type="text/ecmascript" src="script.js"></script>
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
 
 </head>
-<body ng-app="main">
-<div ng-controller="mainCtrl">
-	<textarea ng-model="queryText"></textarea>
-	<button ng-click="onSubmitQuery()">Submit</button>
-	<table ng-if="queryResult.name == 'describe all'" class="table table-striped">
-		<tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
-	</table>
-	<table ng-if="queryResult.name == 'select'" ng-repeat="seriesList in queryResult.body" class="table table-striped">
-		<tr ng-repeat="series in seriesList.Series">
-			<td>{{series.TagSet}}</td>
-			<td ng-repeat="value in series.Values track by $index">{{value}}</td>
-		<tr>
-	</table>
-	<pre>{{queryResult.body}}</pre>
+<body>
+<canvas id="graphCanvas" width="1000" height="700"></canvas>
+<div ng-app="main">
+	<div ng-controller="mainCtrl">
+		<textarea ng-model="queryText"></textarea>
+		<button ng-click="onSubmitQuery()">Submit</button>
+		<table ng-if="queryResult.name == 'describe all'" class="table table-striped">
+			<tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
+		</table>
+		<table ng-if="queryResult.name == 'select'" ng-repeat="seriesList in queryResult.body" class="table table-striped">
+			<tr ng-repeat="series in seriesList.Series">
+				<td>{{series.TagSet}}</td>
+				<td ng-repeat="value in series.Values track by $index">{{value}}</td>
+			<tr>
+		</table>
+		<pre>{{queryResult.body}}</pre>
+		<pre>{{queryResult.message}}</pre>
+	</div>
 </div>
+<script>onload();</script>
 </body>
 </html>

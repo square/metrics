@@ -43,7 +43,8 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.WriteHeader(code)
 	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode error message'}"))
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode error message\"}"))
 		return
 	}
 	writer.Write(encoded)
@@ -52,7 +53,8 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 func bodyResponse(writer http.ResponseWriter, body interface{}, name string) {
 	encoded, err := json.MarshalIndent(Response{Success: true, Name: name, Body: body}, "", "  ")
 	if err != nil {
-		writer.Write([]byte("{\"success\":false, \"message\":'failed to encode result message'"))
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode result message\"}"))
 		return
 	}
 	writer.Write(encoded)
@@ -65,6 +67,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	input := request.Form.Get("query")
+	fmt.Printf("INPUT: %+v\n", input)
 
 	cmd, err := query.Parse(input)
 	if err != nil {
