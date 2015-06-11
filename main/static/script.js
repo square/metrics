@@ -62,9 +62,10 @@ function resultUpdate(object) {
 	var dataTable = google.visualization.arrayToDataTable(table);
 	var options = {
 		title: "Select Result",
-		legend: {position: "bottom"}
+		legend: {position: "bottom"},
+		chartArea: {left: "5%", width:"90%"}
 	}
 
 	var chart = new google.visualization.LineChart(document.getElementById('chart-div'));
-	chart.draw(dataTable, options);
+	setTimeout(function(){chart.draw(dataTable, options)}, 1);
 }
