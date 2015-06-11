@@ -1,13 +1,14 @@
 "use strict";
 
-console.log("Hello, world!");
-
 var module = angular.module("main",[]);
+
+var chartsReady = false;
 
 module.controller("mainCtrl", function($scope, $http) {
 	$scope.queryResult = "";
 	$scope.queryText = "";
 	$scope.onSubmitQuery = function() {
+		window.location.hash = "#" + $scope.queryText;
 		$http.get('/query', {params:{query: $scope.queryText}}).
 		  success(function(data, status, headers, config) {
 		    $scope.queryResult = data;
@@ -16,20 +17,40 @@ module.controller("mainCtrl", function($scope, $http) {
 		    $scope.queryResult = data;
 		  });
 	};
+
 	$scope.$watch("queryResult", resultUpdate);
+
+	var urlQuery = window.location.hash
+	if (urlQuery != "") {
+		// Drop the leading '#'
+		urlQuery = urlQuery.substring(1);
+		// The remainder is the query to perform.
+		// Decode it (if neccesarry).
+		$scope.queryText = decodeURIComponent(urlQuery);
+		$scope.onSubmitQuery();
+	}
 });
 
 var chart;
 
+
 function onload() {
 	google.load('visualization', '1.0', {'packages':['corechart']});
+	google.setOnLoadCallback(function(){ chartsReady = true; });
 }
 
 function dateFromIndex(index, timerange) {
 	return new Date(timerange.start + timerange.resolution * index);
 }
 
+
+
 function resultUpdate(object) {
+	if (!chartsReady) {
+		// Ask again in 30ms.
+		setTimeout(function(){resultUpdate(object);}, 10);
+		return;
+	}
 	if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
 		return;
 	}
@@ -66,6 +87,6 @@ function resultUpdate(object) {
 		chartArea: {left: "5%", width:"90%"}
 	}
 
-	var chart = new google.visualization.LineChart(document.getElementById('chart-div'));
+	chart = new google.visualization.LineChart(document.getElementById('chart-div'));
 	setTimeout(function(){chart.draw(dataTable, options)}, 1);
 }
