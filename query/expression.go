@@ -17,108 +17,10 @@ package query
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
 )
-
-// EvaluationContext is the central piece of logic, providing
-// helper funcions & varaibles to evaluate a given piece of
-// metrics query.
-// * Contains Backend object, which can be used to fetch data
-// from the backend system.s
-// * Contains current timerange being queried for - this can be
-// changed by say, application of time shift function.
-type EvaluationContext struct {
-	Backend      api.Backend      // Backend to fetch data from
-	API          api.API          // Api to obtain metadata from
-	Timerange    api.Timerange    // Timerange to fetch data from
-	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate    api.Predicate
-}
-
-// A value is the result of evaluating an expression.
-// They can be floating point values, strings, or series lists.
-type value interface {
-	toSeriesList(api.Timerange) (api.SeriesList, error)
-	toString() (string, error)
-	toScalar() (float64, error)
-}
-
-type conversionError struct {
-	from string
-	to   string
-}
-
-func (e conversionError) Error() string {
-	return fmt.Sprintf("cannot convert from type %s to type %s", e.from, e.to)
-}
-
-// A seriesListValue is a value which holds a SeriesList
-type seriesListValue api.SeriesList
-
-func (value seriesListValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList(value), nil
-}
-func (value seriesListValue) toString() (string, error) {
-	return "", conversionError{"SeriesList", "string"}
-}
-func (value seriesListValue) toScalar() (float64, error) {
-	return 0, conversionError{"SeriesList", "scalar"}
-}
-
-// A stringValue holds a string
-type stringValue string
-
-func (value stringValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, conversionError{"string", "SeriesList"}
-}
-func (value stringValue) toString() (string, error) {
-	return string(value), nil
-}
-func (value stringValue) toScalar() (float64, error) {
-	return 0, conversionError{"string", "scalar"}
-}
-
-// A scalarValue holds a float and can be converted to a serieslist
-type scalarValue float64
-
-func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-
-	series := make([]float64, timerange.Slots())
-	for i := range series {
-		series[i] = float64(value)
-	}
-
-	return api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{series, api.NewTagSet()}},
-		Timerange: timerange,
-	}, nil
-}
-
-func (value scalarValue) toString() (string, error) {
-	return "", conversionError{"scalar", "string"}
-}
-
-func (value scalarValue) toScalar() (float64, error) {
-	return float64(value), nil
-}
-
-// toDuration will take a value, convert it to a string, and then parse it.
-// the valid suffixes are: ns, us (µs), ms, s, m, h
-// It converts the return value to milliseconds.
-func toDuration(value value) (int64, error) {
-	timeString, err := value.toString()
-	if err != nil {
-		return 0, err
-	}
-	duration, err := time.ParseDuration(timeString)
-	if err != nil {
-		return 0, err
-	}
-	return int64(duration / 1000000), nil
-}
 
 // Expression is a piece of code, which can be evaluated in a given
 // EvaluationContext. EvaluationContext must never be changed in an Evalute().
@@ -138,6 +40,21 @@ func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 		return api.SeriesList{}, err
 	}
 	return value.toSeriesList(context.Timerange)
+}
+
+// EvaluationContext is the central piece of logic, providing
+// helper funcions & varaibles to evaluate a given piece of
+// metrics query.
+// * Contains Backend object, which can be used to fetch data
+// from the backend system.s
+// * Contains current timerange being queried for - this can be
+// changed by say, application of time shift function.
+type EvaluationContext struct {
+	Backend      api.Backend      // Backend to fetch data from
+	API          api.API          // Api to obtain metadata from
+	Timerange    api.Timerange    // Timerange to fetch data from
+	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
+	Predicate    api.Predicate
 }
 
 // Implementations
