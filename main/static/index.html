@@ -10,21 +10,21 @@
 
 </head>
 <body>
-<div id="chart_div_container">
-	<div id="chart_div"></div>
+<div id="chart-div-container">
+	<div id="chart-div"></div>
 </div>
-<div ng-app="main">
-	<div ng-controller="mainCtrl">
-		<textarea ng-model="queryText"></textarea>
-		<button ng-click="onSubmitQuery()">Submit</button>
-		<table ng-if="queryResult.name == 'describe all'" class="table table-striped">
-			<tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
+<div data-ng-app="main">
+	<div data-ng-controller="mainCtrl">
+		<textarea data-ng-model="queryText"></textarea>
+		<button data-ng-click="onSubmitQuery()">Submit</button>
+		<table data-ng-if="queryResult.name == 'describe all'" class="table table-striped">
+			<tr data-ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
 		</table>
-		<table ng-if="queryResult.name == 'select'" ng-repeat="seriesList in queryResult.body" class="table table-striped">
-			<tr ng-repeat="series in seriesList.Series">
+		<table data-ng-if="queryResult.name == 'select'" data-ng-repeat="seriesList in queryResult.body" class="table table-striped">
+			<tr data-ng-repeat="series in seriesList.Series">
 				<td>{{series.TagSet}}</td>
-				<td ng-repeat="value in series.Values track by $index">{{value}}</td>
-			<tr>
+				<td data-ng-repeat="value in series.Values track by $index">{{value}}</td>
+			</tr>
 		</table>
 		<pre>{{queryResult.body}}</pre>
 		<pre>{{queryResult.message}}</pre>

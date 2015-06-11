@@ -10,13 +10,13 @@ textarea {
 }
 
 
-#chart_div_container {
+#chart-div-container {
 	position:relative;
 	height:0;
 	padding-bottom:50%;
 }
 
-#chart_div {
+#chart-div {
 	position:absolute;
 	border: solid black 2px;
 	background:#EEE;
