@@ -283,7 +283,7 @@ func (p *Parser) addPropertyValue(value string) {
 
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
-		0, 0, 30,
+		0, 0, 30000,
 		api.SampleMean,
 		make(map[string]bool),
 	})

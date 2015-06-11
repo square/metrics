@@ -194,6 +194,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		if err != nil {
 			return nil, err
 		}
+
 		return evaluateBinaryOperation(context, name, left, right, operator)
 	}
 

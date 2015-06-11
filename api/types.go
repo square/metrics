@@ -154,11 +154,6 @@ type Timerange struct {
 	resolution int64
 }
 
-// DefaultTimerange is a valid timerange which can be safely used
-func DefaultTimerange() Timerange {
-	return Timerange{start: 0, end: 0, resolution: 30}
-}
-
 // Start() returns the .start field
 func (tr Timerange) Start() int64 {
 	return tr.start
@@ -183,20 +178,31 @@ func (tr Timerange) Resolution() int64 {
 }
 
 // NewTimerange creates a timerange which is validated, providing error otherwise.
-func NewTimerange(start, end, resolution int64) (*Timerange, error) {
+func NewTimerange(start, end, resolution int64) (Timerange, error) {
 	if resolution <= 0 {
-		return nil, errors.New(fmt.Sprintf("resolution must be more than 0 (resolution=%d)", resolution))
+		return Timerange{}, fmt.Errorf("invalid resolution %d", resolution)
 	}
+
 	if start%resolution != 0 {
-		return nil, errors.New(fmt.Sprintf("start %% resolution (mod) must be 0 (start=%d, resolution=%d)", start, resolution))
+		return Timerange{}, errors.New(fmt.Sprintf("start %% resolution (mod) must be 0 (start=%d, resolution=%d)", start, resolution))
 	}
 	if end%resolution != 0 {
-		return nil, errors.New(fmt.Sprintf("end %% resolution (mod) must be 0 (end=%d, resolution=%d)", end, resolution))
+		return Timerange{}, errors.New(fmt.Sprintf("end %% resolution (mod) must be 0 (end=%d, resolution=%d)", end, resolution))
 	}
 	if start > end {
-		return nil, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+		return Timerange{}, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
 	}
-	return &Timerange{start: start, end: end, resolution: resolution}, nil
+	return Timerange{start: start, end: end, resolution: resolution}, nil
+}
+
+func NewSnappedTimerange(start, end, resolution int64) (Timerange, error) {
+	if resolution <= 0 {
+		return Timerange{}, fmt.Errorf("invalid resolution %d", resolution)
+	}
+	if start > end {
+		return Timerange{}, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+	}
+	return Timerange{start: start, end: end, resolution: resolution}.Snap(), nil
 }
 
 func snap(n, boundary int64) int64 {
@@ -216,8 +222,8 @@ func snap(n, boundary int64) int64 {
 
 // Round() will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Snap() Timerange {
-
 	if tr.resolution == 0 {
+		panic("AAH")
 		return tr
 	}
 	tr.start = snap(tr.start, tr.resolution)

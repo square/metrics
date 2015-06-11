@@ -77,13 +77,13 @@ func (cmd *DescribeAllCommand) Name() string {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
-	timerange, err := api.NewTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
+	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return nil, err
 	}
 	return evaluateExpressions(EvaluationContext{
 		Backend:      b,
-		Timerange:    *timerange,
+		Timerange:    timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 		API:          a,
