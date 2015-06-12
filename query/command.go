@@ -82,12 +82,14 @@ func (cmd *SelectCommand) Execute(b api.MultiBackend, a api.API) (interface{}, e
 	if err != nil {
 		return nil, err
 	}
+	FetchLimit := 1000
 	return evaluateExpressions(EvaluationContext{
 		MultiBackend: b,
 		Timerange:    timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 		API:          a,
+		FetchLimit:   &FetchLimit,
 	}, cmd.expressions)
 }
 

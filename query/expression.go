@@ -34,7 +34,8 @@ type EvaluationContext struct {
 	API          api.API          // Api to obtain metadata from
 	Timerange    api.Timerange    // Timerange to fetch data from
 	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate    api.Predicate
+	Predicate    api.Predicate    // Predicate to apply to TagSets prior to fetching
+	FetchLimit   *int             // A limit on the number of fetches which may be performed
 }
 
 // Expression is a piece of code, which can be evaluated in a given
@@ -79,6 +80,12 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 		return nil, err
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
+
+	*context.FetchLimit -= len(filtered)
+
+	if *context.FetchLimit < 0 {
+		return nil, errors.New("fetch limit exceeded: too many series to fetch")
+	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
 	for i := range metrics {
