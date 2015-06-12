@@ -145,7 +145,7 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(&backend.SequentialMultiBackend{fakeBackend}, fakeApi)
+		rawResult, err := command.Execute(backend.NewSequentialMultiBackend(fakeBackend), fakeApi)
 		if err != nil {
 			if !test.expectError {
 				a.Errorf("Unexpected error while executing: %s", err.Error())

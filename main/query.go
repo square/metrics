@@ -62,7 +62,7 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(&backend.SequentialMultiBackend{myBackend}, apiInstance)
+		result, err := cmd.Execute(backend.NewSequentialMultiBackend(myBackend), apiInstance)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

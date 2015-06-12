@@ -76,7 +76,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	result, err := cmd.Execute(&backend.SequentialMultiBackend{q.Backend}, q.API)
+	result, err := cmd.Execute(backend.NewSequentialMultiBackend(q.Backend), q.API)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return

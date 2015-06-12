@@ -18,11 +18,15 @@ import (
 	"github.com/square/metrics/api"
 )
 
-type SequentialMultiBackend struct {
+type sequentialMultiBackend struct {
 	Backend api.Backend
 }
 
-func (m *SequentialMultiBackend) FetchMultipleSeries(metrics []api.TaggedMetric, sampleMethod api.SampleMethod, timerange api.Timerange, myAPI api.API) (api.SeriesList, error) {
+func NewSequentialMultiBackend(backend api.Backend) api.MultiBackend {
+	return &sequentialMultiBackend{Backend: backend}
+}
+
+func (m *sequentialMultiBackend) FetchMultipleSeries(metrics []api.TaggedMetric, sampleMethod api.SampleMethod, timerange api.Timerange, myAPI api.API) (api.SeriesList, error) {
 
 	series := make([]api.Timeseries, len(metrics))
 	var err error = nil
@@ -44,18 +48,18 @@ func (m *SequentialMultiBackend) FetchMultipleSeries(metrics []api.TaggedMetric,
 	}, nil
 }
 
-type ParallelMultiBackend struct {
+type parallelMultiBackend struct {
 	limit   int
 	tickets chan struct{}
 	Backend api.Backend
 }
 
-func NewParallelMultiBackend(backend api.Backend, limit int) ParallelMultiBackend {
+func NewParallelMultiBackend(backend api.Backend, limit int) api.MultiBackend {
 	tickets := make(chan struct{}, limit)
 	for i := 0; i < limit; i++ {
 		tickets <- struct{}{}
 	}
-	return ParallelMultiBackend{
+	return &parallelMultiBackend{
 		limit:   limit,
 		tickets: tickets,
 		Backend: backend,
@@ -65,7 +69,7 @@ func NewParallelMultiBackend(backend api.Backend, limit int) ParallelMultiBacken
 // fetchLazy issues a goroutine to compute the timeseries once a fetchticket becomes available.
 // It returns a channel to wait for the response to finish (the error).
 // It stores the result of the function invokation in the series pointer it is given.
-func (m *ParallelMultiBackend) fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error), channel chan error) {
+func (m *parallelMultiBackend) fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error), channel chan error) {
 	go func() {
 		ticket := <-m.tickets
 		series, err := fun()
@@ -80,7 +84,7 @@ func (m *ParallelMultiBackend) fetchLazy(result *api.Timeseries, fun func() (api
 
 // fetchManyLazy abstracts upon fetchLazy so that looping over the resulting channels is not needed.
 // It returns any overall error, as well as a slice of the resulting timeseries.
-func (m *ParallelMultiBackend) fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+func (m *parallelMultiBackend) fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(funs))
 	channel := make(chan error, len(funs)) // Buffering the channel means the goroutines won't need to wait.
 	for i := range results {
@@ -99,7 +103,7 @@ func (m *ParallelMultiBackend) fetchManyLazy(funs []func() (api.Timeseries, erro
 	return results, nil
 }
 
-func (m *ParallelMultiBackend) FetchMultipleSeries(metrics []api.TaggedMetric, sampleMethod api.SampleMethod, timerange api.Timerange, myAPI api.API) (api.SeriesList, error) {
+func (m *parallelMultiBackend) FetchMultipleSeries(metrics []api.TaggedMetric, sampleMethod api.SampleMethod, timerange api.Timerange, myAPI api.API) (api.SeriesList, error) {
 
 	funs := make([]func() (api.Timeseries, error), len(metrics))
 	for i, metric := range metrics {
