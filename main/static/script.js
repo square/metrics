@@ -4,12 +4,13 @@ var module = angular.module("main",[]);
 
 var chartsReady = false;
 
-
+var debounce = false;
 
 module.controller("mainCtrl", function($scope, $http) {
 	$scope.queryResult = "";
 	$scope.queryText = "";
 	$scope.onSubmitQuery = function() {
+		debounce = true;
 		window.location.hash = "#" + encodeURIComponent($scope.queryText);
 		$http.get('/query', {params:{query: $scope.queryText}}).
 		  success(function(data, status, headers, config) {
@@ -23,6 +24,10 @@ module.controller("mainCtrl", function($scope, $http) {
 	$scope.$watch("queryResult", resultUpdate);
 
 	function readHash() {
+		if (debounce) {
+			debounce = false;
+			return;
+		}
 		var urlQuery = window.location.hash
 		if (urlQuery != "") {
 			// Drop the leading '#'
