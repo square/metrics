@@ -225,9 +225,30 @@ func TestCommand_Select(t *testing.T) {
 	}
 
 	// Test that the limit is correct
-	rawCommand, err := Parse("select series_1 from 0 to 12 resolution 30")
+	command, err := Parse("select series_1, series_2 from 0 to 120 resolution 30")
 	if err != nil {
-		a.Errorf("Unexpected error while parsing")
+		t.Fatalf("Unexpected error while parsing")
 		return
+	}
+	context := ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 3}
+	_, err = command.Execute(context)
+	if err != nil {
+		t.Fatalf("expected success with limit 3 but got err = %s", err.Error())
+		return
+	}
+	context.FetchLimit = 2
+	_, err = command.Execute(context)
+	if err == nil {
+		t.Fatalf("expected failure with limit = 2")
+		return
+	}
+	command, err = Parse("select series2 from 0 to 120 resolution 30")
+	if err != nil {
+		t.Fatalf("Unexpected error while parsing")
+		return
+	}
+	_, err = command.Execute(context)
+	if err != nil {
+		t.Fatalf("expected success with limit = 2 but got %s", err.Error())
 	}
 }

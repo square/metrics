@@ -89,7 +89,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if err != nil {
 		return nil, err
 	}
-	FetchLimit := 1000
+	FetchLimit := context.FetchLimit
 	return evaluateExpressions(EvaluationContext{
 		MultiBackend: context.Backend,
 		Timerange:    timerange,
