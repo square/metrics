@@ -174,7 +174,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		}
 		newContext := context
 		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
-		value, err := expr.arguments[0].Evaluate(context)
+		value, err := expr.arguments[0].Evaluate(newContext)
 		if err != nil {
 			return nil, err
 		}

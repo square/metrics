@@ -30,24 +30,22 @@ var emptyGraphiteName = api.GraphiteMetric("")
 type fakeApiBackend struct{}
 
 func (f fakeApiBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
-	metric := request.Metric
-	if metric.MetricKey == "series_1" {
-		return api.Timeseries{
-			[]float64{1, 2, 3, 4, 5},
-			api.ParseTagSet("dc=west"),
-		}, nil
-	} else if metric.MetricKey == "series_2" {
-		if metric.TagSet.Serialize() == "dc=west" {
-			return api.Timeseries{
-				[]float64{1, 2, 3, 4, 5},
-				api.ParseTagSet("dc=west"),
-			}, nil
-		}
-		if metric.TagSet.Serialize() == "dc=east" {
-			return api.Timeseries{
-				[]float64{3, 0, 3, 6, 2},
-				api.ParseTagSet("dc=west"),
-			}, nil
+	metricMap := map[api.MetricKey][]api.Timeseries{
+		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
+		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
+	}
+	list, ok := metricMap[request.Metric.MetricKey]
+	if !ok {
+		return api.Timeseries{}, errors.New("internal error")
+	}
+	for _, series := range list {
+		if request.Metric.TagSet.Serialize() == series.TagSet.Serialize() {
+			// Cut the values based on the Timerange.
+			values := make([]float64, request.Timerange.Slots())
+			for i := range values {
+				values[i] = series.Values[i+int(request.Timerange.Start())/30]
+			}
+			return api.Timeseries{values, series.TagSet}, nil
 		}
 	}
 	return api.Timeseries{}, errors.New("internal error")
@@ -97,6 +95,14 @@ func TestCommand_Select(t *testing.T) {
 		t.Errorf("Invalid test timerange")
 		return
 	}
+	earlyTimerange, err := api.NewTimerange(0, 60, 30)
+	if err != nil {
+		t.Errorf("Invalid test timerange")
+	}
+	lateTimerange, err := api.NewTimerange(60, 120, 30)
+	if err != nil {
+		t.Errorf("Invalid test timerange")
+	}
 
 	for _, test := range []struct {
 		query       string
@@ -135,6 +141,54 @@ func TestCommand_Select(t *testing.T) {
 			}},
 			Timerange: testTimerange,
 			Name:      "series_2",
+		}},
+		{"select series_1 from 0 to 60 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{1, 2, 3},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: earlyTimerange,
+			Name:      "series_1",
+		}},
+		{"select timeshift(series_1,'31ms') from 0 to 60 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{2, 3, 4},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: earlyTimerange,
+			Name:      "series_1",
+		}},
+		{"select timeshift(series_1,'62ms') from 0 to 60 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{3, 4, 5},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: earlyTimerange,
+			Name:      "series_1",
+		}},
+		{"select timeshift(series_1,'29ms') from 0 to 60 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{2, 3, 4},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: earlyTimerange,
+			Name:      "series_1",
+		}},
+		{"select timeshift(series_1,'-31ms') from 60 to 120 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{2, 3, 4},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: lateTimerange,
+			Name:      "series_1",
+		}},
+		{"select timeshift(series_1,'-29ms') from 60 to 120 resolution 30", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{2, 3, 4},
+				api.ParseTagSet("dc=west"),
+			}},
+			Timerange: lateTimerange,
+			Name:      "series_1",
 		}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
