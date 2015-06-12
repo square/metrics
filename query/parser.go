@@ -105,7 +105,7 @@ var relativeTimeRegexp = regexp.MustCompile(`^-(\d+)([a-zA-Z])$`)
 // parseRelativeTime transforms a relative time string (e.g. `-10m`) to a
 // timestamp in millis.
 func parseRelativeTime(s string, now time.Time) (int64, error) {
-	if s == "now" {
+	if strings.ToLower(s) == "now" {
 		return now.Unix() * 1000, nil
 	}
 
@@ -389,7 +389,6 @@ func (p *Parser) insertPropertyKeyValue() {
 		if unix, err = parseDate(value); err == nil {
 			// Valid, so do nothing.
 		} else if unix, err = parseRelativeTime(value, time.Now().UTC()); err != nil {
-			fmt.Printf("`%s` is invalid: %s\n", value, err.Error())
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
 				message: err.Error(),
