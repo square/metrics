@@ -29,7 +29,7 @@ import (
 
 type QueryHandler struct {
 	API     api.API
-	Backend api.Backend
+	Backend api.MultiBackend
 }
 
 type Response struct {
@@ -93,7 +93,7 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func Main(apiInstance api.API, backend api.Backend) {
+func Main(apiInstance api.API, backend api.MultiBackend) {
 	handler := QueryHandler{
 		API:     apiInstance,
 		Backend: backend,

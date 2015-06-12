@@ -72,6 +72,8 @@ var inputs = []string{
 	// selects - timestamps
 	"select x * (y + 123), z from '2011-2-4 PTZ' to '2015-6-1 PTZ'",
 	"select x * (y + 123), z from 0 to 10000",
+	"select 1 from -10m to now",
+	"select 1 from -10M to -10m",
 	// selects - function calls
 	"select foo(x) from 0 to 0",
 	"select bar(x, y) from 0 to 0",
@@ -101,6 +103,8 @@ var parseOnly = []string{
 	// selects - complicated queries
 	"select aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
 	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
+	"select 'string literal' where host = 'apa3.sjc2b' from 0 to 0",
+	"select timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
 }
 
 // these queries should fail with a syntax error.

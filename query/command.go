@@ -25,7 +25,7 @@ import (
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(api.Backend, api.API) (interface{}, error)
+	Execute(api.MultiBackend, api.API) (interface{}, error)
 	Name() string
 }
 
@@ -48,7 +48,7 @@ type SelectCommand struct {
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
+func (cmd *DescribeCommand) Execute(b api.MultiBackend, a api.API) (interface{}, error) {
 	tags, _ := a.GetAllTags(cmd.metricName)
 	output := make([]string, 0, len(tags))
 	for _, tag := range tags {
@@ -64,31 +64,33 @@ func (cmd *DescribeCommand) Name() string {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
+func (cmd *DescribeAllCommand) Execute(b api.MultiBackend, a api.API) (interface{}, error) {
 	result, err := a.GetAllMetrics()
 	if err == nil {
 		sort.Sort(api.MetricKeys(result))
 	}
 	return result, err
 }
+
 func (cmd *DescribeAllCommand) Name() string {
 	return "describe all"
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error) {
+func (cmd *SelectCommand) Execute(b api.MultiBackend, a api.API) (interface{}, error) {
 	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return nil, err
 	}
 	return evaluateExpressions(EvaluationContext{
-		Backend:      b,
+		MultiBackend: b,
 		Timerange:    timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 		API:          a,
 	}, cmd.expressions)
 }
+
 func (cmd *SelectCommand) Name() string {
 	return "select"
 }
