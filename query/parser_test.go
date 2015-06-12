@@ -16,9 +16,44 @@ package query
 
 import (
 	"testing"
+	"time"
 
 	"github.com/square/metrics/assert"
 )
+
+func Test_parseRelativeTime(t *testing.T) {
+	now := time.Unix(1413321866, 0).UTC()
+
+	// Valid relative timestamps
+	timestampTests := []struct {
+		timeString        string
+		expectedTimestamp int64
+		expectSuccess     bool
+	}{
+		// Valid relative timestamps
+		{"-2s", 1413321864000, true},
+		{"-3m", 1413321686000, true},
+		{"-4h", 1413307466000, true},
+		{"-5d", 1412889866000, true},
+		{"-1M", 1410729866000, true},
+		{"-1y", 1381785866000, true},
+		// Bad relative timestamps
+		{"-5", -1, false},
+		{"5d", -1, false},
+		{"-5z", -1, false},
+	}
+
+	for _, c := range timestampTests {
+		ts, err := parseRelativeTime(c.timeString, now)
+		if err != nil && c.expectSuccess {
+			t.Fatal("Received unexpected error from parseRelativeTime: ", err)
+		}
+
+		if ts != c.expectedTimestamp {
+			t.Fatalf("Expected %d but received %d", c.expectedTimestamp, ts)
+		}
+	}
+}
 
 func TestUnescapeLiteral(t *testing.T) {
 	a := assert.New(t)
