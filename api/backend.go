@@ -14,18 +14,23 @@
 
 package api
 
-// Backend describes how to fetch time-series data from a given backend.
+import (
+	"fmt"
+)
+
+// FetchSeriesRequest contains all the information to fetch a single series of metric
+// from a backend.
 type FetchSeriesRequest struct {
-	Metric       TaggedMetric
-	SampleMethod SampleMethod
-	Timerange    Timerange
-	Api          API
+	Metric       TaggedMetric // metric to fetch.
+	SampleMethod SampleMethod // up/downsampling behavior.
+	Timerange    Timerange    // time range to fetch data from.
+	Api          API          // an API instance.
 }
 
+// Backend describes how to fetch time-series data from a given backend.
 type Backend interface {
-	// FetchSingleSeries fetches the series described by the provided TaggedMetric
-	// corresponding to the Timerange, down/upsampling if necessary using
-	// SampleMethod
+
+	// FetchSingleSeries should return an instance of BackendError
 	FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error)
 }
 
@@ -34,4 +39,39 @@ type MultiBackend interface {
 	// corresponding to the Timerange, down/upsampling if necessary using
 	// SampleMethod. It may fetch in series or parallel, etc.
 	FetchMultipleSeries(metrics []TaggedMetric, sampleMethod SampleMethod, timerange Timerange, api API) (SeriesList, error)
+}
+
+type BackendErrorCode int
+
+const (
+	FetchTimeoutError  BackendErrorCode = iota + 1 // error while fetching - timeout.
+	FetchIOError                                   // error while fetching - general IO.
+	InvalidSeriesError                             // the given series is not well-defined.
+	LimitError                                     // the fetch limit is reached.
+	Unsupported                                    // the given fetch operation is unsupported by the backend.
+)
+
+type BackendError struct {
+	Metric  TaggedMetric
+	Code    BackendErrorCode
+	Message string
+}
+
+func (err BackendError) Error() string {
+	message := "[%s] unknown error"
+	switch err.Code {
+	case FetchTimeoutError:
+		message = "[%s] timeout"
+	case InvalidSeriesError:
+		message = "[%s] invalid series"
+	case LimitError:
+		message = "[%s] limit reached"
+	case Unsupported:
+		message = "[%s] unsupported operation"
+	}
+	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey))
+	if err.Message != "" {
+		formatted = formatted + " - " + err.Message
+	}
+	return formatted
 }
