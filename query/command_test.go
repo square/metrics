@@ -223,4 +223,11 @@ func TestCommand_Select(t *testing.T) {
 			}
 		}
 	}
+
+	// Test that the limit is correct
+	rawCommand, err := Parse("select series_1 from 0 to 12 resolution 30")
+	if err != nil {
+		a.Errorf("Unexpected error while parsing")
+		return
+	}
 }
