@@ -85,7 +85,7 @@ function resultUpdate(object) {
 	for (var t = 0; t < series[0].values.length; t++) {
 		var row = [dateFromIndex(t, timerange)];
 		for (var i = 0; i < series.length; i++) {
-			row.push(series[i].values[t] || 0);
+			row.push(series[i].values[t] || NaN);
 		}
 		table.push(row);
 	}
