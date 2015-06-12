@@ -71,6 +71,7 @@ func (cmd *DescribeAllCommand) Execute(b api.Backend, a api.API) (interface{}, e
 	}
 	return result, err
 }
+
 func (cmd *DescribeAllCommand) Name() string {
 	return "describe all"
 }
@@ -89,6 +90,7 @@ func (cmd *SelectCommand) Execute(b api.Backend, a api.API) (interface{}, error)
 		API:          a,
 	}, cmd.expressions)
 }
+
 func (cmd *SelectCommand) Name() string {
 	return "select"
 }

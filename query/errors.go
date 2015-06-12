@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -11,6 +12,39 @@ import (
 type SyntaxError struct {
 	token   string
 	message string
+}
+
+type ArgumentLengthError struct {
+	Name        string
+	ExpectedMin int
+	ExpectedMax int
+	Actual      int
+}
+
+func (err ArgumentLengthError) Error() string {
+	if err.ExpectedMin == err.ExpectedMax {
+		return fmt.Sprintf(
+			"Function `%s` expected %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.Actual,
+		)
+	} else if err.ExpectedMax == -1 {
+		return fmt.Sprintf(
+			"Function `%s` expected at least %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.Actual,
+		)
+	} else {
+		return fmt.Sprintf(
+			"Function `%s` expected between %d and %d arguments but received %d.",
+			err.Name,
+			err.ExpectedMin,
+			err.ExpectedMax,
+			err.Actual,
+		)
+	}
 }
 
 // AssertionError is raised when an internal invariant is violated,
