@@ -30,7 +30,7 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	Backend      api.Backend      // Backend to fetch data from
+	MultiBackend api.MultiBackend // Backend to fetch data from
 	API          api.API          // Api to obtain metadata from
 	Timerange    api.Timerange    // Timerange to fetch data from
 	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
@@ -76,22 +76,18 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	resultSeries := []api.Timeseries{}
-	for _, ts := range filtered {
-		result, err := context.Backend.FetchSingleSeries(api.FetchSeriesRequest{
-			api.TaggedMetric{api.MetricKey(expr.metricName), ts}, context.SampleMethod, context.Timerange,
-			context.API,
-		})
-		if err != nil {
-			return nil, err
-		}
-		resultSeries = append(resultSeries, result)
+	metrics := make([]api.TaggedMetric, len(filtered))
+	for i := range metrics {
+		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	return seriesListValue(api.SeriesList{
-		Series:    resultSeries,
-		Timerange: context.Timerange,
-	}), nil
+	serieslist, err := context.MultiBackend.FetchMultipleSeries(metrics, context.SampleMethod, context.Timerange, context.API)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return seriesListValue(serieslist), nil
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {

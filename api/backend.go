@@ -28,3 +28,10 @@ type Backend interface {
 	// SampleMethod
 	FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error)
 }
+
+type MultiBackend interface {
+	// FetchManySeries fetches the series provided by the given TaggedMetrics
+	// corresponding to the Timerange, down/upsampling if necessary using
+	// SampleMethod. It may fetch in series or parallel, etc.
+	FetchMultipleSeries(metrics []TaggedMetric, sampleMethod SampleMethod, timerange Timerange, api API) (SeriesList, error)
+}

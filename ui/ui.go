@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query"
 )
@@ -75,7 +76,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	result, err := cmd.Execute(q.Backend, q.API)
+	result, err := cmd.Execute(backend.NewSequentialMultiBackend(q.Backend), q.API)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
