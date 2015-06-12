@@ -104,7 +104,9 @@ expression_3 <-
   # #sub-expression
   PAREN_OPEN expression_1 PAREN_CLOSE /
   # constant scalar
-  <NUMBER> { p.addNumberNode(buffer[begin:end]) }
+  <NUMBER> { p.addNumberNode(buffer[begin:end]) } /
+  STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
+
 
 expression_function  <-
   # We allow syntax of the form:

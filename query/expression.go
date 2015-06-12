@@ -57,6 +57,10 @@ func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) 
 	return scalarValue(expr.value), nil
 }
 
+func (expr stringExpression) Evaluate(context EvaluationContext) (value, error) {
+	return stringValue(expr.value), nil
+}
+
 func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
