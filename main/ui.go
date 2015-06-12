@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 
+	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/ui"
@@ -27,6 +28,6 @@ func main() {
 	common.SetupLogger()
 
 	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
+	backend := backend.NewSequentialMultiBackend(blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId))
 	ui.Main(apiInstance, backend)
 }

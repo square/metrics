@@ -23,14 +23,13 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query"
 )
 
 type QueryHandler struct {
 	API     api.API
-	Backend api.Backend
+	Backend api.MultiBackend
 }
 
 type Response struct {
@@ -76,7 +75,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	result, err := cmd.Execute(backend.NewSequentialMultiBackend(q.Backend), q.API)
+	result, err := cmd.Execute(q.Backend, q.API)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
@@ -94,7 +93,7 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func Main(apiInstance api.API, backend api.Backend) {
+func Main(apiInstance api.API, backend api.MultiBackend) {
 	handler := QueryHandler{
 		API:     apiInstance,
 		Backend: backend,
