@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/peterh/liner"
+	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
@@ -36,7 +37,7 @@ func main() {
 	}
 
 	apiInstance := common.NewAPI()
-	backend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
+	myBackend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
 
 	l := liner.NewLiner()
 	defer l.Close()
@@ -61,7 +62,7 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(backend, apiInstance)
+		result, err := cmd.Execute(&backend.SequentialMultiBackend{myBackend}, apiInstance)
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

@@ -23,55 +23,6 @@ import (
 	"github.com/square/metrics/query/aggregate"
 )
 
-const simultaneousFetchLimit = 4
-
-// fetchTicketsQueue holds tickets, which a worker must pick up in order to make a query.
-var fetchTicketsQueue = make(chan struct{}, simultaneousFetchLimit)
-
-// init() adds all the tickets needed to the fetchTicketsQueue.
-func init() {
-	for i := 0; i < simultaneousFetchLimit; i++ {
-		fetchTicketsQueue <- struct{}{}
-	}
-}
-
-// fetchLazy issues a goroutine to compute the timeseries once a fetchticket becomes available.
-// It returns a channel to wait for the response to finish (the error).
-// It stores the result of the function invokation in the series pointer it is given.
-func fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error), channel chan error) {
-	go func() {
-		ticket := <-fetchTicketsQueue
-		series, err := fun()
-		// Put the ticket back (regardless of whether caller drops)
-		fetchTicketsQueue <- ticket
-		// Store the result
-		*result = series
-		// Return the error (and sync up with the caller).
-		channel <- err
-	}()
-}
-
-// fetchManyLazy abstracts upon fetchLazy so that looping over the resulting channels is not needed.
-// It returns any overall error, as well as a slice of the resulting timeseries.
-func fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
-	results := make([]api.Timeseries, len(funs))
-	channel := make(chan error, len(funs)) // Buffering the channel means the goroutines won't need to wait.
-	for i := range results {
-		fetchLazy(&results[i], funs[i], channel)
-	}
-	var err error = nil
-	for _ = range funs {
-		thisErr := <-channel
-		if thisErr != nil {
-			err = thisErr
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
-}
-
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
 // metrics query.
@@ -80,7 +31,7 @@ func fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, err
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	Backend      api.Backend      // Backend to fetch data from
+	MultiBackend api.MultiBackend // Backend to fetch data from
 	API          api.API          // Api to obtain metadata from
 	Timerange    api.Timerange    // Timerange to fetch data from
 	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
@@ -216,28 +167,18 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	funs := make([]func() (api.Timeseries, error), len(filtered))
-	for i, ts := range filtered {
-		// Since we want to create a closure, we want to close over this particular ts,
-		// rather than the variable itself (which is the same between iterations).
-		tagset := ts
-		funs[i] = func() (api.Timeseries, error) {
-			return context.Backend.FetchSingleSeries(api.FetchSeriesRequest{
-				api.TaggedMetric{api.MetricKey(expr.metricName), tagset}, context.SampleMethod, context.Timerange,
-				context.API,
-			})
-		}
+	metrics := make([]api.TaggedMetric, len(filtered))
+	for i := range metrics {
+		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	resultSeries, err := fetchManyLazy(funs)
+	serieslist, err := context.MultiBackend.FetchMultipleSeries(metrics, context.SampleMethod, context.Timerange, context.API)
+
 	if err != nil {
 		return nil, err
 	}
 
-	return seriesListValue(api.SeriesList{
-		Series:    resultSeries,
-		Timerange: context.Timerange,
-	}), nil
+	return seriesListValue(serieslist), nil
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
