@@ -77,7 +77,7 @@ func TestCommand_Describe(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*DescribeCommand)
-		rawResult, _ := command.Execute(nil, test.backend)
+		rawResult, _ := command.Execute(ExecutionContext{nil, test.backend, 1000})
 		parsedResult := rawResult.([]string)
 		a.EqInt(len(parsedResult), test.length)
 	}
@@ -199,7 +199,7 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(backend.NewSequentialMultiBackend(fakeBackend), fakeApi)
+		rawResult, err := command.Execute(ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 1000})
 		if err != nil {
 			if !test.expectError {
 				a.Errorf("Unexpected error while executing: %s", err.Error())
