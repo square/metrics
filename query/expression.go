@@ -26,20 +26,19 @@ import (
 const simultaneousFetchLimit = 4
 
 // fetchTicketsQueue holds tickets, which a worker must pick up in order to make a query.
-var fetchTicketsQueue = make(chan bool, simultaneousFetchLimit)
+var fetchTicketsQueue = make(chan struct{}, simultaneousFetchLimit)
 
 // init() adds all the tickets needed to the fetchTicketsQueue.
 func init() {
 	for i := 0; i < simultaneousFetchLimit; i++ {
-		fetchTicketsQueue <- true
+		fetchTicketsQueue <- struct{}{}
 	}
 }
 
 // fetchLazy issues a goroutine to compute the timeseries once a fetchticket becomes available.
 // It returns a channel to wait for the response to finish (the error).
 // It stores the result of the function invokation in the series pointer it is given.
-func fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error)) chan error {
-	channel := make(chan error)
+func fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error), channel chan error) {
 	go func() {
 		ticket := <-fetchTicketsQueue
 		series, err := fun()
@@ -50,20 +49,19 @@ func fetchLazy(result *api.Timeseries, fun func() (api.Timeseries, error)) chan 
 		// Return the error (and sync up with the caller).
 		channel <- err
 	}()
-	return channel
 }
 
 // fetchManyLazy abstracts upon fetchLazy so that looping over the resulting channels is not needed.
 // It returns any overall error, as well as a slice of the resulting timeseries.
 func fetchManyLazy(funs []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(funs))
-	channels := make([]chan error, len(funs))
+	channel := make(chan error, len(funs)) // Buffering the channel means the goroutines won't need to wait.
 	for i := range results {
-		channels[i] = fetchLazy(&results[i], funs[i])
+		fetchLazy(&results[i], funs[i], channel)
 	}
 	var err error = nil
-	for i := range channels {
-		thisErr := <-channels[i]
+	for _ = range funs {
+		thisErr := <-channel
 		if thisErr != nil {
 			err = thisErr
 		}
