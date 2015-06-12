@@ -57,6 +57,10 @@ func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) 
 	return scalarValue(expr.value), nil
 }
 
+func (expr stringExpression) Evaluate(context EvaluationContext) (value, error) {
+	return stringValue(expr.value), nil
+}
+
 func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
@@ -170,7 +174,7 @@ func (expr *functionExpression) Evaluate(context EvaluationContext) (value, erro
 		}
 		newContext := context
 		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
-		value, err := expr.arguments[0].Evaluate(context)
+		value, err := expr.arguments[0].Evaluate(newContext)
 		if err != nil {
 			return nil, err
 		}

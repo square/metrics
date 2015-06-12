@@ -103,6 +103,8 @@ var parseOnly = []string{
 	// selects - complicated queries
 	"select aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
 	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
+	"select 'string literal' where host = 'apa3.sjc2b' from 0 to 0",
+	"select timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
 }
 
 // these queries should fail with a syntax error.

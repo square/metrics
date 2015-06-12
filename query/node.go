@@ -70,6 +70,11 @@ type scalarExpression struct {
 	value float64
 }
 
+// stringExpression represents a string literal used as an expression.
+type stringExpression struct {
+	value string
+}
+
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
 	metricName string
@@ -224,6 +229,11 @@ func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 func (node *scalarExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%f", node.value))
+}
+
+func (node *stringExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.value)
 }
 
 func (node *operatorLiteral) Print(buffer *bytes.Buffer, indent int) {

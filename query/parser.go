@@ -654,6 +654,10 @@ func (p *Parser) addNumberNode(value string) {
 	p.pushNode(&scalarExpression{parsedValue})
 }
 
+func (p *Parser) addStringNode(value string) {
+	p.pushNode(&stringExpression{value})
+}
+
 // Utility Functions
 // =================
 
