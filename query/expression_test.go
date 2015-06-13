@@ -75,12 +75,11 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		fetchLimit := 1000
 		result, err := evaluateToSeriesList(test.expr, EvaluationContext{
 			MultiBackend: backend.NewSequentialMultiBackend(FakeBackend{}),
 			Timerange:    test.timerange,
 			SampleMethod: api.SampleMean,
-			FetchLimit:   &fetchLimit,
+			FetchLimit:   NewFetchCounter(1000),
 		})
 
 		if err != nil {
@@ -96,8 +95,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	fetchLimit := 1000
-	emptyContext := EvaluationContext{backend.NewSequentialMultiBackend(FakeBackend{}), nil, api.Timerange{}, api.SampleMean, nil, &fetchLimit}
+	emptyContext := EvaluationContext{backend.NewSequentialMultiBackend(FakeBackend{}), nil, api.Timerange{}, api.SampleMean, nil, NewFetchCounter(1000)}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string

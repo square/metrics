@@ -47,7 +47,7 @@ type fetchCounter struct {
 func NewFetchCounter(n int) fetchCounter {
 	f := fetchCounter{
 		count:  &n,
-		ticket: make(chan struct{}),
+		ticket: make(chan struct{}, 1),
 	}
 	f.ticket <- struct{}{}
 	return f
@@ -56,7 +56,7 @@ func NewFetchCounter(n int) fetchCounter {
 func (c fetchCounter) Consume(n int) bool {
 	<-c.ticket
 	*c.count -= n
-	r := *c.count < 0
+	r := *c.count >= 0
 	c.ticket <- struct{}{}
 	return r
 }
