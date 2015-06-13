@@ -89,14 +89,13 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if err != nil {
 		return nil, err
 	}
-	FetchLimit := context.FetchLimit
 	return evaluateExpressions(EvaluationContext{
 		MultiBackend: context.Backend,
 		Timerange:    timerange,
 		SampleMethod: cmd.context.SampleMethod,
 		Predicate:    cmd.predicate,
 		API:          context.API,
-		FetchLimit:   &FetchLimit,
+		FetchLimit:   NewFetchCounter(context.FetchLimit),
 	}, cmd.expressions)
 }
 
