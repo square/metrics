@@ -23,14 +23,14 @@ module.controller("mainCtrl", function($scope, $http, $q) {
 			return;
 		}
 		var urlQuery = window.location.hash
-		if (urlQuery != "") {
+		if (urlQuery != "" && urlQuery != "#") {
 			// Drop the leading '#'
 			urlQuery = urlQuery.substring(1);
 			// The remainder is the query to perform.
 			// Decode it (if neccesarry).
 			$scope.queryText = decodeURIComponent(urlQuery);
+			launchRequest($scope.queryText);
 		}
-		launchRequest($scope.queryText);
 	}
 
 	function cancelQuery() {
