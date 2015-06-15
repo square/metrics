@@ -17,6 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -40,25 +41,25 @@ type EvaluationContext struct {
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
 type fetchCounter struct {
-	count  *int
-	ticket chan struct{}
+	count *int
+	lock  sync.Mutex
 }
 
 func NewFetchCounter(n int) fetchCounter {
-	f := fetchCounter{
-		count:  &n,
-		ticket: make(chan struct{}, 1),
+	return fetchCounter{
+		count: &n,
+		lock:  sync.Mutex{},
 	}
-	f.ticket <- struct{}{}
-	return f
 }
 
 func (c fetchCounter) Consume(n int) bool {
-	<-c.ticket
+	// Lock the mutex for thread-safety.
+	c.lock.Lock()
+	// Decrement the counter.
 	*c.count -= n
-	r := *c.count >= 0
-	c.ticket <- struct{}{}
-	return r
+	ok := *c.count >= 0
+	c.lock.Unlock()
+	return ok
 }
 
 // Expression is a piece of code, which can be evaluated in a given
