@@ -93,7 +93,9 @@ func transformIntegral(values []float64, parameters []value, scale float64) ([]f
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
-		integral += values[i]
+		if !math.IsNaN(values[i]) {
+			integral += values[i]
+		}
 		result[i] = integral * scale
 	}
 	return result, nil
@@ -127,7 +129,9 @@ func transformCumulative(values []float64, parameters []value, scale float64) ([
 	result := make([]float64, len(values))
 	sum := 0.0
 	for i := range values {
-		sum += values[i]
+		if !math.IsNaN(values[i]) {
+			sum += values[i]
+		}
 		result[i] = sum
 	}
 	return result, nil
@@ -156,19 +160,23 @@ func transformMovingAverage(values []float64, parameters []value, scale float64)
 	count := 0
 	sum := 0.0
 	for i := range values {
-		sum += values[i]
-		if count < limit {
-			// Increment the number of participants.
+		// Add the new element, if it isn't NaN.
+		if !math.IsNaN(values[i]) {
+			sum += values[i]
 			count++
-		} else {
-			// Remove the earliest participant
-			// (This is an optimization)
-			sum -= values[i-limit]
-			// For example, if limit = 4, we are suppose to include 4 items (including oneself).
-			// If i = 10, then we want to include 10, 9, 8, 7.
-			// So exclude 6 = 10 - 4 = i - limit
 		}
-		result[i] = sum / float64(count)
+		// Remove the oldest element, if it isn't NaN, and it's in range.
+		// (e.g., if limit = 1, then this removes the previous element from the sum).
+		if i >= limit && !math.IsNaN(values[i-limit]) {
+			sum -= values[i-limit]
+			count--
+		}
+		// Numerical error could (possibly) cause count == 0 but sum != 0.
+		if count == 0 {
+			result[i] = math.NaN()
+		} else {
+			result[i] = sum / float64(count)
+		}
 	}
 	return result, nil
 }
