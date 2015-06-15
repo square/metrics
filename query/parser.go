@@ -99,60 +99,16 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
-var (
-	relativeTimeRegexp      = regexp.MustCompile(`^now\s*([+-])\s*([0-9]+)([smhdwMy])$`)
-	relativeTimeRegexpShort = regexp.MustCompile(`(-)\s*([0-9]+)([smhdwMy])$`)
-)
-
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string, now time.Time) (int64, error) {
 
-	if date == "now" {
-		return now.Unix() * 1000, nil
+	relativeTime, err := toDuration(stringValue(date))
+	if err != nil {
+		// A relative date.
+		return now.Unix()*1000 + relativeTime, nil
 	}
 
-	matches := relativeTimeRegexp.FindStringSubmatch(date)
-	if matches == nil {
-		// If the long match fails, try to short match.
-		matches = relativeTimeRegexpShort.FindStringSubmatch(date)
-	}
-	if matches != nil {
-		// This match can be used to determine the duration of time.
-		sign := int64(1)
-		if matches[1] == "-" {
-			sign = -1
-		}
-		offset, err := strconv.ParseInt(matches[2], 10, 0)
-		if err != nil {
-			// This case could occur when the number is too large, for example.
-			return 0, err
-		}
-		switch matches[3] {
-		case "s":
-		case "m":
-			offset *= 60
-		case "h":
-			offset *= 60 * 60
-		case "d":
-			offset *= 60 * 60 * 24
-		case "w":
-			offset *= 60 * 60 * 24 * 7
-		case "M":
-			offset *= 60 * 60 * 24 * 30
-		case "y":
-			offset *= 60 * 60 * 24 * 365
-		default:
-			// Won't happen, regex can't produce any other value.
-			panic(matches[3])
-		}
-		return (now.Unix() + sign*offset) * 1000, nil
-	}
-
-	intValue, err := strconv.ParseInt(date, 10, 64)
-	if err == nil {
-		return intValue, nil
-	}
-	errorMessage := "Expected formatted date or relative time (string of the form 'now - 5h' for example)"
+	errorMessage := "Expected formatted date or relative time (string of the form '-5h' for example)"
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {

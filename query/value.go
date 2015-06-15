@@ -89,7 +89,7 @@ func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
 
-var durationRegexp = regexp.MustCompile(`^([0-9]+)([smhdwMy])$`)
+var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy])$`)
 
 // toDuration will take a value, convert it to a string, and then parse it.
 // the valid suffixes are: ns, us (µs), ms, s, m, h
