@@ -81,7 +81,7 @@ var inputs = []string{
 	// selects - testing out property values
 	"select x from 0 to 0",
 	"select x from 0 to 0",
-	"select x from 0 to 0 resolution 10",
+	"select x from 0 to 0 resolution '10s'",
 	"select x from 0 to 0 resolution '10h'",
 	"select x from 0 to 0 resolution '300s'",
 	"select x from 0 to 0 resolution '17m'",
@@ -126,7 +126,7 @@ var syntaxErrorQuery = []string{
 	"select x to 0",
 	"select x from 0 from 1 to 0",
 	"select x from 0 to 1 to 0",
-	"select x from 0 resolution 30 resolution 25 to 0",
+	"select x from 0 resolution '30s' resolution '25s' to 0",
 	"select x from 0 from 1 sample by 'min' sample by 'min' to 0",
 }
 
