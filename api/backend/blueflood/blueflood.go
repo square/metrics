@@ -35,9 +35,9 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl  string
-	TenantId string
-	Ttls     map[Resolution]int64 // Ttl in days
+	BaseUrl  string               `yaml:"base_url"`
+	TenantId string               `yaml:"tenant_id"`
+	Ttls     map[Resolution]int64 `yaml:"ttls"` // Ttl in days
 }
 
 func (c Config) getTtlInMillis(r Resolution) int64 {
@@ -114,7 +114,7 @@ func NewBlueflood(c Config) *Blueflood {
 	return &b
 }
 
-func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
+func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())

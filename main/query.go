@@ -29,19 +29,11 @@ import (
 func main() {
 	flag.Parse()
 	common.SetupLogger()
-	if *common.BluefloodUrl == "" {
-		common.ExitWithRequired("blueflood-url")
-	}
-	if *common.BluefloodTenantId == "" {
-		common.ExitWithRequired("blueflood-tenant-id")
-	}
 
-	apiInstance := common.NewAPI()
-	myBackend := blueflood.NewBlueflood(blueflood.Config{
-		BaseUrl:  *common.BluefloodUrl,
-		TenantId: *common.BluefloodTenantId,
-		Ttls:     make(map[blueflood.Resolution]int64),
-	})
+	config := common.LoadConfig()
+
+	apiInstance := common.NewAPI(config.API)
+	myBackend := blueflood.NewBlueflood(config.Blueflood)
 
 	l := liner.NewLiner()
 	defer l.Close()
@@ -61,7 +53,7 @@ func main() {
 
 		n, ok := cmd.(query.Node)
 		if !ok {
-			fmt.Println(fmt.Sprintf("error: %#v doesn't implement Node", cmd))
+			fmt.Printf("error: %#v doesn't implement Node\n", cmd)
 			continue
 		}
 		fmt.Println(query.PrintNode(n))
