@@ -37,7 +37,11 @@ func main() {
 	}
 
 	apiInstance := common.NewAPI()
-	myBackend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
+	myBackend := blueflood.NewBlueflood(blueflood.Config{
+		BaseUrl:  *common.BluefloodUrl,
+		TenantId: *common.BluefloodTenantId,
+		Ttls:     make(map[blueflood.Resolution]int64),
+	})
 
 	l := liner.NewLiner()
 	defer l.Close()
@@ -57,7 +61,7 @@ func main() {
 
 		n, ok := cmd.(query.Node)
 		if !ok {
-			fmt.Println(fmt.Sprintf("error: %+v doesn't implement Node", cmd))
+			fmt.Println(fmt.Sprintf("error: %#v doesn't implement Node", cmd))
 			continue
 		}
 		fmt.Println(query.PrintNode(n))

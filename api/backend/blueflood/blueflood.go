@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
@@ -33,8 +34,43 @@ type httpClient interface {
 	Get(url string) (resp *http.Response, err error)
 }
 
-type blueflood struct {
-	config BluefloodClientConfig
+type Config struct {
+	BaseUrl  string
+	TenantId string
+	Ttls     map[Resolution]int64 // Ttl in days
+}
+
+func (c Config) getTtlInMillis(r Resolution) int64 {
+	var ttl int64
+	if v, ok := c.Ttls[r]; ok {
+		ttl = v
+	} else {
+		// Use blueflood defaults
+		switch r {
+		case ResolutionFull:
+			ttl = 7
+		case Resolution5Min:
+			ttl = 30
+		case Resolution20Min:
+			ttl = 60
+		case Resolution60Min:
+			ttl = 90
+		case Resolution240Min:
+			ttl = 180
+		case Resolution1440Min:
+			ttl = 365
+		default:
+			// Not a supported resolution by blueflood. No real way to recover if
+			// someone's trying to fetch ttl for an invalid resolution.
+			panic(fmt.Sprintf("invalid resolution `%s`", r))
+		}
+	}
+
+	return ttl * 24 * 60 * 60 * 1000
+}
+
+type Blueflood struct {
+	config Config
 	client httpClient
 }
 
@@ -51,16 +87,15 @@ type metricPoint struct {
 	Variance  float64 `json:"variance"`
 }
 
-// resolutions supported by Blueflood
-type resolution string
+type Resolution string
 
 const (
-	resolutionFull    resolution = "FULL"
-	resolution5Min               = "MIN5"
-	resolution20Min              = "MIN20"
-	resolution60Min              = "MIN60"
-	resolution240Min             = "MIN240"
-	resolution1440Min            = "MIN1440"
+	ResolutionFull    Resolution = "FULL"
+	Resolution5Min               = "MIN5"
+	Resolution20Min              = "MIN20"
+	Resolution60Min              = "MIN60"
+	Resolution240Min             = "MIN240"
+	Resolution1440Min            = "MIN1440"
 )
 
 type BluefloodClientConfig struct {
@@ -68,14 +103,21 @@ type BluefloodClientConfig struct {
 	TenantId string
 }
 
-func NewBlueflood(config BluefloodClientConfig) api.Backend {
-	return &blueflood{config: config, client: http.DefaultClient}
+func NewBlueflood(c Config) *Blueflood {
+	b := Blueflood{config: c, client: http.DefaultClient}
+
+	b.config.Ttls = map[Resolution]int64{}
+	for k, v := range c.Ttls {
+		b.config.Ttls[k] = v
+	}
+
+	return &b
 }
 
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.Unsupported, "unsupported sampling method"}
+		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
 
 	graphiteName, err := request.Api.ToGraphiteName(request.Metric)
@@ -99,7 +141,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	// Pull a bit outside of the requested range from blueflood so we
 	// have enough data to generate all snapped values
 	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.Resolution(), 10))
-	params.Set("resolution", string(bluefloodResolution(request.Timerange.Resolution())))
+	params.Set("resolution", b.config.bluefloodResolution(request.Timerange.Resolution(), request.Timerange.Start()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
 
 	queryUrl.RawQuery = params.Encode()
@@ -218,18 +260,21 @@ var samplerMap map[api.SampleMethod]struct {
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
 // between them.
-func bluefloodResolution(r int64) resolution {
+func (c Config) bluefloodResolution(resolution int64, timestamp int64) string {
+	now := time.Now().UTC().Unix() * 1000
+
+	// Choose the appropriate resolution based on TTL, fetching the highest resolution data we can
 	switch {
-	case r < 5*60*1000:
-		return resolutionFull
-	case r < 20*60*1000:
-		return resolution5Min
-	case r < 60*60*1000:
-		return resolution20Min
-	case r < 240*60*1000:
-		return resolution60Min
-	case r < 1440*60*1000:
-		return resolution240Min
+	case resolution < 5*60*1000 && now-timestamp < c.getTtlInMillis(ResolutionFull):
+		return string(ResolutionFull)
+	case resolution < 20*60*1000 && now-timestamp < c.getTtlInMillis(Resolution5Min):
+		return string(Resolution5Min)
+	case resolution < 60*60*1000 && now-timestamp < c.getTtlInMillis(Resolution20Min):
+		return string(Resolution20Min)
+	case resolution < 240*60*1000 && now-timestamp < c.getTtlInMillis(Resolution60Min):
+		return string(Resolution60Min)
+	case resolution < 1440*60*1000 && now-timestamp < c.getTtlInMillis(Resolution240Min):
+		return string(Resolution240Min)
 	}
-	return resolution1440Min
+	return string(Resolution1440Min)
 }
