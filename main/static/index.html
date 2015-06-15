@@ -18,14 +18,17 @@
 			</div>
 			<button ng-click="onSubmitQuery()" class="btn btn-default">Submit</button>
 		</form>
-		<div ng-show="queryResult.name == 'select'" id="chart-div-container">
+		<div ng-show="launchedQuery !== null">Waiting for response...</div>
+		<div ng-show="launchedQuery === null && chartWaiting">Rendering chart...</div>
+		<div ng-show="queryResult.name === 'select'" id="chart-div-container">
 			<div id="chart-div"></div>
 		</div>
-		<table ng-if="queryResult.name == 'describe all'" class="table table-striped col-xs-12">
+		<table ng-show="queryResult.name === 'describe all'" class="table table-striped col-xs-12">
 			<tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
 		</table>
+		<div ng-show="queryResult.success === false && launchedQuery === null" id="error-div">{{(queryResult.message || "").trim()}}</div>
+		<div>{{(queryResult || "").trim()}}</div>
 	</div>
 </div>
-<script>onload();</script>
 </body>
 </html>
