@@ -365,9 +365,7 @@ func (p *Parser) insertPropertyKeyValue() {
 		var unix int64
 		var err error
 		now := time.Now()
-		if unix, err = parseDate(value, now); err == nil {
-			// Valid, so do nothing.
-		} else {
+		if unix, err = parseDate(value, now); err != nil {
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
 				message: err.Error(),
