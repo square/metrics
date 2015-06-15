@@ -17,7 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -41,25 +41,20 @@ type EvaluationContext struct {
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
 type fetchCounter struct {
-	count *int
-	lock  sync.Mutex
+	count *int32
 }
 
 func NewFetchCounter(n int) fetchCounter {
+	n32 := int32(n)
 	return fetchCounter{
-		count: &n,
-		lock:  sync.Mutex{},
+		count: &n32,
 	}
 }
 
+// Consume decrements the internal counter and returns whether the result is at least 0.
+// It does so in a threadsafe manner.
 func (c fetchCounter) Consume(n int) bool {
-	// Lock the mutex for thread-safety.
-	c.lock.Lock()
-	// Decrement the counter.
-	*c.count -= n
-	ok := *c.count >= 0
-	c.lock.Unlock()
-	return ok
+	return atomic.AddInt32(c.count, -int32(n)) >= 0
 }
 
 // Expression is a piece of code, which can be evaluated in a given
