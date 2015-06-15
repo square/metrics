@@ -28,6 +28,6 @@ func main() {
 	common.SetupLogger()
 
 	apiInstance := common.NewAPI()
-	backend := backend.NewSequentialMultiBackend(blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId))
+	backend := backend.NewSequentialMultiBackend(blueflood.NewBlueflood(blueflood.BluefloodClientConfig{*common.BluefloodUrl, *common.BluefloodTenantId}))
 	ui.Main(apiInstance, backend)
 }

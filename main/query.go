@@ -37,7 +37,7 @@ func main() {
 	}
 
 	apiInstance := common.NewAPI()
-	myBackend := blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId)
+	myBackend := blueflood.NewBlueflood(blueflood.BluefloodClientConfig{*common.BluefloodUrl, *common.BluefloodTenantId})
 
 	l := liner.NewLiner()
 	defer l.Close()
