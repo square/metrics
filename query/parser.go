@@ -102,29 +102,32 @@ var dateFormats = []string{
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string, now time.Time) (int64, error) {
 
+	if date == "now" {
+		return now.Unix() * 1000, nil
+	}
+
 	// Millisecond epoch timestamp.
-	if epoch, err := strconv.ParseInt(date); err != nil {
+	if epoch, err := strconv.ParseInt(date, 10, 0); err == nil {
 		return epoch, nil
 	}
 
 	relativeTime, err := toDuration(stringValue(date))
-	if err != nil {
+	if err == nil {
 		// A relative date.
-		if relativeTime < 0 {
-			return 0, fmt.Errorf("relative times should be negative: %s", date)
+		if relativeTime > 0 {
+			return -1, fmt.Errorf("relative times should be negative: %s", date)
 		}
 		return now.Unix()*1000 + relativeTime, nil
 	}
 
-	errorMessage := "Expected formatted date or relative time (string of the form '-5h' for example)"
+	errorMessage := fmt.Sprintf("Expected formatted date or relative time but got '%s'", date)
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {
 			return t.Unix()*1000 + int64(t.Nanosecond()/1000000), nil
 		}
-		errorMessage += "\nfailed: " + err.Error()
 	}
-	return 0, errors.New(errorMessage)
+	return -1, errors.New(errorMessage)
 }
 
 func Parse(query string) (Command, error) {
