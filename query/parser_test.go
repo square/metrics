@@ -31,20 +31,24 @@ func Test_parseRelativeTime(t *testing.T) {
 		expectSuccess     bool
 	}{
 		// Valid relative timestamps
-		{"-2s", 1413321864000, true},
-		{"-3m", 1413321686000, true},
-		{"-4h", 1413307466000, true},
-		{"-5d", 1412889866000, true},
-		{"-1M", 1410729866000, true},
-		{"-1y", 1381785866000, true},
+		{"now-2s", 1413321864000, true},
+		{"now-3m", 1413321686000, true},
+		{"now -4h", 1413307466000, true},
+		{"now- 5d", 1412889866000, true},
+		{"now   -1M", 1410729866000, true},
+		{"now   -   1y", 1381785866000, true},
 		// Bad relative timestamps
-		{"-5", -1, false},
+		{"now-5", -1, false},
 		{"5d", -1, false},
+		{"-5d", -1, false},
+		{"now 5d", -1, false},
+		{"now 5dd", -1, false},
+		{"now-5dd", -1, false},
 		{"-5z", -1, false},
 	}
 
 	for _, c := range timestampTests {
-		ts, err := parseRelativeTime(c.timeString, now)
+		ts, err := parseDate(c.timeString)
 		if err != nil && c.expectSuccess {
 			t.Fatal("Received unexpected error from parseRelativeTime: ", err)
 		}

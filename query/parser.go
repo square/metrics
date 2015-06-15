@@ -99,7 +99,7 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
-var relativeTimeRegexp = regexp.MustCompile(`^now\s*([+-])\s*(\d+)([smhdMy])$`)
+var relativeTimeRegexp = regexp.MustCompile(`^now\s*([+-])\s*([0-9]+)([smhdwMy])$`)
 
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string) (int64, error) {
@@ -109,7 +109,7 @@ func parseDate(date string) (int64, error) {
 	}
 
 	matches := relativeTimeRegexp.FindStringSubmatch(date)
-	if matches == nil {
+	if matches != nil {
 		// This match can be used to determine the duration of time.
 		now := time.Now().Unix()
 		sign := int64(1)
@@ -130,6 +130,12 @@ func parseDate(date string) (int64, error) {
 			offset *= 60 * 60
 		case "d":
 			offset *= 60 * 60 * 24
+		case "w":
+			offset *= 60 * 60 * 24 * 7
+		case "M":
+			offset *= 60 * 60 * 24 * 30
+		case "y":
+			offset *= 60 * 60 * 24 * 365
 		default:
 			// Won't happen, regex can't produce any other value.
 			panic(matches[3])
@@ -141,7 +147,7 @@ func parseDate(date string) (int64, error) {
 	if err == nil {
 		return intValue, nil
 	}
-	errorMessage := "Expected formatted date or unix timestamp number (seconds)"
+	errorMessage := "Expected formatted date or relative time (string of the form 'now - 5h' for example)"
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {

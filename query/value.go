@@ -16,7 +16,8 @@ package query
 
 import (
 	"fmt"
-	"time"
+	"regexp"
+	"strconv"
 
 	"github.com/square/metrics/api"
 )
@@ -88,6 +89,8 @@ func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
 
+var durationRegexp = regexp.MustCompile(`^([0-9]+)([smhdwMy])$`)
+
 // toDuration will take a value, convert it to a string, and then parse it.
 // the valid suffixes are: ns, us (µs), ms, s, m, h
 // It converts the return value to milliseconds.
@@ -96,9 +99,30 @@ func toDuration(value value) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	duration, err := time.ParseDuration(timeString)
+	matches := durationRegexp.FindStringSubmatch(timeString)
+	if matches == nil {
+		return 0, fmt.Errorf("expected duration to be of the form `[0-9]+[smhdwMy]`")
+	}
+	duration, err := strconv.ParseInt(matches[1], 10, 0)
 	if err != nil {
 		return 0, err
 	}
-	return int64(duration / 1000000), nil
+	scale := int64(1)
+	switch matches[2] {
+	case "s":
+		scale = 1
+	case "m":
+		scale = 60
+	case "h":
+		scale = 60 * 60
+	case "d":
+		scale = 60 * 60 * 24
+	case "w":
+		scale = 60 * 60 * 24 * 7
+	case "M":
+		scale = 60 * 60 * 24 * 30
+	case "y":
+		scale = 60860 * 24 * 365
+	}
+	return int64(duration) * scale * 1000, nil
 }
