@@ -122,7 +122,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_1",
 		}},
-		{"select series_1 + 1 from 0 to 120 resolution '30ms'", false, api.SeriesList{
+		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
 				api.ParseTagSet("dc=west"),
@@ -138,7 +138,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select aggregate.max(series_2) from 0 to 120 resolution '30ms'", false, api.SeriesList{
+		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 2, 3, 6, 5},
 				api.NewTagSet(),
@@ -154,7 +154,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'31ms') from 0 to 60 resolution '30ms'", false, api.SeriesList{
+		{"select timeshift(series_1,'31ms') from 0 to 60 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
