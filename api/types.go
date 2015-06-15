@@ -288,7 +288,6 @@ func (ts Timeseries) MarshalJSON() ([]byte, error) {
 }
 
 // SampleMethod determines how the given time series should be sampled.
-// Note(This is currently unused).
 type SampleMethod int
 
 const (
