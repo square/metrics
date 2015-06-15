@@ -19,6 +19,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/square/metrics/api"
 )
@@ -188,6 +189,26 @@ func transformMapMaker(name string, fun func(float64) float64) func([]float64, [
 	}
 }
 
+// transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
+func transformDefault(values []float64, parameters []value, scale float64) ([]float64, error) {
+	if err := checkParameters("transform.default", 1, parameters); err != nil {
+		return nil, err
+	}
+	defaultValue, err := parameters[0].toScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range values {
+		if math.IsNaN(values[i]) {
+			result[i] = defaultValue
+		} else {
+			result[i] = values[i]
+		}
+	}
+	return result, nil
+}
+
 // transformTable holds transformations so that they can be looked up by name for evaluation.
 var transformTable = map[string]transform{
 	"transform.derivative":     transformDerivative,
@@ -195,6 +216,8 @@ var transformTable = map[string]transform{
 	"transform.rate":           transformRate,
 	"transform.cumulative":     transformCumulative,
 	"transform.moving_average": transformMovingAverage,
+	"transform.default":        transformDefault,
+	"transform.abs":            transformMapMaker("abs", math.Abs),
 }
 
 func GetTransformation(name string) (transform, bool) {
