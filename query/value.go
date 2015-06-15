@@ -97,15 +97,15 @@ var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms)$`)
 func toDuration(value value) (int64, error) {
 	timeString, err := value.toString()
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 	matches := durationRegexp.FindStringSubmatch(timeString)
 	if matches == nil {
-		return 0, fmt.Errorf("expected duration to be of the form `[0-9]+[smhdwMy]`")
+		return -1, fmt.Errorf("expected duration to be of the form `[0-9]+[smhdwMy]`")
 	}
 	duration, err := strconv.ParseInt(matches[1], 10, 0)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 	scale := int64(1)
 	switch matches[2] {

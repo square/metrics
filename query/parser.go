@@ -105,6 +105,9 @@ func parseDate(date string, now time.Time) (int64, error) {
 	relativeTime, err := toDuration(stringValue(date))
 	if err != nil {
 		// A relative date.
+		if relativeTime < 0 {
+			return 0, fmt.Errorf("relative times should be negative: %s", date)
+		}
 		return now.Unix()*1000 + relativeTime, nil
 	}
 
