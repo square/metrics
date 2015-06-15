@@ -39,6 +39,12 @@ type DescribeCommand struct {
 type DescribeAllCommand struct {
 }
 
+// DescribeMetricsCommand returns all metrics that use a particular key-value pair.
+type DescribeMetricsCommand struct {
+	tagKey   string
+	tagValue string
+}
+
 // SelectCommand is the bread and butter of the metrics query engine.
 // It actually performs the query against the underlying metrics system.
 type SelectCommand struct {
@@ -74,6 +80,15 @@ func (cmd *DescribeAllCommand) Execute(b api.MultiBackend, a api.API) (interface
 
 func (cmd *DescribeAllCommand) Name() string {
 	return "describe all"
+}
+
+// Execute asks for all metrics with the given name.
+func (cmd *DescribeMetricsCommand) Execute(b api.MultiBackend, a api.API) (interface{}, error) {
+	return a.GetMetricsForTag(cmd.tagKey, cmd.tagValue)
+}
+
+func (cmd *DescribeMetricsCommand) Name() string {
+	return "describe metrics"
 }
 
 // Execute performs the query represented by the given query string, and returs the result.

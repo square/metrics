@@ -291,6 +291,22 @@ func (p *Parser) makeDescribeAll() {
 	p.command = &DescribeAllCommand{}
 }
 
+func (p *Parser) makeDescribeMetrics() {
+	// Pop off the value.
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	// Pop of the tag name.
+	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.command = &DescribeMetricsCommand{tagKey: tagLiteral.tag, tagValue: stringLiteral.literal}
+}
+
 func (p *Parser) addOperatorLiteral(operator string) {
 	p.pushNode(&operatorLiteral{operator})
 }
