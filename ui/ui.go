@@ -22,14 +22,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query"
 )
 
 type QueryHandler struct {
-	API     api.API
-	Backend api.MultiBackend
+	context query.ExecutionContext
 }
 
 type Response struct {
@@ -75,7 +73,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	result, err := cmd.Execute(q.Backend, q.API)
+	result, err := cmd.Execute(q.context)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
@@ -93,10 +91,9 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func Main(apiInstance api.API, backend api.MultiBackend) {
+func Main(context query.ExecutionContext) {
 	handler := QueryHandler{
-		API:     apiInstance,
-		Backend: backend,
+		context: context,
 	}
 
 	httpMux := http.NewServeMux()
