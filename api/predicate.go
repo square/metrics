@@ -22,7 +22,10 @@ type Predicate interface {
 	Apply(tagSet TagSet) bool
 }
 
+// TruePredicate is always true
 var TruePredicate = constantPredicate{true}
+
+// FalsePredicate is always false
 var FalsePredicate = constantPredicate{false}
 
 type constantPredicate struct {
