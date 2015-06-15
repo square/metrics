@@ -130,7 +130,6 @@ func parseDate(date string) (int64, error) {
 		}
 		switch matches[3] {
 		case "s":
-			offset *= 1
 		case "m":
 			offset *= 60
 		case "h":
