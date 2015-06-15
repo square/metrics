@@ -402,13 +402,19 @@ func (p *Parser) insertPropertyKeyValue() {
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
 		intValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			p.flagSyntaxError(SyntaxError{
-				token:   value,
-				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
-			})
+		if err == nil {
+			contextNode.Resolution = intValue
+			break
 		}
-		contextNode.Resolution = intValue
+		duration, err := toDuration(stringValue(value))
+		if err == nil {
+			contextNode.Resolution = duration
+			break
+		}
+		p.flagSyntaxError(SyntaxError{
+			token:   value,
+			message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
+		})
 	default:
 		p.flagSyntaxError(SyntaxError{
 			token:   key,

@@ -82,6 +82,9 @@ var inputs = []string{
 	"select x from 0 to 0",
 	"select x from 0 to 0",
 	"select x from 0 to 0 resolution 10",
+	"select x from 0 to 0 resolution '10h'",
+	"select x from 0 to 0 resolution '300s'",
+	"select x from 0 to 0 resolution '17m'",
 	"select x from 0 to 0 sample by 'max'",
 	"select x from 0 to 0 sample   by 'max'",
 	// Leading/trailing whitespace
