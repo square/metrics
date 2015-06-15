@@ -90,8 +90,8 @@ func (cmd *DescribeAllCommand) Name() string {
 }
 
 // Execute asks for all metrics with the given name.
-func (cmd *DescribeMetricsCommand) Execute(b api.MultiBackend, a api.API) (interface{}, error) {
-	return a.GetMetricsForTag(cmd.tagKey, cmd.tagValue)
+func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
+	return context.API.GetMetricsForTag(cmd.tagKey, cmd.tagValue)
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
