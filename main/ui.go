@@ -20,7 +20,6 @@ import (
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
 )
 
@@ -29,6 +28,11 @@ func main() {
 	common.SetupLogger()
 
 	apiInstance := common.NewAPI()
-	backend := backend.NewSequentialMultiBackend(blueflood.NewBlueflood(*common.BluefloodUrl, *common.BluefloodTenantId))
-	ui.Main(query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000})
+	bluefloodConfig := blueflood.BluefloodClientConfig{
+		BaseUrl:  *common.BluefloodUrl,
+		TenantId: *common.BluefloodTenantId,
+	}
+	blueflood := blueflood.NewBlueflood(bluefloodConfig)
+	backend := backend.NewSequentialMultiBackend(blueflood)
+	ui.Main(apiInstance, backend)
 }

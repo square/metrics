@@ -98,7 +98,7 @@ func Test_Blueflood(t *testing.T) {
 		fakeHttpClient := mocks.NewFakeHttpClient()
 		fakeHttpClient.SetResponse(test.queryUrl, test.queryResponse)
 
-		b := NewBlueflood(test.baseUrl, test.tenantId)
+		b := NewBlueflood(BluefloodClientConfig{test.baseUrl, test.tenantId}).(*blueflood)
 		b.client = fakeHttpClient
 
 		seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
@@ -120,7 +120,7 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 		t.Fatalf("testcase timerange is invalid")
 		return
 	}
-	points := []MetricPoint{
+	points := []metricPoint{
 		{
 			Timestamp: 4100,
 			Average:   1,
@@ -147,7 +147,7 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 		},
 	}
 	expected := [][]float64{{}, {1}, {2}, {}, {3}, {4}, {}, {5, 6}, {}}
-	result := bucketsFromMetricPoints(points, func(point MetricPoint) float64 { return point.Average }, timerange)
+	result := bucketsFromMetricPoints(points, func(point metricPoint) float64 { return point.Average }, timerange)
 	if len(result) != len(expected) {
 		t.Fatalf("Expected %+v but got %+v", expected, result)
 		return

@@ -64,11 +64,15 @@ func TestCommand_Describe(t *testing.T) {
 		length  int // expected length of the result.
 	}{
 		{"describe series_0", fakeApi, 4},
+		{"describe`series_0`", fakeApi, 4},
 		{"describe series_0 where dc='west'", fakeApi, 2},
+		{"describe`series_0`where(dc='west')", fakeApi, 2},
 		{"describe series_0 where dc='west' or env = 'production'", fakeApi, 3},
+		{"describe series_0 where`dc`='west'or`env`='production'", fakeApi, 3},
 		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", fakeApi, 2},
 		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", fakeApi, 2},
-		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeApi, 0}, // PARSER ERROR, currently.
+		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeApi, 0},
+		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeApi, 0},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		rawCommand, err := Parse(test.query)

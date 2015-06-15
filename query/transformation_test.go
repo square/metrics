@@ -15,6 +15,7 @@
 package query
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -206,6 +207,122 @@ func TestApplyTransform(t *testing.T) {
 			for i := range series.Values {
 				if math.Abs(series.Values[i]-expected[i]) > epsilon {
 					t.Errorf("Expected values for series %s to be %+v but are %+v", name, expected, series.Values)
+					break
+				}
+			}
+		}
+	}
+}
+
+func TestApplyTransformNaN(t *testing.T) {
+	var testTimerange, err = api.NewTimerange(758400, 758400+30*5, 30)
+	if err != nil {
+		t.Fatalf("invalid timerange used for testcase")
+		return
+	}
+	nan := math.NaN()
+	list := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{0, 1, nan, 3, 4, 5},
+				TagSet: api.TagSet{
+					"series": "A",
+				},
+			},
+			{
+				Values: []float64{2, nan, nan, nan, 3, 3},
+				TagSet: api.TagSet{
+					"series": "B",
+				},
+			},
+			{
+				Values: []float64{0, 1, 2, nan, 2, 1},
+				TagSet: api.TagSet{
+					"series": "C",
+				},
+			},
+		},
+		Timerange: testTimerange,
+		Name:      "test",
+	}
+	tests := []struct {
+		transform  transform
+		parameters []value
+		expected   map[string][]float64
+	}{
+		{
+			transform:  transformDerivative,
+			parameters: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
+				"B": {0, nan, nan, nan, nan, 0.0},
+				"C": {0, 1.0 / 30, 1.0 / 30, nan, nan, -1.0 / 30},
+			},
+		},
+		{
+			transform:  transformIntegral,
+			parameters: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
+				"B": {2 * 30, 2 * 30, 2 * 30, 2 * 30, 5 * 30, 8 * 30},
+				"C": {0, 1 * 30, 3 * 30, 3 * 30, 5 * 30, 6 * 30},
+			},
+		},
+		{
+			transform:  transformRate,
+			parameters: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
+				"B": {0, nan, nan, nan, nan, 0},
+				"C": {0, 1 / 30.0, 1 / 30.0, nan, nan, 0},
+			},
+		},
+		{
+			transform:  transformCumulative,
+			parameters: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1, 1, 4, 8, 13},
+				"B": {2, 2, 2, 2, 5, 8},
+				"C": {0, 1, 3, 3, 5, 6},
+			},
+		},
+		{
+			transform:  transformMovingAverage,
+			parameters: []value{scalarValue(100)},
+			expected: map[string][]float64{
+				"A": {0, 0.5, 0.5, 2, 3.5, 4},
+				"B": {2, 2, 2, nan, 3, 3},
+				"C": {0, 0.5, 1, 1.5, 2, 1.5},
+			},
+		},
+		{
+			transform:  transformDefault,
+			parameters: []value{scalarValue(17)},
+			expected: map[string][]float64{
+				"A": {0, 1, 17, 3, 4, 5},
+				"B": {2, 17, 17, 17, 3, 3},
+				"C": {0, 1, 2, 17, 2, 1},
+			},
+		},
+	}
+	for _, test := range tests {
+		result, err := ApplyTransform(list, test.transform, test.parameters)
+		if err != nil {
+			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
+			return
+		}
+		for _, series := range result.Series {
+			values := series.Values
+			expected := test.expected[series.TagSet["series"]]
+			if len(values) != len(expected) {
+				t.Errorf("values != expected; %+v != %+v", values, expected)
+				continue
+			}
+			for i := range values {
+				v := values[i]
+				e := expected[i]
+				if (math.IsNaN(e) != math.IsNaN(v)) || (!math.IsNaN(e) && math.Abs(v-e) > 1e-7) {
+					t.Errorf("(actual) %+v != %+v (expected)", values, expected)
 					break
 				}
 			}

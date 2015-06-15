@@ -40,6 +40,7 @@ func NewTagSet() TagSet {
 	return make(map[string]string)
 }
 
+// Equals check whether two tags are equal.
 func (left TagSet) Equals(right TagSet) bool {
 	if len(left) != len(right) {
 		return false
@@ -154,12 +155,12 @@ type Timerange struct {
 	resolution int64
 }
 
-// Start() returns the .start field
+// Start returns the .start field
 func (tr Timerange) Start() int64 {
 	return tr.start
 }
 
-// End() returns the .end field
+// End returns the .end field
 func (tr Timerange) End() int64 {
 	return tr.end
 }
@@ -288,7 +289,6 @@ func (ts Timeseries) MarshalJSON() ([]byte, error) {
 }
 
 // SampleMethod determines how the given time series should be sampled.
-// Note(This is currently unused).
 type SampleMethod int
 
 const (
