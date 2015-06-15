@@ -105,10 +105,10 @@ var (
 )
 
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
-func parseDate(date string) (int64, error) {
+func parseDate(date string, now time.Time) (int64, error) {
 
 	if date == "now" {
-		return time.Now().Unix() * 1000, nil
+		return now.Unix() * 1000, nil
 	}
 
 	matches := relativeTimeRegexp.FindStringSubmatch(date)
@@ -118,7 +118,6 @@ func parseDate(date string) (int64, error) {
 	}
 	if matches != nil {
 		// This match can be used to determine the duration of time.
-		now := time.Now().Unix()
 		sign := int64(1)
 		if matches[1] == "-" {
 			sign = -1
@@ -146,7 +145,7 @@ func parseDate(date string) (int64, error) {
 			// Won't happen, regex can't produce any other value.
 			panic(matches[3])
 		}
-		return (now + sign*offset) * 1000, nil
+		return (now.Unix() + sign*offset) * 1000, nil
 	}
 
 	intValue, err := strconv.ParseInt(date, 10, 64)
@@ -295,6 +294,22 @@ func (p *Parser) makeDescribeAll() {
 	p.command = &DescribeAllCommand{}
 }
 
+func (p *Parser) makeDescribeMetrics() {
+	// Pop off the value.
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	// Pop of the tag name.
+	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.command = &DescribeMetricsCommand{tagKey: tagLiteral.tag, tagValue: stringLiteral.literal}
+}
+
 func (p *Parser) addOperatorLiteral(operator string) {
 	p.pushNode(&operatorLiteral{operator})
 }
@@ -390,7 +405,8 @@ func (p *Parser) insertPropertyKeyValue() {
 	case "to":
 		var unix int64
 		var err error
-		if unix, err = parseDate(value); err == nil {
+		now := time.Now()
+		if unix, err = parseDate(value, now); err == nil {
 			// Valid, so do nothing.
 		} else {
 			p.flagSyntaxError(SyntaxError{

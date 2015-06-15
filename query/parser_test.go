@@ -48,7 +48,7 @@ func Test_parseRelativeTime(t *testing.T) {
 	}
 
 	for _, c := range timestampTests {
-		ts, err := parseDate(c.timeString)
+		ts, err := parseDate(c.timeString, now)
 		if err != nil && c.expectSuccess {
 			t.Fatal("Received unexpected error from parseRelativeTime: ", err)
 		}

@@ -23,14 +23,22 @@ import (
 )
 
 type FakeApi struct {
-	metricMap     map[api.GraphiteMetric]api.TaggedMetric
-	metricTagSets map[api.MetricKey][]api.TagSet
+	metricMap      map[api.GraphiteMetric]api.TaggedMetric
+	metricTagSets  map[api.MetricKey][]api.TagSet
+	metricsForTags map[struct {
+		key   string
+		value string
+	}][]api.MetricKey
 }
 
 func NewFakeApi() *FakeApi {
 	return &FakeApi{
 		metricMap:     make(map[api.GraphiteMetric]api.TaggedMetric),
 		metricTagSets: make(map[api.MetricKey][]api.TagSet),
+		metricsForTags: make(map[struct {
+			key   string
+			value string
+		}][]api.MetricKey),
 	}
 }
 
@@ -76,6 +84,16 @@ func (fa *FakeApi) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
 
 func (fa *FakeApi) GetAllMetrics() ([]api.MetricKey, error) {
 	return nil, errors.New("Implement me")
+}
+
+// Adds a metric to the Key/Value set list.
+func (fa *FakeApi) AddMetricsForTag(key string, value string, metric string) {
+	pair := struct {
+		key   string
+		value string
+	}{key, value}
+	// If the slice was previously nil, it will be expanded.
+	fa.metricsForTags[pair] = append(fa.metricsForTags[pair], api.MetricKey(metric))
 }
 
 func (fa *FakeApi) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {

@@ -17,6 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -34,7 +35,26 @@ type EvaluationContext struct {
 	API          api.API          // Api to obtain metadata from
 	Timerange    api.Timerange    // Timerange to fetch data from
 	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate    api.Predicate
+	Predicate    api.Predicate    // Predicate to apply to TagSets prior to fetching
+	FetchLimit   fetchCounter     // A limit on the number of fetches which may be performed
+}
+
+// fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
+type fetchCounter struct {
+	count *int32
+}
+
+func NewFetchCounter(n int) fetchCounter {
+	n32 := int32(n)
+	return fetchCounter{
+		count: &n32,
+	}
+}
+
+// Consume decrements the internal counter and returns whether the result is at least 0.
+// It does so in a threadsafe manner.
+func (c fetchCounter) Consume(n int) bool {
+	return atomic.AddInt32(c.count, -int32(n)) >= 0
 }
 
 // Expression is a piece of code, which can be evaluated in a given
@@ -79,6 +99,12 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 		return nil, err
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
+
+	ok := context.FetchLimit.Consume(len(filtered))
+
+	if !ok {
+		return nil, errors.New("fetch limit exceeded: too many series to fetch")
+	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
 	for i := range metrics {
