@@ -20,6 +20,7 @@ import (
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
+	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
 )
 
@@ -34,5 +35,5 @@ func main() {
 	}
 	blueflood := blueflood.NewBlueflood(bluefloodConfig)
 	backend := backend.NewSequentialMultiBackend(blueflood)
-	ui.Main(apiInstance, backend)
+	ui.Main(query.ExecutionContext{backend, apiInstance, 1000})
 }
