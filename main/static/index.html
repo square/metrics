@@ -23,7 +23,7 @@
 		<div ng-show="queryResult.name === 'select'" id="chart-div-container">
 			<div id="chart-div"></div>
 		</div>
-		<table ng-show="queryResult.name === 'describe all'" class="table table-striped col-xs-12">
+		<table ng-show="queryResult.name === 'describe all' || queryResult.name === 'describe metrics' || queryResult.name === 'describe'" class="table table-striped col-xs-12">
 			<tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
 		</table>
 		<div ng-show="queryResult.success === false && launchedQuery === null" id="error-div">{{(queryResult.message || "").trim()}}</div>
