@@ -124,7 +124,7 @@ func toDuration(value value) (int64, error) {
 	case "M":
 		scale = 1000 * 60 * 60 * 24 * 30
 	case "y":
-		scale = 1000 * 60860 * 24 * 365
+		scale = 1000 * 60 * 60 * 24 * 365
 	}
 	return int64(duration) * scale, nil
 }
