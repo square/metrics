@@ -99,7 +99,10 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
-var relativeTimeRegexp = regexp.MustCompile(`^now\s*([+-])\s*([0-9]+)([smhdwMy])$`)
+var (
+	relativeTimeRegexp      = regexp.MustCompile(`^now\s*([+-])\s*([0-9]+)([smhdwMy])$`)
+	relativeTimeRegexpShort = regexp.MustCompile(`(-)\s*([0-9]+)([smhdwMy])$`)
+)
 
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string) (int64, error) {
@@ -109,6 +112,10 @@ func parseDate(date string) (int64, error) {
 	}
 
 	matches := relativeTimeRegexp.FindStringSubmatch(date)
+	if matches == nil {
+		// If the long match fails, try to short match.
+		matches = relativeTimeRegexpShort.FindStringSubmatch(date)
+	}
 	if matches != nil {
 		// This match can be used to determine the duration of time.
 		now := time.Now().Unix()
