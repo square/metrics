@@ -38,10 +38,9 @@ func Test_parseRelativeTime(t *testing.T) {
 		{"-1M", 1410729866000, true},
 		{"-1y", 1381785866000, true},
 		// Bad relative timestamps
-		{"1s", -1, true},
-		{"+1s", -1, true},
+		{"1s", -1, false},
+		{"+1s", -1, false},
 		{"-5", -1, false},
-		{"-5d", -1, false},
 		{" 5d", -1, false},
 		{"5dd", -1, false},
 		{"-5dd", -1, false},
