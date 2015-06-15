@@ -19,6 +19,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/square/metrics/api"
 )
@@ -92,7 +93,9 @@ func transformIntegral(values []float64, parameters []value, scale float64) ([]f
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
-		integral += values[i]
+		if !math.IsNaN(values[i]) {
+			integral += values[i]
+		}
 		result[i] = integral * scale
 	}
 	return result, nil
@@ -126,7 +129,9 @@ func transformCumulative(values []float64, parameters []value, scale float64) ([
 	result := make([]float64, len(values))
 	sum := 0.0
 	for i := range values {
-		sum += values[i]
+		if !math.IsNaN(values[i]) {
+			sum += values[i]
+		}
 		result[i] = sum
 	}
 	return result, nil
@@ -155,19 +160,23 @@ func transformMovingAverage(values []float64, parameters []value, scale float64)
 	count := 0
 	sum := 0.0
 	for i := range values {
-		sum += values[i]
-		if count < limit {
-			// Increment the number of participants.
+		// Add the new element, if it isn't NaN.
+		if !math.IsNaN(values[i]) {
+			sum += values[i]
 			count++
-		} else {
-			// Remove the earliest participant
-			// (This is an optimization)
-			sum -= values[i-limit]
-			// For example, if limit = 4, we are suppose to include 4 items (including oneself).
-			// If i = 10, then we want to include 10, 9, 8, 7.
-			// So exclude 6 = 10 - 4 = i - limit
 		}
-		result[i] = sum / float64(count)
+		// Remove the oldest element, if it isn't NaN, and it's in range.
+		// (e.g., if limit = 1, then this removes the previous element from the sum).
+		if i >= limit && !math.IsNaN(values[i-limit]) {
+			sum -= values[i-limit]
+			count--
+		}
+		// Numerical error could (possibly) cause count == 0 but sum != 0.
+		if count == 0 {
+			result[i] = math.NaN()
+		} else {
+			result[i] = sum / float64(count)
+		}
 	}
 	return result, nil
 }
@@ -188,6 +197,26 @@ func transformMapMaker(name string, fun func(float64) float64) func([]float64, [
 	}
 }
 
+// transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
+func transformDefault(values []float64, parameters []value, scale float64) ([]float64, error) {
+	if err := checkParameters("transform.default", 1, parameters); err != nil {
+		return nil, err
+	}
+	defaultValue, err := parameters[0].toScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range values {
+		if math.IsNaN(values[i]) {
+			result[i] = defaultValue
+		} else {
+			result[i] = values[i]
+		}
+	}
+	return result, nil
+}
+
 // transformTable holds transformations so that they can be looked up by name for evaluation.
 var transformTable = map[string]transform{
 	"transform.derivative":     transformDerivative,
@@ -195,6 +224,8 @@ var transformTable = map[string]transform{
 	"transform.rate":           transformRate,
 	"transform.cumulative":     transformCumulative,
 	"transform.moving_average": transformMovingAverage,
+	"transform.default":        transformDefault,
+	"transform.abs":            transformMapMaker("abs", math.Abs),
 }
 
 func GetTransformation(name string) (transform, bool) {
