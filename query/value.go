@@ -89,7 +89,7 @@ func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
 
-var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy])$`)
+var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms)$`)
 
 // toDuration will take a value, convert it to a string, and then parse it.
 // the valid suffixes are: ns, us (µs), ms, s, m, h
@@ -109,20 +109,22 @@ func toDuration(value value) (int64, error) {
 	}
 	scale := int64(1)
 	switch matches[2] {
+	case "ms":
+		// no change in scale
 	case "s":
-		scale = 1
+		scale = 1000
 	case "m":
-		scale = 60
+		scale = 1000 * 60
 	case "h":
-		scale = 60 * 60
+		scale = 1000 * 60 * 60
 	case "d":
-		scale = 60 * 60 * 24
+		scale = 1000 * 60 * 60 * 24
 	case "w":
-		scale = 60 * 60 * 24 * 7
+		scale = 1000 * 60 * 60 * 24 * 7
 	case "M":
-		scale = 60 * 60 * 24 * 30
+		scale = 1000 * 60 * 60 * 24 * 30
 	case "y":
-		scale = 60860 * 24 * 365
+		scale = 1000 * 60860 * 24 * 365
 	}
-	return int64(duration) * scale * 1000, nil
+	return int64(duration) * scale, nil
 }
