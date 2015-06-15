@@ -17,6 +17,10 @@ module.controller("mainCtrl", function($scope, $http, $q) {
 		launchRequest($scope.queryText);
 	};
 
+	$scope.isTabular = function() {
+		return queryResult.name === 'describe all' || queryResult.name === 'describe metrics' || queryResult.name === 'describe';
+	};
+
 	function readHash() {
 		if (debounce) {
 			debounce = false;

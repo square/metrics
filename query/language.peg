@@ -55,9 +55,11 @@ selectStmt <- _ "select" __
   }
   _
 
-describeStmt <- _ "describe" __ (describeAllStmt / describeSingleStmt) _
+describeStmt <- _ "describe" __ (describeAllStmt / describeMetrics / describeSingleStmt) _
 
 describeAllStmt <- "all" { p.makeDescribeAll() }
+
+describeMetrics <- "metrics" __ "where" __ tagName _ "=" _ literalString { p.makeDescribeMetrics() }
 
 describeSingleStmt <-
   <METRIC_NAME> { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
@@ -229,6 +231,7 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "or" /
   "select" /
   "where" /
+  "metrics" /
   PROPERTY_KEY
 
 # Operators
@@ -267,5 +270,5 @@ PAREN_OPEN <-  _ "(" _
 PAREN_CLOSE <- _ ")" _
 COMMA <-       _ "," _
 _  <-          SPACE* # Optional spaces
-__ <-          SPACE+ # Required spaces
+__ <-          !ID_CONT SPACE* # "Required" spaces
 SPACE <-       " " / "\n" / "\t"
