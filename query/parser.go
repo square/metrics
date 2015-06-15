@@ -102,6 +102,11 @@ var dateFormats = []string{
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string, now time.Time) (int64, error) {
 
+	// Millisecond epoch timestamp.
+	if epoch, err := strconv.ParseInt(date); err != nil {
+		return epoch, nil
+	}
+
 	relativeTime, err := toDuration(stringValue(date))
 	if err != nil {
 		// A relative date.
@@ -359,9 +364,7 @@ func (p *Parser) insertPropertyKeyValue() {
 				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean' but got %s", value),
 			})
 		}
-	case "from":
-		fallthrough
-	case "to":
+	case "from", "to":
 		var unix int64
 		var err error
 		now := time.Now()
