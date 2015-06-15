@@ -20,30 +20,43 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 type FakeHttpClient struct {
-	responses map[string]string
+	responses map[string]Response
+}
+
+type Response struct {
+	Body       string
+	Delay      time.Duration
+	StatusCode int
 }
 
 func NewFakeHttpClient() *FakeHttpClient {
 	return &FakeHttpClient{
-		responses: make(map[string]string),
+		responses: make(map[string]Response),
 	}
 }
 
-func (c *FakeHttpClient) SetResponse(url, response string) {
-	c.responses[url] = response
+func (c *FakeHttpClient) SetResponse(url string, r Response) {
+	c.responses[url] = r
 }
 
 func (c *FakeHttpClient) Get(url string) (*http.Response, error) {
-	responseString, exists := c.responses[url]
+	r, exists := c.responses[url]
 	if !exists {
 		return nil, errors.New(fmt.Sprintf("Get() received unexpected url %s, mappings: %+v", url, c.responses))
 	}
 
+	if r.Delay > 0 {
+		time.Sleep(r.Delay)
+	}
 	resp := http.Response{}
-	resp.Body = ioutil.NopCloser(bytes.NewBufferString(responseString))
-
+	resp.StatusCode = r.StatusCode
+	resp.Body = ioutil.NopCloser(bytes.NewBufferString(r.Body))
+	if r.StatusCode/100 == 4 || r.StatusCode/100 == 5 {
+		return &resp, errors.New("HTTP Error")
+	}
 	return &resp, nil
 }
