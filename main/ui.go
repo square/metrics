@@ -33,5 +33,5 @@ func main() {
 	apiInstance := common.NewAPI(config.API)
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 	backend := backend.NewSequentialMultiBackend(blueflood)
-	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, Limit: 1000})
+	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000})
 }

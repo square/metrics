@@ -113,8 +113,8 @@ func Main(config Config, context query.ExecutionContext) {
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
 		Handler:        httpMux,
-		ReadTimeout:    config.Timeout * time.Second,
-		WriteTimeout:   config.Timeout * time.Second,
+		ReadTimeout:    time.Duration(config.Timeout) * time.Second,
+		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	err = server.ListenAndServe()
