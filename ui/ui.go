@@ -18,8 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/log"
@@ -104,8 +102,7 @@ func Main(config Config, context query.ExecutionContext) {
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
-	here := config.Static
-	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
+	httpMux.Handle("/static/", StaticHandler{Directory: config.Static})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
