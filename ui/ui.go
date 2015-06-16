@@ -26,6 +26,11 @@ import (
 	"github.com/square/metrics/query"
 )
 
+type Config struct {
+	Port    int `yaml:"port"`
+	Timeout int `yaml:"timeout"`
+}
+
 type QueryHandler struct {
 	context query.ExecutionContext
 }
@@ -91,7 +96,7 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func Main(context query.ExecutionContext) {
+func Main(config Config, context query.ExecutionContext) {
 	handler := QueryHandler{
 		context: context,
 	}
@@ -106,10 +111,10 @@ func Main(context query.ExecutionContext) {
 	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
 
 	server := &http.Server{
-		Addr:           ":8080",
+		Addr:           fmt.Sprintf(":%d", config.Port),
 		Handler:        httpMux,
-		ReadTimeout:    30 * time.Second,
-		WriteTimeout:   30 * time.Second,
+		ReadTimeout:    config.Timeout * time.Second,
+		WriteTimeout:   config.Timeout * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	err = server.ListenAndServe()
