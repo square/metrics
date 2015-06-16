@@ -74,7 +74,7 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-var aggregateMap = map[string]func([]float64) float64{
+var AggregateMap = map[string]func([]float64) float64{
 	"aggregate.sum":
 	// The aggregatefor sum finds the sum of the given array.
 	func(array []float64) float64 {
@@ -127,16 +127,16 @@ var aggregateMap = map[string]func([]float64) float64{
 
 // GetAggregate gives the aggregate of the given name (and false if it doesn't exist).
 func GetAggregate(name string) (func([]float64) float64, bool) {
-	aggregate, ok := aggregateMap[name]
+	aggregate, ok := AggregateMap[name]
 	return aggregate, ok
 }
 
 // AddAggregate adds an aggregate of a given name to the aggregate map.
 func RegisterAggregate(name string, aggregate func([]float64) float64) error {
-	if _, ok := aggregateMap[name]; ok {
+	if _, ok := AggregateMap[name]; ok {
 		return errors.New(fmt.Sprintf("aggregate %s has already been declared", name))
 	}
-	aggregateMap[name] = aggregate
+	AggregateMap[name] = aggregate
 	return nil
 }
 

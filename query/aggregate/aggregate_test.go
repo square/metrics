@@ -185,19 +185,19 @@ func Test_applyAggregation(t *testing.T) {
 		Expected   []float64
 	}{
 		{
-			aggregateMap["aggregate.sum"],
+			AggregateMap["aggregate.sum"],
 			[]float64{3, 2, 8, 11},
 		},
 		{
-			aggregateMap["aggregate.mean"],
+			AggregateMap["aggregate.mean"],
 			[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 		},
 		{
-			aggregateMap["aggregate.max"],
+			AggregateMap["aggregate.max"],
 			[]float64{4, 2, 4, 4},
 		},
 		{
-			aggregateMap["aggregate.min"],
+			AggregateMap["aggregate.min"],
 			[]float64{-1, -1, 0, 2},
 		},
 	}
