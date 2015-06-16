@@ -69,7 +69,7 @@ func (c Config) getTtlInMillis(r Resolution) int64 {
 	return ttl * 24 * 60 * 60 * 1000
 }
 
-type Blueflood struct {
+type blueflood struct {
 	config Config
 	client httpClient
 }
@@ -98,13 +98,8 @@ const (
 	Resolution1440Min            = "MIN1440"
 )
 
-type BluefloodClientConfig struct {
-	BaseUrl  string
-	TenantId string
-}
-
-func NewBlueflood(c Config) *Blueflood {
-	b := Blueflood{config: c, client: http.DefaultClient}
+func NewBlueflood(c Config) *blueflood {
+	b := blueflood{config: c, client: http.DefaultClient}
 
 	b.config.Ttls = map[Resolution]int64{}
 	for k, v := range c.Ttls {
@@ -114,7 +109,7 @@ func NewBlueflood(c Config) *Blueflood {
 	return &b
 }
 
-func (b *Blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
+func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
