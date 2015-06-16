@@ -25,9 +25,9 @@ import (
 )
 
 type Config struct {
-	Port    int    `yaml:"port"`
-	Timeout int    `yaml:"timeout"`
-	Static  string `yaml:"static"`
+	Port      int    `yaml:"port"`
+	Timeout   int    `yaml:"timeout"`
+	StaticDir string `yaml:"static_dir"`
 }
 
 type QueryHandler struct {
@@ -102,7 +102,7 @@ func Main(config Config, context query.ExecutionContext) {
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
-	httpMux.Handle("/static/", StaticHandler{Directory: config.Static})
+	httpMux.Handle("/static/", StaticHandler{Directory: config.StaticDir})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
