@@ -17,8 +17,32 @@ package query
 import (
 	"fmt"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
 )
+
+var functionRegistry = map[string]MetricFunction{}
+
+func GetFunction(name string) (MetricFunction, bool) {
+	fun, ok := functionRegistry[name]
+	return fun, ok
+}
+
+func RegisterFunction(fun MetricFunction) error {
+	_, ok := functionRegistry[fun.Name]
+	if ok {
+		return fmt.Errorf("function %s has already been registered", fun.Name)
+	}
+	functionRegistry[fun.Name] = fun
+	return nil
+}
+
+func MustRegister(fun MetricFunction) {
+	err := RegisterFunction(fun)
+	if err != nil {
+		panic(fmt.Sprintf("function %s in failed to register", fun.Name))
+	}
+}
 
 type MetricFunction struct {
 	Name        string
@@ -42,6 +66,51 @@ func (f MetricFunction) Evaluate(
 		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
 	}
 	return f.Compute(context, arguments, groupBy)
+}
+
+func MakeOperatorMetricFunction(op string, operator func(float64, float64) float64) MetricFunction {
+	return MetricFunction{
+		Name:        op,
+		MinArgument: 2,
+		MaxArgument: 2,
+		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
+			leftValue, err := args[0].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			rightValue, err := args[1].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			leftList, err := leftValue.toSeriesList(context.Timerange)
+			if err != nil {
+				return nil, err
+			}
+			rightList, err := rightValue.toSeriesList(context.Timerange)
+			if err != nil {
+				return nil, err
+			}
+
+			joined := join([]api.SeriesList{leftList, rightList})
+
+			result := make([]api.Timeseries, len(joined.Rows))
+
+			for i, row := range joined.Rows {
+				left := row.Row[0]
+				right := row.Row[1]
+				array := make([]float64, len(left.Values))
+				for j := 0; j < len(left.Values); j++ {
+					array[j] = operator(left.Values[j], right.Values[j])
+				}
+				result[i] = api.Timeseries{array, row.TagSet}
+			}
+
+			return seriesListValue(api.SeriesList{
+				Series:    result,
+				Timerange: context.Timerange,
+			}), nil
+		},
+	}
 }
 
 // MakeAggregateMetricFunction takes a named aggregating function `[float64] => float64` and makes it into a MetricFunction.

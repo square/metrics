@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/query/aggregate"
 )
 
 // EvaluationContext is the central piece of logic, providing
@@ -121,142 +120,16 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 }
 
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
-	name := expr.functionName
-	length := len(expr.arguments)
-	operatorMap := map[string]func(float64, float64) float64{
-		"+": func(x, y float64) float64 { return x + y },
-		"-": func(x, y float64) float64 { return x - y },
-		"*": func(x, y float64) float64 { return x * y },
-		"/": func(x, y float64) float64 { return x / y },
+	fun, ok := GetFunction(expr.functionName)
+	if !ok {
+		return nil, fmt.Errorf("no such function %s", expr.functionName)
 	}
 
-	if operator, ok := operatorMap[name]; ok {
-		// Evaluation of a binary operator:
-		// Verify that exactly 2 arguments are given.
-		if length != 2 {
-			return nil, ArgumentLengthError{name, 2, 2, length}
-		}
-		values, err := evaluateExpressions(context, expr.arguments)
-		if err != nil {
-			return nil, err
-		}
-		return evaluateBinaryOperation(context, name, values[0], values[1], operator)
-	}
-
-	if aggregator, ok := aggregate.GetAggregate(name); ok {
-		// Verify that exactly 1 argument is given.
-		if length != 1 {
-			return nil, ArgumentLengthError{name, 1, 1, length}
-		}
-		values, err := evaluateExpressions(context, expr.arguments)
-		if err != nil {
-			return nil, err
-		}
-		list, err := values[0].toSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		series := aggregate.AggregateBy(list, aggregator, expr.groupBy)
-		return seriesListValue(series), nil
-	}
-
-	if transform, ok := GetTransformation(name); ok {
-		//Verify that at least one argument is given.
-		if length == 0 {
-			return nil, ArgumentLengthError{name, 1, -1, length}
-		}
-		values, err := evaluateExpressions(context, expr.arguments)
-		if err != nil {
-			return nil, err
-		}
-		first := values[0]
-		list, err := first.toSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		// Evaluate all the other parameters:
-		rest := values[1:]
-		series, err := ApplyTransform(list, transform, rest)
-		if err != nil {
-			return nil, err
-		}
-		return seriesListValue(series), nil
-	}
-
-	if name == "timeshift" {
-		// A timeshift performs a modification to the evaluation context.
-		// In the future, it may be one of a class of functions which performs a similar modification.
-		// A timeshift has two parameters: its first (which it evaluates), and its second (the time offset).
-		if length != 2 {
-			return nil, ArgumentLengthError{name, 2, 2, length}
-		}
-		shift, err := expr.arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		duration, err := toDuration(shift)
-		if err != nil {
-			return nil, err
-		}
-		newContext := context
-		newContext.Timerange = newContext.Timerange.Shift(int64(duration))
-		value, err := expr.arguments[0].Evaluate(newContext)
-		if err != nil {
-			return nil, err
-		}
-		if series, ok := value.(seriesListValue); ok {
-			// If it's a series, then we need to reset its timerange to the original.
-			// Although it's questionably useful to use timeshifting for a non-series,
-			// it seems sensible to allow it anyway.
-			series.Timerange = context.Timerange
-		}
-		return value, nil
-	}
-
-	return nil, errors.New(fmt.Sprintf("unknown function name `%s`", name))
+	return fun.Evaluate(context, expr.arguments, expr.groupBy)
 }
 
 // Auxiliary functions
 // ===================
-
-// evaluateBinaryOperation applies an arbirary binary operation to two
-// Expressions.
-func evaluateBinaryOperation(
-	context EvaluationContext,
-	functionName string,
-	leftValue value,
-	rightValue value,
-	evaluate func(float64, float64) float64,
-) (value, error) {
-
-	leftList, err := leftValue.toSeriesList(context.Timerange)
-	if err != nil {
-		return nil, err
-	}
-	rightList, err := rightValue.toSeriesList(context.Timerange)
-	if err != nil {
-		return nil, err
-	}
-
-	joined := join([]api.SeriesList{leftList, rightList})
-
-	result := make([]api.Timeseries, len(joined.Rows))
-
-	for i, row := range joined.Rows {
-		left := row.Row[0]
-		right := row.Row[1]
-		array := make([]float64, len(left.Values))
-		for j := 0; j < len(left.Values); j++ {
-			array[j] = evaluate(left.Values[j], right.Values[j])
-		}
-		result[i] = api.Timeseries{array, row.TagSet}
-	}
-
-	return seriesListValue(api.SeriesList{
-		Series:    result,
-		Timerange: context.Timerange,
-	}), nil
-}
 
 func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet {
 	output := []api.TagSet{}
