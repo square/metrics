@@ -17,23 +17,52 @@ package common
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	standard_log "log"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/internal"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/ui"
+	"gopkg.in/yaml.v2"
 )
 
 var (
 	// YamlFile is the location of the rule YAML file.
-	YamlFile          = flag.String("yaml-file", "", "Location of YAML configuration file.")
-	CassandraHost     = flag.String("cassandra-host", "localhost", "Cassandra host")
-	BluefloodUrl      = flag.String("blueflood-url", "", "Blueflood url")
-	BluefloodTenantId = flag.String("blueflood-tenant-id", "", "Blueflood tenant id")
-	Verbose           = flag.Bool("verbose", false, "Set to true to enable logging")
+	ConfigFile = flag.String("config-file", "", "Location of YAML config file")
+	Verbose    = flag.Bool("verbose", false, "Set to true to enable logging")
 )
+
+type Config struct {
+	Blueflood blueflood.Config `yaml:"blueflood"`
+	API       api.Config       `yaml:"api"` // TODO: Probably rethink how we name this
+	UIConfig  ui.Config        `yaml:"ui"`
+}
+
+func LoadConfig() Config {
+	var config Config
+
+	f, err := os.Open(*ConfigFile)
+	if err != nil {
+		ExitWithMessage(fmt.Sprintf("unable to open config file `%s`", *ConfigFile))
+	}
+
+	bytes, err := ioutil.ReadAll(f)
+	if err != nil {
+		ExitWithMessage(fmt.Sprintf("unable to read config file `%s`", *ConfigFile))
+	}
+
+	if err := yaml.Unmarshal(bytes, &config); err != nil {
+		ExitWithMessage(fmt.Sprintf("unable to load config file `%s`", *ConfigFile))
+	}
+
+	fmt.Printf("parsed config: %#v\n", config)
+
+	return config
+}
 
 // ExitWithRequired terminates the program when a required flag is missing.
 func ExitWithRequired(flagName string) {
@@ -48,14 +77,10 @@ func ExitWithMessage(message string) {
 }
 
 // NewAPI creates a new instance of the API.
-func NewAPI() api.API {
-	apiInstance, err := internal.NewAPI(api.Configuration{
-		RuleYamlFilePath: *YamlFile,
-		Hosts:            []string{*CassandraHost},
-		Keyspace:         "metrics_indexer",
-	})
+func NewAPI(config api.Config) api.API {
+	apiInstance, err := internal.NewAPI(config)
 	if err != nil {
-		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API: %s\n", err.Error()))
+		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))
 	}
 	return apiInstance
 }

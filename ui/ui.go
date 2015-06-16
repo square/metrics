@@ -18,13 +18,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query"
 )
+
+type Config struct {
+	Port      int    `yaml:"port"`
+	Timeout   int    `yaml:"timeout"`
+	StaticDir string `yaml:"static_dir"`
+}
 
 type QueryHandler struct {
 	context query.ExecutionContext
@@ -91,28 +95,23 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func Main(context query.ExecutionContext) {
+func Main(config Config, context query.ExecutionContext) {
 	handler := QueryHandler{
 		context: context,
 	}
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
-	here, err := filepath.Abs("")
-	if err != nil {
-		fmt.Printf("ERROR [%s]\n", err.Error())
-		return
-	}
-	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
+	httpMux.Handle("/static/", StaticHandler{Directory: config.StaticDir})
 
 	server := &http.Server{
-		Addr:           ":8080",
+		Addr:           fmt.Sprintf(":%d", config.Port),
 		Handler:        httpMux,
-		ReadTimeout:    30 * time.Second,
-		WriteTimeout:   30 * time.Second,
+		ReadTimeout:    time.Duration(config.Timeout) * time.Second,
+		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err = server.ListenAndServe()
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Infof(err.Error())
 	}

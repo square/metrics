@@ -15,8 +15,8 @@ type defaultAPI struct {
 }
 
 // NewAPI creates a new instance of API from the given configuration.
-func NewAPI(config api.Configuration) (api.API, error) {
-	file, err := os.Open(config.RuleYamlFilePath)
+func NewAPI(config api.Config) (api.API, error) {
+	file, err := os.Open(config.ConversionRulesPath)
 	if err != nil {
 		return nil, err
 	}
