@@ -37,7 +37,7 @@ func (list filterList) Swap(i, j int) {
 	list.value[i], list.value[j] = list.value[j], list.value[i]
 }
 
-func newFilterList(size int, bool ascending) {
+func newFilterList(size int, ascending bool) filterList {
 	return filterList{
 		index:     make([]int, size),
 		value:     make([]float64, size),
@@ -47,15 +47,15 @@ func newFilterList(size int, bool ascending) {
 
 // FilteryBy reduces the number of things in the series `list` to at most the given `count`.
 // They're chosen by sorting by `summary` in `ascending` or descending order.
-func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, ascending bool) {
+func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, ascending bool) api.SeriesList {
 	if len(list.Series) < count {
 		// No need to change if there's already fewer.
 		return list
 	}
 	array := newFilterList(len(list.Series), ascending)
-	for i := range array {
-		array[i].index = i
-		array[i].value = summary(list.Series[i].Values)
+	for i := range array.index {
+		array.index[i] = i
+		array.value[i] = summary(list.Series[i].Values)
 	}
 	sort.Sort(array)
 
