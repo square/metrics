@@ -18,8 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/square/metrics/log"
@@ -27,8 +25,9 @@ import (
 )
 
 type Config struct {
-	Port    int `yaml:"port"`
-	Timeout int `yaml:"timeout"`
+	Port      int    `yaml:"port"`
+	Timeout   int    `yaml:"timeout"`
+	StaticDir string `yaml:"static_dir"`
 }
 
 type QueryHandler struct {
@@ -103,12 +102,7 @@ func Main(config Config, context query.ExecutionContext) {
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", handler)
-	here, err := filepath.Abs("")
-	if err != nil {
-		fmt.Printf("ERROR [%s]\n", err.Error())
-		return
-	}
-	httpMux.Handle("/static/", StaticHandler{here + "/" + filepath.Dir(os.Args[0])})
+	httpMux.Handle("/static/", StaticHandler{Directory: config.StaticDir})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
@@ -117,7 +111,7 @@ func Main(config Config, context query.ExecutionContext) {
 		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err = server.ListenAndServe()
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Infof(err.Error())
 	}
