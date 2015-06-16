@@ -111,7 +111,7 @@ func Main(config Config, context query.ExecutionContext) {
 		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err = server.ListenAndServe()
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Infof(err.Error())
 	}
