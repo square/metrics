@@ -20,7 +20,30 @@ import (
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/aggregate"
 )
+
+func init() {
+	// Arithmetic operators
+	MustRegister(MakeOperatorMetricFunction("+", func(x float64, y float64) float64 { return x + y }))
+	MustRegister(MakeOperatorMetricFunction("-", func(x float64, y float64) float64 { return x - y }))
+	MustRegister(MakeOperatorMetricFunction("*", func(x float64, y float64) float64 { return x * y }))
+	MustRegister(MakeOperatorMetricFunction("/", func(x float64, y float64) float64 { return x / y }))
+	// Aggregates
+	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.AggregateMap["aggregate.max"]))
+	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.AggregateMap["aggregate.min"]))
+	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.AggregateMap["aggregate.mean"]))
+	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.AggregateMap["aggregate.sum"]))
+	// Transformations
+	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformTable["transform.derivative"]))
+	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformTable["transform.integral"]))
+
+	MustRegister(MakeTransformMetricFunction("transform.rate", 0, transformTable["transform.rate"]))
+	MustRegister(MakeTransformMetricFunction("transform.cumulative", 0, transformTable["transform.cumulative"]))
+	MustRegister(MakeTransformMetricFunction("transform.moving_average", 0, transformTable["transform.moving_average"]))
+	MustRegister(MakeTransformMetricFunction("transform.default", 0, transformTable["transform.default"]))
+	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformTable["transform.abs"]))
+}
 
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
