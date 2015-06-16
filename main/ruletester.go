@@ -73,19 +73,16 @@ type PerMetricStatistics struct {
 func main() {
 	flag.Parse()
 	common.SetupLogger()
-	if *common.YamlFile == "" {
-		common.ExitWithRequired("yaml-file")
-	}
-	if *metricsFile == "" {
-		common.ExitWithRequired("metrics-file")
-	}
-	ruleset := readRule(*common.YamlFile)
+
+	config := common.LoadConfig()
+
+	ruleset := readRule(config.API.ConversionRulesPath)
 	metricFile, err := os.Open(*metricsFile)
 	if err != nil {
 		common.ExitWithMessage("No metric file.")
 	}
 	scanner := bufio.NewScanner(metricFile)
-	apiInstance := common.NewAPI()
+	apiInstance := common.NewAPI(config.API)
 	var output *os.File
 	if *unmatchedFile != "" {
 		output, err = os.Create(*unmatchedFile)

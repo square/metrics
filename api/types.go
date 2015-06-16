@@ -300,6 +300,19 @@ const (
 	SampleMean
 )
 
+func (sm SampleMethod) String() string {
+	switch sm {
+	case SampleMax:
+		return "SampleMax"
+	case SampleMin:
+		return "SampleMin"
+	case SampleMean:
+		return "SampleMean"
+	}
+
+	return "unknown"
+}
+
 // SeriesList is a list of time series sharing the same time range.
 type SeriesList struct {
 	Series    []Timeseries `json:"series"`

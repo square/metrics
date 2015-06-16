@@ -58,7 +58,8 @@ func Test_Blueflood(t *testing.T) {
 			timerange:    timerange,
 			baseUrl:      "https://blueflood.url",
 			tenantId:     "square",
-			queryUrl:     "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=FULL&select=numPoints%2Caverage&to=14000",
+			// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
+			queryUrl: "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000",
 			queryResponse: `{
         "unit": "unknown", 
         "values": [
@@ -98,7 +99,11 @@ func Test_Blueflood(t *testing.T) {
 		fakeHttpClient := mocks.NewFakeHttpClient()
 		fakeHttpClient.SetResponse(test.queryUrl, test.queryResponse)
 
-		b := NewBlueflood(BluefloodClientConfig{test.baseUrl, test.tenantId}).(*blueflood)
+		b := NewBlueflood(Config{
+			BaseUrl:  test.baseUrl,
+			TenantId: test.tenantId,
+			Ttls:     make(map[Resolution]int64),
+		})
 		b.client = fakeHttpClient
 
 		seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
