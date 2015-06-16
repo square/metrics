@@ -26,6 +26,7 @@ import (
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/internal"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/ui"
 	"gopkg.in/yaml.v2"
 )
 
@@ -38,6 +39,7 @@ var (
 type Config struct {
 	Blueflood blueflood.Config `yaml:"blueflood"`
 	API       api.Config       `yaml:"api"` // TODO: Probably rethink how we name this
+	UIConfig  ui.Config        `yaml:"ui"`
 }
 
 func LoadConfig() Config {
