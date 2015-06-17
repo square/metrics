@@ -147,7 +147,7 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
 	fun, ok := GetFunction(expr.functionName)
 	if !ok {
-		return nil, fmt.Errorf("no such function %s", expr.functionName)
+		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}
 	}
 
 	return fun.Evaluate(context, expr.arguments, expr.groupBy)
