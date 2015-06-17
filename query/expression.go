@@ -30,10 +30,10 @@ func init() {
 	MustRegister(MakeOperatorMetricFunction("*", func(x float64, y float64) float64 { return x * y }))
 	MustRegister(MakeOperatorMetricFunction("/", func(x float64, y float64) float64 { return x / y }))
 	// Aggregates
-	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.AggregateMap["aggregate.max"]))
-	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.AggregateMap["aggregate.min"]))
-	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.AggregateMap["aggregate.mean"]))
-	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.AggregateMap["aggregate.sum"]))
+	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.AggregateMax))
+	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.AggregateMin))
+	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.AggregateMean))
+	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.AggregateSum))
 	// Transformations
 	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformTable["transform.derivative"]))
 	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformTable["transform.integral"]))
