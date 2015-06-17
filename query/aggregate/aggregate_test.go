@@ -185,19 +185,19 @@ func Test_applyAggregation(t *testing.T) {
 		Expected   []float64
 	}{
 		{
-			aggregateMap["aggregate.sum"],
+			AggregateSum,
 			[]float64{3, 2, 8, 11},
 		},
 		{
-			aggregateMap["aggregate.mean"],
+			AggregateMean,
 			[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 		},
 		{
-			aggregateMap["aggregate.max"],
+			AggregateMax,
 			[]float64{4, 2, 4, 4},
 		},
 		{
-			aggregateMap["aggregate.min"],
+			AggregateMin,
 			[]float64{-1, -1, 0, 2},
 		},
 	}
@@ -301,12 +301,12 @@ func Test_AggregateBy(t *testing.T) {
 
 	var aggregatedTests = []struct {
 		Tags       []string
-		Aggregator string
+		Aggregator func([]float64) float64
 		Results    []api.Timeseries
 	}{
 		{
 			[]string{"env"},
-			"aggregate.sum",
+			AggregateSum,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{1, 11, 3},
@@ -324,7 +324,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc"},
-			"aggregate.max",
+			AggregateMax,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 2, 2},
@@ -348,7 +348,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc", "env"},
-			"aggregate.mean",
+			AggregateMean,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 1, 2},
@@ -389,7 +389,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{},
-			"aggregate.sum",
+			AggregateSum,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{5, 16, 9},
@@ -400,11 +400,7 @@ func Test_AggregateBy(t *testing.T) {
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregate, ok := GetAggregate(testCase.Aggregator)
-		if !ok {
-			t.Fatalf("expected aggregator %s to exist", testCase.Aggregator)
-		}
-		aggregated := AggregateBy(testList, aggregate, testCase.Tags)
+		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
