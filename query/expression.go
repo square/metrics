@@ -55,7 +55,7 @@ func init() {
 				sum += x
 			}
 		}
-		return sum / count
+		return sum / float64(count)
 	}
 	MustRegister(MakeFilterMetricFunction("filter.highest_mean", meanSummary, false))
 	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", meanSummary, true))
