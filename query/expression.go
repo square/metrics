@@ -17,6 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
@@ -35,13 +36,13 @@ func init() {
 	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.AggregateMean))
 	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.AggregateSum))
 	// Transformations
-	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformTable["transform.derivative"]))
-	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformTable["transform.integral"]))
-	MustRegister(MakeTransformMetricFunction("transform.rate", 0, transformTable["transform.rate"]))
-	MustRegister(MakeTransformMetricFunction("transform.cumulative", 0, transformTable["transform.cumulative"]))
-	MustRegister(MakeTransformMetricFunction("transform.moving_average", 0, transformTable["transform.moving_average"]))
-	MustRegister(MakeTransformMetricFunction("transform.default", 0, transformTable["transform.default"]))
-	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformTable["transform.abs"]))
+	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformDerivative))
+	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformIntegral))
+	MustRegister(MakeTransformMetricFunction("transform.rate", 0, transformRate))
+	MustRegister(MakeTransformMetricFunction("transform.cumulative", 0, transformCumulative))
+	MustRegister(MakeTransformMetricFunction("transform.moving_average", 1, transformMovingAverage))
+	MustRegister(MakeTransformMetricFunction("transform.default", 1, transformDefault))
+	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
 }
