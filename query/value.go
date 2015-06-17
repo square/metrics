@@ -101,7 +101,7 @@ func toDuration(value value) (int64, error) {
 	}
 	matches := durationRegexp.FindStringSubmatch(timeString)
 	if matches == nil {
-		return -1, fmt.Errorf("expected duration to be of the form `[0-9]+[smhdwMy]`")
+		return -1, fmt.Errorf("expected duration to be of the form `%s`", durationRegexp.String())
 	}
 	duration, err := strconv.ParseInt(matches[1], 10, 0)
 	if err != nil {
