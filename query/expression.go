@@ -46,7 +46,6 @@ func init() {
 	// Timeshift
 	MustRegister(TimeshiftFunction)
 	// Filter
-
 	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
 	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
 	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.AggregateMax, false))
