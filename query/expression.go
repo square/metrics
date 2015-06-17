@@ -46,41 +46,13 @@ func init() {
 	// Timeshift
 	MustRegister(TimeshiftFunction)
 	// Filter
-	meanSummary := func(xs []float64) float64 {
-		count := 0
-		sum := 0.0
-		for _, x := range xs {
-			if !math.IsNaN(x) {
-				count++
-				sum += x
-			}
-		}
-		return sum / float64(count)
-	}
-	MustRegister(MakeFilterMetricFunction("filter.highest_mean", meanSummary, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", meanSummary, true))
-	maxSummary := func(xs []float64) float64 {
-		high := math.NaN()
-		for _, x := range xs {
-			if math.IsNaN(high) || x > high {
-				high = x
-			}
-		}
-		return high
-	}
-	minSummary := func(xs []float64) float64 {
-		low := math.NaN()
-		for _, x := range xs {
-			if math.IsNaN(low) || x < low {
-				low = x
-			}
-		}
-		return low
-	}
-	MustRegister(MakeFilterMetricFunction("filter.highest_max", maxSummary, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_max", maxSummary, true))
-	MustRegister(MakeFilterMetricFunction("filter.highest_min", minSummary, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_min", minSummary, true))
+
+	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.AggregateMax, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_max", aggregate.AggregateMax, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_min", aggregate.AggregateMin, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_min", aggregate.AggregateMin, true))
 }
 
 // EvaluationContext is the central piece of logic, providing
