@@ -216,6 +216,32 @@ var TimeshiftFunction = MetricFunction{
 	},
 }
 
+var AliasFunction = MetricFunction{
+	Name:        "transform.alias",
+	MinArgument: 2,
+	MaxArgument: 2,
+	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+		value, err := arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := value.toSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		nameValue, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		name, err := nameValue.toString()
+		if err != nil {
+			return nil, err
+		}
+		list.Name = name
+		return seriesListValue(list), nil
+	},
+}
+
 func MakeFilterMetricFunction(name string, summary func([]float64) float64, ascending bool) MetricFunction {
 	return MetricFunction{
 		Name:        name,

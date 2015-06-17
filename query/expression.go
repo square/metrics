@@ -45,6 +45,7 @@ func init() {
 	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
+	MustRegister(AliasFunction)
 	// Filter
 	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
 	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
