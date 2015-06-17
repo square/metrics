@@ -18,8 +18,6 @@ package aggregate
 // and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
 
 import (
-	"errors"
-	"fmt"
 	"math"
 
 	"github.com/square/metrics/api"
@@ -74,70 +72,52 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
-var AggregateMap = map[string]func([]float64) float64{
-	"aggregate.sum":
-	// The aggregatefor sum finds the sum of the given array.
-	func(array []float64) float64 {
-		sum := 0.0
-		for _, v := range array {
-			sum += v
-		}
-		return sum
-	},
-	"aggregate.mean":
-	// The mean aggregator returns the mean of the given array
-	func(array []float64) float64 {
-		if len(array) == 0 {
-			// The mean of an empty list is not well-defined
-			return math.NaN()
-		}
-		sum := 0.0
-		for _, v := range array {
-			sum += v
-		}
-		return sum / float64(len(array))
-	},
-	"aggregate.min":
-	// The minimum aggregator returns the minimum
-	func(array []float64) float64 {
-		if len(array) == 0 {
-			// The minimum of an empty list is not well-defined
-			return math.NaN()
-		}
-		min := array[0]
-		for _, v := range array {
-			min = math.Min(min, v)
-		}
-		return min
-	},
-	"aggregate.max":
-	// The maximum aggregator returns the maximum
-	func(array []float64) float64 {
-		if len(array) == 0 {
-			// The maximum of an empty list is not well-defined
-			return math.NaN()
-		}
-		max := array[0]
-		for _, v := range array {
-			max = math.Max(max, v)
-		}
-		return max
-	},
-}
-
-// GetAggregate gives the aggregate of the given name (and false if it doesn't exist).
-func GetAggregate(name string) (func([]float64) float64, bool) {
-	aggregate, ok := AggregateMap[name]
-	return aggregate, ok
-}
-
-// AddAggregate adds an aggregate of a given name to the aggregate map.
-func RegisterAggregate(name string, aggregate func([]float64) float64) error {
-	if _, ok := AggregateMap[name]; ok {
-		return errors.New(fmt.Sprintf("aggregate %s has already been declared", name))
+// The sum aggregator returns the mean of the given array
+func AggregateSum(array []float64) float64 {
+	sum := 0.0
+	for _, v := range array {
+		sum += v
 	}
-	AggregateMap[name] = aggregate
-	return nil
+	return sum
+}
+
+// The mean aggregator returns the mean of the given array
+func AggregateMean(array []float64) float64 {
+	if len(array) == 0 {
+		// The mean of an empty list is not well-defined
+		return math.NaN()
+	}
+	sum := 0.0
+	for _, v := range array {
+		sum += v
+	}
+	return sum / float64(len(array))
+}
+
+// The minimum aggregator returns the minimum
+func AggregateMin(array []float64) float64 {
+	if len(array) == 0 {
+		// The minimum of an empty list is not well-defined
+		return math.NaN()
+	}
+	min := array[0]
+	for _, v := range array {
+		min = math.Min(min, v)
+	}
+	return min
+}
+
+// The maximum aggregator returns the maximum
+func AggregateMax(array []float64) float64 {
+	if len(array) == 0 {
+		// The maximum of an empty list is not well-defined
+		return math.NaN()
+	}
+	max := array[0]
+	for _, v := range array {
+		max = math.Max(max, v)
+	}
+	return max
 }
 
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries

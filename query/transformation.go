@@ -216,27 +216,3 @@ func transformDefault(values []float64, parameters []value, scale float64) ([]fl
 	}
 	return result, nil
 }
-
-// transformTable holds transformations so that they can be looked up by name for evaluation.
-var transformTable = map[string]transform{
-	"transform.derivative":     transformDerivative,
-	"transform.integral":       transformIntegral,
-	"transform.rate":           transformRate,
-	"transform.cumulative":     transformCumulative,
-	"transform.moving_average": transformMovingAverage,
-	"transform.default":        transformDefault,
-	"transform.abs":            transformMapMaker("abs", math.Abs),
-}
-
-func GetTransformation(name string) (transform, bool) {
-	transform, ok := transformTable[name]
-	return transform, ok
-}
-
-func RegisterTransformation(name string, transform transform) error {
-	if _, ok := transformTable[name]; ok {
-		return errors.New(fmt.Sprintf("transformation `%s` has already been declared", name))
-	}
-	transformTable[name] = transform
-	return nil
-}
