@@ -194,6 +194,5 @@ var TimeshiftFunction = MetricFunction{
 			return seriesValue, nil
 		}
 		return result, nil
-
 	},
 }
