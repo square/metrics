@@ -17,6 +17,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
@@ -44,6 +45,42 @@ func init() {
 	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformTable["transform.abs"]))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
+	// Filter
+	meanSummary := func(xs []float64) float64 {
+		count := 0
+		sum := 0.0
+		for _, x := range xs {
+			if !math.IsNaN(x) {
+				count++
+				sum += x
+			}
+		}
+		return sum / count
+	}
+	MustRegister(MakeFilterMetricFunction("filter.highest_mean", meanSummary, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", meanSummary, true))
+	maxSummary := func(xs []float64) float64 {
+		high := math.NaN()
+		for _, x := range xs {
+			if math.IsNaN(high) || x > high {
+				high = x
+			}
+		}
+		return high
+	}
+	minSummary := func(xs []float64) float64 {
+		low := math.NaN()
+		for _, x := range xs {
+			if math.IsNaN(low) || x < low {
+				low = x
+			}
+		}
+		return low
+	}
+	MustRegister(MakeFilterMetricFunction("filter.highest_max", maxSummary, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_max", maxSummary, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_min", minSummary, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_min", minSummary, true))
 }
 
 // EvaluationContext is the central piece of logic, providing
