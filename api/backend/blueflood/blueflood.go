@@ -38,6 +38,7 @@ type Config struct {
 	BaseUrl  string               `yaml:"base_url"`
 	TenantId string               `yaml:"tenant_id"`
 	Ttls     map[Resolution]int64 `yaml:"ttls"` // Ttl in days
+	Timeout  time.Duration        `yaml:"timeout"`
 }
 
 func (c Config) getTtlInMillis(r Resolution) int64 {
@@ -98,15 +99,19 @@ const (
 	Resolution1440Min            = "MIN1440"
 )
 
-func NewBlueflood(c Config) *blueflood {
+func NewBlueflood(c Config) api.Backend {
 	b := blueflood{config: c, client: http.DefaultClient}
-
 	b.config.Ttls = map[Resolution]int64{}
 	for k, v := range c.Ttls {
 		b.config.Ttls[k] = v
 	}
-
 	return &b
+}
+
+type sampler struct {
+	fieldName     string
+	fieldSelector func(point metricPoint) float64
+	bucketSampler func([]float64) float64
 }
 
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
@@ -115,20 +120,39 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
 
-	graphiteName, err := request.Api.ToGraphiteName(request.Metric)
-
+	queryUrl, err := b.constructURL(request, sampler)
 	if err != nil {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
+		return api.Timeseries{}, err
 	}
 
 	// Issue GET to fetch metrics
-	queryUrl, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s",
-		b.config.BaseUrl,
-		b.config.TenantId,
-		graphiteName))
-
+	parsedResult, err := b.fetch(request, queryUrl)
 	if err != nil {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
+		return api.Timeseries{}, err
+	}
+
+	values := processResult(parsedResult, request.Timerange, sampler)
+	log.Infof("Constructed timeseries from result: %v", values)
+
+	return api.Timeseries{
+		Values: values,
+		TagSet: request.Metric.TagSet,
+	}, nil
+}
+
+// Helper functions
+// ----------------
+
+// constructURL creates the URL to the blueflood's backend to fetch the data from.
+func (b *blueflood) constructURL(request api.FetchSeriesRequest, sampler sampler) (*url.URL, error) {
+	graphiteName, err := request.Api.ToGraphiteName(request.Metric)
+	if err != nil {
+		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
+	}
+
+	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, graphiteName))
+	if err != nil {
+		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
 	}
 
 	params := url.Values{}
@@ -138,36 +162,57 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.Resolution(), 10))
 	params.Set("resolution", b.config.bluefloodResolution(request.Timerange.Resolution(), request.Timerange.Start()))
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
+	result.RawQuery = params.Encode()
+	return result, nil
+}
 
-	queryUrl.RawQuery = params.Encode()
-
+// fetches from the backend. on error, it returns an instance of api.BackendError
+func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (queryResponse, error) {
 	log.Infof("Blueflood fetch: %s", queryUrl.String())
-	resp, err := b.client.Get(queryUrl.String())
-	if err != nil {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+	success := make(chan queryResponse)
+	failure := make(chan error)
+	timeout := time.After(b.config.Timeout)
+	go func() {
+		resp, err := b.client.Get(queryUrl.String())
+		if err != nil {
+			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			return
+		}
+		defer resp.Body.Close()
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - reading"}
+			return
+		}
+
+		log.Infof("Fetch result: %s", string(body))
+
+		var parsedJson queryResponse
+		err = json.Unmarshal(body, &parsedJson)
+		// Construct a Timeseries from the result:
+		if err != nil {
+			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - json decoding"}
+			return
+		}
+		success <- parsedJson
+	}()
+	select {
+	case response := <-success:
+		return response, nil
+	case err := <-failure:
+		return queryResponse{}, err
+	case <-timeout:
+		return queryResponse{}, api.BackendError{request.Metric, api.FetchTimeoutError, ""}
 	}
-	defer resp.Body.Close()
+}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.FetchIOError, "error while fetching - reading"}
-	}
-
-	log.Infof("Fetch result: %s", string(body))
-
-	var result queryResponse
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return api.Timeseries{}, api.BackendError{request.Metric, api.FetchIOError, "error while fetching - json decoding"}
-	}
-
-	// Construct a Timeseries from the result:
-
+func processResult(parsedResult queryResponse, timerange api.Timerange, sampler sampler) []float64 {
 	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
-	buckets := bucketsFromMetricPoints(result.Values, sampler.fieldSelector, request.Timerange)
+	buckets := bucketsFromMetricPoints(parsedResult.Values, sampler.fieldSelector, timerange)
 
 	// values will hold the final values to be returned as the series.
-	values := make([]float64, request.Timerange.Slots())
+	values := make([]float64, timerange.Slots())
 
 	for i, bucket := range buckets {
 		if len(bucket) == 0 {
@@ -176,13 +221,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		}
 		values[i] = sampler.bucketSampler(bucket)
 	}
-
-	log.Infof("Constructed timeseries from result: %v", values)
-
-	return api.Timeseries{
-		Values: values,
-		TagSet: request.Metric.TagSet,
-	}, nil
+	return values
 }
 
 func addMetricPoint(metricPoint metricPoint, field func(metricPoint) float64, timerange api.Timerange, buckets [][]float64) bool {
@@ -209,15 +248,7 @@ func bucketsFromMetricPoints(metricPoints []metricPoint, resultField func(metric
 	return buckets
 }
 
-var samplerMap map[api.SampleMethod]struct {
-	fieldName     string
-	fieldSelector func(point metricPoint) float64
-	bucketSampler func([]float64) float64
-} = map[api.SampleMethod]struct {
-	fieldName     string
-	fieldSelector func(point metricPoint) float64
-	bucketSampler func([]float64) float64
-}{
+var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 	api.SampleMean: {
 		fieldName:     "average",
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
