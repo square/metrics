@@ -45,6 +45,13 @@ func init() {
 	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
+	// Filter
+	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.AggregateMax, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_max", aggregate.AggregateMax, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_min", aggregate.AggregateMin, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_min", aggregate.AggregateMin, true))
 }
 
 // EvaluationContext is the central piece of logic, providing

@@ -196,3 +196,37 @@ var TimeshiftFunction = MetricFunction{
 		return result, nil
 	},
 }
+
+func MakeFilterMetricFunction(name string, summary func([]float64) float64, ascending bool) MetricFunction {
+	return MetricFunction{
+		Name:        name,
+		MinArgument: 2,
+		MaxArgument: 2,
+		Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+			value, err := arguments[0].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			// The value must be a SeriesList.
+			list, err := value.toSeriesList(context.Timerange)
+			if err != nil {
+				return nil, err
+			}
+			countValue, err := arguments[1].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			countFloat, err := countValue.toScalar()
+			if err != nil {
+				return nil, err
+			}
+			// Round to the nearest integer.
+			count := int(countFloat + 0.5)
+			if count < 0 {
+				return nil, fmt.Errorf("expected positive count but got %d", count)
+			}
+			result := FilterBy(list, count, summary, ascending)
+			return seriesListValue(result), nil
+		},
+	}
+}
