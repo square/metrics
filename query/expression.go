@@ -148,6 +148,8 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 		return nil, err
 	}
 
+	serieslist.Name = expr.metricName
+
 	return seriesListValue(serieslist), nil
 }
 

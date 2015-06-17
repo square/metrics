@@ -108,6 +108,7 @@ func MakeOperatorMetricFunction(op string, operator func(float64, float64) float
 			return seriesListValue(api.SeriesList{
 				Series:    result,
 				Timerange: context.Timerange,
+				Name:      fmt.Sprintf("(%s %s %s)", leftValue.name(), op, rightValue.name()),
 			}), nil
 		},
 	}
@@ -130,6 +131,18 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 				return nil, err
 			}
 			result := aggregate.AggregateBy(seriesList, aggregator, groups)
+			groupNames := ""
+			for _, group := range groups {
+				if groupNames != "" {
+					groupNames += ", "
+				}
+				groupNames += group
+			}
+			if groupNames != "" {
+				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.name(), groupNames)
+			} else {
+				result.Name = fmt.Sprintf("%s(%s)", name, value.name())
+			}
 			return seriesListValue(result), nil
 		},
 	}
@@ -163,13 +176,18 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 			if err != nil {
 				return nil, err
 			}
+			parameterNames := ""
+			for _, param := range parameters {
+				parameterNames += ", " + param.name()
+			}
+			result.Name = fmt.Sprintf("%s(%s%s)", name, listValue.name(), parameterNames)
 			return seriesListValue(result), nil
 		},
 	}
 }
 
 var TimeshiftFunction = MetricFunction{
-	Name:        "timeshift",
+	Name:        "transform.timeshift",
 	MinArgument: 2,
 	MaxArgument: 2,
 	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
@@ -191,6 +209,7 @@ var TimeshiftFunction = MetricFunction{
 
 		if seriesValue, ok := result.(seriesListValue); ok {
 			seriesValue.Timerange = context.Timerange
+			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.name(), value.name())
 			return seriesValue, nil
 		}
 		return result, nil
@@ -226,6 +245,7 @@ func MakeFilterMetricFunction(name string, summary func([]float64) float64, asce
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
 			result := FilterBy(list, count, summary, ascending)
+			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.name(), count)
 			return seriesListValue(result), nil
 		},
 	}

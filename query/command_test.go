@@ -154,7 +154,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'31ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'31ms') from 0 to 60 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -162,7 +162,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'62ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'62ms') from 0 to 60 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 4, 5},
 				api.ParseTagSet("dc=west"),
@@ -170,7 +170,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'29ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'29ms') from 0 to 60 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -178,7 +178,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'-31ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-31ms') from 60 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -186,7 +186,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: lateTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'-29ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-29ms') from 60 to 120 resolution 30", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
