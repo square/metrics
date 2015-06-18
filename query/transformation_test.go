@@ -59,11 +59,6 @@ func TestTransformTimeseries(t *testing.T) {
 					useParam: false,
 				},
 				{
-					fun:      transformMovingAverage,
-					expected: []float64{0.0, 0.5, 1.0, 2.0, 3.0, 4.0},
-					useParam: true,
-				},
-				{
 					fun:      transformMapMaker("negate", func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
 					useParam: false,
@@ -167,15 +162,6 @@ func TestApplyTransform(t *testing.T) {
 				"A": {0, 1, 3, 6, 10, 15},
 				"B": {2, 4, 5, 6, 9, 12},
 				"C": {0, 1, 3, 6, 8, 9},
-			},
-		},
-		{
-			transform: transformMovingAverage,
-			parameter: []value{scalarValue(100)}, // 100 seconds corresponds to roughly 3 samples
-			expected: map[string][]float64{
-				"A": {0, 0.5, 1, 2, 3, 4},
-				"B": {2.0, 2.0, 5.0 / 3, 4.0 / 3, 5.0 / 3, 7.0 / 3},
-				"C": {0, 0.5, 1, 2, 7.0 / 3, 2},
 			},
 		},
 	}
@@ -287,15 +273,6 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 		{
-			transform:  transformMovingAverage,
-			parameters: []value{scalarValue(100)},
-			expected: map[string][]float64{
-				"A": {0, 0.5, 0.5, 2, 3.5, 4},
-				"B": {2, 2, 2, nan, 3, 3},
-				"C": {0, 0.5, 1, 1.5, 2, 1.5},
-			},
-		},
-		{
 			transform:  transformDefault,
 			parameters: []value{scalarValue(17)},
 			expected: map[string][]float64{
@@ -371,10 +348,6 @@ func TestApplyTransformFailure(t *testing.T) {
 		{
 			transform: transformMapMaker("abs", math.Abs),
 			parameter: []value{scalarValue(3)},
-		},
-		{
-			transform: transformMovingAverage,
-			parameter: []value{},
 		},
 	}
 	for _, test := range testCases {

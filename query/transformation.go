@@ -137,50 +137,6 @@ func transformCumulative(values []float64, parameters []value, scale float64) ([
 	return result, nil
 }
 
-// transformMovingAverage finds the average over the time period given in the parameters[0] value,
-// which is the second argument in the transform (the first being the serieslist itself). This value
-// must be numeric (not a series). It is in units of milliseconds.
-func transformMovingAverage(values []float64, parameters []value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.moving_average", 1, parameters); err != nil {
-		return nil, err
-	}
-	result := make([]float64, len(values))
-	if len(parameters) != 1 {
-
-	}
-	size, err := parameters[0].toScalar()
-	if err != nil {
-		return nil, err
-	}
-	limit := int(size/scale + 0.5) // Limit is the number of items to include in the average
-	if limit < 1 {
-		// At least one value must be included at all times
-		limit = 1
-	}
-	count := 0
-	sum := 0.0
-	for i := range values {
-		// Add the new element, if it isn't NaN.
-		if !math.IsNaN(values[i]) {
-			sum += values[i]
-			count++
-		}
-		// Remove the oldest element, if it isn't NaN, and it's in range.
-		// (e.g., if limit = 1, then this removes the previous element from the sum).
-		if i >= limit && !math.IsNaN(values[i-limit]) {
-			sum -= values[i-limit]
-			count--
-		}
-		// Numerical error could (possibly) cause count == 0 but sum != 0.
-		if count == 0 {
-			result[i] = math.NaN()
-		} else {
-			result[i] = sum / float64(count)
-		}
-	}
-	return result, nil
-}
-
 // transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
