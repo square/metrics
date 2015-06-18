@@ -113,8 +113,8 @@ func TestCommand_Select(t *testing.T) {
 		expectError bool
 		expected    api.SeriesList
 	}{
-		{"select does_not_exist from 0 to 120 resolution 30", true, api.SeriesList{}},
-		{"select series_1 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select does_not_exist from 0 to 120 resolution '30ms'", true, api.SeriesList{}},
+		{"select series_1 from 0 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3, 4, 5},
 				api.ParseTagSet("dc=west"),
@@ -122,7 +122,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_1",
 		}},
-		{"select series_1 + 1 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
 				api.ParseTagSet("dc=west"),
@@ -130,7 +130,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select series_1 * 2 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select series_1 * 2 from 0 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 4, 6, 8, 10},
 				api.ParseTagSet("dc=west"),
@@ -138,7 +138,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select aggregate.max(series_2) from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 2, 3, 6, 5},
 				api.NewTagSet(),
@@ -146,7 +146,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_2",
 		}},
-		{"select series_1 from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select series_1 from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3},
 				api.ParseTagSet("dc=west"),
@@ -154,7 +154,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select transform.timeshift(series_1,'31ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'31ms') from 0 to 60 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -162,7 +162,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select transform.timeshift(series_1,'62ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'62ms') from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 4, 5},
 				api.ParseTagSet("dc=west"),
@@ -170,7 +170,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select transform.timeshift(series_1,'29ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'29ms') from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -178,7 +178,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select transform.timeshift(series_1,'-31ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-31ms') from 60 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -186,7 +186,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: lateTimerange,
 			Name:      "series_1",
 		}},
-		{"select transform.timeshift(series_1,'-29ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-29ms') from 60 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -229,7 +229,7 @@ func TestCommand_Select(t *testing.T) {
 	}
 
 	// Test that the limit is correct
-	command, err := Parse("select series_1, series_2 from 0 to 120 resolution 30")
+	command, err := Parse("select series_1, series_2 from 0 to 120 resolution '30ms'")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
@@ -246,7 +246,7 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("expected failure with limit = 2")
 		return
 	}
-	command, err = Parse("select series2 from 0 to 120 resolution 30")
+	command, err = Parse("select series2 from 0 to 120 resolution '30ms'")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
