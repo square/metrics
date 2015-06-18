@@ -100,7 +100,7 @@ func (m *parallelMultiBackend) fetchManyLazy(cancellable api.Cancellable, works 
 				err = thisErr
 			}
 		case <-cancellable.Done():
-			err = api.BackendError{
+			return nil, api.BackendError{
 				api.TaggedMetric{},
 				api.FetchTimeoutError,
 				"",
