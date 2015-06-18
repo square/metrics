@@ -121,6 +121,7 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 		Name:        name,
 		MinArgument: 1,
 		MaxArgument: 1,
+		Groups:      true,
 		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
@@ -152,7 +153,6 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 		Name:        name,
 		MinArgument: parameterCount + 1,
 		MaxArgument: parameterCount + 1,
-		Groups:      true,
 		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
 			// ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error)
 			listValue, err := args[0].Evaluate(context)

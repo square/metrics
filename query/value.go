@@ -93,7 +93,7 @@ func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
 func (value scalarValue) name() string {
-	return fmt.Sprintf("%f", value)
+	return fmt.Sprintf("%g", value)
 }
 
 // toDuration will take a value, convert it to a string, and then parse it.
