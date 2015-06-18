@@ -88,7 +88,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{backend.NewSequentialMultiBackend(FakeBackend{}), nil, api.Timerange{}, api.SampleMean, nil, NewFetchCounter(1000)}
+	emptyContext := EvaluationContext{backend.NewSequentialMultiBackend(FakeBackend{}), nil, api.Timerange{}, api.SampleMean, nil, NewFetchCounter(1000), api.NewCancellable()}
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string

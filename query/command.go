@@ -15,7 +15,9 @@
 package query
 
 import (
+	"fmt"
 	"sort"
+	"time"
 
 	"github.com/square/metrics/api"
 )
@@ -25,6 +27,7 @@ type ExecutionContext struct {
 	Backend    api.MultiBackend // the backend
 	API        api.API          // the api
 	FetchLimit int              // the maximum number of fetches
+	Timeout    time.Duration
 }
 
 // Command is the final result of the parsing.
@@ -104,14 +107,47 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if err != nil {
 		return nil, err
 	}
-	return evaluateExpressions(EvaluationContext{
-		MultiBackend: context.Backend,
-		Timerange:    timerange,
-		SampleMethod: cmd.context.SampleMethod,
-		Predicate:    cmd.predicate,
+	hasTimeout := context.Timeout != 0
+	var cancellable api.Cancellable
+	if hasTimeout {
+		cancellable = api.NewTimeoutCancellable(time.Now().Add(context.Timeout))
+	} else {
+		cancellable = api.NewCancellable()
+	}
+
+	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
+	evaluationContext := EvaluationContext{
 		API:          context.API,
 		FetchLimit:   NewFetchCounter(context.FetchLimit),
-	}, cmd.expressions)
+		MultiBackend: context.Backend,
+		Predicate:    cmd.predicate,
+		SampleMethod: cmd.context.SampleMethod,
+		Timerange:    timerange,
+		Cancellable:  cancellable,
+	}
+	if hasTimeout {
+		timeout := time.After(context.Timeout)
+		results := make(chan interface{})
+		errors := make(chan error)
+		go func() {
+			result, err := evaluateExpressions(evaluationContext, cmd.expressions)
+			if err != nil {
+				errors <- err
+			} else {
+				results <- result
+			}
+		}()
+		select {
+		case <-timeout:
+			return nil, fmt.Errorf("Timeout while executing the query.") // timeout.
+		case result := <-results:
+			return result, nil
+		case err := <-errors:
+			return nil, err
+		}
+	} else {
+		return evaluateExpressions(evaluationContext, cmd.expressions)
+	}
 }
 
 func (cmd *SelectCommand) Name() string {

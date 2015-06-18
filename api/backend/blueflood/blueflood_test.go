@@ -175,6 +175,7 @@ func Test_Blueflood(t *testing.T) {
 		seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
 			test.queryMetric, test.sampleMethod, test.timerange,
 			fakeApi,
+			api.NewCancellable(),
 		})
 
 		if test.expectedErrorCode != 0 {

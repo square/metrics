@@ -18,6 +18,7 @@ package query
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
@@ -33,6 +34,9 @@ func (f fakeApiBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.T
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
 		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
+	}
+	if string(request.Metric.MetricKey) == "series_timeout" {
+		<-make(chan struct{}) // block forever
 	}
 	list, ok := metricMap[request.Metric.MetricKey]
 	if !ok {
@@ -81,7 +85,7 @@ func TestCommand_Describe(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*DescribeCommand)
-		rawResult, _ := command.Execute(ExecutionContext{nil, test.backend, 1000})
+		rawResult, _ := command.Execute(ExecutionContext{nil, test.backend, 1000, 0})
 		parsedResult := rawResult.([]string)
 		a.EqInt(len(parsedResult), test.length)
 	}
@@ -93,6 +97,7 @@ func TestCommand_Select(t *testing.T) {
 	fakeApi.AddPair(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")}, emptyGraphiteName)
 	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")}, emptyGraphiteName)
 	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")}, emptyGraphiteName)
 	var fakeBackend fakeApiBackend
 	testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
@@ -122,6 +127,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_1",
 		}},
+		{"select series_timeout from 0 to 120 resolution '30ms'", true, api.SeriesList{}},
 		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
@@ -203,7 +209,12 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 1000})
+		rawResult, err := command.Execute(ExecutionContext{
+			backend.NewSequentialMultiBackend(fakeBackend),
+			fakeApi,
+			1000,
+			10 * time.Millisecond,
+		})
 		if err != nil {
 			if !test.expectError {
 				a.Errorf("Unexpected error while executing: %s", err.Error())
@@ -234,7 +245,7 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
-	context := ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 3}
+	context := ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 3, 0}
 	_, err = command.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success with limit 3 but got err = %s", err.Error())
@@ -312,7 +323,7 @@ func TestNaming(t *testing.T) {
 			return
 		}
 		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(ExecutionContext{fakeBackend, fakeApi, 1000})
+		rawResult, err := command.Execute(ExecutionContext{fakeBackend, fakeApi, 1000, 0})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue

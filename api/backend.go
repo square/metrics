@@ -16,7 +16,40 @@ package api
 
 import (
 	"fmt"
+	"time"
 )
+
+// Cancellable represents a cancellable work.
+// See https://blog.golang.org/context
+type Cancellable interface {
+	Done() chan struct{}         // returns a channel that is closed when the work is done.
+	Deadline() (time.Time, bool) // deadline for the request.
+}
+
+type DefaultCancellable struct {
+	done     chan struct{}
+	deadline *time.Time
+}
+
+func (c DefaultCancellable) Done() chan struct{} {
+	return c.done
+}
+
+func (c DefaultCancellable) Deadline() (time.Time, bool) {
+	if c.deadline == nil {
+		return time.Time{}, false
+	} else {
+		return *c.deadline, true
+	}
+}
+
+func NewTimeoutCancellable(t time.Time) Cancellable {
+	return DefaultCancellable{make(chan struct{}), &t}
+}
+
+func NewCancellable() Cancellable {
+	return DefaultCancellable{make(chan struct{}), nil}
+}
 
 // FetchSeriesRequest contains all the information to fetch a single series of metric
 // from a backend.
@@ -24,12 +57,30 @@ type FetchSeriesRequest struct {
 	Metric       TaggedMetric // metric to fetch.
 	SampleMethod SampleMethod // up/downsampling behavior.
 	Timerange    Timerange    // time range to fetch data from.
-	Api          API          // an API instance.
+	API          API          // an API instance.
+	Cancellable  Cancellable
+}
+
+type FetchMultipleRequest struct {
+	Metrics      []TaggedMetric
+	SampleMethod SampleMethod
+	Timerange    Timerange
+	API          API
+	Cancellable  Cancellable
+}
+
+func (r FetchMultipleRequest) ToSingle(metric TaggedMetric) FetchSeriesRequest {
+	return FetchSeriesRequest{
+		Metric:       metric,
+		API:          r.API,
+		Cancellable:  r.Cancellable,
+		SampleMethod: r.SampleMethod,
+		Timerange:    r.Timerange,
+	}
 }
 
 // Backend describes how to fetch time-series data from a given backend.
 type Backend interface {
-
 	// FetchSingleSeries should return an instance of BackendError
 	FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error)
 }
@@ -38,7 +89,7 @@ type MultiBackend interface {
 	// FetchManySeries fetches the series provided by the given TaggedMetrics
 	// corresponding to the Timerange, down/upsampling if necessary using
 	// SampleMethod. It may fetch in series or parallel, etc.
-	FetchMultipleSeries(metrics []TaggedMetric, sampleMethod SampleMethod, timerange Timerange, api API) (SeriesList, error)
+	FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error)
 }
 
 type BackendErrorCode int

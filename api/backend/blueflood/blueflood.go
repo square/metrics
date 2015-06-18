@@ -145,7 +145,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
 func (b *blueflood) constructURL(request api.FetchSeriesRequest, sampler sampler) (*url.URL, error) {
-	graphiteName, err := request.Api.ToGraphiteName(request.Metric)
+	graphiteName, err := request.API.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
 	}
