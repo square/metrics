@@ -88,9 +88,6 @@ var inputs = []string{
 	" describe all ",
 	" describe x ",
 	" select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0 ",
-}
-
-var parseOnly = []string{
 	// selects - aggregate functions
 	"select scalar.max(x) from 0 to 0",
 	"select aggregate.max(x, y) from 0 to 0",
@@ -105,6 +102,17 @@ var parseOnly = []string{
 	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
 	"select 'string literal' where host = 'apa3.sjc2b' from 0 to 0",
 	"select timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
+	// selects - spaces and keywords
+	"select f( g(5) group by a,w,q) from 0 to 0",
+	"select f( g(5) group by a, w, q )from 0 to 0 ",
+	"select f( g(5) group by a,w, q)from 0 to 0",
+	"select f( g(5) group by a,w,q)to 0 from 0",
+	"select f(g(5)group by a,w,q)to 0 from 0",
+	"   select f(g(5)group by a,w,q)  from  	  0 	   to     0",
+	"   select( f(g(5)group by a,w,q)  )from 0 to 0",
+	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
+	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
+	"select(fromx+tox+groupx+byx+selectx+describex+allx+wherex) from 0 to 0",
 }
 
 // these queries should fail with a syntax error.
@@ -125,16 +133,12 @@ var syntaxErrorQuery = []string{
 	"select x from 0 to 1 to 0",
 	"select x from 0 resolution 30 resolution 25 to 0",
 	"select x from 0 from 1 sample by 'min' sample by 'min' to 0",
+	"select f(3 groupby x) from 0 to 0",
+	"select c group by a from 0 to 0",
 }
 
 func TestParse_success(t *testing.T) {
 	for _, row := range inputs {
-		_, err := Parse(row)
-		if err != nil {
-			t.Errorf("[%s] failed to parse: %s", row, err.Error())
-		}
-	}
-	for _, row := range parseOnly {
 		_, err := Parse(row)
 		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
