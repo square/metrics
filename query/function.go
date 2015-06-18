@@ -16,6 +16,7 @@ package query
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -131,17 +132,14 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 				return nil, err
 			}
 			result := aggregate.AggregateBy(seriesList, aggregator, groups)
-			groupNames := ""
-			for _, group := range groups {
-				if groupNames != "" {
-					groupNames += ", "
-				}
-				groupNames += group
+			groupNames := make([]string, len(groups))
+			for i, group := range groups {
+				groupNames[i] += group
 			}
-			if groupNames != "" {
-				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.name(), groupNames)
-			} else {
+			if len(groups) == 0 {
 				result.Name = fmt.Sprintf("%s(%s)", name, value.name())
+			} else {
+				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.name(), strings.Join(groupNames, ", "))
 			}
 			return seriesListValue(result), nil
 		},
@@ -176,11 +174,15 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 			if err != nil {
 				return nil, err
 			}
-			parameterNames := ""
-			for _, param := range parameters {
-				parameterNames += ", " + param.name()
+			parameterNames := make([]string, len(parameters))
+			for i, param := range parameters {
+				parameterNames[i] = param.name()
 			}
-			result.Name = fmt.Sprintf("%s(%s%s)", name, listValue.name(), parameterNames)
+			if len(parameters) != 0 {
+				result.Name = fmt.Sprintf("%s(%s, %s)", name, listValue.name(), strings.Join(parameterNames, ", "))
+			} else {
+				result.Name = fmt.Sprintf("%s(%s)", name, listValue.name())
+			}
 			return seriesListValue(result), nil
 		},
 	}
