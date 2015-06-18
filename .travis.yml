@@ -10,8 +10,10 @@ before_install:
 before_script:
   # peg
   - go get -u github.com/pointlander/peg
+  - go get github.com/peterh/liner
   - cqlsh -f schema/schema_test.cql
 
 script:
+  - git reset --hard HEAD && main/build_mains.sh && rm -r main
   - ./build_verify.sh
   - go test -v ./...
