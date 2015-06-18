@@ -4,9 +4,6 @@ go: 1.4
 services:
   - cassandra
 
-before_install:
-  - rm -r main
-
 before_script:
   # peg
   - go get -u github.com/pointlander/peg
@@ -14,6 +11,5 @@ before_script:
   - cqlsh -f schema/schema_test.cql
 
 script:
-  - git reset --hard HEAD && main/build_mains.sh && rm -r main
   - ./build_verify.sh
   - go test -v ./...
