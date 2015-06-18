@@ -202,7 +202,7 @@ TAG_NAME <-    _ IDENTIFIER
 # TODO - may be refactored later.
 IDENTIFIER <-  _ "`" CHAR* "`" / _ !(KEYWORD KEY) ID_SEGMENT ("." ID_SEGMENT)*
 # `[[a-z]]?` allows for relative timestamps
-TIMESTAMP <- _ <NUMBER [[a-z]]?> / _ STRING / _ <"now">
+TIMESTAMP <- _ <NUMBER [[a-z]]*> / _ STRING / _ <"now">
 ID_SEGMENT <- _ ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
 # If hyphens are needed, use backticks instead.
