@@ -86,23 +86,29 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 }
 
 type StaticHandler struct {
-	Directory string
+	Directory  string
+	StaticPath string
 }
 
 func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	res := h.Directory + request.URL.Path
+	res := h.Directory + request.URL.Path[len(h.StaticPath):]
+	fmt.Printf("url.path = %s\n", request.URL.Path)
 	fmt.Printf("res = %s\n", res)
 	http.ServeFile(writer, request, res)
 }
 
-func Main(config Config, context query.ExecutionContext) {
-	handler := QueryHandler{
-		context: context,
-	}
-
+func NewMux(config Config, context query.ExecutionContext) *http.ServeMux {
 	httpMux := http.NewServeMux()
-	httpMux.Handle("/query", handler)
-	httpMux.Handle("/static/", StaticHandler{Directory: config.StaticDir})
+	httpMux.Handle("/query", QueryHandler{
+		context: context,
+	})
+	staticPath := "/static/"
+	httpMux.Handle(staticPath, StaticHandler{StaticPath: staticPath, Directory: config.StaticDir})
+	return httpMux
+}
+
+func Main(config Config, context query.ExecutionContext) {
+	httpMux := NewMux(config, context)
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),

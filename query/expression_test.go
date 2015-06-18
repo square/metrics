@@ -38,18 +38,11 @@ func (expr *LiteralExpression) Evaluate(context EvaluationContext) (value, error
 }
 
 type LiteralSeriesExpression struct {
-	Values []api.Timeseries
+	list api.SeriesList
 }
 
 func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value, error) {
-	result := api.SeriesList{
-		Series:    make([]api.Timeseries, len(expr.Values)),
-		Timerange: api.Timerange{},
-	}
-	for i, values := range expr.Values {
-		result.Series[i] = values
-	}
-	return seriesListValue(result), nil
+	return seriesListValue(expr.list), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -99,8 +92,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	for _, test := range []struct {
 		context              EvaluationContext
 		functionName         string
-		left                 value
-		right                value
+		left                 api.SeriesList
+		right                api.SeriesList
 		evalFunction         func(float64, float64) float64
 		expectSuccess        bool
 		expectedResultValues [][]float64
@@ -108,7 +101,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		{
 			emptyContext,
 			"add",
-			seriesListValue(api.SeriesList{
+			api.SeriesList{
 				[]api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
@@ -117,8 +110,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
-			seriesListValue(api.SeriesList{
+			},
+			api.SeriesList{
 				[]api.Timeseries{
 					{
 						Values: []float64{4, 5, 1},
@@ -127,7 +120,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
+			},
 			func(left, right float64) float64 { return left + right },
 			true,
 			[][]float64{{5, 7, 4}},
@@ -135,7 +128,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		{
 			emptyContext,
 			"subtract",
-			seriesListValue(api.SeriesList{
+			api.SeriesList{
 				[]api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
@@ -143,8 +136,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
-			seriesListValue(api.SeriesList{
+			},
+			api.SeriesList{
 				[]api.Timeseries{
 					{
 						Values: []float64{4, 5, 1},
@@ -152,7 +145,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
+			},
 			func(left, right float64) float64 { return left - right },
 			true,
 			[][]float64{{-3, -3, 2}},
@@ -160,7 +153,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		{
 			emptyContext,
 			"add",
-			seriesListValue(api.SeriesList{
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{1, 2, 3},
@@ -186,8 +179,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
-			seriesListValue(api.SeriesList{
+			},
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{5, 5, 5},
@@ -204,7 +197,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
+			},
 			func(left, right float64) float64 { return left + right },
 			true,
 			[][]float64{{11, 102, 1003}, {12, 12, 12}, {6, 5, 7}},
@@ -212,7 +205,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		{
 			emptyContext,
 			"add",
-			seriesListValue(api.SeriesList{
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{1, 2, 3},
@@ -238,8 +231,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
-			seriesListValue(api.SeriesList{
+			},
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{2, 2, 2},
@@ -256,7 +249,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
+			},
 			func(left, right float64) float64 { return left * right },
 			true,
 			[][]float64{{8, 10, 12}, {14, 16, 18}, {12, 15, 18}, {21, 24, 27}},
@@ -264,7 +257,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		{
 			emptyContext,
 			"add",
-			seriesListValue(api.SeriesList{
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{103, 103, 103},
@@ -290,8 +283,8 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
-			seriesListValue(api.SeriesList{
+			},
+			api.SeriesList{
 				[]api.Timeseries{
 					api.Timeseries{
 						[]float64{1, 2, 3},
@@ -308,7 +301,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
-			}),
+			},
 			func(left, right float64) float64 { return left - right },
 			true,
 			[][]float64{{100, 103, 100}, {202, 201, 200}, {302, 301, 300}},
@@ -316,13 +309,9 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		value, err := evaluateBinaryOperation(
-			test.context,
-			test.functionName,
-			test.left,
-			test.right,
-			test.evalFunction,
-		)
+		metricFun := MakeOperatorMetricFunction(test.functionName, test.evalFunction)
+
+		value, err := metricFun.Evaluate(test.context, []Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{})
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue
