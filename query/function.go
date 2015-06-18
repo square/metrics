@@ -280,14 +280,17 @@ var MovingAverageFunction = MetricFunction{
 					count--
 				}
 				// Numerical error could (possibly) cause count == 0 but sum != 0.
-				if count == 0 && i-limit >= 0 {
-					results[i-limit] = math.NaN()
-				} else {
-					results[i-limit] = sum / float64(count)
+				if i-limit+1 >= 0 {
+					if count == 0 {
+						results[i-limit+1] = math.NaN()
+					} else {
+						results[i-limit+1] = sum / float64(count)
+					}
 				}
 			}
 			list.Series[index].Values = results
 		}
+		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.name(), sizeValue.name())
 		return seriesListValue(list), nil
 	},
 }

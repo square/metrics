@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/api/backend"
+	"github.com/square/metrics/mocks"
 )
 
 func TestTransformTimeseries(t *testing.T) {
@@ -355,6 +357,65 @@ func TestApplyTransformFailure(t *testing.T) {
 		if err == nil {
 			t.Errorf("expected failure for testcase %+v", test)
 			continue
+		}
+	}
+}
+
+type movingAverageBackend struct{}
+
+func (b movingAverageBackend) FetchSingleSeries(r api.FetchSeriesRequest) (api.Timeseries, error) {
+	t := r.Timerange
+	values := []float64{9, 2, 1, 6, 4, 5}
+	startIndex := t.Start()/100 - 10
+	result := make([]float64, t.Slots())
+	for i := range result {
+		result[i] = values[i+int(startIndex)]
+	}
+	return api.Timeseries{Values: values, TagSet: api.NewTagSet()}, nil
+}
+
+func TestMovingAverage(t *testing.T) {
+	fakeAPI := mocks.NewFakeApi()
+	fakeAPI.AddPair(api.TaggedMetric{"series", api.NewTagSet()}, "series")
+
+	fakeBackend := movingAverageBackend{}
+	timerange, err := api.NewTimerange(1200, 1500, 100)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	expression := &functionExpression{
+		functionName: "transform.moving_average",
+		groupBy:      []string{},
+		arguments: []Expression{
+			&metricFetchExpression{"series", api.TruePredicate},
+			stringExpression{"300ms"},
+		},
+	}
+
+	result, err := evaluateToSeriesList(expression,
+		EvaluationContext{
+			API:          fakeAPI,
+			MultiBackend: backend.NewSequentialMultiBackend(fakeBackend),
+			Timerange:    timerange,
+			SampleMethod: api.SampleMean,
+			FetchLimit:   NewFetchCounter(1000),
+		})
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	expected := []float64{4, 3, 11.0 / 3, 5}
+	if len(result.Series) != 1 {
+		t.Fatalf("expected exactly 1 returned series")
+	}
+	if len(result.Series[0].Values) != len(expected) {
+		t.Fatalf("expected exactly %d values in returned series", len(expected))
+	}
+	const eps = 1e-7
+	for i := range expected {
+		if math.Abs(result.Series[0].Values[i]-expected[i]) > eps {
+			t.Fatalf("expected %+v but got %+v", expected, result.Series[0].Values)
 		}
 	}
 }
