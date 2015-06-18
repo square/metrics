@@ -113,8 +113,8 @@ func TestCommand_Select(t *testing.T) {
 		expectError bool
 		expected    api.SeriesList
 	}{
-		{"select does_not_exist from 0 to 120 resolution 30", true, api.SeriesList{}},
-		{"select series_1 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select does_not_exist from 0 to 120 resolution '30ms'", true, api.SeriesList{}},
+		{"select series_1 from 0 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3, 4, 5},
 				api.ParseTagSet("dc=west"),
@@ -122,7 +122,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_1",
 		}},
-		{"select series_1 + 1 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
 				api.ParseTagSet("dc=west"),
@@ -130,7 +130,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select series_1 * 2 from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select series_1 * 2 from 0 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 4, 6, 8, 10},
 				api.ParseTagSet("dc=west"),
@@ -138,7 +138,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "",
 		}},
-		{"select aggregate.max(series_2) from 0 to 120 resolution 30", false, api.SeriesList{
+		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 2, 3, 6, 5},
 				api.NewTagSet(),
@@ -146,7 +146,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_2",
 		}},
-		{"select series_1 from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select series_1 from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3},
 				api.ParseTagSet("dc=west"),
@@ -154,7 +154,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'31ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'31ms') from 0 to 60 resolution 30ms", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -162,7 +162,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'62ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'62ms') from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{3, 4, 5},
 				api.ParseTagSet("dc=west"),
@@ -170,7 +170,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'29ms') from 0 to 60 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'29ms') from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -178,7 +178,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: earlyTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'-31ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-31ms') from 60 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -186,7 +186,7 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: lateTimerange,
 			Name:      "series_1",
 		}},
-		{"select timeshift(series_1,'-29ms') from 60 to 120 resolution 30", false, api.SeriesList{
+		{"select transform.timeshift(series_1,'-29ms') from 60 to 120 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
@@ -229,7 +229,7 @@ func TestCommand_Select(t *testing.T) {
 	}
 
 	// Test that the limit is correct
-	command, err := Parse("select series_1, series_2 from 0 to 120 resolution 30")
+	command, err := Parse("select series_1, series_2 from 0 to 120 resolution '30ms'")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
@@ -246,7 +246,7 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("expected failure with limit = 2")
 		return
 	}
-	command, err = Parse("select series2 from 0 to 120 resolution 30")
+	command, err = Parse("select series2 from 0 to 120 resolution '30ms'")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
@@ -255,4 +255,78 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success with limit = 2 but got %s", err.Error())
 	}
+}
+
+func TestNaming(t *testing.T) {
+	fakeApi := mocks.NewFakeApi()
+	fakeBackend := backend.NewSequentialMultiBackend(fakeApiBackend{})
+	tests := []struct {
+		query    string
+		expected string
+	}{
+		{
+			query:    "select series_1 from 0 to 0",
+			expected: "series_1",
+		},
+		{
+			query:    "select series_1 + 17 from 0 to 0",
+			expected: "(series_1 + 17)",
+		},
+		{
+			query:    "select series_1 + 2342.32 from 0 to 0",
+			expected: "(series_1 + 2342.32)",
+		},
+		{
+			query:    "select series_1*17 from 0 to 0",
+			expected: "(series_1 * 17)",
+		},
+		{
+			query:    "select aggregate.sum(series_1) from 0 to 0",
+			expected: "aggregate.sum(series_1)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 group by dc) from 0 to 0",
+			expected: "aggregate.sum(series_1 group by dc)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 group by dc,env) from 0 to 0",
+			expected: "aggregate.sum(series_1 group by dc, env)",
+		},
+		{
+			query:    "select transform.alias(aggregate.sum(series_1 group by dc,env), 'hello') from 0 to 0",
+			expected: "hello",
+		},
+		{
+			query:    "select transform.moving_average(series_2, '2h') from 0 to 0",
+			expected: "transform.moving_average(series_2, 2h)",
+		},
+		{
+			query:    "select filter.lowest_max(series_2, 6) from 0 to 0",
+			expected: "filter.lowest_max(series_2, 6)",
+		},
+	}
+	for _, test := range tests {
+		rawCommand, err := Parse(test.query)
+		if err != nil {
+			t.Fatalf("Unexpected error while parsing")
+			return
+		}
+		command := rawCommand.(*SelectCommand)
+		rawResult, err := command.Execute(ExecutionContext{fakeBackend, fakeApi, 1000})
+		if err != nil {
+			t.Errorf("Unexpected error while execution: %s", err.Error())
+			continue
+		}
+		seriesListList, ok := rawResult.([]value)
+		if !ok || len(seriesListList) != 1 {
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
+			continue
+		}
+		actual := api.SeriesList(seriesListList[0].(seriesListValue)).Name
+		if actual != test.expected {
+			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
+			continue
+		}
+	}
+
 }

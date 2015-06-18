@@ -16,7 +16,8 @@ package query
 
 import (
 	"fmt"
-	"time"
+	"regexp"
+	"strconv"
 
 	"github.com/square/metrics/api"
 )
@@ -27,6 +28,7 @@ type value interface {
 	toSeriesList(api.Timerange) (api.SeriesList, error)
 	toString() (string, error)
 	toScalar() (float64, error)
+	name() string
 }
 
 type conversionError struct {
@@ -50,6 +52,9 @@ func (value seriesListValue) toString() (string, error) {
 func (value seriesListValue) toScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
+func (value seriesListValue) name() string {
+	return api.SeriesList(value).Name
+}
 
 // A stringValue holds a string
 type stringValue string
@@ -62,6 +67,9 @@ func (value stringValue) toString() (string, error) {
 }
 func (value stringValue) toScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
+}
+func (value stringValue) name() string {
+	return string(value)
 }
 
 // A scalarValue holds a float and can be converted to a serieslist
@@ -79,26 +87,52 @@ func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, 
 		Timerange: timerange,
 	}, nil
 }
-
 func (value scalarValue) toString() (string, error) {
 	return "", conversionError{"scalar", "string"}
 }
-
 func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
 }
+func (value scalarValue) name() string {
+	return fmt.Sprintf("%g", value)
+}
+
+var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
 
 // toDuration will take a value, convert it to a string, and then parse it.
-// the valid suffixes are: ns, us (µs), ms, s, m, h
+// the valid suffixes are: ms, s, m, min, h, hr, d, w, M, mo, y, yr.
 // It converts the return value to milliseconds.
 func toDuration(value value) (int64, error) {
 	timeString, err := value.toString()
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
-	duration, err := time.ParseDuration(timeString)
+	matches := durationRegexp.FindStringSubmatch(timeString)
+	if matches == nil {
+		return -1, fmt.Errorf("expected duration to be of the form `%s`", durationRegexp.String())
+	}
+	duration, err := strconv.ParseInt(matches[1], 10, 0)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
-	return int64(duration / 1000000), nil
+	scale := int64(1)
+	switch matches[2] {
+	case "ms":
+		// no change in scale
+	case "s":
+		scale = 1000
+	case "m":
+		scale = 1000 * 60
+	case "h", "hr":
+		scale = 1000 * 60 * 60
+	case "d":
+		scale = 1000 * 60 * 60 * 24
+	case "w":
+		scale = 1000 * 60 * 60 * 24 * 7
+	case "M", "mo":
+		scale = 1000 * 60 * 60 * 24 * 30
+	case "y", "yr":
+		scale = 1000 * 60 * 60 * 24 * 365
+	}
+	return int64(duration) * scale, nil
 }

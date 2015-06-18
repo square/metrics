@@ -1020,8 +1020,9 @@ func (p *Parser) Init() {
 													if !_rules[ruleNUMBER]() {
 														goto l20
 													}
+												l33:
 													{
-														position33, tokenIndex33, depth33 := position, tokenIndex, depth
+														position34, tokenIndex34, depth34 := position, tokenIndex, depth
 														{
 															position35, tokenIndex35, depth35 := position, tokenIndex, depth
 															if c := buffer[position]; c < rune('a') || c > rune('z') {
@@ -1032,16 +1033,15 @@ func (p *Parser) Init() {
 														l36:
 															position, tokenIndex, depth = position35, tokenIndex35, depth35
 															if c := buffer[position]; c < rune('A') || c > rune('Z') {
-																goto l33
+																goto l34
 															}
 															position++
 														}
 													l35:
-														goto l34
-													l33:
-														position, tokenIndex, depth = position33, tokenIndex33, depth33
+														goto l33
+													l34:
+														position, tokenIndex, depth = position34, tokenIndex34, depth34
 													}
-												l34:
 													depth--
 													add(rulePegText, position32)
 												}
@@ -3725,7 +3725,7 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position285, tokenIndex285, depth285
 			return false
 		},
-		/* 28 TIMESTAMP <- <((&('N' | 'n') <(('n' / 'N') ('o' / 'O') ('w' / 'W'))>) | (&('"' | '\'') STRING) | (&('-' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') <(NUMBER ([a-z] / [A-Z])?)>))> */
+		/* 28 TIMESTAMP <- <((&('N' | 'n') <(('n' / 'N') ('o' / 'O') ('w' / 'W'))>) | (&('"' | '\'') STRING) | (&('-' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') <(NUMBER ([a-z] / [A-Z])*)>))> */
 		nil,
 		/* 29 ID_SEGMENT <- <(ID_START ID_CONT*)> */
 		func() bool {

@@ -99,65 +99,35 @@ var dateFormats = []string{
 	time.RFC822Z,
 }
 
-// `now` isn't captured in this regex
-var relativeTimeRegexp = regexp.MustCompile(`^-(\d+)([a-zA-Z])$`)
+// parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
+func parseDate(date string, now time.Time) (int64, error) {
 
-// parseRelativeTime transforms a relative time string (e.g. `-10m`) to a
-// timestamp in millis.
-func parseRelativeTime(s string, now time.Time) (int64, error) {
-	if strings.ToLower(s) == "now" {
+	if date == "now" {
 		return now.Unix() * 1000, nil
 	}
 
-	matches := relativeTimeRegexp.FindStringSubmatch(s)
-	if matches != nil {
-		offsetSeconds, err := strconv.ParseInt(matches[1], 10, 0)
-		if err != nil {
-			// This should never happen since the regex should be valid
-			panic(fmt.Sprintf("Invalid offset `%s` in relative timestamp `%s`", matches[1], s))
-		}
-
-		offset := offsetSeconds * 1000
-		specifier := matches[2]
-
-		switch specifier {
-		case "s":
-			// Already in millis, do nothing.
-		case "m":
-			offset *= 60
-		case "h":
-			offset *= 60 * 60
-		case "d":
-			offset *= 60 * 60 * 24
-		case "M":
-			offset *= 60 * 60 * 24 * 30
-		case "y":
-			offset *= 60 * 60 * 24 * 365
-		default:
-			return -1, fmt.Errorf("invalid relative timestamp %s", s)
-		}
-
-		return now.Unix()*1000 - offset, nil
+	// Millisecond epoch timestamp.
+	if epoch, err := strconv.ParseInt(date, 10, 0); err == nil {
+		return epoch, nil
 	}
 
-	return -1, fmt.Errorf("invalid relative timestamp %s", s)
-}
-
-// parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
-func parseDate(date string) (int64, error) {
-	intValue, err := strconv.ParseInt(date, 10, 64)
+	relativeTime, err := toDuration(stringValue(date))
 	if err == nil {
-		return intValue, nil
+		// A relative date.
+		if relativeTime > 0 {
+			return -1, fmt.Errorf("relative times should be negative: %s", date)
+		}
+		return now.Unix()*1000 + relativeTime, nil
 	}
-	errorMessage := "Expected formatted date or unix timestamp number (seconds)"
+
+	errorMessage := fmt.Sprintf("Expected formatted date or relative time but got '%s'", date)
 	for _, format := range dateFormats {
 		t, err := time.Parse(format, date)
 		if err == nil {
 			return t.Unix()*1000 + int64(t.Nanosecond()/1000000), nil
 		}
-		errorMessage += "\nfailed: " + err.Error()
 	}
-	return 0, errors.New(errorMessage)
+	return -1, errors.New(errorMessage)
 }
 
 func Parse(query string) (Command, error) {
@@ -397,14 +367,11 @@ func (p *Parser) insertPropertyKeyValue() {
 				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean' but got %s", value),
 			})
 		}
-	case "from":
-		fallthrough
-	case "to":
+	case "from", "to":
 		var unix int64
 		var err error
-		if unix, err = parseDate(value); err == nil {
-			// Valid, so do nothing.
-		} else if unix, err = parseRelativeTime(value, time.Now().UTC()); err != nil {
+		now := time.Now()
+		if unix, err = parseDate(value, now); err != nil {
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
 				message: err.Error(),
@@ -417,14 +384,16 @@ func (p *Parser) insertPropertyKeyValue() {
 		}
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
-		intValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
+		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+			contextNode.Resolution = intValue
+		} else if duration, err := toDuration(stringValue(value)); err == nil {
+			contextNode.Resolution = duration
+		} else {
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
 				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
 			})
 		}
-		contextNode.Resolution = intValue
 	default:
 		p.flagSyntaxError(SyntaxError{
 			token:   key,

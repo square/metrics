@@ -45,6 +45,7 @@ func init() {
 	// Timeshift
 	MustRegister(TimeshiftFunction)
 	MustRegister(MovingAverageFunction)
+	MustRegister(AliasFunction)
 	// Filter
 	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
 	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
@@ -147,6 +148,8 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 	if err != nil {
 		return nil, err
 	}
+
+	serieslist.Name = expr.metricName
 
 	return seriesListValue(serieslist), nil
 }
