@@ -47,7 +47,7 @@ type Parser Peg {
 
 root <- (selectStmt / describeStmt) _ !.
 
-selectStmt <- _ "select" KEY
+selectStmt <- _ ("select" KEY)?
   expressionList
   optionalPredicateClause
   propertyClause {
