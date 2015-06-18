@@ -16,6 +16,7 @@ package query
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/aggregate"
@@ -108,6 +109,7 @@ func MakeOperatorMetricFunction(op string, operator func(float64, float64) float
 			return seriesListValue(api.SeriesList{
 				Series:    result,
 				Timerange: context.Timerange,
+				Name:      fmt.Sprintf("(%s %s %s)", leftValue.name(), op, rightValue.name()),
 			}), nil
 		},
 	}
@@ -119,6 +121,7 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 		Name:        name,
 		MinArgument: 1,
 		MaxArgument: 1,
+		Groups:      true,
 		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
@@ -130,6 +133,15 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 				return nil, err
 			}
 			result := aggregate.AggregateBy(seriesList, aggregator, groups)
+			groupNames := make([]string, len(groups))
+			for i, group := range groups {
+				groupNames[i] += group
+			}
+			if len(groups) == 0 {
+				result.Name = fmt.Sprintf("%s(%s)", name, value.name())
+			} else {
+				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.name(), strings.Join(groupNames, ", "))
+			}
 			return seriesListValue(result), nil
 		},
 	}
@@ -141,7 +153,6 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 		Name:        name,
 		MinArgument: parameterCount + 1,
 		MaxArgument: parameterCount + 1,
-		Groups:      true,
 		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
 			// ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error)
 			listValue, err := args[0].Evaluate(context)
@@ -163,13 +174,22 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 			if err != nil {
 				return nil, err
 			}
+			parameterNames := make([]string, len(parameters))
+			for i, param := range parameters {
+				parameterNames[i] = param.name()
+			}
+			if len(parameters) != 0 {
+				result.Name = fmt.Sprintf("%s(%s, %s)", name, listValue.name(), strings.Join(parameterNames, ", "))
+			} else {
+				result.Name = fmt.Sprintf("%s(%s)", name, listValue.name())
+			}
 			return seriesListValue(result), nil
 		},
 	}
 }
 
 var TimeshiftFunction = MetricFunction{
-	Name:        "timeshift",
+	Name:        "transform.timeshift",
 	MinArgument: 2,
 	MaxArgument: 2,
 	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
@@ -191,9 +211,36 @@ var TimeshiftFunction = MetricFunction{
 
 		if seriesValue, ok := result.(seriesListValue); ok {
 			seriesValue.Timerange = context.Timerange
+			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.name(), value.name())
 			return seriesValue, nil
 		}
 		return result, nil
+	},
+}
+
+var AliasFunction = MetricFunction{
+	Name:        "transform.alias",
+	MinArgument: 2,
+	MaxArgument: 2,
+	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+		value, err := arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := value.toSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		nameValue, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		name, err := nameValue.toString()
+		if err != nil {
+			return nil, err
+		}
+		list.Name = name
+		return seriesListValue(list), nil
 	},
 }
 
@@ -226,6 +273,7 @@ func MakeFilterMetricFunction(name string, summary func([]float64) float64, asce
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
 			result := FilterBy(list, count, summary, ascending)
+			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.name(), count)
 			return seriesListValue(result), nil
 		},
 	}

@@ -27,6 +27,7 @@ type value interface {
 	toSeriesList(api.Timerange) (api.SeriesList, error)
 	toString() (string, error)
 	toScalar() (float64, error)
+	name() string
 }
 
 type conversionError struct {
@@ -50,6 +51,9 @@ func (value seriesListValue) toString() (string, error) {
 func (value seriesListValue) toScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
+func (value seriesListValue) name() string {
+	return api.SeriesList(value).Name
+}
 
 // A stringValue holds a string
 type stringValue string
@@ -62,6 +66,9 @@ func (value stringValue) toString() (string, error) {
 }
 func (value stringValue) toScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
+}
+func (value stringValue) name() string {
+	return string(value)
 }
 
 // A scalarValue holds a float and can be converted to a serieslist
@@ -79,13 +86,14 @@ func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, 
 		Timerange: timerange,
 	}, nil
 }
-
 func (value scalarValue) toString() (string, error) {
 	return "", conversionError{"scalar", "string"}
 }
-
 func (value scalarValue) toScalar() (float64, error) {
 	return float64(value), nil
+}
+func (value scalarValue) name() string {
+	return fmt.Sprintf("%g", value)
 }
 
 // toDuration will take a value, convert it to a string, and then parse it.
