@@ -217,8 +217,9 @@ func transformDefault(values []float64, parameters []value, scale float64) ([]fl
 	return result, nil
 }
 
-func transformLastValue(values []float64, parameters []value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.last_value", 0, parameters); err != nil {
+// transformNaNKeepLast will replace missing NaN data with the data before it
+func transformNaNKeepLast(values []float64, parameters []value, scale float64) ([]float64, error) {
+	if err := checkParameters("transform.nan_keep_last", 0, parameters); err != nil {
 		return nil, err
 	}
 	result := make([]float64, len(values))
