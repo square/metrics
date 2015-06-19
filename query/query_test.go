@@ -48,63 +48,12 @@ var inputs = []string{
 	"describe cpu_usage where (key = 'value') and key = 'value'",
 	"describe cpu_usage where (key = 'value') and (key = 'value')",
 	"describe cpu_usage where (key = 'value' and key = 'value')",
-	// selects - parenthesis
-	"select 0 from 0 to 0",
-	"select (0) from 0 to 0",
-	"select (0) where foo = 'bar' from 0 to 0",
-	// selects - numbers
-	"select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0",
-	"select 10, 100, 1000 from 0 to 0",
-	"select 10.1, 10.01, 10.001 from 0 to 0",
-	"select -10.1, -10.01, -10.001 from 0 to 0",
-	"select 1.0e1, 1.0e2, 1.0e10, 1.0e0 from 0 to 0",
-	"select 1.0e-5, 1.0e+5 from 0 to 0",
-	// selects - trying out arithmetic
-	"select x from 0 to 0",
-	"select x-y-z from 0 to 0",
-	"select (x)-(y)-(z) from 0 to 0",
-	"select 0 from 0 to 0",
-	"select x, y from 0 to 0",
-	"select 1 + 2 * 3 + 4 from 0 to 0",
-	"select x * (y + 123), z from 0 to 0",
-	// testing escaping
-	"select `x` from 0 to 0",
-	// selects - timestamps
-	"select x * (y + 123), z from '2011-2-4 PTZ' to '2015-6-1 PTZ'",
-	"select x * (y + 123), z from 0 to 10000",
-	"select 1 from -10m to now",
-	"select 1 from -10M to -10m",
-	// selects - function calls
-	"select foo(x) from 0 to 0",
-	"select bar(x, y) from 0 to 0",
-	"select baz(x, y, z+1+foo(1)) from 0 to 0",
-	// selects - testing out property values
-	"select x from 0 to 0",
-	"select x from 0 to 0",
-	"select x from 0 to 0 resolution '10s'",
-	"select x from 0 to 0 resolution '10h'",
-	"select x from 0 to 0 resolution '300s'",
-	"select x from 0 to 0 resolution '17m'",
-	"select x from 0 to 0 sample by 'max'",
-	"select x from 0 to 0 sample   by 'max'",
+
 	// Leading/trailing whitespace
 	" describe all ",
 	" describe x ",
 	" select 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0 ",
-	// selects - aggregate functions
-	"select scalar.max(x) from 0 to 0",
-	"select aggregate.max(x, y) from 0 to 0",
-	"select aggregate.max(x group by foo) + 3 from 0 to 0",
-	// selects - where clause
-	"select x where y = 'z' from 0 to 0",
-	// selects - per-identifier where clause
-	"select x + z[y = 'z'] from 0 to 0",
-	"select x[y = 'z'] from 0 to 0",
-	// selects - complicated queries
-	"select aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
-	"select cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
-	"select 'string literal' where host = 'apa3.sjc2b' from 0 to 0",
-	"select timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
+
 	// selects - spaces and keywords
 	"select f( g(5) group by a,w,q) from 0 to 0",
 	"select f( g(5) group by a, w, q )from 0 to 0 ",
@@ -116,6 +65,63 @@ var inputs = []string{
 	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
 	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
 	"select(fromx+tox+groupx+byx+selectx+describex+allx+wherex) from 0 to 0",
+}
+
+var selects = []string{
+	// All these queries are tested with and without the prefix "select"
+	// selects - parenthesis
+	"0 from 0 to 0",
+	"(0) from 0 to 0",
+	"(0) where foo = 'bar' from 0 to 0",
+	// selects - numbers
+	"0, 1, 2, 3, 4, 5, 6, 7, 8, 9 from 0 to 0",
+	"10, 100, 1000 from 0 to 0",
+	"10.1, 10.01, 10.001 from 0 to 0",
+	"-10.1, -10.01, -10.001 from 0 to 0",
+	"1.0e1, 1.0e2, 1.0e10, 1.0e0 from 0 to 0",
+	"1.0e-5, 1.0e+5 from 0 to 0",
+	// selects - trying out arithmetic
+	"x from 0 to 0",
+	"x-y-z from 0 to 0",
+	"(x)-(y)-(z) from 0 to 0",
+	"0 from 0 to 0",
+	"x, y from 0 to 0",
+	"1 + 2 * 3 + 4 from 0 to 0",
+	"x * (y + 123), z from 0 to 0",
+	// testing escaping
+	"`x` from 0 to 0",
+	// selects - timestamps
+	"x * (y + 123), z from '2011-2-4 PTZ' to '2015-6-1 PTZ'",
+	"x * (y + 123), z from 0 to 10000",
+	"1 from -10m to now",
+	"1 from -10M to -10m",
+	// selects - function calls
+	"foo(x) from 0 to 0",
+	"bar(x, y) from 0 to 0",
+	"baz(x, y, z+1+foo(1)) from 0 to 0",
+	// selects - testing out property values
+	"x from 0 to 0",
+	"x from 0 to 0",
+	"x from 0 to 0 resolution '10s'",
+	"x from 0 to 0 resolution '10h'",
+	"x from 0 to 0 resolution '300s'",
+	"x from 0 to 0 resolution '17m'",
+	"x from 0 to 0 sample by 'max'",
+	"x from 0 to 0 sample   by 'max'",
+	// selects - aggregate functions
+	"scalar.max(x) from 0 to 0",
+	"aggregate.max(x, y) from 0 to 0",
+	"aggregate.max(x group by foo) + 3 from 0 to 0",
+	// selects - where clause
+	"x where y = 'z' from 0 to 0",
+	// selects - per-identifier where clause
+	"x + z[y = 'z'] from 0 to 0",
+	"x[y = 'z'] from 0 to 0",
+	// selects - complicated queries
+	"aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
+	"cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
+	"'string literal' where host = 'apa3.sjc2b' from 0 to 0",
+	"timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
 }
 
 // these queries should fail with a syntax error.
@@ -145,6 +151,16 @@ func TestParse_success(t *testing.T) {
 		_, err := Parse(row)
 		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
+		}
+	}
+
+	for _, row := range selects {
+		for _, prefix := range []string{"", "select "} {
+			query := prefix + row
+			_, err := Parse(query)
+			if err != nil {
+				t.Errorf("[%s] failed to parse: %s", query, err.Error())
+			}
 		}
 	}
 }
