@@ -70,7 +70,7 @@ func TestTransformTimeseries(t *testing.T) {
 				},
 				{
 					fun:      transformLastValue,
-					expected: {0, 1, 2, 3, 4, 5},
+					expected: []float64{0, 1, 2, 3, 4, 5},
 					useParam: false,
 				},
 			},
