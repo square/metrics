@@ -43,6 +43,7 @@ func init() {
 	MustRegister(MakeTransformMetricFunction("transform.moving_average", 1, transformMovingAverage))
 	MustRegister(MakeTransformMetricFunction("transform.default", 1, transformDefault))
 	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
+	MustRegister(MakeTransformMetricFunction("transform.last_value", 0, transformLastValue))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
 	MustRegister(AliasFunction)

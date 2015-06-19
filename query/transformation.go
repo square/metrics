@@ -216,3 +216,17 @@ func transformDefault(values []float64, parameters []value, scale float64) ([]fl
 	}
 	return result, nil
 }
+
+func transformLastValue(values []float64, parameters []value, scale float64) ([]float64, error) {
+	if err := checkParameters("transform.last_value", 0, parameters); err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if math.IsNaN(result[i]) && i > 0 {
+			result[i] = result[i-1]
+		}
+	}
+	return result, nil
+}
