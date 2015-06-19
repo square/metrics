@@ -18,7 +18,7 @@ module.controller("mainCtrl", function($scope, $http, $q) {
 	};
 
 	$scope.isTabular = function() {
-		return queryResult.name === 'describe all' || queryResult.name === 'describe metrics' || queryResult.name === 'describe';
+		return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
 	};
 
 	function readHash() {
