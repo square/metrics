@@ -71,7 +71,7 @@ func TestTransformTimeseries(t *testing.T) {
 				{
 					fun:      transformLastValue,
 					expected: {0, 1, 2, 3, 4, 5},
-					usParam:  false,
+					useParam: false,
 				},
 			},
 		},
