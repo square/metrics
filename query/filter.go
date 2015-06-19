@@ -15,6 +15,7 @@
 package query
 
 import (
+	"math"
 	"sort"
 
 	"github.com/square/metrics/api"
@@ -30,7 +31,15 @@ func (list filterList) Len() int {
 	return len(list.index)
 }
 func (list filterList) Less(i, j int) bool {
-	return (list.value[i] < list.value[j]) == list.ascending
+	if math.IsNaN(list.values[j]) && !math.IsNaN(list.values[i]) {
+		return true
+	}
+	if list.ascending {
+		return list.value[i] < list.value[j]
+	} else {
+		return list.value[j] < list.value[i]
+	}
+
 }
 func (list filterList) Swap(i, j int) {
 	list.index[i], list.index[j] = list.index[j], list.index[i]
