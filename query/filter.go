@@ -31,7 +31,7 @@ func (list filterList) Len() int {
 	return len(list.index)
 }
 func (list filterList) Less(i, j int) bool {
-	if math.IsNaN(list.values[j]) && !math.IsNaN(list.values[i]) {
+	if math.IsNaN(list.value[j]) && !math.IsNaN(list.value[i]) {
 		return true
 	}
 	if list.ascending {
@@ -56,12 +56,12 @@ func newFilterList(size int, ascending bool) filterList {
 
 // FilteryBy reduces the number of things in the series `list` to at most the given `count`.
 // They're chosen by sorting by `summary` in `ascending` or descending order.
-func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, ascending bool) api.SeriesList {
+func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool) api.SeriesList {
 	if len(list.Series) < count {
 		// No need to change if there's already fewer.
 		return list
 	}
-	array := newFilterList(len(list.Series), ascending)
+	array := newFilterList(len(list.Series), lowest)
 	for i := range array.index {
 		array.index[i] = i
 		array.value[i] = summary(list.Series[i].Values)

@@ -83,6 +83,27 @@ func (assert Assert) EqInt(actual, expected int) {
 	}
 }
 
+func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
+	if len(actual) != len(expected) {
+		assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
+		return
+	}
+	for i := range actual {
+		if math.IsNaN(expected[i]) {
+			if !math.IsNaN(actual[i]) {
+				assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
+				return
+			}
+		} else {
+			delta := actual[i] - expected[i]
+			if math.IsNaN(delta) || delta > epsilon {
+				assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
+				return
+			}
+		}
+	}
+}
+
 // EqFloat fails the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqFloat(actual, expected, epsilon float64) {
 	delta := math.Abs(actual - expected)
