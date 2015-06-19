@@ -40,11 +40,11 @@ func init() {
 	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformIntegral))
 	MustRegister(MakeTransformMetricFunction("transform.rate", 0, transformRate))
 	MustRegister(MakeTransformMetricFunction("transform.cumulative", 0, transformCumulative))
-	MustRegister(MakeTransformMetricFunction("transform.moving_average", 1, transformMovingAverage))
 	MustRegister(MakeTransformMetricFunction("transform.default", 1, transformDefault))
 	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
 	// Timeshift
 	MustRegister(TimeshiftFunction)
+	MustRegister(MovingAverageFunction)
 	MustRegister(AliasFunction)
 	// Filter
 	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))

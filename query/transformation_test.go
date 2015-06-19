@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/api/backend"
+	"github.com/square/metrics/mocks"
 )
 
 func TestTransformTimeseries(t *testing.T) {
@@ -57,11 +59,6 @@ func TestTransformTimeseries(t *testing.T) {
 					fun:      transformIntegral,
 					expected: []float64{0.0, 1.0 * 30.0, 3.0 * 30.0, 6.0 * 30.0, 10.0 * 30.0, 15.0 * 30.0},
 					useParam: false,
-				},
-				{
-					fun:      transformMovingAverage,
-					expected: []float64{0.0, 0.5, 1.0, 2.0, 3.0, 4.0},
-					useParam: true,
 				},
 				{
 					fun:      transformMapMaker("negate", func(x float64) float64 { return -x }),
@@ -167,15 +164,6 @@ func TestApplyTransform(t *testing.T) {
 				"A": {0, 1, 3, 6, 10, 15},
 				"B": {2, 4, 5, 6, 9, 12},
 				"C": {0, 1, 3, 6, 8, 9},
-			},
-		},
-		{
-			transform: transformMovingAverage,
-			parameter: []value{scalarValue(100)}, // 100 seconds corresponds to roughly 3 samples
-			expected: map[string][]float64{
-				"A": {0, 0.5, 1, 2, 3, 4},
-				"B": {2.0, 2.0, 5.0 / 3, 4.0 / 3, 5.0 / 3, 7.0 / 3},
-				"C": {0, 0.5, 1, 2, 7.0 / 3, 2},
 			},
 		},
 	}
@@ -287,15 +275,6 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 		{
-			transform:  transformMovingAverage,
-			parameters: []value{scalarValue(100)},
-			expected: map[string][]float64{
-				"A": {0, 0.5, 0.5, 2, 3.5, 4},
-				"B": {2, 2, 2, nan, 3, 3},
-				"C": {0, 0.5, 1, 1.5, 2, 1.5},
-			},
-		},
-		{
 			transform:  transformDefault,
 			parameters: []value{scalarValue(17)},
 			expected: map[string][]float64{
@@ -372,16 +351,71 @@ func TestApplyTransformFailure(t *testing.T) {
 			transform: transformMapMaker("abs", math.Abs),
 			parameter: []value{scalarValue(3)},
 		},
-		{
-			transform: transformMovingAverage,
-			parameter: []value{},
-		},
 	}
 	for _, test := range testCases {
 		_, err := ApplyTransform(list, test.transform, test.parameter)
 		if err == nil {
 			t.Errorf("expected failure for testcase %+v", test)
 			continue
+		}
+	}
+}
+
+type movingAverageBackend struct{}
+
+func (b movingAverageBackend) FetchSingleSeries(r api.FetchSeriesRequest) (api.Timeseries, error) {
+	t := r.Timerange
+	values := []float64{9, 2, 1, 6, 4, 5}
+	startIndex := t.Start()/100 - 10
+	result := make([]float64, t.Slots())
+	for i := range result {
+		result[i] = values[i+int(startIndex)]
+	}
+	return api.Timeseries{Values: values, TagSet: api.NewTagSet()}, nil
+}
+
+func TestMovingAverage(t *testing.T) {
+	fakeAPI := mocks.NewFakeApi()
+	fakeAPI.AddPair(api.TaggedMetric{"series", api.NewTagSet()}, "series")
+
+	fakeBackend := movingAverageBackend{}
+	timerange, err := api.NewTimerange(1200, 1500, 100)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	expression := &functionExpression{
+		functionName: "transform.moving_average",
+		groupBy:      []string{},
+		arguments: []Expression{
+			&metricFetchExpression{"series", api.TruePredicate},
+			stringExpression{"300ms"},
+		},
+	}
+
+	result, err := evaluateToSeriesList(expression,
+		EvaluationContext{
+			API:          fakeAPI,
+			MultiBackend: backend.NewSequentialMultiBackend(fakeBackend),
+			Timerange:    timerange,
+			SampleMethod: api.SampleMean,
+			FetchLimit:   NewFetchCounter(1000),
+		})
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	expected := []float64{4, 3, 11.0 / 3, 5}
+	if len(result.Series) != 1 {
+		t.Fatalf("expected exactly 1 returned series")
+	}
+	if len(result.Series[0].Values) != len(expected) {
+		t.Fatalf("expected exactly %d values in returned series", len(expected))
+	}
+	const eps = 1e-7
+	for i := range expected {
+		if math.Abs(result.Series[0].Values[i]-expected[i]) > eps {
+			t.Fatalf("expected %+v but got %+v", expected, result.Series[0].Values)
 		}
 	}
 }
