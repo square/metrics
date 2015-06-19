@@ -69,7 +69,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	input := request.Form.Get("query")
-	fmt.Printf("INPUT: %+v\n", input)
+	log.Infof("INPUT: %+v\n", input)
 
 	cmd, err := query.Parse(input)
 	if err != nil {
@@ -92,8 +92,8 @@ type StaticHandler struct {
 
 func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	res := h.Directory + request.URL.Path[len(h.StaticPath):]
-	fmt.Printf("url.path = %s\n", request.URL.Path)
-	fmt.Printf("res = %s\n", res)
+	log.Infof("url.path = %s\n", request.URL.Path)
+	log.Infof("res = %s\n", res)
 	http.ServeFile(writer, request, res)
 }
 
