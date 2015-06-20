@@ -122,6 +122,12 @@ var selects = []string{
 	"cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
 	"'string literal' where host = 'apa3.sjc2b' from 0 to 0",
 	"timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
+	// pipe expressions
+	"x | y from 0 to 0",
+	"x | y from 0 to 0",
+	"x | y(group by a) from 0 to 0",
+	"x + 1 | y(group by a) from 0 to 0",
+	"x | y | z + 1 from 0 to 0",
 }
 
 // these queries should fail with a syntax error.

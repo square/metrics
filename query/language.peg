@@ -80,10 +80,13 @@ optionalPredicateClause <-
 
 expressionList <-
   { p.addExpressionList() }
-  expression_1 { p.appendExpression() }
+  expression_start{ p.appendExpression() }
   (
-    _ COMMA expression_1 { p.appendExpression() }
+    _ COMMA expression_start { p.appendExpression() }
   )*
+
+expression_start <-
+  expression_1
 
 expression_1 <-
   expression_2
@@ -100,10 +103,32 @@ expression_2 <-
   ) *
 
 expression_3 <-
+  expression_4
+  (
+    _ OP_PIPE _ <IDENTIFIER> {
+      p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
+    }
+    (
+      (
+        _ PAREN_OPEN
+          ( expressionList / { p.addExpressionList() })
+          { p.addGroupBy() } groupByClause?
+        _ PAREN_CLOSE
+      ) / {
+        p.addExpressionList()
+        p.addGroupBy()
+      }
+    )
+    {
+      p.addPipeExpression()
+    }
+  ) *
+
+expression_4 <-
   expression_function /
   expression_metric /
   # #sub-expression
-  _ PAREN_OPEN expression_1 _ PAREN_CLOSE /
+  _ PAREN_OPEN expression_start _ PAREN_CLOSE /
   # constant scalar
   _ <NUMBER> { p.addNumberNode(buffer[begin:end]) } /
   _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
@@ -236,6 +261,7 @@ KEYWORD <-     # List of keywrods used throughout the code.
 # Operators
 # =========
 
+OP_PIPE <- "|"
 OP_ADD  <- "+"
 OP_SUB  <- "-"
 OP_MULT <- "*"

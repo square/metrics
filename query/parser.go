@@ -422,6 +422,34 @@ func (p *Parser) checkPropertyClause() {
 	p.pushNode(contextNode)
 }
 
+func (p *Parser) addPipeExpression() {
+	groupBy, ok := p.popNode(groupByListPointer).(*groupByList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	expressionNode, ok := p.popNode(expressionType).(Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&functionExpression{
+		functionName: stringLiteral.literal,
+		arguments:    append([]Expression{expressionNode}, expressionList.expressions...),
+		groupBy:      groupBy.list,
+	})
+}
+
 func (p *Parser) addFunctionInvocation() {
 	groupBy, ok := p.popNode(groupByListPointer).(*groupByList)
 	if !ok {
