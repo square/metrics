@@ -42,13 +42,15 @@ module.controller("mainCtrl", function(
   ) {
   var queryCounter = 0; // ever-incrementing counter of queries - used to detect out-of-order queries.
   $scope.queryResult = "";
-  $scope.queryText = "";
-  $scope.renderType = "line";
+  $scope.inputModel = {
+    query: "",
+    renderType: "line"
+  };
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
-    $location.search("query", $scope.queryText)
-    $location.search("renderType", $scope.renderType)
+    $location.search("query", $scope.inputModel.query)
+    $location.search("renderType", $scope.inputModel.renderType)
   };
 
   // true if the output should be tabular.
@@ -114,9 +116,9 @@ module.controller("mainCtrl", function(
       chartArea: {left: "5%", width:"90%"}
     }
     var chart = null;
-    if ($scope.renderType === "line") {
+    if ($scope.inputModel.renderType === "line") {
       chart = new google.visualization.LineChart(document.getElementById("chart-div"));
-    } else if ($scope.renderType === "area") {
+    } else if ($scope.inputModel.renderType === "area") {
       options.isStacked = true;
       chart = new google.visualization.AreaChart(document.getElementById("chart-div"));
     }
@@ -128,13 +130,11 @@ module.controller("mainCtrl", function(
 
   $scope.$on("$locationChangeSuccess", function() {
     // this triggers at least once (in the beginning).
-    var queries = $location.search()
-    var queryText = queries["query"] || "";
-    var renderType = queries["renderType"] || "line";
-    $scope.queryText = queryText;
-    $scope.renderType = renderType;
-    if ($scope.queryText) {
-      launchRequest($scope.queryText);
+    var queries = $location.search();
+    $scope.inputModel.query = queries["query"] || "";
+    $scope.inputModel.renderType = queries["renderType"] || "line";
+    if ($scope.inputModel.query) {
+      launchRequest($scope.inputModel.query);
     }
   });
 });
