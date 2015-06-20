@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>Static Page</title>
+  <title>Metrics Query Engine</title>
   <base href="/static/">
   <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
@@ -37,17 +37,19 @@
         </div>
       </div>
     </form>
-    <div ng-show="launchedQuery > 0">Waiting for response...</div>
-    <div ng-show="launchedQuery === 0 && chartWaiting > 0">Rendering chart...</div>
-    <div class="row">
-      <div ng-show="queryResult.name === 'select'" class="col-xs-12" id="chart-div-container">
+    <div class="row" ng-show="screenState() != 'rendered'">
+      <div class="alert alert-info" ng-show="screenState() == 'loading'">Waiting for response...</div>
+      <div class="alert alert-info" ng-show="screenState() == 'rendering'">Rendering chart...</div>
+      <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
+    </div>
+    <div class="row" ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'" class="chart-container">
+      <div class="col-xs-12">
         <div id="chart-div"></div>
       </div>
     </div>
     <table ng-show="isTabular()" class="table table-striped col-xs-12">
       <tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
     </table>
-    <div ng-show="queryResult.success === false && launchedQuery === 0" id="error-div">{{(queryResult.message || "").trim()}}</div>
     <div>{{(queryResult || "").trim()}}</div>
   </div>
 </div>

@@ -57,8 +57,19 @@ module.controller("mainCtrl", function(
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
+  $scope.screenState = function() {
+    if ($scope.launchedQuery > 0) {
+      return "loading";
+    } else if ($scope.launchedQuery === 0 && $scope.chartWaiting > 0) {
+      return "rendering";
+    } else if ($scope.queryResult && !$scope.queryResult.success) {
+      return "error";
+    } else {
+      return "rendered";
+    }
+  };
 
-  $scope.chartWaiting = false;
+  $scope.chartWaiting = 0;
   $scope.launchedQuery = 0;
 
   function launchRequest(query) {
@@ -82,7 +93,12 @@ module.controller("mainCtrl", function(
     });
   }
 
+  var chart = null;
   function receive(object) {
+    if (chart !== null) {
+      chart.clearChart();
+      chart = null;
+    }
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
       return;
@@ -113,14 +129,14 @@ module.controller("mainCtrl", function(
     var dataTable = google.visualization.arrayToDataTable(table);
     var options = {
       legend: {position: "bottom"},
-      chartArea: {left: "5%", width:"90%"}
+      chartArea: {left: "5%", width:"90%", height: "300px"}
     }
-    var chart = null;
+    var chartDiv = document.getElementById("chart-div")
     if ($scope.inputModel.renderType === "line") {
-      chart = new google.visualization.LineChart(document.getElementById("chart-div"));
+      chart = new google.visualization.LineChart(chartDiv);
     } else if ($scope.inputModel.renderType === "area") {
       options.isStacked = true;
-      chart = new google.visualization.AreaChart(document.getElementById("chart-div"));
+      chart = new google.visualization.AreaChart(chartDiv);
     }
     google.visualization.events.addListener(chart, "ready", function() {
       $scope.$apply(function($scope) { $scope.chartWaiting--; });
