@@ -84,7 +84,7 @@ func filterNaN(array []float64) []float64 {
 
 // The sum aggregator returns the mean of the given array
 func AggregateSum(array []float64) float64 {
-	// array = filterNaN(array)
+	array = filterNaN(array)
 	sum := 0.0
 	for _, v := range array {
 		sum += v
