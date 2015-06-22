@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/log"
+	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
 	"github.com/square/metrics/query"
 )
 
