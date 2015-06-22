@@ -18,8 +18,19 @@ package log
 var appLogger Logger
 
 type Logger interface {
+	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
 	Warningf(format string, args ...interface{})
+	Errorf(format string, args ...interface{})
+
+  // Fatalf only when we can't recover. This should exit after being called.
+	Fatalf(format string, args ...interface{})
+}
+
+func Debugf(format string, args ...interface{}) {
+	if appLogger != nil {
+		appLogger.Debugf(format, args)
+	}
 }
 
 func Infof(format string, args ...interface{}) {
@@ -32,6 +43,18 @@ func Warningf(format string, args ...interface{}) {
 	if appLogger != nil {
 		appLogger.Warningf(format, args)
 	}
+}
+
+func Errorf(format string, args ...interface{}) {
+  if appLogger != nil {
+    appLogger.Errorf(format, args)
+  }
+}
+
+func Fatalf(format string, args ...interface{}) {
+  if appLogger != nil {
+    appLogger.Fatalf(format, args)
+  }
 }
 
 func InitLogger(logger Logger) {
