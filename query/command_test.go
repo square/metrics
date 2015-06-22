@@ -152,6 +152,14 @@ func TestCommand_Select(t *testing.T) {
 			Timerange: testTimerange,
 			Name:      "series_2",
 		}},
+		{"select (1 + series_2) | aggregate.max from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{{
+				[]float64{4, 3, 4, 7, 6},
+				api.NewTagSet(),
+			}},
+			Timerange: testTimerange,
+			Name:      "series_2",
+		}},
 		{"select series_1 from 0 to 60 resolution '30ms'", false, api.SeriesList{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3},
