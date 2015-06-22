@@ -157,8 +157,18 @@ func (cmd *SelectCommand) Name() string {
 	return "select"
 }
 
+//ProfilingCommand is a Command that also performs profiling actions.
 type ProfilingCommand struct {
-	Command Command
+	Profiler *inspect.Profiler
+	Command  Command
+}
+
+func NewProfilingCommand(command Command) (Command, *inspect.Profiler) {
+	profiler := inspect.New()
+	return ProfilingCommand{
+		Profiler: profiler,
+		Command:  command,
+	}, profiler
 }
 
 func (cmd ProfilingCommand) Name() string {
@@ -166,6 +176,11 @@ func (cmd ProfilingCommand) Name() string {
 }
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
-	defer context.Profiler.Add(fmt.Sprintf("%sCommand.Execute", cmd.Name()))
+	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))
+	context.API = api.ProfilingAPI{
+		Profiler: cmd.Profiler,
+		API:      context.API,
+	}
+	context.Profiler = cmd.Profiler
 	return cmd.Command.Execute(context)
 }

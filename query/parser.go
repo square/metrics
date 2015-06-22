@@ -158,7 +158,7 @@ func Parse(query string) (Command, error) {
 		// after parsing has finished, there should be a command available.
 		return nil, AssertionError{"No command"}
 	}
-	return ProfilingCommand{p.command}, nil
+	return p.command, nil
 }
 
 // Error functions

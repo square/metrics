@@ -47,41 +47,6 @@ type API interface {
 	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
 }
 
-// ProfilingAPI wraps an ordinary API and also records profiling metrics to a given Profiler object.
-type ProfilingAPI struct {
-	Profiler *inspect.Profiler
-	API      API
-}
-
-func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
-	defer api.Profiler.Add("api.AddMetric")
-	return api.API.AddMetric(metric)
-}
-func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
-	defer api.Profiler.Add("api.RemoveMetric")
-	return api.API.RemoveMetric(metric)
-}
-func (api ProfilingAPI) ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error) {
-	defer api.Profiler.Add("api.ToGraphiteName")
-	return api.API.ToGraphiteName(metric)
-}
-func (api ProfilingAPI) ToTaggedName(metric GraphiteMetric) (TaggedMetric, error) {
-	defer api.Profiler.Add("api.ToTaggedName")
-	return api.API.ToTaggedName(metric)
-}
-func (api ProfilingAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
-	defer api.Profiler.Add("api.GetAllTags")
-	return api.API.GetAllTags(metricKey)
-}
-func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
-	defer api.Profiler.Add("api.GetAllMetrics")
-	return api.API.GetAllMetrics()
-}
-func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
-	defer api.Profiler.Add("api.GetMetircsForTag")
-	return api.API.GetMetricsForTag(tagKey, tagValue)
-}
-
 // Configuration is the struct that tells how to instantiate a new copy of an API.
 type Config struct {
 	ConversionRulesPath string `yaml:"conversion_rules_path"` // Location of the rule yaml file.
@@ -91,4 +56,39 @@ type Config struct {
 	// https://github.com/gocql/gocql/blob/master/cluster.go
 	Hosts    []string `yaml:"hosts"`
 	Keyspace string   `yaml:"keyspace"`
+}
+
+// ProfilingAPI wraps an ordinary API and also records profiling metrics to a given Profiler object.
+type ProfilingAPI struct {
+	Profiler *inspect.Profiler
+	API      API
+}
+
+func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.AddMetric")
+	return api.API.AddMetric(metric)
+}
+func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.RemoveMetric")
+	return api.API.RemoveMetric(metric)
+}
+func (api ProfilingAPI) ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error) {
+	defer api.Profiler.Record("api.ToGraphiteName")
+	return api.API.ToGraphiteName(metric)
+}
+func (api ProfilingAPI) ToTaggedName(metric GraphiteMetric) (TaggedMetric, error) {
+	defer api.Profiler.Record("api.ToTaggedName")
+	return api.API.ToTaggedName(metric)
+}
+func (api ProfilingAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
+	defer api.Profiler.Record("api.GetAllTags")
+	return api.API.GetAllTags(metricKey)
+}
+func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetAllMetrics")
+	return api.API.GetAllMetrics()
+}
+func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetMetircsForTag")
+	return api.API.GetMetricsForTag(tagKey, tagValue)
 }

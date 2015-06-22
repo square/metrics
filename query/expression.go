@@ -72,7 +72,7 @@ type EvaluationContext struct {
 	Predicate    api.Predicate    // Predicate to apply to TagSets prior to fetching
 	FetchLimit   fetchCounter     // A limit on the number of fetches which may be performed
 	Cancellable  api.Cancellable
-	Profiler     *inspect.Profiler // Profiler collects data about query execution.
+	Profiler     *inspect.Profiler
 }
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.

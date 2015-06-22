@@ -17,9 +17,9 @@ package main
 import (
 	"flag"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
-	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
@@ -31,12 +31,14 @@ func main() {
 
 	config := common.LoadConfig()
 
-	// TODO: create profiler
-	profiler := (*inspect.Profiler)(nil)
-
 	apiInstance := common.NewAPI(config.API)
-	blueflood := backend.ProfilingBackend{blueflood.NewBlueflood(config.Blueflood)}
-	backend := backend.NewSequentialMultiBackend(blueflood)
 
-	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000, Profiler: profiler})
+	blueflood := api.ProfilingBackend{
+		Backend: blueflood.NewBlueflood(config.Blueflood),
+	}
+	backend := api.ProfilingMultiBackend{
+		MultiBackend: backend.NewSequentialMultiBackend(blueflood),
+	}
+
+	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000})
 }

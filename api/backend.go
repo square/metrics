@@ -90,31 +90,11 @@ type Backend interface {
 	FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error)
 }
 
-// ProfilingBackend wraps an ordinary backend so that whenever data is fetched, a profile is recorded for the fetch's duration.
-type ProfilingBackend struct {
-	Backend Backend
-}
-
-func (b ProfilingBackend) FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error) {
-	defer request.Profiler.Add("fetchSingleSeries")
-	return b.Backend.FetchSingleSeries(request)
-}
-
 type MultiBackend interface {
 	// FetchManySeries fetches the series provided by the given TaggedMetrics
 	// corresponding to the Timerange, down/upsampling if necessary using
 	// SampleMethod. It may fetch in series or parallel, etc.
 	FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error)
-}
-
-// ProfilingMultiBackend wraps an ordinary multibackend so that whenever data is fetched, a profile is recorded for the fetches' durations.
-type ProfilingMultiBackend struct {
-	MultiBackend MultiBackend
-}
-
-func (b ProfilingMultiBackend) FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error) {
-	defer request.Profiler.Add("fetchMultipleSeries")
-	return b.MultiBackend.FetchMultipleSeries(request)
 }
 
 type BackendErrorCode int
@@ -150,4 +130,24 @@ func (err BackendError) Error() string {
 		formatted = formatted + " - " + err.Message
 	}
 	return formatted
+}
+
+// ProfilingBackend wraps an ordinary backend so that whenever data is fetched, a profile is recorded for the fetch's duration.
+type ProfilingBackend struct {
+	Backend Backend
+}
+
+func (b ProfilingBackend) FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error) {
+	defer request.Profiler.Record("fetchSingleSeries")
+	return b.Backend.FetchSingleSeries(request)
+}
+
+// ProfilingMultiBackend wraps an ordinary multibackend so that whenever data is fetched, a profile is recorded for the fetches' durations.
+type ProfilingMultiBackend struct {
+	MultiBackend MultiBackend
+}
+
+func (b ProfilingMultiBackend) FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error) {
+	defer request.Profiler.Record("fetchMultipleSeries")
+	return b.MultiBackend.FetchMultipleSeries(request)
 }

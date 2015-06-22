@@ -14,32 +14,48 @@
 
 package inspect
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Profiler contains a sequence of profiles which are collected over the course of a query execution.
 type Profiler struct {
+	mutex    *sync.Mutex
 	profiles []Profile
 }
 
-// Add will create a profile of the given name from `start` until the current time.
-// Add acts in a threadsafe manner.
-func (p *Profiler) Add(name string) func() {
+func New() *Profiler {
+	profiler := Profiler{
+		mutex:    &sync.Mutex{},
+		profiles: []Profile{},
+	}
+	return &profiler
+}
+
+// Record will create a profile of the given name from `start` until the current time.
+// Record acts in a threadsafe manner.
+func (p *Profiler) Record(name string) func() {
 	if p == nil {
 		// If the profiler instance doesn't exist, then don't attempt to operate on it.
 		return func() {}
 	}
 	start := time.Now()
 	return func() {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
 		p.profiles = append(p.profiles, Profile{name: name, startTime: start, finishTime: time.Now()})
 	}
 }
 
-// All returns the list of profiles collected thus far.
+// CloseAndCollect returns the list of profiles collected thus far, while closing the internal channel employed for threadsafety.
 func (p *Profiler) All() []Profile {
 	if p == nil {
 		// If the profiler instance doesn't exist, then don't attempt to operate on it.
 		return []Profile{}
 	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	return p.profiles
 }
 
