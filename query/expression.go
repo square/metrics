@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/query/aggregate"
 )
 
@@ -71,6 +72,7 @@ type EvaluationContext struct {
 	Predicate    api.Predicate    // Predicate to apply to TagSets prior to fetching
 	FetchLimit   fetchCounter     // A limit on the number of fetches which may be performed
 	Cancellable  api.Cancellable
+	Profiler     *inspect.Profiler // Profiler collects data about query execution.
 }
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
@@ -152,6 +154,7 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 			context.Timerange,
 			context.API,
 			context.Cancellable,
+			context.Profiler,
 		},
 	)
 

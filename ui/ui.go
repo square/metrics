@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
 	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
 	"github.com/square/metrics/query"
@@ -99,6 +100,14 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 }
 
 func NewMux(config Config, context query.ExecutionContext) *http.ServeMux {
+	// Wrap the given API and Backend in their Profiling counterparts.
+	context.API = api.ProfilingAPI{
+		API:      context.API,
+		Profiler: context.Profiler,
+	}
+	context.Backend = api.ProfilingMultiBackend{
+		MultiBackend: context.Backend,
+	}
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", QueryHandler{
 		context: context,
