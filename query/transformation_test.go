@@ -65,6 +65,11 @@ func TestTransformTimeseries(t *testing.T) {
 					expected: []float64{0, -1, -2, -3, -4, -5},
 					useParam: false,
 				},
+				{
+					fun:      transformNaNKeepLast,
+					expected: []float64{0, 1, 2, 3, 4, 5},
+					useParam: false,
+				},
 			},
 		},
 	}
@@ -281,6 +286,15 @@ func TestApplyTransformNaN(t *testing.T) {
 				"A": {0, 1, 17, 3, 4, 5},
 				"B": {2, 17, 17, 17, 3, 3},
 				"C": {0, 1, 2, 17, 2, 1},
+			},
+		},
+		{
+			transform:  transformNaNKeepLast,
+			parameters: []value{},
+			expected: map[string][]float64{
+				"A": {0, 1, 1, 3, 4, 5},
+				"B": {2, 2, 2, 2, 3, 3},
+				"C": {0, 1, 2, 2, 2, 1},
 			},
 		},
 	}
