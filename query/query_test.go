@@ -150,6 +150,7 @@ var syntaxErrorQuery = []string{
 	"select x from 0 from 1 sample by 'min' sample by 'min' to 0",
 	"select f(3 groupby x) from 0 to 0",
 	"select c group by a from 0 to 0",
+	"select x[] from 0 to 0",
 }
 
 func TestParse_success(t *testing.T) {

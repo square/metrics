@@ -175,7 +175,7 @@ predicateClause <- _ "where" KEY _ predicate_1
 
 predicate_1 <-
   predicate_2 _ OP_OR predicate_1 { p.addOrPredicate() } /
-  predicate_2 /
+  predicate_2
 
 predicate_2 <-
   predicate_3 _ OP_AND predicate_2 { p.addAndPredicate() } /
@@ -221,11 +221,11 @@ tagName <-
 # ==============
 # Convention: These rules contain no code blocks.
 
-COLUMN_NAME <- _ IDENTIFIER
-METRIC_NAME <- _ IDENTIFIER
-TAG_NAME <-    _ IDENTIFIER
+COLUMN_NAME <- IDENTIFIER
+METRIC_NAME <- IDENTIFIER
+TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
-IDENTIFIER <-  _ "`" CHAR* "`" / _ !(KEYWORD KEY) ID_SEGMENT ("." ID_SEGMENT)*
+IDENTIFIER <-  "`" CHAR* "`" / _ !(KEYWORD KEY) ID_SEGMENT ("." ID_SEGMENT)*
 # `[[a-z]]?` allows for relative timestamps
 TIMESTAMP <- _ <NUMBER [[a-z]]*> / _ STRING / _ <"now">
 ID_SEGMENT <- _ ID_START ID_CONT*
