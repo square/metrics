@@ -17,6 +17,8 @@ package api
 import (
 	"fmt"
 	"time"
+
+	"github.com/square/metrics/inspect"
 )
 
 // Cancellable represents a cancellable work.
@@ -59,6 +61,7 @@ type FetchSeriesRequest struct {
 	Timerange    Timerange    // time range to fetch data from.
 	API          API          // an API instance.
 	Cancellable  Cancellable
+	Profiler     *inspect.Profiler
 }
 
 type FetchMultipleRequest struct {
@@ -67,6 +70,7 @@ type FetchMultipleRequest struct {
 	Timerange    Timerange
 	API          API
 	Cancellable  Cancellable
+	Profiler     *inspect.Profiler
 }
 
 func (r FetchMultipleRequest) ToSingle(metric TaggedMetric) FetchSeriesRequest {
@@ -76,6 +80,7 @@ func (r FetchMultipleRequest) ToSingle(metric TaggedMetric) FetchSeriesRequest {
 		Cancellable:  r.Cancellable,
 		SampleMethod: r.SampleMethod,
 		Timerange:    r.Timerange,
+		Profiler:     r.Profiler,
 	}
 }
 
@@ -125,4 +130,24 @@ func (err BackendError) Error() string {
 		formatted = formatted + " - " + err.Message
 	}
 	return formatted
+}
+
+// ProfilingBackend wraps an ordinary backend so that whenever data is fetched, a profile is recorded for the fetch's duration.
+type ProfilingBackend struct {
+	Backend Backend
+}
+
+func (b ProfilingBackend) FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error) {
+	defer request.Profiler.Record("fetchSingleSeries")()
+	return b.Backend.FetchSingleSeries(request)
+}
+
+// ProfilingMultiBackend wraps an ordinary multibackend so that whenever data is fetched, a profile is recorded for the fetches' durations.
+type ProfilingMultiBackend struct {
+	MultiBackend MultiBackend
+}
+
+func (b ProfilingMultiBackend) FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error) {
+	defer request.Profiler.Record("fetchMultipleSeries")()
+	return b.MultiBackend.FetchMultipleSeries(request)
 }

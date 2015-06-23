@@ -79,13 +79,13 @@ func TestCommand_Describe(t *testing.T) {
 		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeApi, 0},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
-		rawCommand, err := Parse(test.query)
+		command, err := Parse(test.query)
 		if err != nil {
 			a.Errorf("Unexpected error while parsing")
 			continue
 		}
-		command := rawCommand.(*DescribeCommand)
-		rawResult, _ := command.Execute(ExecutionContext{nil, test.backend, 1000, 0})
+		a.EqString(command.Name(), "describe")
+		rawResult, _ := command.Execute(ExecutionContext{Backend: nil, API: test.backend, FetchLimit: 1000, Timeout: 0})
 		parsedResult := rawResult.([]string)
 		a.EqInt(len(parsedResult), test.length)
 	}
@@ -211,17 +211,17 @@ func TestCommand_Select(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
-		rawCommand, err := Parse(test.query)
+		command, err := Parse(test.query)
 		if err != nil {
 			a.Errorf("Unexpected error while parsing")
 			continue
 		}
-		command := rawCommand.(*SelectCommand)
+		a.EqString(command.Name(), "select")
 		rawResult, err := command.Execute(ExecutionContext{
-			backend.NewSequentialMultiBackend(fakeBackend),
-			fakeApi,
-			1000,
-			10 * time.Millisecond,
+			Backend:    backend.NewSequentialMultiBackend(fakeBackend),
+			API:        fakeApi,
+			FetchLimit: 1000,
+			Timeout:    10 * time.Millisecond,
 		})
 		if err != nil {
 			if !test.expectError {
@@ -253,7 +253,7 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
-	context := ExecutionContext{backend.NewSequentialMultiBackend(fakeBackend), fakeApi, 3, 0}
+	context := ExecutionContext{Backend: backend.NewSequentialMultiBackend(fakeBackend), API: fakeApi, FetchLimit: 3, Timeout: 0}
 	_, err = command.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success with limit 3 but got err = %s", err.Error())
@@ -325,13 +325,16 @@ func TestNaming(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		rawCommand, err := Parse(test.query)
+		command, err := Parse(test.query)
 		if err != nil {
 			t.Fatalf("Unexpected error while parsing")
 			return
 		}
-		command := rawCommand.(*SelectCommand)
-		rawResult, err := command.Execute(ExecutionContext{fakeBackend, fakeApi, 1000, 0})
+		if command.Name() != "select" {
+			t.Errorf("Expected select command but got %s", command.Name())
+			continue
+		}
+		rawResult, err := command.Execute(ExecutionContext{Backend: fakeBackend, API: fakeApi, FetchLimit: 1000, Timeout: 0})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue

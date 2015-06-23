@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/log"
 	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
 	"github.com/square/metrics/query"
@@ -32,7 +33,8 @@ type Config struct {
 }
 
 type QueryHandler struct {
-	context query.ExecutionContext
+	profiler *inspect.Profiler
+	context  query.ExecutionContext
 }
 
 type Response struct {
@@ -78,11 +80,17 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
+	cmd, profiler := query.NewProfilingCommand(cmd)
 	result, err := cmd.Execute(q.context)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
+
+	// profiler holds all the profiling data from this execution.
+
+	log.Infof("Profiler results: %+v", profiler.All())
+
 	bodyResponse(writer, result, cmd.Name())
 }
 
@@ -99,6 +107,8 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 }
 
 func NewMux(config Config, context query.ExecutionContext) *http.ServeMux {
+	// Wrap the given API and Backend in their Profiling counterparts.
+
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", QueryHandler{
 		context: context,

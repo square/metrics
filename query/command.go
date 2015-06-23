@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/inspect"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
@@ -28,6 +29,7 @@ type ExecutionContext struct {
 	API        api.API          // the api
 	FetchLimit int              // the maximum number of fetches
 	Timeout    time.Duration
+	Profiler   *inspect.Profiler
 }
 
 // Command is the final result of the parsing.
@@ -124,6 +126,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		SampleMethod: cmd.context.SampleMethod,
 		Timerange:    timerange,
 		Cancellable:  cancellable,
+		Profiler:     context.Profiler,
 	}
 	if hasTimeout {
 		timeout := time.After(context.Timeout)
@@ -152,4 +155,32 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 func (cmd *SelectCommand) Name() string {
 	return "select"
+}
+
+//ProfilingCommand is a Command that also performs profiling actions.
+type ProfilingCommand struct {
+	Profiler *inspect.Profiler
+	Command  Command
+}
+
+func NewProfilingCommand(command Command) (Command, *inspect.Profiler) {
+	profiler := inspect.New()
+	return ProfilingCommand{
+		Profiler: profiler,
+		Command:  command,
+	}, profiler
+}
+
+func (cmd ProfilingCommand) Name() string {
+	return cmd.Command.Name()
+}
+
+func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
+	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
+	context.API = api.ProfilingAPI{
+		Profiler: cmd.Profiler,
+		API:      context.API,
+	}
+	context.Profiler = cmd.Profiler
+	return cmd.Command.Execute(context)
 }

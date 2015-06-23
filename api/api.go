@@ -18,6 +18,8 @@
 // for the terminology.
 package api
 
+import "github.com/square/metrics/inspect"
+
 // API is the set of public methods exposed by the indexer library.
 type API interface {
 	// AddMetric adds the metric to the system.
@@ -54,4 +56,39 @@ type Config struct {
 	// https://github.com/gocql/gocql/blob/master/cluster.go
 	Hosts    []string `yaml:"hosts"`
 	Keyspace string   `yaml:"keyspace"`
+}
+
+// ProfilingAPI wraps an ordinary API and also records profiling metrics to a given Profiler object.
+type ProfilingAPI struct {
+	Profiler *inspect.Profiler
+	API      API
+}
+
+func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.AddMetric")()
+	return api.API.AddMetric(metric)
+}
+func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.RemoveMetric")()
+	return api.API.RemoveMetric(metric)
+}
+func (api ProfilingAPI) ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error) {
+	defer api.Profiler.Record("api.ToGraphiteName")()
+	return api.API.ToGraphiteName(metric)
+}
+func (api ProfilingAPI) ToTaggedName(metric GraphiteMetric) (TaggedMetric, error) {
+	defer api.Profiler.Record("api.ToTaggedName")()
+	return api.API.ToTaggedName(metric)
+}
+func (api ProfilingAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
+	defer api.Profiler.Record("api.GetAllTags")()
+	return api.API.GetAllTags(metricKey)
+}
+func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetAllMetrics")()
+	return api.API.GetAllMetrics()
+}
+func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetMetricsForTag")()
+	return api.API.GetMetricsForTag(tagKey, tagValue)
 }
