@@ -179,7 +179,8 @@ func TestProfilerIntegration(t *testing.T) {
 	for _, test := range testCases {
 		cmd, err := Parse(test.query)
 		if err != nil {
-			t.Fatal(err.Error())
+			t.Error(err.Error())
+			continue
 		}
 		profilingCommand, profiler := NewProfilingCommand(cmd)
 
