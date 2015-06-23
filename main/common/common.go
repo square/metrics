@@ -18,14 +18,15 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"os"
-
 	standard_log "log"
+	"os"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/internal"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/log/glog"
+	"github.com/square/metrics/log/standard"
 	"github.com/square/metrics/ui"
 	"gopkg.in/yaml.v2"
 )
@@ -34,6 +35,7 @@ var (
 	// YamlFile is the location of the rule YAML file.
 	ConfigFile = flag.String("config-file", "", "Location of YAML config file")
 	Verbose    = flag.Bool("verbose", false, "Set to true to enable logging")
+	Logger     = flag.String("logger", "", "Selects the logger to use")
 )
 
 type Config struct {
@@ -85,19 +87,10 @@ func NewAPI(config api.Config) api.API {
 	return apiInstance
 }
 
-type StandardLogger struct {
-	wrapped *standard_log.Logger
-}
-
-func (s StandardLogger) Infof(format string, args ...interface{}) {
-	s.wrapped.Printf(format, args...)
-}
-func (s StandardLogger) Warningf(format string, args ...interface{}) {
-	s.wrapped.Printf(format, args...)
-}
-
 func SetupLogger() {
-	if *Verbose {
-		log.InitLogger(StandardLogger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
+	if *Logger == "glog" {
+		log.InitLogger(&glog.Logger{})
+	} else {
+		log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
 	}
 }
