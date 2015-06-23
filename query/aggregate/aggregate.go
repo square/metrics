@@ -72,8 +72,19 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
+func filterNaN(array []float64) []float64 {
+	result := []float64{}
+	for _, v := range array {
+		if !math.IsNaN(v) {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
 // The sum aggregator returns the mean of the given array
 func AggregateSum(array []float64) float64 {
+	array = filterNaN(array)
 	sum := 0.0
 	for _, v := range array {
 		sum += v
@@ -83,6 +94,7 @@ func AggregateSum(array []float64) float64 {
 
 // The mean aggregator returns the mean of the given array
 func AggregateMean(array []float64) float64 {
+	array = filterNaN(array)
 	if len(array) == 0 {
 		// The mean of an empty list is not well-defined
 		return math.NaN()
@@ -96,6 +108,7 @@ func AggregateMean(array []float64) float64 {
 
 // The minimum aggregator returns the minimum
 func AggregateMin(array []float64) float64 {
+	array = filterNaN(array)
 	if len(array) == 0 {
 		// The minimum of an empty list is not well-defined
 		return math.NaN()
@@ -109,6 +122,7 @@ func AggregateMin(array []float64) float64 {
 
 // The maximum aggregator returns the maximum
 func AggregateMax(array []float64) float64 {
+	array = filterNaN(array)
 	if len(array) == 0 {
 		// The maximum of an empty list is not well-defined
 		return math.NaN()
@@ -132,36 +146,20 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 		panic("applyAggregation given empty group for tagset")
 	}
 
-	series := api.Timeseries{
+	result := api.Timeseries{
 		Values: make([]float64, len(list[0].Values)), // The first Series in the given list is used to determine this length
 		TagSet: tagSet,                               // The tagset is supplied by an argument (it will be the values grouped on)
 	}
 
-	// Make a slice of time to reuse.
-	// Each entry corresponds to a particular Series, all having the same index within their corresponding Series.
-	// The timeslice has 0 size but len(list) capacity so that it won't need to be resized.
-	timeSlice := make([]float64, 0, len(list))
-
-	for i := range series.Values {
-		// Re-slice the timeslice to be empty again, but with the same capacity.
-		// (So that we re-use it rather than re-allocating it)
-		timeSlice = timeSlice[:0]
-		// We need to determine each value in turn.
+	for i := range result.Values {
+		timeSlice := make([]float64, len(list))
 		for j := range list {
-			value := list[j].Values[i]
-			if !math.IsNaN(value) {
-				timeSlice = append(timeSlice, value)
-			}
+			timeSlice[j] = list[j].Values[i]
 		}
-		if len(timeSlice) == 0 {
-			series.Values[i] = math.NaN()
-		} else {
-			// Find the aggregated value:
-			series.Values[i] = aggregator(timeSlice)
-		}
+		result.Values[i] = aggregator(timeSlice)
 	}
 
-	return series
+	return result
 }
 
 // This function is the culmination of all others.
