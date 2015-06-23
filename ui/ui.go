@@ -33,7 +33,7 @@ type Config struct {
 }
 
 type Hook struct {
-	onQuery chan<- *inspect.Profiler
+	OnQuery chan<- *inspect.Profiler
 }
 
 type QueryHandler struct {
@@ -97,8 +97,8 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 
 	bodyResponse(writer, result, cmd.Name())
 
-	if q.hook.onQuery != nil {
-		q.hook.onQuery <- profiler
+	if q.hook.OnQuery != nil {
+		q.hook.OnQuery <- profiler
 	}
 }
 
