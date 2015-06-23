@@ -49,7 +49,7 @@ func (p *Profiler) Record(name string) func() {
 	}
 }
 
-// CloseAndCollect returns the list of profiles collected thus far, while closing the internal channel employed for threadsafety.
+// All retrieves all the profiling information collected by the profiler.
 func (p *Profiler) All() []Profile {
 	if p == nil {
 		// If the profiler instance doesn't exist, then don't attempt to operate on it.
@@ -58,6 +58,18 @@ func (p *Profiler) All() []Profile {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	return p.profiles
+}
+
+// All retrieves all the profiling information collected by the profiler.
+func (p *Profiler) Flush() []Profile {
+	if p == nil {
+		return []Profile{}
+	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	result := p.profiles
+	p.profiles = []Profile{}
+	return result
 }
 
 // A profile is a single data point collected by the profiler.
