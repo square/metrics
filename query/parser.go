@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/function"
 )
 
 // Parse is the entry point of the parser.
@@ -111,7 +112,7 @@ func parseDate(date string, now time.Time) (int64, error) {
 		return epoch, nil
 	}
 
-	relativeTime, err := toDuration(stringValue(date))
+	relativeTime, err := function.ToDuration(function.StringValue(date))
 	if err == nil {
 		// A relative date.
 		if relativeTime > 0 {
@@ -282,7 +283,7 @@ func (p *Parser) addOperatorLiteral(operator string) {
 }
 
 func (p *Parser) addOperatorFunction() {
-	right, ok := p.popNode(expressionType).(Expression)
+	right, ok := p.popNode(expressionType).(function.Expression)
 	if !ok {
 		p.flagTypeAssertion()
 		return
@@ -292,14 +293,14 @@ func (p *Parser) addOperatorFunction() {
 		p.flagTypeAssertion()
 		return
 	}
-	left, ok := p.popNode(expressionType).(Expression)
+	left, ok := p.popNode(expressionType).(function.Expression)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&functionExpression{
 		functionName: operatorNode.operator,
-		arguments:    []Expression{left, right},
+		arguments:    []function.Expression{left, right},
 	})
 }
 
@@ -386,7 +387,7 @@ func (p *Parser) insertPropertyKeyValue() {
 		// The value must be determined to be an int if the key is "resolution".
 		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
 			contextNode.Resolution = intValue
-		} else if duration, err := toDuration(stringValue(value)); err == nil {
+		} else if duration, err := function.ToDuration(function.StringValue(value)); err == nil {
 			contextNode.Resolution = duration
 		} else {
 			p.flagSyntaxError(SyntaxError{
@@ -438,14 +439,14 @@ func (p *Parser) addPipeExpression() {
 		p.flagTypeAssertion()
 		return
 	}
-	expressionNode, ok := p.popNode(expressionType).(Expression)
+	expressionNode, ok := p.popNode(expressionType).(function.Expression)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
 	p.pushNode(&functionExpression{
 		functionName: stringLiteral.literal,
-		arguments:    append([]Expression{expressionNode}, expressionList.expressions...),
+		arguments:    append([]function.Expression{expressionNode}, expressionList.expressions...),
 		groupBy:      groupBy.list,
 	})
 }
@@ -493,12 +494,12 @@ func (p *Parser) addMetricExpression() {
 
 func (p *Parser) addExpressionList() {
 	p.pushNode(&expressionList{
-		make([]Expression, 0),
+		make([]function.Expression, 0),
 	})
 }
 
 func (p *Parser) appendExpression() {
-	expressionNode, ok := p.popNode(expressionType).(Expression)
+	expressionNode, ok := p.popNode(expressionType).(function.Expression)
 	if !ok {
 		p.flagTypeAssertion()
 		return
@@ -710,7 +711,7 @@ func functionName(depth int) string {
 // utility type variables
 var (
 	predicateType                 = reflect.TypeOf((*api.Predicate)(nil)).Elem()
-	expressionType                = reflect.TypeOf((*Expression)(nil)).Elem()
+	expressionType                = reflect.TypeOf((*function.Expression)(nil)).Elem()
 	expressionListPointer         = reflect.TypeOf((*expressionList)(nil))
 	groupByListPointer            = reflect.TypeOf((*groupByList)(nil))
 	operatorLiteralPointer        = reflect.TypeOf((*operatorLiteral)(nil))

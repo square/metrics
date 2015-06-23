@@ -23,6 +23,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/assert"
+	"github.com/square/metrics/function"
 	"github.com/square/metrics/mocks"
 )
 
@@ -228,8 +229,8 @@ func TestCommand_Select(t *testing.T) {
 				a.Errorf("Unexpected error while executing: %s", err.Error())
 			}
 		} else {
-			casted := rawResult.([]value)
-			actual, _ := casted[0].toSeriesList(api.Timerange{})
+			casted := rawResult.([]function.Value)
+			actual, _ := casted[0].ToSeriesList(api.Timerange{})
 			a.EqInt(len(actual.Series), len(expected.Series))
 			if len(actual.Series) == len(expected.Series) {
 				for i := 0; i < len(expected.Series); i++ {
@@ -339,12 +340,12 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.([]value)
+		seriesListList, ok := rawResult.([]function.Value)
 		if !ok || len(seriesListList) != 1 {
 			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
-		actual := api.SeriesList(seriesListList[0].(seriesListValue)).Name
+		actual := api.SeriesList(seriesListList[0].(function.SeriesListValue)).Name
 		if actual != test.expected {
 			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
 			continue

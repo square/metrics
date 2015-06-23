@@ -22,14 +22,15 @@ import (
 	"math"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/function"
 )
 
 // A transform takes the list of values, other parameters, and the resolution (as a float64) of the query.
-type transform func([]float64, []value, float64) ([]float64, error)
+type transform func([]float64, []function.Value, float64) ([]float64, error)
 
 // transformTimeseries transforms an individual series (rather than an entire serieslist) taking the same parameters as a transform,
 // but with the serieslist standing in for the simplified []float64 argument.
-func transformTimeseries(series api.Timeseries, transform transform, parameters []value, scale float64) (api.Timeseries, error) {
+func transformTimeseries(series api.Timeseries, transform transform, parameters []function.Value, scale float64) (api.Timeseries, error) {
 	values, err := transform(series.Values, parameters, scale)
 	if err != nil {
 		return api.Timeseries{}, err
@@ -41,7 +42,7 @@ func transformTimeseries(series api.Timeseries, transform transform, parameters 
 }
 
 // applyTransform applies the given transform to the entire list of series.
-func ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error) {
+func ApplyTransform(list api.SeriesList, transform transform, parameters []function.Value) (api.SeriesList, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(list.Series)),
 		Timerange: list.Timerange,
@@ -58,16 +59,16 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []value
 }
 
 // checkParameters is used to make sure that each transform is given the right number of parameters.
-func checkParameters(name string, expected int, parameters []value) error {
+func checkParameters(name string, expected int, parameters []function.Value) error {
 	if len(parameters) != expected {
-		printArgs := append([]value{stringValue("(SeriesList)")}, parameters...)
+		printArgs := append([]function.Value{function.StringValue("(SeriesList)")}, parameters...)
 		return errors.New(fmt.Sprintf("expected %s to be given %d parameters but was given %d: %+v", name, expected+1, len(parameters)+1, printArgs))
 	}
 	return nil
 }
 
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func transformDerivative(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformDerivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func transformDerivative(values []float64, parameters []value, scale float64) ([
 
 // transformIntegral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
-func transformIntegral(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformIntegral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.integral", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func transformIntegral(values []float64, parameters []value, scale float64) ([]f
 
 // transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
 // That is, it returns consecutive differences which are at least 0.
-func transformRate(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformRate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.rate", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -122,7 +123,7 @@ func transformRate(values []float64, parameters []value, scale float64) ([]float
 }
 
 // transformCumulative computes the cumulative sum of the given values.
-func transformCumulative(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformCumulative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -140,8 +141,8 @@ func transformCumulative(values []float64, parameters []value, scale float64) ([
 // transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func transformMapMaker(name string, fun func(float64) float64) func([]float64, []value, float64) ([]float64, error) {
-	return func(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformMapMaker(name string, fun func(float64) float64) func([]float64, []function.Value, float64) ([]float64, error) {
+	return func(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameters); err != nil {
 			return nil, err
 		}
@@ -154,11 +155,11 @@ func transformMapMaker(name string, fun func(float64) float64) func([]float64, [
 }
 
 // transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
-func transformDefault(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformDefault(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.default", 1, parameters); err != nil {
 		return nil, err
 	}
-	defaultValue, err := parameters[0].toScalar()
+	defaultValue, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,7 @@ func transformDefault(values []float64, parameters []value, scale float64) ([]fl
 }
 
 // transformNaNKeepLast will replace missing NaN data with the data before it
-func transformNaNKeepLast(values []float64, parameters []value, scale float64) ([]float64, error) {
+func transformNaNKeepLast(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.nan_keep_last", 0, parameters); err != nil {
 		return nil, err
 	}

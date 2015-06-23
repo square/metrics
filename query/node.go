@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/function"
 )
 
 // PrintNode prints the given node.
@@ -85,7 +86,7 @@ type metricFetchExpression struct {
 // This includes aggregate functions and arithmetic operators.
 type functionExpression struct {
 	functionName string
-	arguments    []Expression
+	arguments    []function.Expression
 	groupBy      []string
 }
 
@@ -118,7 +119,7 @@ type operatorLiteral struct {
 }
 
 type expressionList struct {
-	expressions []Expression
+	expressions []function.Expression
 }
 
 type groupByList struct {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package function
 
 import (
 	"fmt"
@@ -24,11 +24,11 @@ import (
 
 // A value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
-type value interface {
-	toSeriesList(api.Timerange) (api.SeriesList, error)
-	toString() (string, error)
-	toScalar() (float64, error)
-	name() string
+type Value interface {
+	ToSeriesList(api.Timerange) (api.SeriesList, error)
+	ToString() (string, error)
+	ToScalar() (float64, error)
+	GetName() string
 }
 
 type conversionError struct {
@@ -41,41 +41,41 @@ func (e conversionError) Error() string {
 }
 
 // A seriesListValue is a value which holds a SeriesList
-type seriesListValue api.SeriesList
+type SeriesListValue api.SeriesList
 
-func (value seriesListValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
+func (value SeriesListValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList(value), nil
 }
-func (value seriesListValue) toString() (string, error) {
+func (value SeriesListValue) ToString() (string, error) {
 	return "", conversionError{"SeriesList", "string"}
 }
-func (value seriesListValue) toScalar() (float64, error) {
+func (value SeriesListValue) ToScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
-func (value seriesListValue) name() string {
+func (value SeriesListValue) GetName() string {
 	return api.SeriesList(value).Name
 }
 
 // A stringValue holds a string
-type stringValue string
+type StringValue string
 
-func (value stringValue) toSeriesList(time api.Timerange) (api.SeriesList, error) {
+func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList{}, conversionError{"string", "SeriesList"}
 }
-func (value stringValue) toString() (string, error) {
+func (value StringValue) ToString() (string, error) {
 	return string(value), nil
 }
-func (value stringValue) toScalar() (float64, error) {
+func (value StringValue) ToScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
 }
-func (value stringValue) name() string {
+func (value StringValue) GetName() string {
 	return string(value)
 }
 
 // A scalarValue holds a float and can be converted to a serieslist
-type scalarValue float64
+type ScalarValue float64
 
-func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
 
 	series := make([]float64, timerange.Slots())
 	for i := range series {
@@ -87,13 +87,13 @@ func (value scalarValue) toSeriesList(timerange api.Timerange) (api.SeriesList, 
 		Timerange: timerange,
 	}, nil
 }
-func (value scalarValue) toString() (string, error) {
+func (value ScalarValue) ToString() (string, error) {
 	return "", conversionError{"scalar", "string"}
 }
-func (value scalarValue) toScalar() (float64, error) {
+func (value ScalarValue) ToScalar() (float64, error) {
 	return float64(value), nil
 }
-func (value scalarValue) name() string {
+func (value ScalarValue) GetName() string {
 	return fmt.Sprintf("%g", value)
 }
 
@@ -102,8 +102,8 @@ var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`
 // toDuration will take a value, convert it to a string, and then parse it.
 // the valid suffixes are: ms, s, m, min, h, hr, d, w, M, mo, y, yr.
 // It converts the return value to milliseconds.
-func toDuration(value value) (int64, error) {
-	timeString, err := value.toString()
+func ToDuration(value Value) (int64, error) {
+	timeString, err := value.ToString()
 	if err != nil {
 		return -1, err
 	}

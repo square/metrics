@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package function
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ import (
 
 func TestToDuration(t *testing.T) {
 	helper := func(given string, expected int64) {
-		actual, err := toDuration(stringValue(given))
+		actual, err := ToDuration(StringValue(given))
 		if err != nil || actual != expected {
 			t.Fatalf("Expected %s to produce %d but got %d", given, expected, actual)
 		}

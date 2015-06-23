@@ -20,7 +20,10 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/query/aggregate"
+	"github.com/square/metrics/function"
+	"github.com/square/metrics/function/aggregate"
+	"github.com/square/metrics/function/filter"
+	"github.com/square/metrics/function/join"
 )
 
 var functionRegistry = map[string]MetricFunction{}
@@ -51,14 +54,12 @@ type MetricFunction struct {
 	MinArgument int
 	MaxArgument int
 	Groups      bool // Whether the function allows a 'group by' clause.
-	Compute     func(EvaluationContext, []Expression, []string) (value, error)
+	Compute     func(function.EvaluationContext, []function.Expression, []string) (function.Value, error)
 }
 
 func (f MetricFunction) Evaluate(
-	context EvaluationContext,
-	arguments []Expression,
-	groupBy []string,
-) (value, error) {
+	context function.EvaluationContext, arguments []function.Expression, groupBy []string,
+) (function.Value, error) {
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArgument || (f.MaxArgument != -1 && f.MaxArgument < length) {
@@ -75,7 +76,7 @@ func MakeOperatorMetricFunction(op string, operator func(float64, float64) float
 		Name:        op,
 		MinArgument: 2,
 		MaxArgument: 2,
-		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			leftValue, err := args[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -84,16 +85,16 @@ func MakeOperatorMetricFunction(op string, operator func(float64, float64) float
 			if err != nil {
 				return nil, err
 			}
-			leftList, err := leftValue.toSeriesList(context.Timerange)
+			leftList, err := leftValue.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
 			}
-			rightList, err := rightValue.toSeriesList(context.Timerange)
+			rightList, err := rightValue.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
 			}
 
-			joined := join([]api.SeriesList{leftList, rightList})
+			joined := join.Join([]api.SeriesList{leftList, rightList})
 
 			result := make([]api.Timeseries, len(joined.Rows))
 
@@ -107,10 +108,10 @@ func MakeOperatorMetricFunction(op string, operator func(float64, float64) float
 				result[i] = api.Timeseries{array, row.TagSet}
 			}
 
-			return seriesListValue(api.SeriesList{
+			return function.SeriesListValue(api.SeriesList{
 				Series:    result,
 				Timerange: context.Timerange,
-				Name:      fmt.Sprintf("(%s %s %s)", leftValue.name(), op, rightValue.name()),
+				Name:      fmt.Sprintf("(%s %s %s)", leftValue.GetName(), op, rightValue.GetName()),
 			}), nil
 		},
 	}
@@ -123,13 +124,13 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 		MinArgument: 1,
 		MaxArgument: 1,
 		Groups:      true,
-		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
 			if err != nil {
 				return nil, err
 			}
-			seriesList, err := value.toSeriesList(context.Timerange)
+			seriesList, err := value.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
 			}
@@ -139,32 +140,32 @@ func MakeAggregateMetricFunction(name string, aggregator func([]float64) float64
 				groupNames[i] += group
 			}
 			if len(groups) == 0 {
-				result.Name = fmt.Sprintf("%s(%s)", name, value.name())
+				result.Name = fmt.Sprintf("%s(%s)", name, value.GetName())
 			} else {
-				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.name(), strings.Join(groupNames, ", "))
+				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.GetName(), strings.Join(groupNames, ", "))
 			}
-			return seriesListValue(result), nil
+			return function.SeriesListValue(result), nil
 		},
 	}
 }
 
 // MakeTransformMetircFunction takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func MakeTransformMetricFunction(name string, parameterCount int, transformer func([]float64, []value, float64) ([]float64, error)) MetricFunction {
+func MakeTransformMetricFunction(name string, parameterCount int, transformer func([]float64, []function.Value, float64) ([]float64, error)) MetricFunction {
 	return MetricFunction{
 		Name:        name,
 		MinArgument: parameterCount + 1,
 		MaxArgument: parameterCount + 1,
-		Compute: func(context EvaluationContext, args []Expression, groups []string) (value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			// ApplyTransform(list api.SeriesList, transform transform, parameters []value) (api.SeriesList, error)
 			listValue, err := args[0].Evaluate(context)
 			if err != nil {
 				return nil, err
 			}
-			list, err := listValue.toSeriesList(context.Timerange)
+			list, err := listValue.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
 			}
-			parameters := make([]value, parameterCount)
+			parameters := make([]function.Value, parameterCount)
 			for i := range parameters {
 				parameters[i], err = args[i+1].Evaluate(context)
 				if err != nil {
@@ -177,14 +178,14 @@ func MakeTransformMetricFunction(name string, parameterCount int, transformer fu
 			}
 			parameterNames := make([]string, len(parameters))
 			for i, param := range parameters {
-				parameterNames[i] = param.name()
+				parameterNames[i] = param.GetName()
 			}
 			if len(parameters) != 0 {
-				result.Name = fmt.Sprintf("%s(%s, %s)", name, listValue.name(), strings.Join(parameterNames, ", "))
+				result.Name = fmt.Sprintf("%s(%s, %s)", name, listValue.GetName(), strings.Join(parameterNames, ", "))
 			} else {
-				result.Name = fmt.Sprintf("%s(%s)", name, listValue.name())
+				result.Name = fmt.Sprintf("%s(%s)", name, listValue.GetName())
 			}
-			return seriesListValue(result), nil
+			return function.SeriesListValue(result), nil
 		},
 	}
 }
@@ -193,12 +194,12 @@ var TimeshiftFunction = MetricFunction{
 	Name:        "transform.timeshift",
 	MinArgument: 2,
 	MaxArgument: 2,
-	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		value, err := arguments[1].Evaluate(context)
 		if err != nil {
 			return nil, err
 		}
-		millis, err := toDuration(value)
+		millis, err := function.ToDuration(value)
 		if err != nil {
 			return nil, err
 		}
@@ -210,9 +211,9 @@ var TimeshiftFunction = MetricFunction{
 			return nil, err
 		}
 
-		if seriesValue, ok := result.(seriesListValue); ok {
+		if seriesValue, ok := result.(function.SeriesListValue); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.name(), value.name())
+			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
 			return seriesValue, nil
 		}
 		return result, nil
@@ -223,14 +224,14 @@ var MovingAverageFunction = MetricFunction{
 	Name:        "transform.moving_average",
 	MinArgument: 2,
 	MaxArgument: 2,
-	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
 		sizeValue, err := arguments[1].Evaluate(context)
 		if err != nil {
 			return nil, err
 		}
-		size, err := toDuration(sizeValue)
+		size, err := function.ToDuration(sizeValue)
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +254,7 @@ var MovingAverageFunction = MetricFunction{
 		}
 
 		// This value must be a SeriesList.
-		list, err := listValue.toSeriesList(newContext.Timerange)
+		list, err := listValue.ToSeriesList(newContext.Timerange)
 		if err != nil {
 			return nil, err
 		}
@@ -290,8 +291,8 @@ var MovingAverageFunction = MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.name(), sizeValue.name())
-		return seriesListValue(list), nil
+		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
+		return function.SeriesListValue(list), nil
 	},
 }
 
@@ -299,12 +300,12 @@ var AliasFunction = MetricFunction{
 	Name:        "transform.alias",
 	MinArgument: 2,
 	MaxArgument: 2,
-	Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		value, err := arguments[0].Evaluate(context)
 		if err != nil {
 			return nil, err
 		}
-		list, err := value.toSeriesList(context.Timerange)
+		list, err := value.ToSeriesList(context.Timerange)
 		if err != nil {
 			return nil, err
 		}
@@ -312,12 +313,12 @@ var AliasFunction = MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		name, err := nameValue.toString()
+		name, err := nameValue.ToString()
 		if err != nil {
 			return nil, err
 		}
 		list.Name = name
-		return seriesListValue(list), nil
+		return function.SeriesListValue(list), nil
 	},
 }
 
@@ -326,13 +327,13 @@ func MakeFilterMetricFunction(name string, summary func([]float64) float64, asce
 		Name:        name,
 		MinArgument: 2,
 		MaxArgument: 2,
-		Compute: func(context EvaluationContext, arguments []Expression, groups []string) (value, error) {
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
 				return nil, err
 			}
 			// The value must be a SeriesList.
-			list, err := value.toSeriesList(context.Timerange)
+			list, err := value.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
 			}
@@ -340,7 +341,7 @@ func MakeFilterMetricFunction(name string, summary func([]float64) float64, asce
 			if err != nil {
 				return nil, err
 			}
-			countFloat, err := countValue.toScalar()
+			countFloat, err := countValue.ToScalar()
 			if err != nil {
 				return nil, err
 			}
@@ -349,9 +350,9 @@ func MakeFilterMetricFunction(name string, summary func([]float64) float64, asce
 			if count < 0 {
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
-			result := FilterBy(list, count, summary, ascending)
-			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.name(), count)
-			return seriesListValue(result), nil
+			result := filter.FilterBy(list, count, summary, ascending)
+			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			return function.SeriesListValue(result), nil
 		},
 	}
 }

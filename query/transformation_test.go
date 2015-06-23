@@ -21,6 +21,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
+	"github.com/square/metrics/function"
 	"github.com/square/metrics/mocks"
 )
 
@@ -28,7 +29,7 @@ func TestTransformTimeseries(t *testing.T) {
 	testCases := []struct {
 		values     []float64
 		tagSet     api.TagSet
-		parameters []value
+		parameters []function.Value
 		scale      float64
 		tests      []struct {
 			fun      transform
@@ -44,7 +45,7 @@ func TestTransformTimeseries(t *testing.T) {
 				"env":  "C",
 			},
 			scale:      30,
-			parameters: []value{scalarValue(100)},
+			parameters: []function.Value{function.ScalarValue(100)},
 			tests: []struct {
 				fun      transform
 				expected []float64
@@ -82,7 +83,7 @@ func TestTransformTimeseries(t *testing.T) {
 		for _, transform := range test.tests {
 			params := test.parameters
 			if !transform.useParam {
-				params = []value{}
+				params = []function.Value{}
 			}
 			result, err := transformTimeseries(series, transform.fun, params, test.scale)
 			if err != nil {
@@ -141,12 +142,12 @@ func TestApplyTransform(t *testing.T) {
 	}
 	testCases := []struct {
 		transform transform
-		parameter []value
+		parameter []function.Value
 		expected  map[string][]float64
 	}{
 		{
 			transform: transformDerivative,
-			parameter: []value{},
+			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
 				"B": {0, 0, -1.0 / 30, 0, 2.0 / 30, 0},
@@ -155,7 +156,7 @@ func TestApplyTransform(t *testing.T) {
 		},
 		{
 			transform: transformIntegral,
-			parameter: []value{},
+			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
 				"B": {2 * 30, 4 * 30, 5 * 30, 6 * 30, 9 * 30, 12 * 30},
@@ -164,7 +165,7 @@ func TestApplyTransform(t *testing.T) {
 		},
 		{
 			transform: transformCumulative,
-			parameter: []value{},
+			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 3, 6, 10, 15},
 				"B": {2, 4, 5, 6, 9, 12},
@@ -240,12 +241,12 @@ func TestApplyTransformNaN(t *testing.T) {
 	}
 	tests := []struct {
 		transform  transform
-		parameters []value
+		parameters []function.Value
 		expected   map[string][]float64
 	}{
 		{
 			transform:  transformDerivative,
-			parameters: []value{},
+			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
 				"B": {0, nan, nan, nan, nan, 0.0},
@@ -254,7 +255,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  transformIntegral,
-			parameters: []value{},
+			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
 				"B": {2 * 30, 2 * 30, 2 * 30, 2 * 30, 5 * 30, 8 * 30},
@@ -263,7 +264,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  transformRate,
-			parameters: []value{},
+			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
 				"B": {0, nan, nan, nan, nan, 0},
@@ -272,7 +273,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  transformCumulative,
-			parameters: []value{},
+			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 4, 8, 13},
 				"B": {2, 2, 2, 2, 5, 8},
@@ -281,7 +282,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  transformDefault,
-			parameters: []value{scalarValue(17)},
+			parameters: []function.Value{function.ScalarValue(17)},
 			expected: map[string][]float64{
 				"A": {0, 1, 17, 3, 4, 5},
 				"B": {2, 17, 17, 17, 3, 3},
@@ -290,7 +291,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  transformNaNKeepLast,
-			parameters: []value{},
+			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 3, 4, 5},
 				"B": {2, 2, 2, 2, 3, 3},
@@ -355,15 +356,15 @@ func TestApplyTransformFailure(t *testing.T) {
 	}
 	testCases := []struct {
 		transform transform
-		parameter []value
+		parameter []function.Value
 	}{
 		{
 			transform: transformDerivative,
-			parameter: []value{scalarValue(3)},
+			parameter: []function.Value{function.ScalarValue(3)},
 		},
 		{
 			transform: transformMapMaker("abs", math.Abs),
-			parameter: []value{scalarValue(3)},
+			parameter: []function.Value{function.ScalarValue(3)},
 		},
 	}
 	for _, test := range testCases {
@@ -401,19 +402,19 @@ func TestMovingAverage(t *testing.T) {
 	expression := &functionExpression{
 		functionName: "transform.moving_average",
 		groupBy:      []string{},
-		arguments: []Expression{
+		arguments: []function.Expression{
 			&metricFetchExpression{"series", api.TruePredicate},
 			stringExpression{"300ms"},
 		},
 	}
 
 	result, err := evaluateToSeriesList(expression,
-		EvaluationContext{
+		function.EvaluationContext{
 			API:          fakeAPI,
 			MultiBackend: backend.NewSequentialMultiBackend(fakeBackend),
 			Timerange:    timerange,
 			SampleMethod: api.SampleMean,
-			FetchLimit:   NewFetchCounter(1000),
+			FetchLimit:   function.NewFetchCounter(1000),
 		})
 	if err != nil {
 		t.Errorf(err.Error())

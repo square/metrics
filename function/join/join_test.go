@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package join
 
 import (
 	"testing"
@@ -74,7 +74,7 @@ var testCases = []struct {
 
 func Test_join_ResultSizes(t *testing.T) {
 	for i, testCase := range testCases {
-		result := join(testCase.joinArgument)
+		result := Join(testCase.joinArgument)
 		if len(result.Rows) != testCase.expectedLength {
 			t.Errorf("join testcase %d results in %d; expected %d", i, len(result.Rows), testCase.expectedLength)
 			t.Errorf("testcase: %+v", testCase.joinArgument)
