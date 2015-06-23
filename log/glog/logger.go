@@ -12,40 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package standard
+package glog
 
 import (
-	standard_logger "log"
-
+	"github.com/golang/glog"
 	"github.com/square/metrics/log"
 )
 
-type Logger struct {
-	Logger *standard_logger.Logger
-}
-
-func (sl *Logger) logf(level string, format string, args ...interface{}) {
-	sl.Logger.Printf(level+" "+format, args)
-}
+type Logger struct{}
 
 func (sl *Logger) Debugf(format string, args ...interface{}) {
-	sl.logf("DEBUG", format, args)
+	glog.V(1).Infof(format, args)
 }
 
 func (sl *Logger) Infof(format string, args ...interface{}) {
-	sl.logf("INFO", format, args)
+	glog.Infof(format, args)
 }
 
 func (sl *Logger) Warningf(format string, args ...interface{}) {
-	sl.logf("WARNING", format, args)
+	glog.Warningf(format, args)
 }
 
 func (sl *Logger) Errorf(format string, args ...interface{}) {
-	sl.logf("ERROR", format, args)
+	glog.Errorf(format, args)
 }
 
 func (sl *Logger) Fatalf(format string, args ...interface{}) {
-	sl.Logger.Fatalf(format, args)
+	glog.Fatalf(format, args)
 }
 
 var _ log.Logger = (*Logger)(nil)

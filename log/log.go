@@ -23,7 +23,7 @@ type Logger interface {
 	Warningf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 
-  // Fatalf only when we can't recover. This should exit after being called.
+	// Fatalf only when we can't recover. This should exit after being called.
 	Fatalf(format string, args ...interface{})
 }
 
@@ -46,15 +46,15 @@ func Warningf(format string, args ...interface{}) {
 }
 
 func Errorf(format string, args ...interface{}) {
-  if appLogger != nil {
-    appLogger.Errorf(format, args)
-  }
+	if appLogger != nil {
+		appLogger.Errorf(format, args)
+	}
 }
 
 func Fatalf(format string, args ...interface{}) {
-  if appLogger != nil {
-    appLogger.Fatalf(format, args)
-  }
+	if appLogger != nil {
+		appLogger.Fatalf(format, args)
+	}
 }
 
 func InitLogger(logger Logger) {
