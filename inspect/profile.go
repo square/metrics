@@ -21,16 +21,17 @@ import (
 
 // Profiler contains a sequence of profiles which are collected over the course of a query execution.
 type Profiler struct {
+	now      func() time.Time
 	mutex    *sync.Mutex
 	profiles []Profile
 }
 
 func New() *Profiler {
-	profiler := Profiler{
+	return &Profiler{
+		now:      time.Now,
 		mutex:    &sync.Mutex{},
 		profiles: []Profile{},
 	}
-	return &profiler
 }
 
 // Record will create a profile of the given name from `start` until the current time.
@@ -40,11 +41,11 @@ func (p *Profiler) Record(name string) func() {
 		// If the profiler instance doesn't exist, then don't attempt to operate on it.
 		return func() {}
 	}
-	start := time.Now()
+	start := p.now()
 	return func() {
 		p.mutex.Lock()
 		defer p.mutex.Unlock()
-		p.profiles = append(p.profiles, Profile{name: name, startTime: start, finishTime: time.Now()})
+		p.profiles = append(p.profiles, Profile{name: name, startTime: start, finishTime: p.now()})
 	}
 }
 
