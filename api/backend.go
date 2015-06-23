@@ -138,7 +138,7 @@ type ProfilingBackend struct {
 }
 
 func (b ProfilingBackend) FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error) {
-	defer request.Profiler.Record("fetchSingleSeries")
+	defer request.Profiler.Record("fetchSingleSeries")()
 	return b.Backend.FetchSingleSeries(request)
 }
 
@@ -148,6 +148,6 @@ type ProfilingMultiBackend struct {
 }
 
 func (b ProfilingMultiBackend) FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error) {
-	defer request.Profiler.Record("fetchMultipleSeries")
+	defer request.Profiler.Record("fetchMultipleSeries")()
 	return b.MultiBackend.FetchMultipleSeries(request)
 }

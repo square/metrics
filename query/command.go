@@ -176,7 +176,7 @@ func (cmd ProfilingCommand) Name() string {
 }
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
-	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))
+	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.API = api.ProfilingAPI{
 		Profiler: cmd.Profiler,
 		API:      context.API,

@@ -68,16 +68,16 @@ func TestProfilerSimple(t *testing.T) {
 	}
 
 	count := 2000
-	wait := make(chan int)
+
+	var wait sync.WaitGroup
+	wait.Add(count)
 	for i := 0; i < count; i++ {
 		go func(i int) {
 			profiler.Record(fmt.Sprintf("metric_%d", i))()
-			wait <- i
+			wait.Done()
 		}(i)
 	}
-	for i := 0; i < count; i++ {
-		<-wait
-	}
+	wait.Wait()
 	list = profiler.All()
 	a.EqInt(len(list), count+1)
 }

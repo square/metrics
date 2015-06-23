@@ -65,30 +65,30 @@ type ProfilingAPI struct {
 }
 
 func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
-	defer api.Profiler.Record("api.AddMetric")
+	defer api.Profiler.Record("api.AddMetric")()
 	return api.API.AddMetric(metric)
 }
 func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
-	defer api.Profiler.Record("api.RemoveMetric")
+	defer api.Profiler.Record("api.RemoveMetric")()
 	return api.API.RemoveMetric(metric)
 }
 func (api ProfilingAPI) ToGraphiteName(metric TaggedMetric) (GraphiteMetric, error) {
-	defer api.Profiler.Record("api.ToGraphiteName")
+	defer api.Profiler.Record("api.ToGraphiteName")()
 	return api.API.ToGraphiteName(metric)
 }
 func (api ProfilingAPI) ToTaggedName(metric GraphiteMetric) (TaggedMetric, error) {
-	defer api.Profiler.Record("api.ToTaggedName")
+	defer api.Profiler.Record("api.ToTaggedName")()
 	return api.API.ToTaggedName(metric)
 }
 func (api ProfilingAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
-	defer api.Profiler.Record("api.GetAllTags")
+	defer api.Profiler.Record("api.GetAllTags")()
 	return api.API.GetAllTags(metricKey)
 }
 func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
-	defer api.Profiler.Record("api.GetAllMetrics")
+	defer api.Profiler.Record("api.GetAllMetrics")()
 	return api.API.GetAllMetrics()
 }
 func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
-	defer api.Profiler.Record("api.GetMetircsForTag")
+	defer api.Profiler.Record("api.GetMetricsForTag")()
 	return api.API.GetMetricsForTag(tagKey, tagValue)
 }
