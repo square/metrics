@@ -32,9 +32,13 @@ type Config struct {
 	StaticDir string `yaml:"static_dir"`
 }
 
+type Hook struct {
+	onQuery chan<- *inspect.Profiler
+}
+
 type QueryHandler struct {
-	profiler *inspect.Profiler
-	context  query.ExecutionContext
+	hook    Hook
+	context query.ExecutionContext
 }
 
 type Response struct {
@@ -92,6 +96,10 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	log.Infof("Profiler results: %+v", profiler.All())
 
 	bodyResponse(writer, result, cmd.Name())
+
+	if q.hook.onQuery != nil {
+		q.hook.onQuery <- profiler
+	}
 }
 
 type StaticHandler struct {
@@ -106,12 +114,13 @@ func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	http.ServeFile(writer, request, res)
 }
 
-func NewMux(config Config, context query.ExecutionContext) *http.ServeMux {
+func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
 
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", QueryHandler{
 		context: context,
+		hook:    hook,
 	})
 	staticPath := "/static/"
 	httpMux.Handle(staticPath, StaticHandler{StaticPath: staticPath, Directory: config.StaticDir})
@@ -119,7 +128,7 @@ func NewMux(config Config, context query.ExecutionContext) *http.ServeMux {
 }
 
 func Main(config Config, context query.ExecutionContext) {
-	httpMux := NewMux(config, context)
+	httpMux := NewMux(config, context, Hook{})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
