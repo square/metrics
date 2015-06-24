@@ -80,4 +80,8 @@ func TestProfilerSimple(t *testing.T) {
 	wait.Wait()
 	list = profiler.All()
 	a.EqInt(len(list), count+1)
+	flushed := profiler.Flush()
+	a.EqInt(len(flushed), count+1)
+	flushed = profiler.Flush()
+	a.EqInt(len(flushed), 0)
 }
