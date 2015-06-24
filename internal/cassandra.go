@@ -56,7 +56,7 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 func (db *defaultDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	batch := db.session.NewBatch(gocql.UnloggedBatch)
 	for _, metric := range metrics {
-		batch.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metric.MetricKey, metric.TagSet)
+		batch.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metric.MetricKey, metric.TagSet.Serialize())
 	}
 	return db.session.ExecuteBatch(batch)
 }
