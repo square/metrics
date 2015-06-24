@@ -52,7 +52,7 @@ func (fa *FakeApi) AddPair(tm api.TaggedMetric, gm api.GraphiteMetric) {
 	}
 }
 
-func (fa *FakeApi) AddMetric(metric api.TaggedMetric) error {
+func (fa *FakeApi) AddMetrics(metrics []api.TaggedMetric) error {
 	return nil
 }
 

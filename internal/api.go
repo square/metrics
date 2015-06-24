@@ -41,12 +41,12 @@ func NewAPI(config api.Config) (api.API, error) {
 	}, nil
 }
 
-func (a *defaultAPI) AddMetric(metric api.TaggedMetric) error {
-	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
+func (a *defaultAPI) AddMetrics(metrics []api.TaggedMetric) error {
+	if err := a.db.AddMetricNames(metrics); err != nil {
 		return err
 	}
-	for tagKey, tagValue := range metric.TagSet {
-		if err := a.db.AddToTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
+	for _, metric := range metrics {
+		if err := a.db.AddToTagIndex(metric); err != nil {
 			return err
 		}
 	}

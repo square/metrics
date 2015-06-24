@@ -107,7 +107,7 @@ func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API,
 			perMetric.matched++
 			reversed, err := ruleset.ToGraphiteName(converted)
 			if *insertToDatabase {
-				apiInstance.AddMetric(converted)
+				apiInstance.AddMetrics([]api.TaggedMetric{converted})
 			}
 			if err != nil {
 				perMetric.reverseError++
