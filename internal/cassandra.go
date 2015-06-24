@@ -24,8 +24,8 @@ import (
 type Database interface {
 	// Insertion Methods
 	// -----------------
-	AddMetricName(metricKey api.MetricKey, metric api.TagSet) error
-	AddToTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
+	AddMetricNames(metrics []api.TaggedMetric) error
+	AddToTagIndex(taggedMetric api.TaggedMetric) error
 
 	// Query methods
 	// -------------
@@ -53,21 +53,20 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 }
 
 // AddMetricName inserts to metric to Cassandra.
-func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-	return db.session.Query(
-		"INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)",
-		metricKey,
-		tagSet.Serialize(),
-	).Exec()
+func (db *defaultDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
+	batch := db.session.NewBatch(gocql.UnloggedBatch)
+	for _, metric := range metrics {
+		batch.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metric.MetricKey, metric.TagSet.Serialize())
+	}
+	return db.session.ExecuteBatch(batch)
 }
 
-func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
-	return db.session.Query(
-		"UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?",
-		[]string{string(metricKey)},
-		tagKey,
-		tagValue,
-	).Exec()
+func (db *defaultDatabase) AddToTagIndex(taggedMetric api.TaggedMetric) error {
+	batch := db.session.NewBatch(gocql.UnloggedBatch)
+	for tagKey, tagValue := range taggedMetric.TagSet {
+		batch.Query("UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?", []string{string(taggedMetric.MetricKey)}, tagKey, tagValue)
+	}
+	return db.session.ExecuteBatch(batch)
 }
 
 func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error) {

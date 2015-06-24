@@ -26,7 +26,7 @@ type fakeAPI struct {
 	tagSets map[string][]api.TagSet
 }
 
-func (a fakeAPI) AddMetric(metric api.TaggedMetric) error {
+func (a fakeAPI) AddMetrics(metrics []api.TaggedMetric) error {
 	// NOTHING
 	return nil
 }

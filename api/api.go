@@ -22,8 +22,8 @@ import "github.com/square/metrics/inspect"
 
 // API is the set of public methods exposed by the indexer library.
 type API interface {
-	// AddMetric adds the metric to the system.
-	AddMetric(metric TaggedMetric) error
+	// AddMetrics adds the metrics to the system.
+	AddMetrics(metric []TaggedMetric) error
 
 	// RemoveMetric removes the metric from the system.
 	RemoveMetric(metric TaggedMetric) error
@@ -64,9 +64,9 @@ type ProfilingAPI struct {
 	API      API
 }
 
-func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
-	defer api.Profiler.Record("api.AddMetric")()
-	return api.API.AddMetric(metric)
+func (api ProfilingAPI) AddMetrics(metrics []TaggedMetric) error {
+	defer api.Profiler.Record("api.AddMetrics")()
+	return api.API.AddMetrics(metrics)
 }
 func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
 	defer api.Profiler.Record("api.RemoveMetric")()

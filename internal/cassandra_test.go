@@ -88,7 +88,7 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 
 	for _, c := range metricNamesTests {
 		if c.addTest {
-			a.CheckError(db.AddMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
+			a.CheckError(db.AddMetricNames([]api.TaggedMetric{{api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)}}))
 		} else {
 			a.CheckError(db.RemoveMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
 		}
@@ -118,14 +118,12 @@ func Test_GetAllMetrics(t *testing.T) {
 		return
 	}
 	defer cleanDatabase(t, db)
-	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
-	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
+	a.CheckError(db.AddMetricNames([]api.TaggedMetric{{"metric.a", api.ParseTagSet("foo=a")}, {"metric.a", api.ParseTagSet("foo=b")}}))
 	keys, err := db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
 	a.Eq(keys, []api.MetricKey{"metric.a"})
-	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
-	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
+	a.CheckError(db.AddMetricNames([]api.TaggedMetric{{"metric.b", api.ParseTagSet("foo=c")}, {"metric.b", api.ParseTagSet("foo=c")}}))
 	keys, err = db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
@@ -147,8 +145,8 @@ func Test_TagIndex(t *testing.T) {
 	} else {
 		a.EqInt(len(rows), 0)
 	}
-	a.CheckError(db.AddToTagIndex("environment", "production", "a.b.c"))
-	a.CheckError(db.AddToTagIndex("environment", "production", "d.e.f"))
+	db.AddToTagIndex(api.TaggedMetric{"a.b.c", api.TagSet{"environment": "production"}})
+	db.AddToTagIndex(api.TaggedMetric{"d.e.f", api.TagSet{"environment": "production"}})
 	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
 		a.CheckError(err)
 	} else {
