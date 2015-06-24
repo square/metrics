@@ -46,12 +46,15 @@ type SeriesListValue api.SeriesList
 func (value SeriesListValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList(value), nil
 }
+
 func (value SeriesListValue) ToString() (string, error) {
 	return "", conversionError{"SeriesList", "string"}
 }
+
 func (value SeriesListValue) ToScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
+
 func (value SeriesListValue) GetName() string {
 	return api.SeriesList(value).Name
 }
@@ -62,12 +65,15 @@ type StringValue string
 func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList{}, conversionError{"string", "SeriesList"}
 }
+
 func (value StringValue) ToString() (string, error) {
 	return string(value), nil
 }
+
 func (value StringValue) ToScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
 }
+
 func (value StringValue) GetName() string {
 	return string(value)
 }
@@ -87,12 +93,15 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 		Timerange: timerange,
 	}, nil
 }
+
 func (value ScalarValue) ToString() (string, error) {
 	return "", conversionError{"scalar", "string"}
 }
+
 func (value ScalarValue) ToScalar() (float64, error) {
 	return float64(value), nil
 }
+
 func (value ScalarValue) GetName() string {
 	return fmt.Sprintf("%g", value)
 }
