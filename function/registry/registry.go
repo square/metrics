@@ -208,14 +208,30 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 		MinArguments: 2,
 		MaxArguments: 2,
 		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
-			leftValue, err := args[0].Evaluate(context)
+			leftChannel := make(chan function.Value, 1)
+			rightChannel := make(chan function.Value, 1)
+			errs := make(chan error, 2)
+			go func() {
+				leftValue, err := args[0].Evaluate(context)
+				leftChannel <- leftValue
+				errs <- err
+			}()
+			go func() {
+				rightValue, err := args[1].Evaluate(context)
+				rightChannel <- rightValue
+				errs <- err
+			}()
+			err := <-errs
 			if err != nil {
 				return nil, err
 			}
-			rightValue, err := args[1].Evaluate(context)
+			err = <-errs
 			if err != nil {
 				return nil, err
 			}
+			leftValue := <-leftChannel
+			rightValue := <-rightChannel
+
 			leftList, err := leftValue.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
