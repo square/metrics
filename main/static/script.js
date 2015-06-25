@@ -57,19 +57,33 @@ module.controller("mainCtrl", function(
   $scope.queryResult = "";
   $scope.inputModel = {
     query: "",
-    renderType: "line"
+    renderType: "line",
+    profile: false,
   };
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
     $location.search("query", $scope.inputModel.query)
     $location.search("renderType", $scope.inputModel.renderType)
+    $location.search("profile", $scope.inputModel.profile)
   };
+
+  $scope.$on("$locationChangeSuccess", function() {
+    // this triggers at least once (in the beginning).
+    var queries = $location.search();
+    $scope.inputModel.query = queries["query"] || "";
+    $scope.inputModel.renderType = queries["renderType"] || "line";
+    $scope.inputModel.profile = parseBool(queries["profile"]);
+    if ($scope.inputModel.query) {
+      launchRequest($scope.inputModel.query);
+    }
+  });
 
   // true if the output should be tabular.
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
+
   $scope.screenState = function() {
     if ($scope.launchedQuery > 0) {
       return "loading";
@@ -106,6 +120,9 @@ module.controller("mainCtrl", function(
     });
   }
 
+  function parseBool(string) {
+    return string === "true" ? true : false
+  }
   var chart = null;
   function receive(object) {
     if (chart !== null) {
@@ -156,16 +173,6 @@ module.controller("mainCtrl", function(
     });
     setTimeout(function(){chart.draw(dataTable, options)}, 1);
   }
-
-  $scope.$on("$locationChangeSuccess", function() {
-    // this triggers at least once (in the beginning).
-    var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    if ($scope.inputModel.query) {
-      launchRequest($scope.inputModel.query);
-    }
-  });
 });
 
 function dateFromIndex(index, timerange) {
