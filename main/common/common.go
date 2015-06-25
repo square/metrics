@@ -35,7 +35,7 @@ var (
 	// YamlFile is the location of the rule YAML file.
 	ConfigFile = flag.String("config-file", "", "Location of YAML config file")
 	Verbose    = flag.Bool("verbose", false, "Set to true to enable logging")
-	Logger     = flag.String("logger", "", "Selects the logger to use")
+	Logger     = flag.String("logger", "glog", "Selects the logger to use")
 )
 
 type Config struct {

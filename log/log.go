@@ -29,31 +29,31 @@ type Logger interface {
 
 func Debugf(format string, args ...interface{}) {
 	if appLogger != nil {
-		appLogger.Debugf(format, args)
+		appLogger.Debugf(format, args...)
 	}
 }
 
 func Infof(format string, args ...interface{}) {
 	if appLogger != nil {
-		appLogger.Infof(format, args)
+		appLogger.Infof(format, args...)
 	}
 }
 
 func Warningf(format string, args ...interface{}) {
 	if appLogger != nil {
-		appLogger.Warningf(format, args)
+		appLogger.Warningf(format, args...)
 	}
 }
 
 func Errorf(format string, args ...interface{}) {
 	if appLogger != nil {
-		appLogger.Errorf(format, args)
+		appLogger.Errorf(format, args...)
 	}
 }
 
 func Fatalf(format string, args ...interface{}) {
 	if appLogger != nil {
-		appLogger.Fatalf(format, args)
+		appLogger.Fatalf(format, args...)
 	}
 }
 

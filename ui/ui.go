@@ -57,7 +57,7 @@ type Response struct {
 	Name    string        `json:"name,omitempty"`
 	Message string        `json:"message,omitempty"`
 	Body    interface{}   `json:"body,omitempty"`
-	Profile []ProfileJSON `json:"body,omitempty"`
+	Profile []ProfileJSON `json:"profile,omitempty"`
 }
 
 type ProfileJSON struct {
@@ -141,7 +141,6 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
-	log.Infof("Profiler results: %+v", profiler.All())
 	response := Response{
 		Body: result,
 		Name: cmd.Name(),
@@ -162,8 +161,7 @@ type StaticHandler struct {
 
 func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	res := h.Directory + request.URL.Path[len(h.StaticPath):]
-	log.Infof("url.path = %s\n", request.URL.Path)
-	log.Infof("res = %s\n", res)
+	log.Infof("url.path=%s, resource=%s\n", request.URL.Path, res)
 	http.ServeFile(writer, request, res)
 }
 

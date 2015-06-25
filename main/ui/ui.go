@@ -37,7 +37,7 @@ func main() {
 		Backend: blueflood.NewBlueflood(config.Blueflood),
 	}
 	backend := api.ProfilingMultiBackend{
-		MultiBackend: backend.NewSequentialMultiBackend(blueflood),
+		MultiBackend: backend.NewParallelMultiBackend(blueflood, 20),
 	}
 
 	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000})
