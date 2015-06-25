@@ -60,7 +60,7 @@ type StandardRegistry struct {
 	mapping map[string]function.MetricFunction
 }
 
-var defaultRegistry = StandardRegistry{make(map[string]function.MetricFunction)}
+var defaultRegistry = StandardRegistry{mapping: make(map[string]function.MetricFunction)}
 
 func Default() StandardRegistry {
 	return defaultRegistry
@@ -95,9 +95,9 @@ func MustRegister(fun function.MetricFunction) {
 // NewFilter creates a new instance of a filtering function.
 func NewFilter(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
 	return function.MetricFunction{
-		Name:        name,
-		MinArgument: 2,
-		MaxArgument: 2,
+		Name:         name,
+		MinArguments: 2,
+		MaxArguments: 2,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
@@ -131,10 +131,10 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 // NewAggregate takes a named aggregating function `[float64] => float64` and makes it into a MetricFunction.
 func NewAggregate(name string, aggregator func([]float64) float64) function.MetricFunction {
 	return function.MetricFunction{
-		Name:        name,
-		MinArgument: 1,
-		MaxArgument: 1,
-		Groups:      true,
+		Name:          name,
+		MinArguments:  1,
+		MaxArguments:  1,
+		AllowsGroupBy: true,
 		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
@@ -163,9 +163,9 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
 func NewTransform(name string, parameterCount int, transformer func([]float64, []function.Value, float64) ([]float64, error)) function.MetricFunction {
 	return function.MetricFunction{
-		Name:        name,
-		MinArgument: parameterCount + 1,
-		MaxArgument: parameterCount + 1,
+		Name:         name,
+		MinArguments: parameterCount + 1,
+		MaxArguments: parameterCount + 1,
 		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			listValue, err := args[0].Evaluate(context)
 			if err != nil {
@@ -204,9 +204,9 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 // the binary operators display a natural join semantic.
 func NewOperator(op string, operator func(float64, float64) float64) function.MetricFunction {
 	return function.MetricFunction{
-		Name:        op,
-		MinArgument: 2,
-		MaxArgument: 2,
+		Name:         op,
+		MinArguments: 2,
+		MaxArguments: 2,
 		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
 			leftValue, err := args[0].Evaluate(context)
 			if err != nil {

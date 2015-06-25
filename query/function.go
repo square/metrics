@@ -23,9 +23,9 @@ import (
 )
 
 var TimeshiftFunction = function.MetricFunction{
-	Name:        "transform.timeshift",
-	MinArgument: 2,
-	MaxArgument: 2,
+	Name:         "transform.timeshift",
+	MinArguments: 2,
+	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		value, err := arguments[1].Evaluate(context)
 		if err != nil {
@@ -53,9 +53,9 @@ var TimeshiftFunction = function.MetricFunction{
 }
 
 var MovingAverageFunction = function.MetricFunction{
-	Name:        "transform.moving_average",
-	MinArgument: 2,
-	MaxArgument: 2,
+	Name:         "transform.moving_average",
+	MinArguments: 2,
+	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
@@ -129,9 +129,9 @@ var MovingAverageFunction = function.MetricFunction{
 }
 
 var AliasFunction = function.MetricFunction{
-	Name:        "transform.alias",
-	MinArgument: 2,
-	MaxArgument: 2,
+	Name:         "transform.alias",
+	MinArguments: 2,
+	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
 		value, err := arguments[0].Evaluate(context)
 		if err != nil {

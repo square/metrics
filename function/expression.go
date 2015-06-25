@@ -33,11 +33,11 @@ type Registry interface {
 
 // MetricFunction defines a common logic to dispatch a function in MQE.
 type MetricFunction struct {
-	Name        string
-	MinArgument int
-	MaxArgument int
-	Groups      bool // Whether the function allows a 'group by' clause.
-	Compute     func(EvaluationContext, []Expression, []string) (Value, error)
+	Name          string
+	MinArguments  int
+	MaxArguments  int
+	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
+	Compute       func(EvaluationContext, []Expression, []string) (Value, error)
 }
 
 // Evaluate the given metric function.
@@ -45,10 +45,10 @@ func (f MetricFunction) Evaluate(context EvaluationContext,
 	arguments []Expression, groupBy []string) (Value, error) {
 	// preprocessing
 	length := len(arguments)
-	if length < f.MinArgument || (f.MaxArgument != -1 && f.MaxArgument < length) {
-		return nil, ArgumentLengthError{f.Name, f.MinArgument, f.MaxArgument, length}
+	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
+		return nil, ArgumentLengthError{f.Name, f.MinArguments, f.MaxArguments, length}
 	}
-	if len(groupBy) > 0 && !f.Groups {
+	if len(groupBy) > 0 && !f.AllowsGroupBy {
 		// TODO(jee) - use typed errors
 		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
 	}
