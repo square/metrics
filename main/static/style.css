@@ -29,8 +29,12 @@ textarea.queryinput {
 }
 
 #chart-div {
-  position:absolute;
   background:#EEE;
   width:100%;
   height:300px;
+}
+
+#timeline-div {
+  width:100%;
+  height:500px;
 }

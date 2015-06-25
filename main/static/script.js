@@ -15,7 +15,7 @@
 
 var module = angular.module("main",[]);
 
-google.load("visualization", "1.0", {"packages":["corechart"]});
+google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
 
 module.config(function($locationProvider) {
   $locationProvider.html5Mode(true);
@@ -53,9 +53,18 @@ module.controller("mainCtrl", function(
   $q,
   $scope
   ) {
-  var queryCounter = 0; // ever-incrementing counter of queries - used to detect out-of-order queries.
+  var queryCounter = 0;     // ever-incrementing counter of queries - used to detect out-of-order queries.
+  var mainChart = {
+    dom:   document.getElementById("chart-div"),
+    chart: null
+  };
+  var timelineChart = {
+    dom:   document.getElementById("timeline-div"),
+    chart: null
+  };
   $scope.queryResult = "";
   $scope.inputModel = {
+    profile: false,
     query: "",
     renderType: "line"
   };
@@ -64,12 +73,31 @@ module.controller("mainCtrl", function(
   $scope.onSubmitQuery = function() {
     $location.search("query", $scope.inputModel.query)
     $location.search("renderType", $scope.inputModel.renderType)
+    $location.search("profile", $scope.inputModel.profile.toString())
   };
+
+  $scope.$on("$locationChangeSuccess", function() {
+    // this triggers at least once (in the beginning).
+    var queries = $location.search();
+    $scope.inputModel.query = queries["query"] || "";
+    $scope.inputModel.renderType = queries["renderType"] || "line";
+    $scope.inputModel.profile = parseBool(queries["profile"]);
+    if ($scope.inputModel.query) {
+      launchRequest({
+        profile: $scope.inputModel.profile,
+        query:   $scope.inputModel.query
+      });
+    }
+  });
 
   // true if the output should be tabular.
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
+  $scope.hasProfiling = function() {
+    return !!($scope.queryResult && $scope.queryResult.profile);
+  };
+
   $scope.screenState = function() {
     if ($scope.launchedQuery > 0) {
       return "loading";
@@ -85,12 +113,12 @@ module.controller("mainCtrl", function(
   $scope.chartWaiting = 0;
   $scope.launchedQuery = 0;
 
-  function launchRequest(query) {
+  function launchRequest(params) {
     queryCounter++;
     var currentQueryCounter = queryCounter; // store it in the closure.
     $scope.launchedQuery++;
     var request = $http.get("/query", {
-      params:{query: query}
+      params:params
     }).success(function(data, status, headers, config) {
       $scope.launchedQuery--;
       $scope.queryResult = data;
@@ -106,16 +134,39 @@ module.controller("mainCtrl", function(
     });
   }
 
-  var chart = null;
-  function receive(object) {
-    if (chart !== null) {
-      chart.clearChart();
-      chart = null;
+  function parseBool(string) {
+    return string === "true" ? true : false
+  };
+
+  // chart-related functions
+  function clearChart(chart) {
+    if (chart.chart !== null) {
+      chart.chart.clearChart();
+      chart.chart = null;
     }
+  };
+
+  function asyncRender(chart, dataTable, options) {
+    google.visualization.events.addListener(chart.chart, "ready", function() {
+      $scope.$apply(function($scope) { $scope.chartWaiting--; });
+    });
+    setTimeout(function(){chart.chart.draw(dataTable, options)}, 1);
+  };
+
+  function receive(object) {
+    clearChart(mainChart);
+    clearChart(timelineChart);
+    receiveSelect(object, mainChart);
+    receiveProfile(object, timelineChart);
+  }
+
+
+  function receiveSelect(object, chart) {
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
       return;
     }
+    console.log('increase');
     $scope.chartWaiting++;
     var series = [];
     var labels = ["Time"];
@@ -130,7 +181,6 @@ module.controller("mainCtrl", function(
       }
     }
     // Next, add each row.
-
     var timerange = object.body[0].timerange;
     for (var t = 0; t < series[0].values.length; t++) {
       var row = [dateFromIndex(t, timerange)];
@@ -144,28 +194,46 @@ module.controller("mainCtrl", function(
       legend: {position: "bottom"},
       chartArea: {left: "5%", width:"90%", height: "300px"}
     }
-    var chartDiv = document.getElementById("chart-div")
     if ($scope.inputModel.renderType === "line") {
-      chart = new google.visualization.LineChart(chartDiv);
+      chart.chart = new google.visualization.LineChart(chart.dom);
     } else if ($scope.inputModel.renderType === "area") {
       options.isStacked = true;
-      chart = new google.visualization.AreaChart(chartDiv);
+      chart.chart = new google.visualization.AreaChart(chart.dom);
     }
-    google.visualization.events.addListener(chart, "ready", function() {
-      $scope.$apply(function($scope) { $scope.chartWaiting--; });
-    });
-    setTimeout(function(){chart.draw(dataTable, options)}, 1);
-  }
+    asyncRender(chart, dataTable, options);
+  };
 
-  $scope.$on("$locationChangeSuccess", function() {
-    // this triggers at least once (in the beginning).
-    var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    if ($scope.inputModel.query) {
-      launchRequest($scope.inputModel.query);
+  function receiveProfile(object, chart) {
+    if (!$scope.hasProfiling()) {
+      return
     }
-  });
+    console.log('increase');
+    $scope.chartWaiting++;
+    var dataTable = new google.visualization.DataTable();
+    var options = {
+      chartArea: {left: "5%", width:"90%", height: "500px"},
+      avoidOverlappingGridLines: false
+    };
+    chart.chart = new google.visualization.Timeline(chart.dom);
+    dataTable.addColumn({ type: 'string', id: 'Name' });
+    dataTable.addColumn({ type: 'number', id: 'Start' });
+    dataTable.addColumn({ type: 'number', id: 'End' });
+    var minValue = Number.POSITIVE_INFINITY;
+    for (var i = 0; i < object.profile.length; i++) {
+      var profile = object.profile[i];
+      minValue = Math.min(profile.start, minValue);
+      minValue = Math.min(profile.finish, minValue);
+    };
+    function normalize(value) {
+      return value - minValue;
+    };
+    for (var i = 0; i < object.profile.length; i++) {
+      var profile = object.profile[i];
+      var row = [ profile.name , normalize(profile.start), normalize(profile.finish) ];
+      dataTable.addRows([row]);
+    }
+    asyncRender(chart, dataTable, options);
+  }
 });
 
 function dateFromIndex(index, timerange) {

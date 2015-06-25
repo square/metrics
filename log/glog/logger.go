@@ -22,23 +22,23 @@ import (
 type Logger struct{}
 
 func (sl *Logger) Debugf(format string, args ...interface{}) {
-	glog.V(1).Infof(format, args)
+	glog.V(1).Infof(format, args...)
 }
 
 func (sl *Logger) Infof(format string, args ...interface{}) {
-	glog.Infof(format, args)
+	glog.Infof(format, args...)
 }
 
 func (sl *Logger) Warningf(format string, args ...interface{}) {
-	glog.Warningf(format, args)
+	glog.Warningf(format, args...)
 }
 
 func (sl *Logger) Errorf(format string, args ...interface{}) {
-	glog.Errorf(format, args)
+	glog.Errorf(format, args...)
 }
 
 func (sl *Logger) Fatalf(format string, args ...interface{}) {
-	glog.Fatalf(format, args)
+	glog.Fatalf(format, args...)
 }
 
 var _ log.Logger = (*Logger)(nil)
