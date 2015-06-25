@@ -76,6 +76,8 @@ module.controller("mainCtrl", function(
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
+    // TODO - unhack this.
+    $scope.inputModel.query = document.getElementById("query-input").value;
     $location.search("query", $scope.inputModel.query)
     $location.search("renderType", $scope.inputModel.renderType)
   };
