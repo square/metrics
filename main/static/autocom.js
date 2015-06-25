@@ -81,7 +81,8 @@ Methods:
 
 */
 
-
+// scoreTable uses the table for memoization and computes a modified LCS on A and B.
+// The config contains parameters for this procedure.
 function scoreTable(table, A, B, i, j, config) {
 	if (i >= A.length || j >= B.length) {
 		return config.skipGiven * (i - A.length); // Don't penalize for the end of the second word
@@ -103,6 +104,8 @@ function scoreTable(table, A, B, i, j, config) {
 	return table[i][j] = Math.max( advanceI, advanceJ );
 }
 
+// scoreAgainst computes how well the "letters" match "word" (this is not commutative).
+// The config contains parameters for the algorithm.
 function scoreAgainst(letters, word, config) {
 	var table = [];
 	for (var i = 0; i < letters.length; i++) {
@@ -115,6 +118,7 @@ function scoreAgainst(letters, word, config) {
 	return s;
 }
 
+// generateElements creates the elements needed by an Autocom, based on the given input.
 function generateElements(input) {
 	var holder = input.parentElement;
 
@@ -159,6 +163,8 @@ function generateElements(input) {
 	};
 }
 
+// predictReady determines whether or not the input is ready for prediction,
+// and it asks for something that matches non-separators.
 function predictReady(input, letter) {
 	if (input.selectionStart !== input.selectionEnd) {
 		return false;
@@ -176,33 +182,35 @@ function predictReady(input, letter) {
 	return false;
 }
 
-function filterCandidates(at, options, config) {
+// filterCandidates finds a list of candidates, pursuant to the config, among the options
+// from the given prefix `word`.
+function filterCandidates(word, options, config) {
+	// Compute the scores for each word.
 	for (var i = 0; i < options.length; i++) {
-		options[i] = { word: options[i], score: scoreAgainst(at.word, options[i], config) };
+		options[i] = { word: options[i], score: scoreAgainst(word, options[i], config) };
 	}
 	options.sort(function(a, b) {
 		return b.score - a.score;
 	});
-
 	var words = [];
 	for (var i = 0; i < options.length; i++) {
 		if (options[i].score < config.threshold || (config.count !== null && i >= config.count)) {
 			break;
 		}
-		words[i] = options[i];
+		words[i] = options[i].word;
 	}
 	if (words.length == 0) {
 		return null;
 	}
-	if (words.length == 1 && words[0].word == at.word) {
+	if (words.length == 1 && words[0].word == word) {
 		return null;
 	}
-	return {words: words, at: at};
+	return words;
 }
 
 function predict(at, options, config) {
 	if (at) {
-		return filterCandidates(at, options, config)
+		return {at: at, words: filterCandidates(at.word, options, config)}
 	}
 	return null;
 }
@@ -244,7 +252,7 @@ function generateTooltipContents(tooltip, tooltipState, selectedCallback) {
 	}
 	// Then, fill each row.
 	for (var i = 0; i < tooltipState.words.length; i++) {
-		generateTooltipRow(tooltip, tooltipState.words[i].word, i, tooltipState.index, selectedCallback);
+		generateTooltipRow(tooltip, tooltipState.words[i], i, tooltipState.index, selectedCallback);
 	}
 }
 
@@ -266,15 +274,12 @@ function Autocom(input) {
 	var tooltipState = {active: false, index: 0};
 	var tooltipSuppress = false;
 
-	// Style them.
-	self.restyle();
-
 	function keyPress(e) {
 		if (tooltipState.active && !tooltipSuppress) {
 			if (e.keyCode == 9 || e.keyCode == 13) { // TAB or ENTER
 				// Tab
 				e.preventDefault();
-				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index].word);
+				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index]);
 				refresh();
 				tooltipSuppress = true;
 				return;
@@ -306,7 +311,7 @@ function Autocom(input) {
 	input.addEventListener("keydown", keyPress, false);
 
 	function completeSelect(index) {
-		insertWord(input, tooltipState.at, tooltipState.words[index].word);
+		insertWord(input, tooltipState.at, tooltipState.words[index]);
 		refresh();
 	}
 
@@ -350,6 +355,8 @@ function Autocom(input) {
 	input.addEventListener("keydown", refresh);
 	input.addEventListener("resize", refresh);
 	input.addEventListener("blur", refresh); // blur is the "unfocus" event
+
+	self.restyle();
 }
 Autocom.prototype.restyle = function() {
 	var inputStyle = getComputedStyle(this.elements.input);
