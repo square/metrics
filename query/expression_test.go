@@ -20,6 +20,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/assert"
+	"github.com/square/metrics/function"
 )
 
 type FakeBackend struct {
@@ -30,8 +31,8 @@ type LiteralExpression struct {
 	Values []float64
 }
 
-func (expr *LiteralExpression) Evaluate(context EvaluationContext) (value, error) {
-	return seriesListValue(api.SeriesList{
+func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.SeriesListValue(api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
 		Timerange: api.Timerange{},
 	}), nil
@@ -41,8 +42,8 @@ type LiteralSeriesExpression struct {
 	list api.SeriesList
 }
 
-func (expr *LiteralSeriesExpression) Evaluate(context EvaluationContext) (value, error) {
-	return seriesListValue(expr.list), nil
+func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.SeriesListValue(expr.list), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -68,11 +69,11 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		result, err := evaluateToSeriesList(test.expr, EvaluationContext{
+		result, err := evaluateToSeriesList(test.expr, function.EvaluationContext{
 			MultiBackend: backend.NewSequentialMultiBackend(FakeBackend{}),
 			Timerange:    test.timerange,
 			SampleMethod: api.SampleMean,
-			FetchLimit:   NewFetchCounter(1000),
+			FetchLimit:   function.NewFetchCounter(1000),
 		})
 
 		if err != nil {
@@ -88,17 +89,17 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := EvaluationContext{
+	emptyContext := function.EvaluationContext{
 		MultiBackend: backend.NewSequentialMultiBackend(FakeBackend{}),
 		API:          nil,
 		Timerange:    api.Timerange{},
 		SampleMethod: api.SampleMean,
 		Predicate:    nil,
-		FetchLimit:   NewFetchCounter(1000),
+		FetchLimit:   function.NewFetchCounter(1000),
 		Cancellable:  api.NewCancellable(),
 	}
 	for _, test := range []struct {
-		context              EvaluationContext
+		context              function.EvaluationContext
 		functionName         string
 		left                 api.SeriesList
 		right                api.SeriesList
@@ -319,13 +320,13 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 
 		metricFun := MakeOperatorMetricFunction(test.functionName, test.evalFunction)
 
-		value, err := metricFun.Evaluate(test.context, []Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{})
+		value, err := metricFun.Evaluate(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{})
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue
 		}
 
-		result, err := value.toSeriesList(test.context.Timerange)
+		result, err := value.ToSeriesList(test.context.Timerange)
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue
@@ -368,14 +369,14 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
-func evaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
+func evaluateToSeriesList(e function.Expression, context function.EvaluationContext) (api.SeriesList, error) {
 	value, err := e.Evaluate(context)
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return value.toSeriesList(context.Timerange)
+	return value.ToSeriesList(context.Timerange)
 }
 
 var _ api.Backend = (*FakeBackend)(nil)
-var _ Expression = (*LiteralExpression)(nil)
-var _ Expression = (*LiteralSeriesExpression)(nil)
+var _ function.Expression = (*LiteralExpression)(nil)
+var _ function.Expression = (*LiteralSeriesExpression)(nil)

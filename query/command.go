@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/function"
 	"github.com/square/metrics/inspect"
 )
 
@@ -61,7 +62,7 @@ type DescribeMetricsCommand struct {
 // It actually performs the query against the underlying metrics system.
 type SelectCommand struct {
 	predicate   api.Predicate
-	expressions []Expression
+	expressions []function.Expression
 	context     *evaluationContextNode
 }
 
@@ -118,9 +119,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	}
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
-	evaluationContext := EvaluationContext{
+	evaluationContext := function.EvaluationContext{
 		API:          context.API,
-		FetchLimit:   NewFetchCounter(context.FetchLimit),
+		FetchLimit:   function.NewFetchCounter(context.FetchLimit),
 		MultiBackend: context.Backend,
 		Predicate:    cmd.predicate,
 		SampleMethod: cmd.context.SampleMethod,

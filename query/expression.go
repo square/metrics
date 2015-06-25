@@ -18,11 +18,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync/atomic"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
-	"github.com/square/metrics/query/aggregate"
+	"github.com/square/metrics/function"
+	"github.com/square/metrics/function/aggregate"
 )
 
 func init() {
@@ -32,10 +31,10 @@ func init() {
 	MustRegister(MakeOperatorMetricFunction("*", func(x float64, y float64) float64 { return x * y }))
 	MustRegister(MakeOperatorMetricFunction("/", func(x float64, y float64) float64 { return x / y }))
 	// Aggregates
-	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.AggregateMax))
-	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.AggregateMin))
-	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.AggregateMean))
-	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.AggregateSum))
+	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.Max))
+	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.Min))
+	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.Mean))
+	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.Sum))
 	// Transformations
 	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformDerivative))
 	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformIntegral))
@@ -49,75 +48,27 @@ func init() {
 	MustRegister(MovingAverageFunction)
 	MustRegister(AliasFunction)
 	// Filter
-	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.AggregateMean, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.AggregateMean, true))
-	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.AggregateMax, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_max", aggregate.AggregateMax, true))
-	MustRegister(MakeFilterMetricFunction("filter.highest_min", aggregate.AggregateMin, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_min", aggregate.AggregateMin, true))
-}
-
-// EvaluationContext is the central piece of logic, providing
-// helper funcions & varaibles to evaluate a given piece of
-// metrics query.
-// * Contains Backend object, which can be used to fetch data
-// from the backend system.s
-// * Contains current timerange being queried for - this can be
-// changed by say, application of time shift function.
-type EvaluationContext struct {
-	MultiBackend api.MultiBackend // Backend to fetch data from
-	API          api.API          // Api to obtain metadata from
-	Timerange    api.Timerange    // Timerange to fetch data from
-	SampleMethod api.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate    api.Predicate    // Predicate to apply to TagSets prior to fetching
-	FetchLimit   fetchCounter     // A limit on the number of fetches which may be performed
-	Cancellable  api.Cancellable
-	Profiler     *inspect.Profiler
-}
-
-// fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
-type fetchCounter struct {
-	count *int32
-}
-
-func NewFetchCounter(n int) fetchCounter {
-	n32 := int32(n)
-	return fetchCounter{
-		count: &n32,
-	}
-}
-
-// Consume decrements the internal counter and returns whether the result is at least 0.
-// It does so in a threadsafe manner.
-func (c fetchCounter) Consume(n int) bool {
-	return atomic.AddInt32(c.count, -int32(n)) >= 0
-}
-
-// Expression is a piece of code, which can be evaluated in a given
-// EvaluationContext. EvaluationContext must never be changed in an Evalute().
-//
-// The contract of Expressions is that leaf nodes must sample a resulting
-// timeseries according to the resolution specified in its EvaluationContext's
-// Timerange. Internal nodes may assume that results from evaluating child
-// Expressions correspond to the timerange in the current EvaluationContext.
-type Expression interface {
-	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (value, error)
+	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.Mean, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.Mean, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.Max, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_max", aggregate.Max, true))
+	MustRegister(MakeFilterMetricFunction("filter.highest_min", aggregate.Min, false))
+	MustRegister(MakeFilterMetricFunction("filter.lowest_min", aggregate.Min, true))
 }
 
 // Implementations
 // ===============
 
 // Generates a Timeseries from the encapsulated scalar.
-func (expr scalarExpression) Evaluate(context EvaluationContext) (value, error) {
-	return scalarValue(expr.value), nil
+func (expr scalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.ScalarValue(expr.value), nil
 }
 
-func (expr stringExpression) Evaluate(context EvaluationContext) (value, error) {
-	return stringValue(expr.value), nil
+func (expr stringExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.StringValue(expr.value), nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, error) {
+func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
 	if context.Predicate == nil && expr.predicate == nil {
@@ -164,10 +115,10 @@ func (expr *metricFetchExpression) Evaluate(context EvaluationContext) (value, e
 
 	serieslist.Name = expr.metricName
 
-	return seriesListValue(serieslist), nil
+	return function.SeriesListValue(serieslist), nil
 }
 
-func (expr *functionExpression) Evaluate(context EvaluationContext) (value, error) {
+func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	fun, ok := GetFunction(expr.functionName)
 	if !ok {
 		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}
@@ -193,11 +144,11 @@ func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet
 // EvaluationContext. If any evaluations error, evaluateExpressions will
 // propagate that error. The resulting SeriesLists will be in an order
 // corresponding to the provided Expresesions.
-func evaluateExpressions(context EvaluationContext, expressions []Expression) ([]value, error) {
+func evaluateExpressions(context function.EvaluationContext, expressions []function.Expression) ([]function.Value, error) {
 	if len(expressions) == 0 {
-		return []value{}, nil
+		return []function.Value{}, nil
 	}
-	results := make([]value, len(expressions))
+	results := make([]function.Value, len(expressions))
 	for i, expr := range expressions {
 		result, err := expr.Evaluate(context)
 		if err != nil {

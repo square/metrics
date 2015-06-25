@@ -185,19 +185,19 @@ func Test_applyAggregation(t *testing.T) {
 		Expected   []float64
 	}{
 		{
-			AggregateSum,
+			Sum,
 			[]float64{3, 2, 8, 11},
 		},
 		{
-			AggregateMean,
+			Mean,
 			[]float64{3.0 / 4.0, 2.0 / 4.0, 8.0 / 4.0, 11.0 / 4.0},
 		},
 		{
-			AggregateMax,
+			Max,
 			[]float64{4, 2, 4, 4},
 		},
 		{
-			AggregateMin,
+			Min,
 			[]float64{-1, -1, 0, 2},
 		},
 	}
@@ -306,7 +306,7 @@ func Test_AggregateBy(t *testing.T) {
 	}{
 		{
 			[]string{"env"},
-			AggregateSum,
+			Sum,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{1, 11, 3},
@@ -324,7 +324,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc"},
-			AggregateMax,
+			Max,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 2, 2},
@@ -348,7 +348,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{"dc", "env"},
-			AggregateMean,
+			Mean,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 1, 2},
@@ -389,7 +389,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		{
 			[]string{},
-			AggregateSum,
+			Sum,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{5, 16, 9},

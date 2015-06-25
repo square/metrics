@@ -83,7 +83,7 @@ func filterNaN(array []float64) []float64 {
 }
 
 // The sum aggregator returns the mean of the given array
-func AggregateSum(array []float64) float64 {
+func Sum(array []float64) float64 {
 	array = filterNaN(array)
 	sum := 0.0
 	for _, v := range array {
@@ -93,7 +93,7 @@ func AggregateSum(array []float64) float64 {
 }
 
 // The mean aggregator returns the mean of the given array
-func AggregateMean(array []float64) float64 {
+func Mean(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
 		// The mean of an empty list is not well-defined
@@ -107,7 +107,7 @@ func AggregateMean(array []float64) float64 {
 }
 
 // The minimum aggregator returns the minimum
-func AggregateMin(array []float64) float64 {
+func Min(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
 		// The minimum of an empty list is not well-defined
@@ -121,7 +121,7 @@ func AggregateMin(array []float64) float64 {
 }
 
 // The maximum aggregator returns the maximum
-func AggregateMax(array []float64) float64 {
+func Max(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
 		// The maximum of an empty list is not well-defined

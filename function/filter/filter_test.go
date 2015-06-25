@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package filter
 
 import (
 	"testing"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/assert"
-	"github.com/square/metrics/query/aggregate"
+	"github.com/square/metrics/function/aggregate"
 )
 
 func TestFilter(t *testing.T) {
@@ -68,87 +68,87 @@ func TestFilter(t *testing.T) {
 		expect  []string
 	}{
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  true,
 			count:   6,
 			expect:  []string{"A", "B", "C", "D"},
 		},
 
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  false,
 			count:   6,
 			expect:  []string{"A", "B", "C", "D"},
 		},
 
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  true,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  true,
 			count:   3,
 			expect:  []string{"A", "B", "C"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  true,
 			count:   2,
 			expect:  []string{"A", "B"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  true,
 			count:   1,
 			expect:  []string{"B"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  false,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  false,
 			count:   3,
 			expect:  []string{"A", "C", "D"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  false,
 			count:   2,
 			expect:  []string{"C", "D"},
 		},
 		{
-			summary: aggregate.AggregateSum,
+			summary: aggregate.Sum,
 			lowest:  false,
 			count:   1,
 			expect:  []string{"D"},
 		},
 		{
-			summary: aggregate.AggregateMax,
+			summary: aggregate.Max,
 			lowest:  false,
 			count:   1,
 			expect:  []string{"C"},
 		},
 		{
-			summary: aggregate.AggregateMax,
+			summary: aggregate.Max,
 			lowest:  false,
 			count:   2,
 			expect:  []string{"C", "D"},
 		},
 		{
-			summary: aggregate.AggregateMin,
+			summary: aggregate.Min,
 			lowest:  false,
 			count:   2,
 			expect:  []string{"A", "D"},
 		},
 		{
-			summary: aggregate.AggregateMin,
+			summary: aggregate.Min,
 			lowest:  false,
 			count:   3,
 			expect:  []string{"A", "C", "D"},
