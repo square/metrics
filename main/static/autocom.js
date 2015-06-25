@@ -81,8 +81,41 @@ Methods:
 
 */
 
-function Autocom(input) {
-	// The element which holds our input should be a relative-div (ideally).
+
+function scoreTable(table, A, B, i, j, config) {
+	if (i >= A.length || j >= B.length) {
+		return config.skipGiven * (i - A.length); // Don't penalize for the end of the second word
+	}
+	if (table[i][j] !== null) {
+		return table[i][j];
+	}
+	if (A[i] == B[j]) {
+		return table[i][j] = 1 / Math.sqrt(j+1) + scoreTable(table, A, B, i+1, j+1, config);
+	}
+	if (A[i].toLowerCase() === B[j].toLowerCase()) {
+		return table[i][j] = 1 / Math.sqrt(j+1) * 0.5 + scoreTable(table, A, B, i+1, j+1, config);
+	}
+
+	// Skipping letters in the left are penalized (but penalized less if they're special characters).
+	var advanceI = scoreTable(table, A, B, i+1, j, config) - config.skipGiven;
+	var advanceJ = scoreTable(table, A, B, i, j+1, config) - config.skipWord;
+
+	return table[i][j] = Math.max( advanceI, advanceJ );
+}
+
+function scoreAgainst(letters, word, config) {
+	var table = [];
+	for (var i = 0; i < letters.length; i++) {
+		table[i] = [];
+			for (var j = 0; j < word.length; j++) {
+			table[i][j] = null;
+		}
+	}
+	var s = scoreTable(table, letters, word, 0, 0, config);
+	return s;
+}
+
+function generateElements(input) {
 	var holder = input.parentElement;
 
 	var hider = document.createElement("div");
@@ -114,135 +147,151 @@ function Autocom(input) {
 	tooltip.className = "autocom-tooltip-box";
 	holder.appendChild(tooltip);
 
-	var self = this;
-
-	// Remember these as fields.
-	this.elements = {
-		input: input,
-		holder: holder,
-		prior: prior,
-		after: after,
-		marker: marker,
-		tooltip: tooltip,
-		shadow: shadow
+	return {
+		input:   input,
+		holder:  holder,
+		hider:   hider,
+		shadow:  shadow,
+		prior:   prior,
+		marker:  marker,
+		after:   after,
+		tooltip: tooltip
 	};
+}
 
-	// Style them.
-	this.restyle();
-
-	this.options = [];
-
-	function scoreTable(table, A, B, i, j) {
-		if (i >= A.length || j >= B.length) {
-			return self.skipGiven * (i - A.length); // Don't penalize for the end of the second word
-		}
-		if (table[i][j] !== -1) {
-			return table[i][j];
-		}
-		if (A[i] == B[j]) {
-			return table[i][j] = 1 / Math.sqrt(j+1) + scoreTable(table, A, B, i+1, j+1);
-		}
-		if (A[i].toLowerCase() === B[j].toLowerCase()) {
-			return table[i][j] = 1 / Math.sqrt(j+1) * 0.5 + scoreTable(table, A, B, i+1, j+1);
-		}
-
-		// Skipping letters in the left are penalized (but penalized less if they're special characters).
-		var advanceI = scoreTable(table, A, B, i+1, j) - self.skipGiven;
-		var advanceJ = scoreTable(table, A, B, i, j+1) - self.skipWord;
-
-		return table[i][j] = Math.max( advanceI, advanceJ );
-	}
-
-	function scoreAgainst(letters, word) {
-		var table = [];
-		for (var i = 0; i < letters.length; i++) {
-			table[i] = [];
-			for (var j = 0; j < word.length; j++) {
-				table[i][j] = -1;
-			}
-		}
-		var s = scoreTable(table, letters, word, 0, 0);
-		return s;
-	}
-
-	function predictReady() {
-		if (input.selectionStart !== input.selectionEnd) {
-			return false;
-		}
-		var at = input.selectionStart;
-		if (input.value.substring(at).match("^" + self.letter)) {
-			// Can't be going from the middle of a word.
-			return false;
-		}
-		// Must be a word prior to the cursor.
-		var before = input.value.substring(0, at).match("(" + self.letter + ")+$");
-		if (before && before.length > 0) {
-			return {from: at - before[0].length, word: before[0], to: at};
-		}
+function predictReady(input, letter) {
+	if (input.selectionStart !== input.selectionEnd) {
 		return false;
 	}
-
-	function predict() {
-		var at = predictReady();
-		if (!at) {
-			return null;
-		}
-
-		var candidates = self.options.slice(0);
-		for (var i = 0; i < candidates.length; i++) {
-			candidates[i] = { word: candidates[i], score: scoreAgainst(at.word, candidates[i]) };
-		}
-		candidates.sort(function(a, b) {
-			return b.score - a.score;
-		});
-
-		var words = [];
-		for (var i = 0; i < candidates.length; i++) {
-			if (candidates[i].score < self.threshold) {
-				break;
-			}
-			words[i] = candidates[i];
-		}
-		if (words.length == 0) {
-			return null;
-		}
-		if (words.length == 1 && words[0].word == at.word) {
-			return null;
-		}
-		return {words: words, at: at};
+	var at = input.selectionStart;
+	if (input.value.substring(at).match("^" + letter)) {
+		// Can't be going from the middle of a word.
+		return false;
 	}
+	// Must be a word prior to the cursor.
+	var before = input.value.substring(0, at).match("(" + letter + ")+$");
+	if (before && before.length > 0) {
+		return {from: at - before[0].length, word: before[0], to: at};
+	}
+	return false;
+}
 
-	var tooltipActive = false;
+function filterCandidates(at, options, config) {
+	for (var i = 0; i < options.length; i++) {
+		options[i] = { word: options[i], score: scoreAgainst(at.word, options[i], config) };
+	}
+	options.sort(function(a, b) {
+		return b.score - a.score;
+	});
+
+	var words = [];
+	for (var i = 0; i < options.length; i++) {
+		if (options[i].score < config.threshold || (config.count !== null && i >= config.count)) {
+			break;
+		}
+		words[i] = options[i];
+	}
+	if (words.length == 0) {
+		return null;
+	}
+	if (words.length == 1 && words[0].word == at.word) {
+		return null;
+	}
+	return {words: words, at: at};
+}
+
+function predict(at, options, config) {
+	if (at) {
+		return filterCandidates(at, options, config)
+	}
+	return null;
+}
+
+function moveTooltip(elements, offsetX, offsetY) {
+	// Resize the shadower:
+	elements.shadow.style.width = getComputedStyle(elements.input).width;
+	// Fill prior and after with text:
+	elements.prior.innerHTML = elements.input.value.substring(0, elements.input.selectionStart);
+	elements.after.innerHTML = elements.input.value.substring(elements.input.selectionStart);
+	// Use marker's location to reposition tooltip:
+	elements.tooltip.style.left = ((elements.input.offsetLeft + elements.marker.offsetLeft + offsetX)|0) + "px";
+	elements.tooltip.style.top = ((elements.input.offsetTop + elements.marker.offsetTop - elements.input.scrollTop + offsetY)|0) + "px";
+}
+
+
+function generateTooltipRow(tooltip, word, index, selectedIndex, selectedCallback) {
+	var row = document.createElement("div");
+	row.className = "autocom-tooltip-line";
+	row.addEventListener("mousedown", function() {
+		selectedCallback(index);
+	});
+	row.appendChild(document.createTextNode(word));
+	if (index == selectedIndex) {
+		row.className += " autocom-tooltip-selected";
+	}
+	tooltip.appendChild(row);
+}
+
+function insertWord(input, at, word) {
+	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
+	input.selectionStart = input.selectionEnd = at.from + word.length;
+}
+
+function generateTooltipContents(tooltip, tooltipState, selectedCallback) {
+	// First, empty the old tooltip.
+	while (tooltip.firstChild) {
+		tooltip.removeChild(tooltip.firstChild);
+	}
+	// Then, fill each row.
+	for (var i = 0; i < tooltipState.words.length; i++) {
+		generateTooltipRow(tooltip, tooltipState.words[i].word, i, tooltipState.index, selectedCallback);
+	}
+}
+
+function Autocom(input) {
+	var self = this;
+	// The element which holds our input should be a relative-div (ideally).
+	var elements = generateElements(input);
+	self.elements = elements;
+
+	self.options = [];
+
+	self.config = {
+		threshold: 0,
+		skipGiven: 2,
+		skipWord: 0.25,
+		count: 8
+	};
+
+	var tooltipState = {active: false, index: 0};
 	var tooltipSuppress = false;
 
-	function insertWord(active) {
-		input.value = input.value.substring(0, active.at.from) + active.words[active.index].word + input.value.substring(active.at.to);
-		input.selectionStart = input.selectionEnd = active.at.from + active.words[active.index].word.length;
-		onInputChange();
-	}
+	// Style them.
+	self.restyle();
 
 	function keyPress(e) {
-		if (tooltipActive && !tooltipSuppress) {
+		if (tooltipState.active && !tooltipSuppress) {
 			if (e.keyCode == 9 || e.keyCode == 13) { // TAB or ENTER
 				// Tab
 				e.preventDefault();
-				insertWord(tooltipActive);
+				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index].word);
+				refresh();
 				tooltipSuppress = true;
 				return;
 			}
 			if (e.keyCode == 38) { // UP
 				e.preventDefault();
-				tooltipActive.index--;
-				if (tooltipActive.index < 0) {
-					tooltipActive.index = tooltipActive.words.length-1;
+				tooltipState.index--;
+				if (tooltipState.index < 0) {
+					tooltipState.index = tooltipState.words.length-1;
 				}
 				return;
 			}
 			if (e.keyCode == 40) { // DOWN
 				e.preventDefault();
-				tooltipActive.index++;
-				if (tooltipActive.index >= tooltipActive.words.length) {
-					tooltipActive.index = 0;
+				tooltipState.index++;
+				if (tooltipState.index >= tooltipState.words.length) {
+					tooltipState.index = 0;
 				}
 				return;
 			}
@@ -252,66 +301,55 @@ function Autocom(input) {
 			}
 		}
 		tooltipSuppress = false;
-		onInputChange();
+		refresh();
 	}
 	input.addEventListener("keydown", keyPress, false);
 
-	function renderTooltip() {
-		shadow.style.width = getComputedStyle(input).width;
+	function completeSelect(index) {
+		insertWord(input, tooltipState.at, tooltipState.words[index].word);
+		refresh();
+	}
 
-		prior.innerHTML = input.value.substring(0, input.selectionStart);
-		after.innerHTML = input.value.substring(input.selectionStart);
-		tooltip.style.left = ((input.offsetLeft + marker.offsetLeft + self.tooltipX)|0) + "px";
-		tooltip.style.top = ((input.offsetTop + marker.offsetTop - input.scrollTop + self.tooltipY)|0) + "px";
-		var result = predict();
+	function renderTooltip() {
+		moveTooltip(elements, self.tooltipX, self.tooltipY);
+
+		var result = predict(predictReady(input, self.letter), self.options.slice(0), self.config);
 		if (result && !tooltipSuppress && document.activeElement === input) {
-			tooltipActive = tooltipActive || {index: 0};
-			tooltipActive.words = result.words;
-			tooltipActive.at = result.at;
-			if (tooltipActive.index >= tooltipActive.words.length) {
-				tooltipActive.index = 0;
+			// If it's not currently active, then become active.
+			tooltipState = {
+				active: true,
+				index: tooltipState.active ? tooltipState.index : 0,
+				words: result.words,
+				at: result.at,
+			};
+			if (tooltipState.index >= tooltipState.words.length) {
+				tooltipState.index = 0;
 			}
-			while (tooltip.firstChild) {
-				tooltip.removeChild(tooltip.firstChild);
-			}
-			for (var i = 0; i < result.words.length; i++) {
-				var line = document.createElement("div");
-				line.className = "autocom-tooltip-line";
-				(function(index) {
-					line.addEventListener("mousedown", function() {
-						tooltipActive.index = index;
-						insertWord(tooltipActive);
-					});
-				})(i);
-				line.appendChild(document.createTextNode(result.words[i].word));
-				tooltip.appendChild(line);
-				if (i == tooltipActive.index) {
-					line.className += " autocom-tooltip-selected";
-				}
-			}
-			if (marker.offsetLeft + tooltip.offsetWidth > input.offsetWidth) {
-				tooltip.style.left = ((input.offsetLeft + input.offsetWidth - tooltip.offsetWidth)|0) + "px";
+			generateTooltipContents(elements.tooltip, tooltipState, completeSelect);
+			
+			if (elements.marker.offsetLeft + elements.tooltip.offsetWidth > input.offsetWidth) {
+				tooltip.style.left = ((input.offsetLeft + input.offsetWidth - elements.tooltip.offsetWidth)|0) + "px";
 			}
 		} else {
-			tooltipActive = false;
+			tooltipState.active = false;
 		}
-		tooltip.hidden = !tooltipActive || tooltipSuppress;
+		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress;
 	}
 
 	// Whenever a change occurs, wait (which allows the interaction, like moving the cursor or entering text) to complete.
 	// Then render the tooltip.
-	function onInputChange() {
+	function refresh() {
 		self.restyle();
 		setTimeout(renderTooltip, 0);
 	}
-	this.refresh = onInputChange;
-	input.addEventListener("input", onInputChange);
-	input.addEventListener("mousedown", onInputChange);
-	input.addEventListener("mouseup", onInputChange);
-	input.addEventListener("keyup", onInputChange);
-	input.addEventListener("keydown", onInputChange);
-	input.addEventListener("resize", onInputChange);
-	input.addEventListener("blur", onInputChange); // blur is the "unfocus" event
+	self.refresh = refresh;
+	input.addEventListener("input", refresh);
+	input.addEventListener("mousedown", refresh);
+	input.addEventListener("mouseup", refresh);
+	input.addEventListener("keyup", refresh);
+	input.addEventListener("keydown", refresh);
+	input.addEventListener("resize", refresh);
+	input.addEventListener("blur", refresh); // blur is the "unfocus" event
 }
 Autocom.prototype.restyle = function() {
 	var inputStyle = getComputedStyle(this.elements.input);
@@ -368,7 +406,3 @@ Autocom.prototype.setOptions = function(options) {
 Autocom.prototype.tooltipX = 0;
 Autocom.prototype.tooltipY = 35;
 Autocom.prototype.letter = "[A-Za-z]";
-// These parameters are used by the fuzzy autocomplete system.
-Autocom.prototype.threshold = 0;
-Autocom.prototype.skipGiven = 2;
-Autocom.prototype.skipWord = 0.25;
