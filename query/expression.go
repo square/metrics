@@ -17,43 +17,17 @@ package query
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
-	"github.com/square/metrics/function/aggregate"
+	"github.com/square/metrics/function/registry"
 )
 
 func init() {
-	// Arithmetic operators
-	MustRegister(MakeOperatorMetricFunction("+", func(x float64, y float64) float64 { return x + y }))
-	MustRegister(MakeOperatorMetricFunction("-", func(x float64, y float64) float64 { return x - y }))
-	MustRegister(MakeOperatorMetricFunction("*", func(x float64, y float64) float64 { return x * y }))
-	MustRegister(MakeOperatorMetricFunction("/", func(x float64, y float64) float64 { return x / y }))
-	// Aggregates
-	MustRegister(MakeAggregateMetricFunction("aggregate.max", aggregate.Max))
-	MustRegister(MakeAggregateMetricFunction("aggregate.min", aggregate.Min))
-	MustRegister(MakeAggregateMetricFunction("aggregate.mean", aggregate.Mean))
-	MustRegister(MakeAggregateMetricFunction("aggregate.sum", aggregate.Sum))
-	// Transformations
-	MustRegister(MakeTransformMetricFunction("transform.derivative", 0, transformDerivative))
-	MustRegister(MakeTransformMetricFunction("transform.integral", 0, transformIntegral))
-	MustRegister(MakeTransformMetricFunction("transform.rate", 0, transformRate))
-	MustRegister(MakeTransformMetricFunction("transform.cumulative", 0, transformCumulative))
-	MustRegister(MakeTransformMetricFunction("transform.default", 1, transformDefault))
-	MustRegister(MakeTransformMetricFunction("transform.abs", 0, transformMapMaker("abs", math.Abs)))
-	MustRegister(MakeTransformMetricFunction("transform.nan_keep_last", 0, transformNaNKeepLast))
-	// Timeshift
-	MustRegister(TimeshiftFunction)
-	MustRegister(MovingAverageFunction)
-	MustRegister(AliasFunction)
-	// Filter
-	MustRegister(MakeFilterMetricFunction("filter.highest_mean", aggregate.Mean, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_mean", aggregate.Mean, true))
-	MustRegister(MakeFilterMetricFunction("filter.highest_max", aggregate.Max, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_max", aggregate.Max, true))
-	MustRegister(MakeFilterMetricFunction("filter.highest_min", aggregate.Min, false))
-	MustRegister(MakeFilterMetricFunction("filter.lowest_min", aggregate.Min, true))
+	// Special snowflaky functions.
+	registry.MustRegister(TimeshiftFunction)
+	registry.MustRegister(MovingAverageFunction)
+	registry.MustRegister(AliasFunction)
 }
 
 // Implementations
@@ -119,7 +93,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 }
 
 func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	fun, ok := GetFunction(expr.functionName)
+	fun, ok := context.Registry.GetFunction(expr.functionName)
 	if !ok {
 		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}
 	}

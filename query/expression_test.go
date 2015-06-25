@@ -21,6 +21,7 @@ import (
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/function/registry"
 )
 
 type FakeBackend struct {
@@ -74,6 +75,7 @@ func Test_ScalarExpression(t *testing.T) {
 			Timerange:    test.timerange,
 			SampleMethod: api.SampleMean,
 			FetchLimit:   function.NewFetchCounter(1000),
+			Registry:     registry.Default(),
 		})
 
 		if err != nil {
@@ -318,7 +320,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%+v", test)
 
-		metricFun := MakeOperatorMetricFunction(test.functionName, test.evalFunction)
+		metricFun := registry.NewOperator(test.functionName, test.evalFunction)
 
 		value, err := metricFun.Evaluate(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{})
 		if err != nil {

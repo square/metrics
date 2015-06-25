@@ -14,7 +14,7 @@
 
 // Package query contains all the logic to parse
 // and execute queries against the underlying metric system.
-package query
+package transform
 
 import (
 	"errors"
@@ -68,7 +68,7 @@ func checkParameters(name string, expected int, parameters []function.Value) err
 }
 
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func transformDerivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func transformDerivative(values []float64, parameters []function.Value, scale fl
 
 // transformIntegral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
-func transformIntegral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Integral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.integral", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func transformIntegral(values []float64, parameters []function.Value, scale floa
 
 // transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
 // That is, it returns consecutive differences which are at least 0.
-func transformRate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.rate", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func transformRate(values []float64, parameters []function.Value, scale float64)
 }
 
 // transformCumulative computes the cumulative sum of the given values.
-func transformCumulative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Cumulative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
 		return nil, err
 	}
@@ -138,10 +138,10 @@ func transformCumulative(values []float64, parameters []function.Value, scale fl
 	return result, nil
 }
 
-// transformMapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
-//  `transformMapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
+// MapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
+//  `MapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func transformMapMaker(name string, fun func(float64) float64) func([]float64, []function.Value, float64) ([]float64, error) {
+func MapMaker(name string, fun func(float64) float64) func([]float64, []function.Value, float64) ([]float64, error) {
 	return func(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameters); err != nil {
 			return nil, err
@@ -155,7 +155,7 @@ func transformMapMaker(name string, fun func(float64) float64) func([]float64, [
 }
 
 // transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
-func transformDefault(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Default(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.default", 1, parameters); err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func transformDefault(values []float64, parameters []function.Value, scale float
 }
 
 // transformNaNKeepLast will replace missing NaN data with the data before it
-func transformNaNKeepLast(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func NaNKeepLast(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.nan_keep_last", 0, parameters); err != nil {
 		return nil, err
 	}

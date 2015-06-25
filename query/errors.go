@@ -1,7 +1,20 @@
+// Copyright 2015 Square Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package query
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -12,39 +25,6 @@ import (
 type SyntaxError struct {
 	token   string
 	message string
-}
-
-type ArgumentLengthError struct {
-	Name        string
-	ExpectedMin int
-	ExpectedMax int
-	Actual      int
-}
-
-func (err ArgumentLengthError) Error() string {
-	if err.ExpectedMin == err.ExpectedMax {
-		return fmt.Sprintf(
-			"Function `%s` expected %d arguments but received %d.",
-			err.Name,
-			err.ExpectedMin,
-			err.Actual,
-		)
-	} else if err.ExpectedMax == -1 {
-		return fmt.Sprintf(
-			"Function `%s` expected at least %d arguments but received %d.",
-			err.Name,
-			err.ExpectedMin,
-			err.Actual,
-		)
-	} else {
-		return fmt.Sprintf(
-			"Function `%s` expected between %d and %d arguments but received %d.",
-			err.Name,
-			err.ExpectedMin,
-			err.ExpectedMax,
-			err.Actual,
-		)
-	}
 }
 
 // AssertionError is raised when an internal invariant is violated,
