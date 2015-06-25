@@ -1,6 +1,7 @@
 package function
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
@@ -23,6 +24,35 @@ type EvaluationContext struct {
 	FetchLimit   FetchCounter     // A limit on the number of fetches which may be performed
 	Cancellable  api.Cancellable
 	Profiler     *inspect.Profiler
+	Registry     Registry
+}
+
+type Registry interface {
+	GetFunction(string) (MetricFunction, bool)
+}
+
+// MetricFunction defines a common logic to dispatch a function in MQE.
+type MetricFunction struct {
+	Name          string
+	MinArguments  int
+	MaxArguments  int
+	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
+	Compute       func(EvaluationContext, []Expression, []string) (Value, error)
+}
+
+// Evaluate the given metric function.
+func (f MetricFunction) Evaluate(context EvaluationContext,
+	arguments []Expression, groupBy []string) (Value, error) {
+	// preprocessing
+	length := len(arguments)
+	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
+		return nil, ArgumentLengthError{f.Name, f.MinArguments, f.MaxArguments, length}
+	}
+	if len(groupBy) > 0 && !f.AllowsGroupBy {
+		// TODO(jee) - use typed errors
+		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
+	}
+	return f.Compute(context, arguments, groupBy)
 }
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.

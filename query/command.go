@@ -21,6 +21,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
 )
 
@@ -128,6 +129,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		Timerange:    timerange,
 		Cancellable:  cancellable,
 		Profiler:     context.Profiler,
+		Registry:     registry.Default(),
 	}
 	if hasTimeout {
 		timeout := time.After(context.Timeout)
