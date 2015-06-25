@@ -46,8 +46,6 @@ module.service("$google", function($rootScope) {
   }
 });
 
-var autocom;
-
 module.controller("mainCtrl", function(
   $google,
   $http,
@@ -62,18 +60,19 @@ module.controller("mainCtrl", function(
     renderType: "line"
   };
 
-  $scope.autocom = new Autocom(document.getElementById("queryInput"));
+  var autocom = new Autocom(document.getElementById("query-input"));
 
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
+  
   var transforms = ["alias", "derivative", "integral", "rate", "cumulative", "moving_average", "timeshift"].map(function(n) { return "transform." + n; });
   var aggregates = ["sum", "max", "min", "mean"].map(function(n) { return "aggregate." + n; });
-  var functions = transforms.concat(aggregates);
-  $scope.autocom.options = keywords.concat(functions);
-  $scope.autocom.letter = "[a-zA-Z.`-]";
-  $scope.autocom.tooltipX = 0;
-  $scope.autocom.tooltipY = 20;
-
-  autocom = $scope.autocom;
+  var filters = ["highest_max", "highest_mean", "highest_min", "lowest_max", "lowest_mean", "lowest_min"].map(function(n) { return "filter." + n; });
+  
+  var functions = transforms.concat(filters).concat(aggregates);
+  autocom.options = keywords.concat(functions);
+  autocom.letter = "[a-zA-Z.`-]";
+  autocom.tooltipX = 0;
+  autocom.tooltipY = 20;
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
