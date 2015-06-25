@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/square/metrics/inspect"
@@ -25,6 +26,16 @@ import (
 	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
 	"github.com/square/metrics/query"
 )
+
+var failedMessage []byte
+
+func init() {
+	var err error
+	failedMessage, err = json.MarshalIndent(Response{Success: false, Message: "Failed to encode the result message."}, "", "  ")
+	if err != nil {
+		panic(err.Error())
+	}
+}
 
 type Config struct {
 	Port      int    `yaml:"port"`
@@ -42,10 +53,17 @@ type QueryHandler struct {
 }
 
 type Response struct {
-	Success bool        `json:"success"`
-	Name    string      `json:"name,omitempty"`
-	Message string      `json:"message,omitempty"`
-	Body    interface{} `json:"body,omitempty"`
+	Success bool          `json:"success"`
+	Name    string        `json:"name,omitempty"`
+	Message string        `json:"message,omitempty"`
+	Body    interface{}   `json:"body,omitempty"`
+	Profile []ProfileJSON `json:"body,omitempty"`
+}
+
+type ProfileJSON struct {
+	Name   string `json:"name"`
+	Start  int64  `json:"start"`  // ms since Unix epoch
+	Finish int64  `json:"finish"` // ms since Unix epoch
 }
 
 func errorResponse(writer http.ResponseWriter, code int, err error) {
@@ -53,20 +71,53 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode error message\"}"))
+		writer.Write(failedMessage)
 		return
 	}
 	writer.Write(encoded)
 }
 
-func bodyResponse(writer http.ResponseWriter, body interface{}, name string) {
-	encoded, err := json.MarshalIndent(Response{Success: true, Name: name, Body: body}, "", "  ")
+func bodyResponse(writer http.ResponseWriter, response Response) {
+	response.Success = true
+	encoded, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("{\"success\":false, \"message\":\"failed to encode result message\"}"))
+		writer.Write(failedMessage)
 		return
 	}
 	writer.Write(encoded)
+}
+
+type QueryForm struct {
+	input   string
+	profile bool
+}
+
+func parseBool(input string, defaultValue bool) bool {
+	value, err := strconv.ParseBool(input)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func parseQueryForm(request *http.Request) (form QueryForm) {
+	form.input = request.Form.Get("query")
+	form.profile = parseBool(request.Form.Get("profile"), false)
+	return
+}
+
+func convertProfile(profiler *inspect.Profiler) []ProfileJSON {
+	profiles := profiler.All()
+	result := make([]ProfileJSON, len(profiles))
+	for i, p := range profiles {
+		result[i] = ProfileJSON{
+			Name:   p.Name(),
+			Start:  p.Start().UnixNano() / int64(time.Millisecond),
+			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
+		}
+	}
+	return result
 }
 
 func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -75,10 +126,10 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusBadRequest, err)
 		return
 	}
-	input := request.Form.Get("query")
-	log.Infof("INPUT: %+v\n", input)
+	parsedForm := parseQueryForm(request)
+	log.Infof("INPUT: %+v\n", parsedForm)
 
-	cmd, err := query.Parse(input)
+	cmd, err := query.Parse(parsedForm.input)
 	if err != nil {
 		errorResponse(writer, http.StatusBadRequest, err)
 		return
@@ -90,13 +141,15 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
-
-	// profiler holds all the profiling data from this execution.
-
 	log.Infof("Profiler results: %+v", profiler.All())
-
-	bodyResponse(writer, result, cmd.Name())
-
+	response := Response{
+		Body: result,
+		Name: cmd.Name(),
+	}
+	if parsedForm.profile {
+		response.Profile = convertProfile(profiler)
+	}
+	bodyResponse(writer, response)
 	if q.hook.OnQuery != nil {
 		q.hook.OnQuery <- profiler
 	}
