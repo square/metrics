@@ -20,7 +20,6 @@
 //   * autocom-tooltip-line       a single line within the tooltip
 //   * autocom-tooltip-selected   the selected line within the tooltip
 //   * autocom-tooltip-box        the box which contains the lines for the tooltip
-//   * autocom-input              the (textarea) input itself
 
 // Example JS:
 /*
@@ -80,15 +79,27 @@ Methods:
 
 	setOptions(options): assigns the options and calls refresh()
 
-	getValue(): returns the value in the input
-
-	setValue(value): assigns the value in the input
-
 */
 
-function Autocom(holder) {
+function Autocom(input) {
+	// The element which holds our input should be a relative-div (ideally).
+	var holder = input.parentElement;
+
+	var hider = document.createElement("div");
+	// Hider completely hides its contents
+	hider.style.width = "0";
+	hider.style.height = "0";
+	hider.style.margin = "0";
+	hider.style.padding = "0";
+	hider.style.outline = "0";
+	hider.style.border = "0";
+	hider.style.overflowX = "hidden";
+	hider.style.overflowY = "hidden";
+	holder.insertBefore(hider, input);
+
 	var shadow = document.createElement("div");
-	holder.appendChild(shadow);
+	// Flow can be made possible simpler/more predictable if we insert before our input.
+	hider.appendChild(shadow);
 
 	var prior = document.createElement("span");
 	shadow.appendChild(prior);
@@ -98,10 +109,6 @@ function Autocom(holder) {
 
 	var after = document.createElement("span");
 	shadow.appendChild(after);
-
-	var input = document.createElement("textarea");
-	input.className = "autocom-input";
-	holder.appendChild(input);
 
 	var tooltip = document.createElement("div");
 	tooltip.className = "autocom-tooltip-box";
@@ -254,8 +261,8 @@ function Autocom(holder) {
 
 		prior.innerHTML = input.value.substring(0, input.selectionStart);
 		after.innerHTML = input.value.substring(input.selectionStart);
-		tooltip.style.left = ((marker.offsetLeft + self.tooltipX)|0) + "px";
-		tooltip.style.top = ((marker.offsetTop - input.scrollTop + self.tooltipY)|0) + "px";
+		tooltip.style.left = ((input.offsetLeft + marker.offsetLeft + self.tooltipX)|0) + "px";
+		tooltip.style.top = ((input.offsetTop + marker.offsetTop - input.scrollTop + self.tooltipY)|0) + "px";
 		var result = predict();
 		if (result && !tooltipSuppress && document.activeElement === input) {
 			tooltipActive = tooltipActive || {index: 0};
@@ -270,6 +277,12 @@ function Autocom(holder) {
 			for (var i = 0; i < result.words.length; i++) {
 				var line = document.createElement("div");
 				line.className = "autocom-tooltip-line";
+				(function(index) {
+					line.addEventListener("mousedown", function() {
+						tooltipActive.index = index;
+						insertWord(tooltipActive);
+					});
+				})(i);
 				line.appendChild(document.createTextNode(result.words[i].word));
 				tooltip.appendChild(line);
 				if (i == tooltipActive.index) {
@@ -277,7 +290,7 @@ function Autocom(holder) {
 				}
 			}
 			if (marker.offsetLeft + tooltip.offsetWidth > input.offsetWidth) {
-				tooltip.style.left = ((input.offsetWidth - tooltip.offsetWidth)|0) + "px";
+				tooltip.style.left = ((input.offsetLeft + input.offsetWidth - tooltip.offsetWidth)|0) + "px";
 			}
 		} else {
 			tooltipActive = false;
@@ -288,6 +301,7 @@ function Autocom(holder) {
 	// Whenever a change occurs, wait (which allows the interaction, like moving the cursor or entering text) to complete.
 	// Then render the tooltip.
 	function onInputChange() {
+		self.restyle();
 		setTimeout(renderTooltip, 0);
 	}
 	this.refresh = onInputChange;
@@ -300,32 +314,27 @@ function Autocom(holder) {
 	input.addEventListener("blur", onInputChange); // blur is the "unfocus" event
 }
 Autocom.prototype.restyle = function() {
-	var holderStyle = getComputedStyle(this.elements.holder);
+	var inputStyle = getComputedStyle(this.elements.input);
 
 	// Make input have style that mtches the holder.
 	// (prior/post must match exactly too).
 	var textProperties = ["fontSize", "fontFamily", "lineHeight", "color", "fontWeight"];
 	for (var i = 0; i < textProperties.length; i++) {
 		var property = textProperties[i];
-		this.elements.input.style[property] = holderStyle[property];
-		this.elements.prior.style[property] = holderStyle[property];
-		this.elements.after.style[property] = holderStyle[property];
+		this.elements.prior.style[property] = inputStyle[property];
+		this.elements.after.style[property] = inputStyle[property];
 	}
-	// Set input position:
-	this.elements.input.style.position = "absolute";
-	this.elements.input.style.left = "0";
-	this.elements.input.style.top = "0";
-	this.elements.input.style.width = "100%";
-	this.elements.input.style.height = "100%";
-	this.elements.input.style.padding = "0";
-	this.elements.input.style.margin = "0";
+
+	var boxProperties = ["padding-left", "padding-right", "padding-top", "padding-bottom", "width"];
+	for (var i = 0; i < boxProperties.length; i++) {
+		var property = boxProperties[i];
+		this.elements.shadow.style[property] = inputStyle[property];
+	}
 
 	// Set shadow position:
-	this.elements.shadow.style.position = "absolute";
+	this.elements.shadow.style.position = "relative";
 	this.elements.shadow.style.left = "0";
 	this.elements.shadow.style.top = "0";
-	this.elements.shadow.style.width = "100%";
-	this.elements.shadow.style.padding = "0";
 	this.elements.shadow.style.margin = "0";
 	this.elements.shadow.style.border = "0";
 	this.elements.shadow.style.height = "0"; // 0 height so that it is not visibile.
@@ -348,20 +357,13 @@ Autocom.prototype.restyle = function() {
 
 	// Tooltip
 	this.elements.tooltip.style.position = "absolute";
+	this.elements.tooltip.style.zIndex = 1000;
 };
 // Sets the options which will be autocompleted.
 // This also triggers a redraw of the tooltip suggests.
 Autocom.prototype.setOptions = function(options) {
 	this.options = options;
 	this.refresh();
-};
-// Returns the current text in the input textarea.
-Autocom.prototype.getValue = function() {
-	return this.elements.input.value;
-};
-// Sets the input textarea contents to the provided value.
-Autocom.prototype.setValue = function(value) {
-	this.elements.input.value = value;
 };
 Autocom.prototype.tooltipX = 0;
 Autocom.prototype.tooltipY = 35;

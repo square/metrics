@@ -22,6 +22,8 @@ textarea.queryinput {
   font-family: Consolas, monospace;
   min-height: 120px;
   width:100%;
+
+  background: transparent;
 }
 
 .alert-danger {
@@ -33,4 +35,16 @@ textarea.queryinput {
   background:#EEE;
   width:100%;
   height:300px;
+}
+
+.autocom-tooltip-box {
+	background:#F5F5F5;
+	font-family: Consolas, monospace;
+}
+.autocom-tooltip-line {
+	padding: 3px;
+	cursor: pointer;
+}
+.autocom-tooltip-selected {
+	background: #CCDDFF;
 }
