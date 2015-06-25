@@ -3,6 +3,7 @@ package internal
 import (
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
@@ -31,6 +32,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
+	clusterConfig.Timeout = time.Second * 30
 	db, err := NewCassandraDatabase(clusterConfig)
 	if err != nil {
 		return nil, err
