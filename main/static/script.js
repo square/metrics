@@ -70,7 +70,7 @@ module.controller("mainCtrl", function(
   
   var functions = transforms.concat(filters).concat(aggregates);
   autocom.options = keywords.concat(functions);
-  autocom.letter = "[a-zA-Z.`-]";
+  autocom.prefixPattern = "`[a-zA-Z][a-zA-Z.-]*`?|[a-zA-Z][a-zA-Z.-]*";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
 
