@@ -20,6 +20,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/api/backend/blueflood"
+	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
@@ -40,5 +41,8 @@ func main() {
 		MultiBackend: backend.NewParallelMultiBackend(blueflood, 20),
 	}
 
-	ui.Main(config.UIConfig, query.ExecutionContext{API: apiInstance, Backend: backend, FetchLimit: 1000})
+	ui.Main(config.UIConfig, query.ExecutionContext{
+		API: apiInstance, Backend: backend, FetchLimit: 1000,
+		Registry: registry.Default(),
+	})
 }
