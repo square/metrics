@@ -16,9 +16,10 @@ package registry
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function"
-	"testing"
 )
 
 var dummyCompute = func(function.EvaluationContext, []function.Expression, []string) (function.Value, error) {

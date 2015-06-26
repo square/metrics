@@ -69,8 +69,36 @@ module.controller("mainCtrl", function(
     renderType: "line"
   };
 
+  var autocom = new Autocom(document.getElementById("query-input"));
+
+  var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
+
+  autocom.options = keywords;
+  autocom.prefixPattern = "`[a-zA-Z][a-zA-Z.-]*`?|[a-zA-Z][a-zA-Z.-]*";
+  autocom.tooltipX = 0;
+  autocom.tooltipY = 20;
+
+  $http.get("/token").success(function(data, status, headers, config) {
+    if (!data.success || !data.body) {
+      return;
+    }
+    if (data.body.functions) {
+      autocom.options = autocom.options.concat( data.body.functions );
+    }
+    if (data.body.metrics) {
+      autocom.options = autocom.options.concat( data.body.metrics.map(function(name) {
+        if (name.indexOf("-") >= 0) {
+          return "`" + name + "`";
+        }
+        return name;
+      }));
+    }
+  });
+
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
+    // TODO - unhack this.
+    $scope.inputModel.query = document.getElementById("query-input").value;
     $location.search("query", $scope.inputModel.query)
     $location.search("renderType", $scope.inputModel.renderType)
     $location.search("profile", $scope.inputModel.profile.toString())
@@ -166,7 +194,6 @@ module.controller("mainCtrl", function(
       // invalid data.
       return;
     }
-    console.log('increase');
     $scope.chartWaiting++;
     var series = [];
     var labels = ["Time"];
