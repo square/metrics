@@ -27,11 +27,12 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	Backend    api.MultiBackend // the backend
-	API        api.API          // the api
-	FetchLimit int              // the maximum number of fetches
-	Timeout    time.Duration
-	Profiler   *inspect.Profiler
+	Backend    api.MultiBackend  // the backend
+	API        api.API           // the api
+	FetchLimit int               // the maximum number of fetches
+	Timeout    time.Duration     // optional
+	Profiler   *inspect.Profiler // optional
+	Registry   function.Registry // optional
 }
 
 // Command is the final result of the parsing.
@@ -118,6 +119,10 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	} else {
 		cancellable = api.NewCancellable()
 	}
+	r := context.Registry
+	if r == nil {
+		r = registry.Default()
+	}
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
@@ -129,7 +134,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		Timerange:    timerange,
 		Cancellable:  cancellable,
 		Profiler:     context.Profiler,
-		Registry:     registry.Default(),
+		Registry:     r,
 	}
 	if hasTimeout {
 		timeout := time.After(context.Timeout)

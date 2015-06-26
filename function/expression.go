@@ -28,7 +28,8 @@ type EvaluationContext struct {
 }
 
 type Registry interface {
-	GetFunction(string) (MetricFunction, bool)
+	GetFunction(string) (MetricFunction, bool) // returns an instance of MetricFunction
+	All() []string                             // all the registered functions
 }
 
 // MetricFunction defines a common logic to dispatch a function in MQE.
