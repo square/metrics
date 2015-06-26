@@ -72,13 +72,8 @@ module.controller("mainCtrl", function(
   var autocom = new Autocom(document.getElementById("query-input"));
 
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
-  
-  var transforms = ["alias", "derivative", "integral", "rate", "cumulative", "moving_average", "timeshift"].map(function(n) { return "transform." + n; });
-  var aggregates = ["sum", "max", "min", "mean"].map(function(n) { return "aggregate." + n; });
-  var filters = ["highest_max", "highest_mean", "highest_min", "lowest_max", "lowest_mean", "lowest_min"].map(function(n) { return "filter." + n; });
-  
-  var functions = transforms.concat(filters).concat(aggregates);
-  autocom.options = keywords.concat(functions);
+
+  autocom.options = keywords;
   autocom.prefixPattern = "`[a-zA-Z][a-zA-Z.-]*`?|[a-zA-Z][a-zA-Z.-]*";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
