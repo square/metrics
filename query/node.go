@@ -251,6 +251,7 @@ func (node *expressionList) Print(buffer *bytes.Buffer, indent int) {
 
 func (node *functionExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.functionName)
 	for _, expression := range node.arguments {
 		printUnknown(buffer, indent+1, expression)
 	}

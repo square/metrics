@@ -113,7 +113,6 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Errorf("Invalid test timerange")
 	}
-
 	for _, test := range []struct {
 		query       string
 		expectError bool
@@ -210,6 +209,7 @@ func TestCommand_Select(t *testing.T) {
 			Name:      "series_1",
 		}},
 	} {
+		// t.Fatalf("%s\n", test.query)
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
 		command, err := Parse(test.query)
