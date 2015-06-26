@@ -175,9 +175,12 @@ func (h staticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 
 func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
-
 	httpMux := http.NewServeMux()
 	httpMux.Handle("/query", queryHandler{
+		context: context,
+		hook:    hook,
+	})
+	httpMux.Handle("/token", tokenHandler{
 		context: context,
 		hook:    hook,
 	})
