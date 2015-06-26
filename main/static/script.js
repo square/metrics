@@ -83,6 +83,23 @@ module.controller("mainCtrl", function(
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
 
+  $http.get("/token").success(function(data, status, headers, config) {
+    if (!data.success || !data.body) {
+      return;
+    }
+    if (data.body.functions) {
+      autocom.options = autocom.options.concat( data.body.functions );
+    }
+    if (data.body.metrics) {
+      autocom.options = autocom.options.concat( data.body.metrics.map(function(name) {
+        if (name.indexOf("-") >= 0) {
+          return "`" + name + "`";
+        }
+        return name;
+      }));
+    }
+  });
+
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
     // TODO - unhack this.
