@@ -109,12 +109,19 @@ func convertProfile(profiler *inspect.Profiler) []profileJSON {
 }
 
 func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	body := make(map[string][]string)
+	body := make(map[string]interface{}) // map to array-like types.
 	// extract out all the possible tokens
 	// 1. keywords
 	// 2. functions
 	// 3. identifiers
 	body["functions"] = h.context.Registry.All()
+	metrics, err := h.context.API.GetAllMetrics()
+	if err != nil {
+		errorResponse(writer, http.StatusInternalServerError, err)
+		return
+	} else {
+		body["metrics"] = metrics
+	}
 	response := response{
 		Body: body,
 	}
