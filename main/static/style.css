@@ -31,7 +31,6 @@ textarea.queryinput {
 }
 
 #chart-div {
-  position:absolute;
   background:#EEE;
   width:100%;
   height:300px;
@@ -47,4 +46,9 @@ textarea.queryinput {
 }
 .autocom-tooltip-selected {
 	background: #CCDDFF;
+}
+
+#timeline-div {
+  width:100%;
+  height:500px;
 }

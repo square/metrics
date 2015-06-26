@@ -132,7 +132,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	}
 
 	values := processResult(parsedResult, request.Timerange, sampler)
-	log.Infof("Constructed timeseries from result: %v", values)
+	log.Debugf("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
 		Values: values,
@@ -168,7 +168,7 @@ func (b *blueflood) constructURL(request api.FetchSeriesRequest, sampler sampler
 
 // fetches from the backend. on error, it returns an instance of api.BackendError
 func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (queryResponse, error) {
-	log.Infof("Blueflood fetch: %s", queryUrl.String())
+	log.Debugf("Blueflood fetch: %s", queryUrl.String())
 	success := make(chan queryResponse)
 	failure := make(chan error)
 	timeout := time.After(b.config.Timeout)
@@ -186,7 +186,7 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 			return
 		}
 
-		log.Infof("Fetch result: %s", string(body))
+		log.Debugf("Fetch result: %s", string(body))
 
 		var parsedJson queryResponse
 		err = json.Unmarshal(body, &parsedJson)
