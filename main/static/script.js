@@ -194,7 +194,6 @@ module.controller("mainCtrl", function(
       // invalid data.
       return;
     }
-    console.log('increase');
     $scope.chartWaiting++;
     var series = [];
     var labels = ["Time"];

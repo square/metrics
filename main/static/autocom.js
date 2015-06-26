@@ -176,12 +176,13 @@ function predictReady(input, prefixPattern) {
 		return null;
 	}
 	var at = input.selectionStart;
-	if (input.value.substring(at).match("^" + prefixPattern)) {
+	var mm; // TODO remove
+	if (mm = input.value.substring(at).match("^(" + prefixPattern + ")")) {
 		// Can't be going from the middle of a word.
 		return null;
 	}
 	// Must be a word prior to the cursor.
-	var before = input.value.substring(0, at).match(prefixPattern + "$");
+	var before = input.value.substring(0, at).match("(" + prefixPattern + ")$");
 	if (before && before.length > 0) {
 		return {from: at - before[0].length, word: before[0], to: at};
 	}
