@@ -20,15 +20,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
-	"github.com/square/metrics/function/registry"
 )
-
-func init() {
-	// Special snowflaky functions.
-	registry.MustRegister(TimeshiftFunction)
-	registry.MustRegister(MovingAverageFunction)
-	registry.MustRegister(AliasFunction)
-}
 
 // Implementations
 // ===============

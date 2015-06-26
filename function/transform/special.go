@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package transform
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 	"github.com/square/metrics/function"
 )
 
-var TimeshiftFunction = function.MetricFunction{
+var Timeshift = function.MetricFunction{
 	Name:         "transform.timeshift",
 	MinArguments: 2,
 	MaxArguments: 2,
@@ -52,7 +52,7 @@ var TimeshiftFunction = function.MetricFunction{
 	},
 }
 
-var MovingAverageFunction = function.MetricFunction{
+var MovingAverage = function.MetricFunction{
 	Name:         "transform.moving_average",
 	MinArguments: 2,
 	MaxArguments: 2,
@@ -128,7 +128,7 @@ var MovingAverageFunction = function.MetricFunction{
 	},
 }
 
-var AliasFunction = function.MetricFunction{
+var Alias = function.MetricFunction{
 	Name:         "transform.alias",
 	MinArguments: 2,
 	MaxArguments: 2,

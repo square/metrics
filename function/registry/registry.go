@@ -53,6 +53,10 @@ func init() {
 	MustRegister(NewFilter("filter.lowest_max", aggregate.Max, true))
 	MustRegister(NewFilter("filter.highest_min", aggregate.Min, false))
 	MustRegister(NewFilter("filter.lowest_min", aggregate.Min, true))
+	// Weird ones
+	MustRegister(transform.Timeshift)
+	MustRegister(transform.Alias)
+	MustRegister(transform.MovingAverage)
 }
 
 // StandardRegistry of a functions available in MQE.
