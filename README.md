@@ -39,7 +39,7 @@ Download it from: http://cassandra.apache.org/download/
 * To setup schema
 
 ```
-# Produciton schema
+# Production schema
 $CASSANDRA/bin/cqlsh -f schema/schema.cql
 # Testing Schema
 $CASSANDRA/bin/cqlsh -f schema/schema_test.cql
