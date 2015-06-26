@@ -17,6 +17,7 @@ package registry
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/square/metrics/api"
@@ -53,6 +54,10 @@ func init() {
 	MustRegister(NewFilter("filter.lowest_max", aggregate.Max, true))
 	MustRegister(NewFilter("filter.highest_min", aggregate.Min, false))
 	MustRegister(NewFilter("filter.lowest_min", aggregate.Min, true))
+	// Weird ones
+	MustRegister(transform.Timeshift)
+	MustRegister(transform.Alias)
+	MustRegister(transform.MovingAverage)
 }
 
 // StandardRegistry of a functions available in MQE.
@@ -72,11 +77,28 @@ func (r StandardRegistry) GetFunction(name string) (function.MetricFunction, boo
 	return fun, ok
 }
 
+func (r StandardRegistry) All() []string {
+	result := make([]string, len(r.mapping))
+	counter := 0
+	for key := range r.mapping {
+		result[counter] = key
+		counter++
+	}
+	sort.Strings(result)
+	return result
+}
+
 // Register a new function into the registry.
 func (r StandardRegistry) Register(fun function.MetricFunction) error {
 	_, ok := r.mapping[fun.Name]
 	if ok {
 		return fmt.Errorf("function %s has already been registered", fun.Name)
+	}
+	if fun.Compute == nil {
+		return fmt.Errorf("function %s has no Compute() field.", fun.Name)
+	}
+	if fun.Name == "" {
+		return fmt.Errorf("empty function name.")
 	}
 	r.mapping[fun.Name] = fun
 	return nil

@@ -31,44 +31,29 @@ var failedMessage []byte
 
 func init() {
 	var err error
-	failedMessage, err = json.MarshalIndent(Response{Success: false, Message: "Failed to encode the result message."}, "", "  ")
+	failedMessage, err = json.MarshalIndent(response{Success: false, Message: "Failed to encode the result message."}, "", "  ")
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-type Config struct {
-	Port      int    `yaml:"port"`
-	Timeout   int    `yaml:"timeout"`
-	StaticDir string `yaml:"static_dir"`
-}
-
-type Hook struct {
-	OnQuery chan<- *inspect.Profiler
-}
-
-type QueryHandler struct {
+// tokenHandler exposes all the tokens available in the system for the autocomplete.
+type tokenHandler struct {
 	hook    Hook
 	context query.ExecutionContext
 }
 
-type Response struct {
-	Success bool          `json:"success"`
-	Name    string        `json:"name,omitempty"`
-	Message string        `json:"message,omitempty"`
-	Body    interface{}   `json:"body,omitempty"`
-	Profile []ProfileJSON `json:"profile,omitempty"`
+type queryHandler struct {
+	hook    Hook
+	context query.ExecutionContext
 }
 
-type ProfileJSON struct {
-	Name   string `json:"name"`
-	Start  int64  `json:"start"`  // ms since Unix epoch
-	Finish int64  `json:"finish"` // ms since Unix epoch
-}
+// generic response functions
+// --------------------------
 
 func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.WriteHeader(code)
-	encoded, err := json.MarshalIndent(Response{Success: false, Message: err.Error()}, "", "  ")
+	encoded, err := json.MarshalIndent(response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write(failedMessage)
@@ -77,7 +62,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.Write(encoded)
 }
 
-func bodyResponse(writer http.ResponseWriter, response Response) {
+func bodyResponse(writer http.ResponseWriter, response response) {
 	response.Success = true
 	encoded, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
@@ -88,9 +73,12 @@ func bodyResponse(writer http.ResponseWriter, response Response) {
 	writer.Write(encoded)
 }
 
-type QueryForm struct {
-	input   string
-	profile bool
+// parsing functions
+// -----------------
+
+type queryForm struct {
+	input   string // query to execute.
+	profile bool   // if true, then profile information will be exposed to the user.
 }
 
 func parseBool(input string, defaultValue bool) bool {
@@ -101,17 +89,17 @@ func parseBool(input string, defaultValue bool) bool {
 	return value
 }
 
-func parseQueryForm(request *http.Request) (form QueryForm) {
+func parseQueryForm(request *http.Request) (form queryForm) {
 	form.input = request.Form.Get("query")
 	form.profile = parseBool(request.Form.Get("profile"), false)
 	return
 }
 
-func convertProfile(profiler *inspect.Profiler) []ProfileJSON {
+func convertProfile(profiler *inspect.Profiler) []profileJSON {
 	profiles := profiler.All()
-	result := make([]ProfileJSON, len(profiles))
+	result := make([]profileJSON, len(profiles))
 	for i, p := range profiles {
-		result[i] = ProfileJSON{
+		result[i] = profileJSON{
 			Name:   p.Name(),
 			Start:  p.Start().UnixNano() / int64(time.Millisecond),
 			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
@@ -120,7 +108,20 @@ func convertProfile(profiler *inspect.Profiler) []ProfileJSON {
 	return result
 }
 
-func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	body := make(map[string][]string)
+	// extract out all the possible tokens
+	// 1. keywords
+	// 2. functions
+	// 3. identifiers
+	body["functions"] = h.context.Registry.All()
+	response := response{
+		Body: body,
+	}
+	bodyResponse(writer, response)
+}
+
+func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	err := request.ParseForm()
 	if err != nil {
 		errorResponse(writer, http.StatusBadRequest, err)
@@ -141,7 +142,7 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
 	}
-	response := Response{
+	response := response{
 		Body: result,
 		Name: cmd.Name(),
 	}
@@ -154,12 +155,12 @@ func (q QueryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	}
 }
 
-type StaticHandler struct {
+type staticHandler struct {
 	Directory  string
 	StaticPath string
 }
 
-func (h StaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (h staticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	res := h.Directory + request.URL.Path[len(h.StaticPath):]
 	log.Infof("url.path=%s, resource=%s\n", request.URL.Path, res)
 	http.ServeFile(writer, request, res)
@@ -169,12 +170,12 @@ func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.Serv
 	// Wrap the given API and Backend in their Profiling counterparts.
 
 	httpMux := http.NewServeMux()
-	httpMux.Handle("/query", QueryHandler{
+	httpMux.Handle("/query", queryHandler{
 		context: context,
 		hook:    hook,
 	})
 	staticPath := "/static/"
-	httpMux.Handle(staticPath, StaticHandler{StaticPath: staticPath, Directory: config.StaticDir})
+	httpMux.Handle(staticPath, staticHandler{StaticPath: staticPath, Directory: config.StaticDir})
 	return httpMux
 }
 
