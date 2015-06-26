@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+window.Autocom = (function(){
 "use strict";
 
 // Creates an Autocompleting textarea within the given HTML element.
@@ -208,13 +208,19 @@ function filterCandidates(word, options, config) {
 	return words;
 }
 
+// Predicts the possible autocompletions based on `at` which includes the word we want, and our options.
 function predict(at, options, config) {
-	if (at) {
-		return {at: at, words: filterCandidates(at.word, options, config)}
+	if (!at) {
+		return null;
 	}
-	return null;
+	var words = filterCandidates(at.word, options, config);
+	if (!words) {
+		return null;
+	}
+	return {at: at, words: words};
 }
 
+// Moves the tooltip to its location proper.
 function moveTooltip(elements, offsetX, offsetY) {
 	// Resize the shadower:
 	elements.shadow.style.width = getComputedStyle(elements.input).width;
@@ -226,7 +232,8 @@ function moveTooltip(elements, offsetX, offsetY) {
 	elements.tooltip.style.top = ((elements.input.offsetTop + elements.marker.offsetTop - elements.input.scrollTop + offsetY)|0) + "px";
 }
 
-
+// Creates and adds to the tooltip one row, with the given word/index.
+// If clicked, it invokes the given selectedCallback.
 function generateTooltipRow(tooltip, word, index, selectedIndex, selectedCallback) {
 	var row = document.createElement("div");
 	row.className = "autocom-tooltip-line";
@@ -240,21 +247,26 @@ function generateTooltipRow(tooltip, word, index, selectedIndex, selectedCallbac
 	tooltip.appendChild(row);
 }
 
-function insertWord(input, at, word) {
-	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
-	input.selectionStart = input.selectionEnd = at.from + word.length;
-}
-
-function generateTooltipContents(tooltip, tooltipState, selectedCallback) {
+// Creates and adds all rows to the given tooltip. Each row invokes the given callback when clicked.
+function generateTooltipContents(tooltip, words, index, selectedCallback) {
 	// First, empty the old tooltip.
 	while (tooltip.firstChild) {
 		tooltip.removeChild(tooltip.firstChild);
 	}
 	// Then, fill each row.
-	for (var i = 0; i < tooltipState.words.length; i++) {
-		generateTooltipRow(tooltip, tooltipState.words[i], i, tooltipState.index, selectedCallback);
+	for (var i = 0; i < words.length; i++) {
+		generateTooltipRow(tooltip, words[i], i, index, selectedCallback);
 	}
 }
+
+// Inserts `word` at the location specified by `at` inside of `input`.
+function insertWord(input, at, word) {
+	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
+	input.selectionStart = input.selectionEnd = at.from + word.length;
+}
+
+
+// Creates an autocom for the element.
 
 function Autocom(input) {
 	var self = this;
@@ -330,7 +342,7 @@ function Autocom(input) {
 			if (tooltipState.index >= tooltipState.words.length) {
 				tooltipState.index = 0;
 			}
-			generateTooltipContents(elements.tooltip, tooltipState, completeSelect);
+			generateTooltipContents(elements.tooltip, tooltipState.words, tooltipState.index, completeSelect);
 			
 			if (elements.marker.offsetLeft + elements.tooltip.offsetWidth > input.offsetWidth) {
 				tooltip.style.left = ((input.offsetLeft + input.offsetWidth - elements.tooltip.offsetWidth)|0) + "px";
@@ -340,14 +352,53 @@ function Autocom(input) {
 		}
 		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress;
 	}
-
-	// Whenever a change occurs, wait (which allows the interaction, like moving the cursor or entering text) to complete.
-	// Then render the tooltip.
-	function refresh() {
-		self.restyle();
+	var refresh = function() {
 		setTimeout(renderTooltip, 0);
-	}
-	self.refresh = refresh;
+		var inputStyle = getComputedStyle(input);
+
+		// Make input have style that mtches the holder.
+		// (prior/post must match exactly too).
+		var textProperties = ["fontSize", "fontFamily", "lineHeight", "color", "fontWeight"];
+		for (var i = 0; i < textProperties.length; i++) {
+			var property = textProperties[i];
+			elements.prior.style[property] = inputStyle[property];
+			elements.after.style[property] = inputStyle[property];
+		}
+
+		var boxProperties = ["padding-left", "padding-right", "padding-top", "padding-bottom", "width"];
+		for (var i = 0; i < boxProperties.length; i++) {
+			var property = boxProperties[i];
+			elements.shadow.style[property] = inputStyle[property];
+		}
+
+		// Set shadow position:
+		elements.shadow.style.position = "relative";
+		elements.shadow.style.left = "0";
+		elements.shadow.style.top = "0";
+		elements.shadow.style.margin = "0";
+		elements.shadow.style.border = "0";
+		elements.shadow.style.height = "0"; // 0 height so that it is not visibile.
+		elements.shadow.style.overflowY = "hidden";
+
+		input.style.whiteSpace = "pre-wrap";
+		elements.prior.style.whiteSpace = input.style.whiteSpace;
+		elements.after.style.whiteSpace = input.style.whiteSpace;
+
+		input.style.wordWrap = "normal";
+		elements.prior.style.wordWrap = input.style.wordWrap;
+		elements.after.style.wordWrap = input.style.wordWrap;
+
+		// Nowrap on the marker
+		elements.marker.style.whiteSpace = "nowrap";
+
+		// Input size
+		input.style.height = "100%";
+		input.style.overflowX = "hidden";
+
+		// Tooltip
+		elements.tooltip.style.position = "absolute";
+		elements.tooltip.style.zIndex = 1000;
+	};
 	input.addEventListener("input", refresh);
 	input.addEventListener("mousedown", refresh);
 	input.addEventListener("mouseup", refresh);
@@ -355,61 +406,13 @@ function Autocom(input) {
 	input.addEventListener("keydown", refresh);
 	input.addEventListener("resize", refresh);
 	input.addEventListener("blur", refresh); // blur is the "unfocus" event
+	refresh();
 
-	self.restyle();
+	self.refresh = refresh;
 }
-Autocom.prototype.restyle = function() {
-	var inputStyle = getComputedStyle(this.elements.input);
 
-	// Make input have style that mtches the holder.
-	// (prior/post must match exactly too).
-	var textProperties = ["fontSize", "fontFamily", "lineHeight", "color", "fontWeight"];
-	for (var i = 0; i < textProperties.length; i++) {
-		var property = textProperties[i];
-		this.elements.prior.style[property] = inputStyle[property];
-		this.elements.after.style[property] = inputStyle[property];
-	}
-
-	var boxProperties = ["padding-left", "padding-right", "padding-top", "padding-bottom", "width"];
-	for (var i = 0; i < boxProperties.length; i++) {
-		var property = boxProperties[i];
-		this.elements.shadow.style[property] = inputStyle[property];
-	}
-
-	// Set shadow position:
-	this.elements.shadow.style.position = "relative";
-	this.elements.shadow.style.left = "0";
-	this.elements.shadow.style.top = "0";
-	this.elements.shadow.style.margin = "0";
-	this.elements.shadow.style.border = "0";
-	this.elements.shadow.style.height = "0"; // 0 height so that it is not visibile.
-	this.elements.shadow.style.overflowY = "hidden";
-
-	this.elements.input.style.whiteSpace = "pre-wrap";
-	this.elements.prior.style.whiteSpace = this.elements.input.style.whiteSpace;
-	this.elements.after.style.whiteSpace = this.elements.input.style.whiteSpace;
-
-	this.elements.input.style.wordWrap = "normal";
-	this.elements.prior.style.wordWrap = this.elements.input.style.wordWrap;
-	this.elements.after.style.wordWrap = this.elements.input.style.wordWrap;
-
-	// Nowrap on the marker
-	this.elements.marker.style.whiteSpace = "nowrap";
-
-	// Input size
-	this.elements.input.style.height = "100%";
-	this.elements.input.style.overflowX = "hidden";
-
-	// Tooltip
-	this.elements.tooltip.style.position = "absolute";
-	this.elements.tooltip.style.zIndex = 1000;
-};
-// Sets the options which will be autocompleted.
-// This also triggers a redraw of the tooltip suggests.
-Autocom.prototype.setOptions = function(options) {
-	this.options = options;
-	this.refresh();
-};
 Autocom.prototype.tooltipX = 0;
-Autocom.prototype.tooltipY = 35;
+Autocom.prototype.tooltipY = 0;
 Autocom.prototype.letter = "[A-Za-z]";
+return Autocom;
+})();
