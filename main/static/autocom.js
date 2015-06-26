@@ -23,28 +23,24 @@ window.Autocom = (function(){
 
 // Example JS:
 /*
-	// Select the div you want to insert your textarea into:
-	var inputDiv = document.getElementById("color_entry");
+	// Select a textarea
+	var input = document.getElementById("color_entry");
 
-	// Create an Autocom object (it creates the textarea + other elements for you)
-	var colorCom = new Autocom(inputDiv);
+	// Create an Autocom object
+	var colorCom = new Autocom(input);
 
 	// Assign the options for our Autocom
 	colorCom.options = ["red", "orange", "yellow", "yellow-green", "green", "cyan", "blue", "purple"];
 	
-	// Add the hyphen to the possible set of letters:
+	// Add the hyphen to the possible set of letters
 	colorCom.letters = "[a-z\\-]";
 
-	// Adjust the tooltip position offset:
+	// Adjust the tooltip position offset
 	colorCom.tooltipX = 25;
 	colorCom.tooltipY = 0;
 
-	// Use the input:
-	function submit() {
-		var text = colorCom.getValue();
-
-		// ...
-	}
+	// Configure the number of shown options  
+	colorCom.config.count = 3;
 */
 
 /*
@@ -63,9 +59,11 @@ Fields:
 	
 	letter: (default "[a-zA-Z]") the regex to match a single non-separator
 
-	threshold: (default 0)    // Autocomplete score threshold required to show (for fuzzy suggestions)
-	skipGiven: (default 2)    // Penalty for skipping a letter in the input
-	skipWord:  (default 0.25) // Pentalty for skipping a prefixed letter in the suggestion
+	config:
+		threshold: (default 0)    // Autocomplete score threshold required to show (for fuzzy suggestions)
+		skipGiven: (default 2)    // Penalty for skipping a letter in the input
+		skipWord:  (default 0.25) // Pentalty for skipping a prefixed letter in the suggestion
+		count:     (default 8)    // The maximum number of autocomplete suggestions shown 
 
 	tooltipX: (default 0) the X offset for the tooltip (relative to the cursor)
 	tooltipY: (default 0) the Y offset for the tooltip (relative to the cursor)
@@ -74,10 +72,6 @@ Methods:
 
 	refresh(): redraw the tooltip (or hide it) taking into account any changes to focus or fields.
 	         (this rarely needs to be called)
-	
-	restyle(): assigns the styles of the input to match the holder. Call it when the holder's font changes.
-
-	setOptions(options): assigns the options and calls refresh()
 
 */
 
@@ -356,9 +350,9 @@ function Autocom(input) {
 		setTimeout(renderTooltip, 0);
 		var inputStyle = getComputedStyle(input);
 
-		// Make input have style that mtches the holder.
+		// Make input have style that matches the holder.
 		// (prior/post must match exactly too).
-		var textProperties = ["fontSize", "fontFamily", "lineHeight", "color", "fontWeight"];
+		var textProperties = ["fontSize", "fontFamily", "lineHeight", "color", "fontWeight", "whiteSpace", "wordWrap"];
 		for (var i = 0; i < textProperties.length; i++) {
 			var property = textProperties[i];
 			elements.prior.style[property] = inputStyle[property];
@@ -380,20 +374,8 @@ function Autocom(input) {
 		elements.shadow.style.height = "0"; // 0 height so that it is not visibile.
 		elements.shadow.style.overflowY = "hidden";
 
-		input.style.whiteSpace = "pre-wrap";
-		elements.prior.style.whiteSpace = input.style.whiteSpace;
-		elements.after.style.whiteSpace = input.style.whiteSpace;
-
-		input.style.wordWrap = "normal";
-		elements.prior.style.wordWrap = input.style.wordWrap;
-		elements.after.style.wordWrap = input.style.wordWrap;
-
 		// Nowrap on the marker
 		elements.marker.style.whiteSpace = "nowrap";
-
-		// Input size
-		input.style.height = "100%";
-		input.style.overflowX = "hidden";
 
 		// Tooltip
 		elements.tooltip.style.position = "absolute";
