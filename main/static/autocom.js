@@ -349,7 +349,7 @@ function Autocom(input) {
 			generateTooltipContents(elements.tooltip, tooltipState.words, tooltipState.index, completeSelect);
 			
 			if (elements.marker.offsetLeft + elements.tooltip.offsetWidth > input.offsetWidth) {
-				tooltip.style.left = Math.floor(input.offsetLeft + input.offsetWidth - elements.tooltip.offsetWidth) + "px";
+				elements.tooltip.style.left = Math.floor(input.offsetLeft + input.offsetWidth - elements.tooltip.offsetWidth) + "px";
 			}
 		} else {
 			tooltipState.active = false;
