@@ -43,9 +43,9 @@ func newDatabase(t *testing.T) *defaultDatabase {
 	return &defaultDatabase{
 		session:         session,
 		allMetricsCache: make(map[api.MetricKey]bool),
-		allMetricsMutex: &sync.RWMutex{},
+		allMetricsMutex: &sync.Mutex{},
 		tagIndexCache:   make(map[tagIndexCacheKey]bool),
-		tagIndexMutex:   &sync.RWMutex{},
+		tagIndexMutex:   &sync.Mutex{},
 	}
 }
 
