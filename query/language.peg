@@ -86,33 +86,34 @@ expressionList <-
   )*
 
 expression_start <-
-  expression_1
+  expression_sum add_pipe
 
-expression_1 <-
-  expression_2
+expression_sum <-
+  expression_product
   (
-    (_ OP_ADD { p.addOperatorLiteral("+") } / _ OP_SUB { p.addOperatorLiteral("-") })
-    expression_2 { p.addOperatorFunction() }
+    add_pipe
+    ( _ OP_ADD { p.addOperatorLiteral("+") } / _ OP_SUB { p.addOperatorLiteral("-") })
+    expression_product { p.addOperatorFunction() }
   ) *
 
-expression_2 <-
-  expression_3
+expression_product <-
+  expression_atom
   (
-    (_ OP_DIV { p.addOperatorLiteral("/") } / _ OP_MULT { p.addOperatorLiteral("*") })
-    expression_3 { p.addOperatorFunction() }
+    add_pipe
+    ( _ OP_DIV { p.addOperatorLiteral("/") } / _ OP_MULT { p.addOperatorLiteral("*") })
+    expression_atom { p.addOperatorFunction() }
   ) *
 
-expression_3 <-
-  expression_4
+add_pipe <-
   (
     _ OP_PIPE _ <IDENTIFIER> {
       p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
     }
     (
       (
-        _ PAREN_OPEN
-          ( expressionList / { p.addExpressionList() })
-          { p.addGroupBy() } groupByClause?
+      _ PAREN_OPEN
+        (  {p.addExpressionList()} ) # argument list
+        { p.addGroupBy() } groupByClause? # optional group-by list
         _ PAREN_CLOSE
       ) / {
         p.addExpressionList()
@@ -124,7 +125,7 @@ expression_3 <-
     }
   ) *
 
-expression_4 <-
+expression_atom <-
   expression_function /
   expression_metric /
   # #sub-expression

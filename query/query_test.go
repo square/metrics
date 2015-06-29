@@ -124,10 +124,17 @@ var selects = []string{
 	"timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
 	// pipe expressions
 	"x | y from 0 to 0",
-	"x | y from 0 to 0",
+	"x | y + 1 from 0 to 0",
+	"x | y - 1 from 0 to 0",
+	"x | y * 1 from 0 to 0",
+	"x | y / 1 from 0 to 0",
 	"x | y(group by a) from 0 to 0",
 	"x + 1 | y(group by a) from 0 to 0",
 	"x | y | z + 1 from 0 to 0",
+	"x|y from 0 to 0",
+	"x|f + y*z from 0 to 0",
+	"x|f + y|g from 0 to 0",
+	"1 + 2 | f from 0 to 0",
 }
 
 // these queries should fail with a syntax error.
