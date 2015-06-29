@@ -17,3 +17,10 @@ create table tag_index (
   metric_keys set<varchar>,
   primary key ((tag_key), tag_value)
 );
+
+-- metric_name_set
+create table metric_name_set (
+  shard int,
+  metric_names set<varchar>,
+  primary key (shard)
+);

@@ -16,6 +16,8 @@
 package internal
 
 import (
+	"sync"
+
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
 )
@@ -39,8 +41,18 @@ type Database interface {
 	RemoveFromTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
 }
 
+type tagIndexCacheKey struct {
+	key    string
+	value  string
+	metric api.MetricKey
+}
+
 type defaultDatabase struct {
-	session *gocql.Session
+	session         *gocql.Session
+	allMetricsCache map[api.MetricKey]bool
+	allMetricsMutex *sync.RWMutex
+	tagIndexCache   map[tagIndexCacheKey]bool
+	tagIndexMutex   *sync.RWMutex
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
@@ -49,25 +61,60 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &defaultDatabase{session: session}, nil
+	return &defaultDatabase{
+		session:         session,
+		allMetricsCache: make(map[api.MetricKey]bool),
+		allMetricsMutex: &sync.RWMutex{},
+		tagIndexCache:   make(map[tagIndexCacheKey]bool),
+		tagIndexMutex:   &sync.RWMutex{},
+	}, nil
 }
 
 // AddMetricName inserts to metric to Cassandra.
 func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-	return db.session.Query(
-		"INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)",
-		metricKey,
-		tagSet.Serialize(),
-	).Exec()
+
+	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
+		return err
+	}
+	db.allMetricsMutex.RLock()
+	if db.allMetricsCache[metricKey] {
+		db.allMetricsMutex.RUnlock()
+		// If the key is found in the cache, exit early.
+		return nil
+	}
+	db.allMetricsMutex.RUnlock()
+	if err := db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{string(metricKey)}, 0).Exec(); err != nil {
+		return err
+	}
+	db.allMetricsMutex.Lock()
+	// Remember the cached value so that it won't be written again in the absence of reads.
+	db.allMetricsCache[metricKey] = true
+	db.allMetricsMutex.Unlock()
+	return nil
+
 }
 
 func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
-	return db.session.Query(
+	indexKey := tagIndexCacheKey{tagKey, tagValue, metricKey}
+	db.tagIndexMutex.RLock()
+	indexValue := db.tagIndexCache[indexKey]
+	db.tagIndexMutex.RUnlock()
+	if indexValue {
+		return nil // Found in the cache so already in the table, so no need to perform a write.
+	}
+	err := db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?",
 		[]string{string(metricKey)},
 		tagKey,
 		tagValue,
 	).Exec()
+	if err == nil {
+		db.tagIndexMutex.Lock()
+		// Remember this write in the cache.
+		db.tagIndexCache[indexKey] = true
+		db.tagIndexMutex.Unlock()
+	}
+	return err
 }
 
 func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error) {
@@ -107,18 +154,25 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 
 func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	var keys []api.MetricKey
-	metricKey := ""
-	iterator := db.session.Query("SELECT distinct metric_key FROM metric_names").Iter()
-	for iterator.Scan(&metricKey) {
-		keys = append(keys, api.MetricKey(metricKey))
-	}
-	if err := iterator.Close(); err != nil {
+	err := db.session.Query("SELECT metric_names FROM metric_name_set WHERE shard = ?", 0).Scan(&keys)
+	if err != nil {
 		return nil, err
 	}
+	db.allMetricsMutex.Lock()
+	db.allMetricsCache = make(map[api.MetricKey]bool)
+	for _, key := range keys {
+		db.allMetricsCache[key] = true
+	}
+	db.allMetricsMutex.Unlock()
 	return keys, nil
 }
 
 func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
+	db.allMetricsMutex.Lock()
+	// Forget the metric in the cache.
+	// (If this delete fails, there will be an extraneous write the next time the metric is consumed).
+	db.allMetricsCache[metricKey] = false
+	db.allMetricsMutex.Unlock()
 	return db.session.Query(
 		"DELETE FROM metric_names WHERE metric_key = ? AND tag_set = ?",
 		metricKey,
@@ -127,6 +181,11 @@ func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.
 }
 
 func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+	// Forget the tag key/value/metric triplet in the cache.
+	// (If this delete fails, there will be an extraneous write the next time they are consumed).
+	db.tagIndexMutex.Lock()
+	db.tagIndexCache[tagIndexCacheKey{tagKey, tagValue, metricKey}] = false
+	db.tagIndexMutex.Unlock()
 	return db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys - ? WHERE tag_key = ? AND tag_value = ?",
 		[]string{string(metricKey)},

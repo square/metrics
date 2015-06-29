@@ -15,7 +15,9 @@
 package internal
 
 import (
+	"fmt"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/gocql/gocql"
@@ -31,15 +33,20 @@ func newDatabase(t *testing.T) *defaultDatabase {
 		t.Errorf("Cannot connect to Cassandra")
 		return nil
 	}
-	if session.Query("TRUNCATE metric_names").Exec() != nil {
-		t.Errorf("Cannot truncate")
-		return nil
+	tables := []string{"metric_names", "tag_index", "metric_name_set"}
+	for _, table := range tables {
+		if err := session.Query(fmt.Sprintf("TRUNCATE %s", table)).Exec(); err != nil {
+			t.Errorf("Cannot truncate %s: %s", table, err.Error())
+			return nil
+		}
 	}
-	if session.Query("TRUNCATE tag_index").Exec() != nil {
-		t.Errorf("Cannot truncate")
-		return nil
+	return &defaultDatabase{
+		session:         session,
+		allMetricsCache: make(map[api.MetricKey]bool),
+		allMetricsMutex: &sync.RWMutex{},
+		tagIndexCache:   make(map[tagIndexCacheKey]bool),
+		tagIndexMutex:   &sync.RWMutex{},
 	}
-	return &defaultDatabase{session}
 }
 
 func cleanDatabase(t *testing.T, db *defaultDatabase) {
