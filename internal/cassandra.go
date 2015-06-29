@@ -40,7 +40,8 @@ type Database interface {
 }
 
 type defaultDatabase struct {
-	session *gocql.Session
+	session         *gocql.Session
+	allMetricsCache map[api.MetricKey]bool
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
@@ -49,7 +50,7 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &defaultDatabase{session: session}, nil
+	return &defaultDatabase{session: session, allMetricsCache: make(map[api.MetricKey]bool)}, nil
 }
 
 func eitherError(a error, b error) error {
@@ -61,10 +62,21 @@ func eitherError(a error, b error) error {
 
 // AddMetricName inserts to metric to Cassandra.
 func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-	return eitherError(
-		db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(),
-		db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{string(metricKey)}, 0).Exec(),
-	)
+
+	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
+		return err
+	}
+	if db.allMetricsCache[metricKey] {
+		// If the key is found in the cache, exit early.
+		return nil
+	}
+	if err := db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{string(metricKey)}, 0).Exec(); err != nil {
+		return err
+	}
+	// Remember the cached value so that it won't be written again in the absence of reads.
+	db.allMetricsCache[metricKey] = true
+	return nil
+
 }
 
 func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
@@ -116,6 +128,9 @@ func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	err := db.session.Query("SELECT metric_names FROM metric_name_set WHERE shard = ?", 0).Scan(&keys)
 	if err != nil {
 		return nil, err
+	}
+	for _, key := range keys {
+		db.allMetricsCache[key] = true
 	}
 	return keys, nil
 }
