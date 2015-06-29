@@ -52,13 +52,19 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	return &defaultDatabase{session: session}, nil
 }
 
+func eitherError(a error, b error) error {
+	if a != nil {
+		return a
+	}
+	return b
+}
+
 // AddMetricName inserts to metric to Cassandra.
 func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-	return db.session.Query(
-		"INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)",
-		metricKey,
-		tagSet.Serialize(),
-	).Exec()
+	return eitherError(
+		db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(),
+		db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", metricKey, 0).Exec(),
+	)
 }
 
 func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
@@ -107,12 +113,8 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 
 func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	var keys []api.MetricKey
-	metricKey := ""
-	iterator := db.session.Query("SELECT distinct metric_key FROM metric_names").Iter()
-	for iterator.Scan(&metricKey) {
-		keys = append(keys, api.MetricKey(metricKey))
-	}
-	if err := iterator.Close(); err != nil {
+	err := db.session.Query("SELECT metric_names FROM metric_name_set WHERE shard = ?", 0).Scan(&keys)
+	if err != nil {
 		return nil, err
 	}
 	return keys, nil

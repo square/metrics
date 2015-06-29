@@ -39,6 +39,10 @@ func newDatabase(t *testing.T) *defaultDatabase {
 		t.Errorf("Cannot truncate")
 		return nil
 	}
+	if session.Query("TRUNCATE metric_name_set").Exec() != nil {
+		t.Errorf("Cannot truncate")
+		return nil
+	}
 	return &defaultDatabase{session}
 }
 
