@@ -50,9 +50,9 @@ type tagIndexCacheKey struct {
 type defaultDatabase struct {
 	session         *gocql.Session
 	allMetricsCache map[api.MetricKey]bool
-	allMetricsMutex *sync.RWMutex
+	allMetricsMutex *sync.Mutex
 	tagIndexCache   map[tagIndexCacheKey]bool
-	tagIndexMutex   *sync.RWMutex
+	tagIndexMutex   *sync.Mutex
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
@@ -64,9 +64,9 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	return &defaultDatabase{
 		session:         session,
 		allMetricsCache: make(map[api.MetricKey]bool),
-		allMetricsMutex: &sync.RWMutex{},
+		allMetricsMutex: &sync.Mutex{},
 		tagIndexCache:   make(map[tagIndexCacheKey]bool),
-		tagIndexMutex:   &sync.RWMutex{},
+		tagIndexMutex:   &sync.Mutex{},
 	}, nil
 }
 
@@ -76,13 +76,13 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
 		return err
 	}
-	db.allMetricsMutex.RLock()
+	db.allMetricsMutex.Lock()
 	if db.allMetricsCache[metricKey] {
-		db.allMetricsMutex.RUnlock()
+		db.allMetricsMutex.Unlock()
 		// If the key is found in the cache, exit early.
 		return nil
 	}
-	db.allMetricsMutex.RUnlock()
+	db.allMetricsMutex.Unlock()
 	if err := db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{string(metricKey)}, 0).Exec(); err != nil {
 		return err
 	}
@@ -96,9 +96,9 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 
 func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
 	indexKey := tagIndexCacheKey{tagKey, tagValue, metricKey}
-	db.tagIndexMutex.RLock()
+	db.tagIndexMutex.Lock()
 	indexValue := db.tagIndexCache[indexKey]
-	db.tagIndexMutex.RUnlock()
+	db.tagIndexMutex.Unlock()
 	if indexValue {
 		return nil // Found in the cache so already in the table, so no need to perform a write.
 	}
