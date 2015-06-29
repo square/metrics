@@ -67,7 +67,7 @@ var inputs = []string{
 	"select(fromx+tox+groupx+byx+selectx+describex+allx+wherex) from 0 to 0",
 }
 
-var selects2 = []string{
+var selects = []string{
 	// All these queries are tested with and without the prefix "select"
 	// selects - parenthesis
 	"0 from 0 to 0",
@@ -131,9 +131,6 @@ var selects2 = []string{
 	"x | y(group by a) from 0 to 0",
 	"x + 1 | y(group by a) from 0 to 0",
 	"x | y | z + 1 from 0 to 0",
-}
-
-var selects = []string{
 	"x|y from 0 to 0",
 	"x|f + y*z from 0 to 0",
 	"x|f + y|g from 0 to 0",
@@ -174,13 +171,10 @@ func TestParse_success(t *testing.T) {
 	for _, row := range selects {
 		for _, prefix := range []string{"", "select "} {
 			query := prefix + row
-			node, err := Parse(query)
+			_, err := Parse(query)
 			if err != nil {
 				t.Errorf("[%s] failed to parse: %s", query, err.Error())
 			}
-			t.Logf("name: %s", row)
-			t.Logf("node: %s", PrintNode(node.(Node)))
-
 		}
 	}
 }
