@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -31,17 +32,12 @@ func newDatabase(t *testing.T) *defaultDatabase {
 		t.Errorf("Cannot connect to Cassandra")
 		return nil
 	}
-	if session.Query("TRUNCATE metric_names").Exec() != nil {
-		t.Errorf("Cannot truncate")
-		return nil
-	}
-	if session.Query("TRUNCATE tag_index").Exec() != nil {
-		t.Errorf("Cannot truncate")
-		return nil
-	}
-	if session.Query("TRUNCATE metric_name_set").Exec() != nil {
-		t.Errorf("Cannot truncate")
-		return nil
+	tables := []string{"metric_names", "tag_index", "metric_name_set"}
+	for _, table := range tables {
+		if session.Query(fmt.Sprintf("TRUNCATE %s"), table).Exec() != nil {
+			t.Errorf("Cannot truncate %s", table)
+			return nil
+		}
 	}
 	return &defaultDatabase{session: session, allMetricsCache: make(map[api.MetricKey]bool)}
 }
