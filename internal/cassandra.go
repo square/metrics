@@ -95,8 +95,8 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 	}
 	db.allMetricsMutex.Lock()
 	// Remember the cached value so that it won't be written again in the absence of reads.
-	db.allMetricsMutex.Unlock()
 	db.allMetricsCache[metricKey] = true
+	db.allMetricsMutex.Unlock()
 	return nil
 
 }
