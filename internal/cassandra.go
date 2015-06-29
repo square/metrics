@@ -70,13 +70,6 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	}, nil
 }
 
-func eitherError(a error, b error) error {
-	if a != nil {
-		return a
-	}
-	return b
-}
-
 // AddMetricName inserts to metric to Cassandra.
 func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
 
@@ -166,6 +159,7 @@ func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 		return nil, err
 	}
 	db.allMetricsMutex.Lock()
+	db.allMetricsCache = make(map[api.MetricKey]bool)
 	for _, key := range keys {
 		db.allMetricsCache[key] = true
 	}

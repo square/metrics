@@ -35,8 +35,8 @@ func newDatabase(t *testing.T) *defaultDatabase {
 	}
 	tables := []string{"metric_names", "tag_index", "metric_name_set"}
 	for _, table := range tables {
-		if session.Query(fmt.Sprintf("TRUNCATE %s"), table).Exec() != nil {
-			t.Errorf("Cannot truncate %s", table)
+		if err := session.Query(fmt.Sprintf("TRUNCATE %s"), table).Exec(); err != nil {
+			t.Errorf("Cannot truncate %s: %s", table, err.Error())
 			return nil
 		}
 	}
