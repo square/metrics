@@ -63,7 +63,7 @@ func eitherError(a error, b error) error {
 func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
 	return eitherError(
 		db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(),
-		db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", metricKey, 0).Exec(),
+		db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{metricKey}, 0).Exec(),
 	)
 }
 
