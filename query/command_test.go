@@ -209,7 +209,6 @@ func TestCommand_Select(t *testing.T) {
 			Name:      "series_1",
 		}},
 	} {
-		// t.Fatalf("%s\n", test.query)
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
 		command, err := Parse(test.query)
