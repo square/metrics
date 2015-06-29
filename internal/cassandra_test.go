@@ -43,7 +43,7 @@ func newDatabase(t *testing.T) *defaultDatabase {
 		t.Errorf("Cannot truncate")
 		return nil
 	}
-	return &defaultDatabase{session}
+	return &defaultDatabase{session: session, allMetricsCache: make(map[api.MetricKey]bool)}
 }
 
 func cleanDatabase(t *testing.T, db *defaultDatabase) {
