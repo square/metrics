@@ -16,6 +16,8 @@
 package internal
 
 import (
+	"sync"
+
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
 )
@@ -42,6 +44,7 @@ type Database interface {
 type defaultDatabase struct {
 	session         *gocql.Session
 	allMetricsCache map[api.MetricKey]bool
+	allMetricsMutex *sync.RWMutex
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
@@ -50,7 +53,7 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &defaultDatabase{session: session, allMetricsCache: make(map[api.MetricKey]bool)}, nil
+	return &defaultDatabase{session: session, allMetricsCache: make(map[api.MetricKey]bool), allMetricsMutex: &sync.RWMutex{}}, nil
 }
 
 func eitherError(a error, b error) error {
@@ -66,14 +69,19 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
 		return err
 	}
+	db.allMetricsMutex.RLock()
 	if db.allMetricsCache[metricKey] {
+		db.allMetricsMutex.RUnlock()
 		// If the key is found in the cache, exit early.
 		return nil
 	}
+	db.allMetricsMutex.RUnlock()
 	if err := db.session.Query("UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?", []string{string(metricKey)}, 0).Exec(); err != nil {
 		return err
 	}
+	db.allMetricsMutex.Lock()
 	// Remember the cached value so that it won't be written again in the absence of reads.
+	db.allMetricsMutex.Unlock()
 	db.allMetricsCache[metricKey] = true
 	return nil
 
@@ -129,9 +137,11 @@ func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.allMetricsMutex.Lock()
 	for _, key := range keys {
 		db.allMetricsCache[key] = true
 	}
+	db.allMetricsMutex.Unlock()
 	return keys, nil
 }
 
