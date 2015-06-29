@@ -138,6 +138,7 @@ func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 		return nil, err
 	}
 	db.allMetricsMutex.Lock()
+	db.allMetricsCache = make(map[string]bool)
 	for _, key := range keys {
 		db.allMetricsCache[key] = true
 	}
