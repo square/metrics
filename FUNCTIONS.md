@@ -75,6 +75,7 @@ Aggregators treat missing data (`NaN`) as though it were not present. For exampl
 The result of `aggregate.mean` is:
 
 |`aggregate.mean(MetricB)` TagSet |`aggregate.mean(MetricB)` Values|
+|:-------------------------------:|:------------------------------:|
 | (no tags)                       | 9 6 5                          |
 
 Aggregations can be grouped by individual tags. The series in the resulting series list preserve those tags which their group used.
@@ -87,6 +88,7 @@ Aggregations can be grouped by individual tags. The series in the resulting seri
 | app: server, env: production| 2 2 0        |
 
 |`aggregate.sum(MetricA group by app)` TagSet|`aggregate.sum(MetricA group by app)` Values|
+|:------------------------------------------:|:------------------------------------------:|
 | app: ui                                    | 4 5 4                                      |
 | app: server                                | 2 2 1                                      |
 
