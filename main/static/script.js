@@ -350,6 +350,11 @@ module.controller("embedCtrl", function($location, $scope, $launchedQueries, $ch
     profile: false,
     query:   queries["query"] || ""
   });
+
+  var url = $location.absUrl();
+  var embedString = "embed.html";
+  var at = url.indexOf(embedString);
+  $scope.metricsURL = url.substring(0, at) + url.substring(at + embedString.length);
 });
 
 function dateFromIndex(index, timerange) {

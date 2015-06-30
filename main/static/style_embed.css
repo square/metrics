@@ -36,3 +36,10 @@ body {
   width:100%;
   height:100%;
 }
+
+.metrics-link {
+  position:fixed;
+  right:0;
+  top:0;
+  padding: 8px;
+}
