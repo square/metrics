@@ -21,7 +21,7 @@ module.config(function($locationProvider) {
   $locationProvider.html5Mode(true);
 });
 
-module.service("$google", function($rootScope) {
+module.factory("$google", function($rootScope) {
   // abstraction over the async loading of google libraries.
   // registered functions are either invoked immediately (if the library finished loading).
   // or queued in an array.
@@ -46,38 +46,14 @@ module.service("$google", function($rootScope) {
   }
 });
 
-module.controller("mainCtrl", function(
-  $google,
-  $http,
-  $location,
-  $q,
-  $scope
-  ) {
-  var queryCounter = 0;     // ever-incrementing counter of queries - used to detect out-of-order queries.
-  var mainChart = {
-    dom:   document.getElementById("chart-div"),
-    chart: null
-  };
-  var timelineChart = {
-    dom:   document.getElementById("timeline-div"),
-    chart: null
-  };
-  $scope.queryResult = "";
-  $scope.inputModel = {
-    profile: false,
-    query: "",
-    renderType: "line"
-  };
-
+// Autocompletion setup (depends on $http to perform request to /token).
+module.run(function($http) {
   var autocom = new Autocom(document.getElementById("query-input"));
-
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
-
   autocom.options = keywords;
   autocom.prefixPattern = "`[a-zA-Z][a-zA-Z.-]*`?|[a-zA-Z][a-zA-Z.-]*";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
-
   $http.get("/token").success(function(data, status, headers, config) {
     if (!data.success || !data.body) {
       return;
@@ -94,6 +70,102 @@ module.controller("mainCtrl", function(
       }));
     }
   });
+})
+
+// Misc helper
+function parseBool(string) {
+  return string === "true" ? true : false
+};
+
+// A counter is an object with .inc() and .dec() methods,
+// as well as .pos() and .zero() predicates.
+function Counter() {
+  var count = 0;
+  this.inc = function() {
+    count++;
+  };
+  this.dec = function() {
+    count--;
+  };
+  this.pos = function() {
+    return count > 0;
+  };
+  this.zero = function() {
+    return count === 0;
+  };
+};
+
+// A ticket booth will give you a ticket with .next()
+// The ticket will be .valid() until another ticket has been asked for.
+function TicketBooth() {
+  var count = 0;
+  function Ticket(n) {
+    this.valid = function() {
+      return n === count;
+    }
+  }
+  this.next = function() {
+    return new Ticket(++count);
+  };
+}
+
+// A singleton Counter for launched queries.
+module.factory("$launchedQueries", function() {
+  return new Counter();
+});
+
+// A singleton Counter for waiting charts
+module.factory("$chartWaiting", function() {
+  return new Counter();
+});
+
+// A singleton ticketbooth for query counting
+module.factory("$queryTicketBooth", function() {
+  return new TicketBooth();
+});
+
+// chart-related functions
+function clearChart(chart) {
+  if (chart.chart !== null) {
+    chart.chart.clearChart();
+    chart.chart = null;
+  }
+};
+
+module.factory("$asyncRender", function($chartWaiting) {
+  return function($scope, chart, dataTable, options) {
+    google.visualization.events.addListener(chart.chart, "ready", function() {
+      $scope.$apply(function() { $chartWaiting.dec(); });
+    });
+    setTimeout(function(){chart.chart.draw(dataTable, options)}, 1);
+  };
+});
+
+module.controller("mainCtrl", function(
+  $google,
+  $http,
+  $location,
+  $q,
+  $scope,
+  $launchedQueries,
+  $queryTicketBooth,
+  $chartWaiting,
+  $asyncRender
+  ) {
+  var mainChart = {
+    dom:   document.getElementById("chart-div"),
+    chart: null
+  };
+  var timelineChart = {
+    dom:   document.getElementById("timeline-div"),
+    chart: null
+  };
+  $scope.queryResult = "";
+  $scope.inputModel = {
+    profile: false,
+    query: "",
+    renderType: "line"
+  };
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
@@ -127,9 +199,9 @@ module.controller("mainCtrl", function(
   };
 
   $scope.screenState = function() {
-    if ($scope.launchedQuery > 0) {
+    if ($launchedQueries.pos()) {
       return "loading";
-    } else if ($scope.launchedQuery === 0 && $scope.chartWaiting > 0) {
+    } else if ($launchedQueries.zero() && $chartWaiting.pos()) {
       return "rendering";
     } else if ($scope.queryResult && !$scope.queryResult.success) {
       return "error";
@@ -138,48 +210,28 @@ module.controller("mainCtrl", function(
     }
   };
 
-  $scope.chartWaiting = 0;
-  $scope.launchedQuery = 0;
-
   function launchRequest(params) {
-    queryCounter++;
-    var currentQueryCounter = queryCounter; // store it in the closure.
-    $scope.launchedQuery++;
+    var ticket = $queryTicketBooth.next();
+    $launchedQueries.inc();
     var request = $http.get("/query", {
       params:params
     }).success(function(data, status, headers, config) {
-      $scope.launchedQuery--;
+      $launchedQueries.dec();
       $scope.queryResult = data;
-      if (currentQueryCounter === queryCounter) {
+      if (ticket.valid()) {
         $google(function() { receive(data) });
       }
     }).error(function(data, status, headers, config) {
-      $scope.launchedQuery--;
+      $launchedQueries.dec();
       $scope.queryResult = data;
-      if (currentQueryCounter === queryCounter) {
+      if (ticket.valid()) {
         $google(function() { receive(data) });
       }
     });
   }
 
-  function parseBool(string) {
-    return string === "true" ? true : false
-  };
 
-  // chart-related functions
-  function clearChart(chart) {
-    if (chart.chart !== null) {
-      chart.chart.clearChart();
-      chart.chart = null;
-    }
-  };
 
-  function asyncRender(chart, dataTable, options) {
-    google.visualization.events.addListener(chart.chart, "ready", function() {
-      $scope.$apply(function($scope) { $scope.chartWaiting--; });
-    });
-    setTimeout(function(){chart.chart.draw(dataTable, options)}, 1);
-  };
 
   function receive(object) {
     clearChart(mainChart);
@@ -194,7 +246,7 @@ module.controller("mainCtrl", function(
       // invalid data.
       return;
     }
-    $scope.chartWaiting++;
+    $chartWaiting.inc();
     var series = [];
     var labels = ["Time"];
     var table = [labels];
@@ -227,7 +279,7 @@ module.controller("mainCtrl", function(
       options.isStacked = true;
       chart.chart = new google.visualization.AreaChart(chart.dom);
     }
-    asyncRender(chart, dataTable, options);
+    $asyncRender($scope, chart, dataTable, options);
   };
 
   function receiveProfile(object, chart) {
@@ -235,7 +287,7 @@ module.controller("mainCtrl", function(
       return
     }
     console.log('increase');
-    $scope.chartWaiting++;
+    $chartWaiting.inc();
     var dataTable = new google.visualization.DataTable();
     var options = {
       chartArea: {left: "5%", width:"90%", height: "500px"},
@@ -259,7 +311,7 @@ module.controller("mainCtrl", function(
       var row = [ profile.name , normalize(profile.start), normalize(profile.finish) ];
       dataTable.addRows([row]);
     }
-    asyncRender(chart, dataTable, options);
+    $asyncRender($scope, chart, dataTable, options);
   }
 });
 

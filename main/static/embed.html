@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <title>Metrics Query Engine</title>
+  <base href="/static/">
+  <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/ecmascript" src="script.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+  <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<div ng-app="main" class="container">
+  <div ng-controller="mainCtrl" class="row">
+    <div ng-show="screenState() != 'rendered'">
+      <div class="alert alert-info"   ng-show="screenState() == 'loading'">Waiting for response...</div>
+      <div class="alert alert-info"   ng-show="screenState() == 'rendering'">Rendering chart...</div>
+      <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
+    </div>
+    <div
+      ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'"
+      class="col-xs-12">
+      <div id="chart-div"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
