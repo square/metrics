@@ -67,7 +67,7 @@ func checkParameters(name string, expected int, parameters []function.Value) err
 	return nil
 }
 
-// transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
+// Derivative estimates the "change per second" between the two samples (scaled consecutive difference)
 func Derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func Derivative(values []float64, parameters []function.Value, scale float64) ([
 	return result, nil
 }
 
-// transformIntegral integrates a series whose values are "X per millisecond" to estimate "total X so far"
+// Integral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
 func Integral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.integral", 0, parameters); err != nil {
@@ -102,7 +102,7 @@ func Integral(values []float64, parameters []function.Value, scale float64) ([]f
 	return result, nil
 }
 
-// transformRate functions exactly like transformDerivative but bounds the result to be positive.
+// Rate functions exactly like transformDerivative but bounds the result to be positive.
 // That is, it returns consecutive differences which are at least 0.
 func Rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.rate", 0, parameters); err != nil {
@@ -122,7 +122,7 @@ func Rate(values []float64, parameters []function.Value, scale float64) ([]float
 	return result, nil
 }
 
-// transformCumulative computes the cumulative sum of the given values.
+// Cumulative computes the cumulative sum of the given values.
 func Cumulative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func MapMaker(name string, fun func(float64) float64) func([]float64, []function
 	}
 }
 
-// transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
+// Default will replacing missing data (NaN) with the `default` value supplied as a parameter.
 func Default(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.default", 1, parameters); err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func Default(values []float64, parameters []function.Value, scale float64) ([]fl
 	return result, nil
 }
 
-// transformNaNKeepLast will replace missing NaN data with the data before it
+// NaNKeepLast will replace missing NaN data with the data before it
 func NaNKeepLast(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.nan_keep_last", 0, parameters); err != nil {
 		return nil, err

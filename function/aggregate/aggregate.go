@@ -39,7 +39,7 @@ func groupAccepts(left api.TagSet, right api.TagSet, tags []string) bool {
 	return true
 }
 
-// Adds the series to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
+// addToGroup adds the series to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
 func addToGroup(rows []group, series api.Timeseries, tags []string) []group {
 	// First we delete all tags with names other than those found in 'tags'
 	newTags := api.NewTagSet()
@@ -63,7 +63,7 @@ func addToGroup(rows []group, series api.Timeseries, tags []string) []group {
 	})
 }
 
-// Groups the given SeriesList by tags, producing a list of lists (of type groupResult)
+// groupBy groups the given SeriesList by tags, producing a list of lists (of type groupResult)
 func groupBy(list api.SeriesList, tags []string) []group {
 	result := []group{}
 	for _, series := range list.Series {
@@ -72,6 +72,7 @@ func groupBy(list api.SeriesList, tags []string) []group {
 	return result
 }
 
+// filterNaN removes NaN elements from the given slice (producing a copy)
 func filterNaN(array []float64) []float64 {
 	result := []float64{}
 	for _, v := range array {
@@ -82,7 +83,7 @@ func filterNaN(array []float64) []float64 {
 	return result
 }
 
-// The sum aggregator returns the mean of the given array
+// Sum returns the mean of the given slice
 func Sum(array []float64) float64 {
 	array = filterNaN(array)
 	sum := 0.0
@@ -92,7 +93,7 @@ func Sum(array []float64) float64 {
 	return sum
 }
 
-// The mean aggregator returns the mean of the given array
+// Mean aggregator returns the mean of the given slice
 func Mean(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
@@ -106,7 +107,7 @@ func Mean(array []float64) float64 {
 	return sum / float64(len(array))
 }
 
-// The minimum aggregator returns the minimum
+// Min returns the minimum of the given slice
 func Min(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
@@ -120,7 +121,7 @@ func Min(array []float64) float64 {
 	return min
 }
 
-// The maximum aggregator returns the maximum
+// Max returns the maximum of the given slice
 func Max(array []float64) float64 {
 	array = filterNaN(array)
 	if len(array) == 0 {
@@ -162,8 +163,7 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 	return result
 }
 
-// This function is the culmination of all others.
-// `aggregateBy` takes a series list, an aggregator, and a set of tags.
+// AggregateBy takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
 func AggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string) api.SeriesList {
