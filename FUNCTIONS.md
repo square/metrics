@@ -44,10 +44,10 @@ Then the result of the operation will be:
 Aggregation functions take a serieslist containing many individual series, and combine these series into a smaller number.
 The following aggregation functions are supported:
 
-* aggregate.sum
-* aggregate.mean
-* aggregate.min
-* aggregate.max
+* `aggregate.sum`
+* `aggregate.mean`
+* `aggregate.min`
+* `aggregate.max`
 
 Aggregation functions take only one argument: the series list to aggregate on. They will collapse all series in the argument list into a single resulting series.
 For example, given a series list produced by `MetricA`, writing `aggregate.sum( MetricA )` computes the following:
@@ -93,5 +93,69 @@ Aggregations can be grouped by individual tags. The series in the resulting seri
 | app: server                                | 2 2 1                                      |
 
 ## Transformation Functions
+
+Transformation functions modify each series in a given serieslist independently. The following transformation functions are supported:
+
+* `transform.derivative`
+* `transform.integral`
+* `transform.rate`
+* `transform.cumulative`
+* `transform.default`
+* `transform.abs`
+* `transform.nan_keep_last`
+
+### `transform.derivative(list)`
+
+This function computes a numerical derivative for a given timeseries. Each value will be updates to be `y[i] = (x[i] - x[i-1]) / interval` where `interval` is the time between samples, measured in seconds.
+The first value is assigned 0.
+
+### `transform.integral(list)`
+
+This function computes a numerical integral for a given timeseries. Each value will be the sum of the values up to it (including itself), a left Riemann integral.
+This quantity will be scaled, interpreting each value in the series as having units of `events / second`, and producing something with the units of `events`.
+If you do not want this behavior, use `transform.cumulative` instead, which does not have scaling behavior.
+
+`NaN` values are treated as 0.
+
+### `transform.rate(list)`
+
+This function computes the numerical derivative of a given timeseries, as in `transform.derivative`, but it bounds the result to be at least 0.
+This is useful for timeseries which increase until reaching some cap where they reset, to avoid massive negative spikes in the resulting derivative.
+It scales the results to be `events / second`, interpreting the input with units `events`.
+
+### `transform.cumulative(list)`
+
+This function computes the cumulative sum of a given timeseries. It performs no scaling. `NaN` values are treated as 0.
+
+### `transform.default(list, value)`
+
+This function takes an extra number parameter. Any occurrence of `NaN` in any series in the list will be replaced by `value`.
+
+### `transform.abs(list)`
+
+This function computes the absolute value of all values in each series of the given list.
+
+### `transform.nan_keep_last(list)`
+
+This function replaces any `NaN` value with the last non-`NaN` value before it. For data which is very sparse, this can make graphs more readable.
+Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.default` on the result.
+
+### `transform.timeshift(list, duration)`
+
+This function shifts time forward or backward while computing `list`. In particular, `duration` is evaluated first, and then `list` (an arbitrary expression) is computed with a shifted timerange.
+As a result, the computed result will contain data fetched before or after the rest of the expression.
+
+A positive duration is forward in time, while a negative duration is backwards in time.
+
+### `transform.moving_average(list, duration)`
+
+This function computes a moving average over the given duration for `list`.
+The function automatically extends the timerange of `list` in order to achieve a genuine moving average outside of the timerange provided by list.
+
+Each value is replaced by the average of all samples (including itself) in the interval of length `duration` prior to itself. `NaN` values are treated as absent.
+
+### `tramsform.alias(list, name)`
+
+This function renames the given list to be called by the given name.
 
 ## Filter Functions

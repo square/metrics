@@ -102,7 +102,7 @@ func Integral(values []float64, parameters []function.Value, scale float64) ([]f
 	return result, nil
 }
 
-// transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
+// transformRate functions exactly like transformDerivative but bounds the result to be positive.
 // That is, it returns consecutive differences which are at least 0.
 func Rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	if err := checkParameters("transform.rate", 0, parameters); err != nil {
