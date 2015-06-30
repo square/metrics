@@ -17,8 +17,6 @@
 package transform
 
 import (
-	"errors"
-	"fmt"
 	"math"
 
 	"github.com/square/metrics/api"
