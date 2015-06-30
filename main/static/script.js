@@ -48,6 +48,9 @@ module.factory("$google", function($rootScope) {
 
 // Autocompletion setup (depends on $http to perform request to /token).
 module.run(function($http) {
+  if (!document.getElementById("query-input")) {
+    return;
+  }
   var autocom = new Autocom(document.getElementById("query-input"));
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
   autocom.options = keywords;
@@ -72,11 +75,6 @@ module.run(function($http) {
   });
 })
 
-// Misc helper
-function parseBool(string) {
-  return string === "true" ? true : false
-};
-
 // A counter is an object with .inc() and .dec() methods,
 // as well as .pos() and .zero() predicates.
 function Counter() {
@@ -94,6 +92,14 @@ function Counter() {
     return count === 0;
   };
 };
+// A singleton Counter for launched queries.
+module.factory("$launchedQueries", function() {
+  return new Counter();
+});
+// A singleton Counter for waiting charts
+module.factory("$chartWaiting", function() {
+  return new Counter();
+});
 
 // A ticket booth will give you a ticket with .next()
 // The ticket will be .valid() until another ticket has been asked for.
@@ -108,17 +114,6 @@ function TicketBooth() {
     return new Ticket(++count);
   };
 }
-
-// A singleton Counter for launched queries.
-module.factory("$launchedQueries", function() {
-  return new Counter();
-});
-
-// A singleton Counter for waiting charts
-module.factory("$chartWaiting", function() {
-  return new Counter();
-});
-
 // A singleton ticketbooth for query counting
 module.factory("$queryTicketBooth", function() {
   return new TicketBooth();
@@ -141,76 +136,8 @@ module.factory("$asyncRender", function($chartWaiting) {
   };
 });
 
-module.controller("mainCtrl", function(
-  $google,
-  $http,
-  $location,
-  $q,
-  $scope,
-  $launchedQueries,
-  $queryTicketBooth,
-  $chartWaiting,
-  $asyncRender
-  ) {
-  var mainChart = {
-    dom:   document.getElementById("chart-div"),
-    chart: null
-  };
-  var timelineChart = {
-    dom:   document.getElementById("timeline-div"),
-    chart: null
-  };
-  $scope.queryResult = "";
-  $scope.inputModel = {
-    profile: false,
-    query: "",
-    renderType: "line"
-  };
-
-  // Triggers when the button is clicked.
-  $scope.onSubmitQuery = function() {
-    // TODO - unhack this.
-    $scope.inputModel.query = document.getElementById("query-input").value;
-    $location.search("query", $scope.inputModel.query)
-    $location.search("renderType", $scope.inputModel.renderType)
-    $location.search("profile", $scope.inputModel.profile.toString())
-  };
-
-  $scope.$on("$locationChangeSuccess", function() {
-    // this triggers at least once (in the beginning).
-    var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    $scope.inputModel.profile = parseBool(queries["profile"]);
-    if ($scope.inputModel.query) {
-      launchRequest({
-        profile: $scope.inputModel.profile,
-        query:   $scope.inputModel.query
-      });
-    }
-  });
-
-  // true if the output should be tabular.
-  $scope.isTabular = function() {
-    return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
-  };
-  $scope.hasProfiling = function() {
-    return !!($scope.queryResult && $scope.queryResult.profile);
-  };
-
-  $scope.screenState = function() {
-    if ($launchedQueries.pos()) {
-      return "loading";
-    } else if ($launchedQueries.zero() && $chartWaiting.pos()) {
-      return "rendering";
-    } else if ($scope.queryResult && !$scope.queryResult.success) {
-      return "error";
-    } else {
-      return "rendered";
-    }
-  };
-
-  function launchRequest(params) {
+module.factory("$launchRequest", function($google, $http, $receive, $queryTicketBooth, $launchedQueries) {
+  return function($scope, params) {
     var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
@@ -219,29 +146,20 @@ module.controller("mainCtrl", function(
       $launchedQueries.dec();
       $scope.queryResult = data;
       if (ticket.valid()) {
-        $google(function() { receive(data) });
+        $google(function() { $receive($scope, data) });
       }
     }).error(function(data, status, headers, config) {
       $launchedQueries.dec();
       $scope.queryResult = data;
       if (ticket.valid()) {
-        $google(function() { receive(data) });
+        $google(function() { $receive($scope, data) });
       }
     });
-  }
+  };
+});
 
-
-
-
-  function receive(object) {
-    clearChart(mainChart);
-    clearChart(timelineChart);
-    receiveSelect(object, mainChart);
-    receiveProfile(object, timelineChart);
-  }
-
-
-  function receiveSelect(object, chart) {
+module.factory("$receiveSelect", function($chartWaiting, $asyncRender) {
+  return function($scope, object, chart) {
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
       return;
@@ -271,7 +189,7 @@ module.controller("mainCtrl", function(
     var dataTable = google.visualization.arrayToDataTable(table);
     var options = {
       legend: {position: "bottom"},
-      chartArea: {left: "5%", width:"90%", height: "300px"}
+      chartArea: {left: "5%", width:"90%", top: "5%", height: "90%"}
     }
     if ($scope.inputModel.renderType === "line") {
       chart.chart = new google.visualization.LineChart(chart.dom);
@@ -281,8 +199,10 @@ module.controller("mainCtrl", function(
     }
     $asyncRender($scope, chart, dataTable, options);
   };
+});
 
-  function receiveProfile(object, chart) {
+module.factory("$receiveProfile", function($chartWaiting, $asyncRender) {
+  return function($scope, object, chart) {
     if (!$scope.hasProfiling()) {
       return
     }
@@ -312,7 +232,113 @@ module.controller("mainCtrl", function(
       dataTable.addRows([row]);
     }
     $asyncRender($scope, chart, dataTable, options);
-  }
+  };
+});
+
+module.factory("$mainChart", function() {
+  return {
+    dom:   document.getElementById("chart-div"),
+    chart: null
+  };
+});
+module.factory("$timelineChart", function() {
+  return {
+    dom:   document.getElementById("timeline-div"),
+    chart: null
+  };
+});
+
+module.factory("$receive", function($mainChart, $timelineChart, $receiveSelect, $receiveProfile) {
+  return function($scope, object) {
+    clearChart($mainChart);
+    clearChart($timelineChart);
+    $receiveSelect($scope, object, $mainChart);
+    $receiveProfile($scope, object, $timelineChart);
+  };
+});
+
+module.controller("mainCtrl", function(
+  $location,
+  $scope,
+  $launchedQueries,
+  $chartWaiting,
+  $launchRequest
+  ) {
+  $scope.queryResult = "";
+  $scope.inputModel = {
+    profile: false,
+    query: "",
+    renderType: "line"
+  };
+
+  // Triggers when the button is clicked.
+  $scope.onSubmitQuery = function() {
+    // TODO - unhack this.
+    $scope.inputModel.query = document.getElementById("query-input").value;
+    $location.search("query", $scope.inputModel.query)
+    $location.search("renderType", $scope.inputModel.renderType)
+    $location.search("profile", $scope.inputModel.profile.toString())
+  };
+
+  $scope.$on("$locationChangeSuccess", function() {
+    // this triggers at least once (in the beginning).
+    var queries = $location.search();
+    $scope.inputModel.query = queries["query"] || "";
+    $scope.inputModel.renderType = queries["renderType"] || "line";
+    $scope.inputModel.profile = queries["profile"] === "true";
+    if ($scope.inputModel.query) {
+      $launchRequest($scope, {
+        profile: $scope.inputModel.profile,
+        query:   $scope.inputModel.query
+      });
+    }
+  });
+
+  // true if the output should be tabular.
+  $scope.isTabular = function() {
+    return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
+  };
+  $scope.hasProfiling = function() {
+    return !!($scope.queryResult && $scope.queryResult.profile);
+  };
+
+  $scope.screenState = function() {
+    if ($launchedQueries.pos()) {
+      return "loading";
+    } else if ($launchedQueries.zero() && $chartWaiting.pos()) {
+      return "rendering";
+    } else if ($scope.queryResult && !$scope.queryResult.success) {
+      return "error";
+    } else {
+      return "rendered";
+    }
+  };
+});
+
+module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest){
+  $scope.queryResult = "";
+  $scope.screenState = function() {
+    if ($launchedQueries.pos()) {
+      return "loading";
+    } else if ($launchedQueries.zero() && $chartWaiting.pos()) {
+      return "rendering";
+    } else if ($scope.queryResult && !$scope.queryResult.success) {
+      return "error";
+    } else {
+      return "rendered";
+    }
+  };
+  $scope.hasProfiling = function() {
+    return false;
+  };
+
+  var queries = $location.search();
+  $scope.inputModel = { renderType: "line" };
+  $scope.inputModel.renderType = queries["renderType"] || "line";
+  $launchRequest($scope, {
+    profile: false,
+    query:   queries["query"] || ""
+  });
 });
 
 function dateFromIndex(index, timerange) {
