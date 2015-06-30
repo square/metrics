@@ -264,6 +264,9 @@ module.controller("mainCtrl", function(
   $chartWaiting,
   $launchRequest
   ) {
+
+  $scope.embedLink = "";
+
   $scope.queryResult = "";
   $scope.inputModel = {
     profile: false,
@@ -275,9 +278,13 @@ module.controller("mainCtrl", function(
   $scope.onSubmitQuery = function() {
     // TODO - unhack this.
     $scope.inputModel.query = document.getElementById("query-input").value;
-    $location.search("query", $scope.inputModel.query)
-    $location.search("renderType", $scope.inputModel.renderType)
-    $location.search("profile", $scope.inputModel.profile.toString())
+    $location.search("query", $scope.inputModel.query);
+    $location.search("renderType", $scope.inputModel.renderType);
+    $location.search("profile", $scope.inputModel.profile.toString());
+
+    var url = $location.absUrl();
+    var queryAt = url.indexOf("?");
+    $scope.embedLink = url.substring(0, queryAt) + "embed.html" + url.substring(queryAt);
   };
 
   $scope.$on("$locationChangeSuccess", function() {
@@ -313,6 +320,10 @@ module.controller("mainCtrl", function(
       return "rendered";
     }
   };
+  var url = $location.absUrl();
+  var queryAt = url.indexOf("?");
+  $scope.embedLink = url.substring(0, queryAt) + "embed.html" + url.substring(queryAt);
+  console.log($scope.embedLink);
 });
 
 module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest){

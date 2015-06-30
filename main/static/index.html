@@ -54,6 +54,9 @@
       class="col-xs-12">
       <div id="chart-div"></div>
     </div>
+    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
+      Embed link: <pre>{{ embedLink }}</pre>
+    </div>
 
     <div
       ng-show="screenState() != 'loading' && screenState() != 'error' && hasProfiling()"
