@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -68,7 +69,7 @@ type regexMatcher struct {
 
 // durationExpression represents a duration (in ms).
 type durationExpression struct {
-	duration int64 // milliseconds
+	duration time.Duration // milliseconds
 }
 
 // scalarExpression represents a scalar constant embedded within the expression.

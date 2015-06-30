@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/square/metrics/api"
 )
@@ -28,7 +29,7 @@ type Value interface {
 	ToSeriesList(api.Timerange) (api.SeriesList, error)
 	ToString() (string, error)
 	ToScalar() (float64, error)
-	ToDuration() (int64, error)
+	ToDuration() (time.Duration, error)
 	GetName() string
 }
 
@@ -56,7 +57,7 @@ func (value SeriesListValue) ToScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
 
-func (value SeriesListValue) ToDuration() (int64, error) {
+func (value SeriesListValue) ToDuration() (time.Duration, error) {
 	return 0, conversionError{"SeriesList", "duration"}
 }
 
@@ -79,7 +80,7 @@ func (value StringValue) ToScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
 }
 
-func (value StringValue) ToDuration() (int64, error) {
+func (value StringValue) ToDuration() (time.Duration, error) {
 	return StringToDuration(string(value))
 }
 
@@ -111,7 +112,7 @@ func (value ScalarValue) ToScalar() (float64, error) {
 	return float64(value), nil
 }
 
-func (value ScalarValue) ToDuration() (int64, error) {
+func (value ScalarValue) ToDuration() (time.Duration, error) {
 	return 0, conversionError{"scalar", "duration"}
 }
 
@@ -119,7 +120,7 @@ func (value ScalarValue) GetName() string {
 	return fmt.Sprintf("%g", value)
 }
 
-type DurationValue int64
+type DurationValue time.Duration
 
 func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
 	return api.SeriesList{}, conversionError{"duration", "SeriesList"}
@@ -133,8 +134,8 @@ func (value DurationValue) ToScalar() (float64, error) {
 	return 0, conversionError{"duration", "scalar"}
 }
 
-func (value DurationValue) ToDuration() (int64, error) {
-	return int64(value), nil
+func (value DurationValue) ToDuration() (time.Duration, error) {
+	return time.Duration(value), nil
 }
 
 func (value DurationValue) GetName() string {
@@ -143,7 +144,7 @@ func (value DurationValue) GetName() string {
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
 
-func StringToDuration(timeString string) (int64, error) {
+func StringToDuration(timeString string) (time.Duration, error) {
 	matches := durationRegexp.FindStringSubmatch(timeString)
 	if matches == nil {
 		return -1, fmt.Errorf("expected duration to be of the form `%s`", durationRegexp.String())
@@ -152,24 +153,24 @@ func StringToDuration(timeString string) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	scale := int64(1)
+	scale := time.Millisecond
 	switch matches[2] {
 	case "ms":
 		// no change in scale
 	case "s":
-		scale = 1000
+		scale *= 1000
 	case "m":
-		scale = 1000 * 60
+		scale *= 1000 * 60
 	case "h", "hr":
-		scale = 1000 * 60 * 60
+		scale *= 1000 * 60 * 60
 	case "d":
-		scale = 1000 * 60 * 60 * 24
+		scale *= 1000 * 60 * 60 * 24
 	case "w":
-		scale = 1000 * 60 * 60 * 24 * 7
+		scale *= 1000 * 60 * 60 * 24 * 7
 	case "M", "mo":
-		scale = 1000 * 60 * 60 * 24 * 30
+		scale *= 1000 * 60 * 60 * 24 * 30
 	case "y", "yr":
-		scale = 1000 * 60 * 60 * 24 * 365
+		scale *= 1000 * 60 * 60 * 24 * 365
 	}
-	return int64(duration) * scale, nil
+	return time.Duration(duration) * scale, nil
 }

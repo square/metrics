@@ -16,12 +16,13 @@ package function
 
 import (
 	"testing"
+	"time"
 )
 
 func TestToDuration(t *testing.T) {
 	helper := func(given string, expected int64) {
 		actual, err := StringToDuration(given)
-		if err != nil || actual != expected {
+		if err != nil || actual != time.Duration(expected)*time.Millisecond {
 			t.Fatalf("Expected %s to produce %d but got %d", given, expected, actual)
 		}
 	}

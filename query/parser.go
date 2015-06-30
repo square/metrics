@@ -118,7 +118,7 @@ func parseDate(date string, now time.Time) (int64, error) {
 		if relativeTime > 0 {
 			return -1, fmt.Errorf("relative times should be negative: %s", date)
 		}
-		return now.Unix()*1000 + relativeTime, nil
+		return now.Add(relativeTime).Unix() * 1000, nil
 	}
 
 	errorMessage := fmt.Sprintf("Expected formatted date or relative time but got '%s'", date)
@@ -388,7 +388,7 @@ func (p *Parser) insertPropertyKeyValue() {
 		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
 			contextNode.Resolution = intValue
 		} else if duration, err := function.StringToDuration(value); err == nil {
-			contextNode.Resolution = duration
+			contextNode.Resolution = int64(duration / time.Millisecond)
 		} else {
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
@@ -657,7 +657,7 @@ func (p *Parser) addAndPredicate() {
 }
 
 func (p *Parser) addDurationNode(value string) {
-	millis, err := function.StringToDuration(value)
+	duration, err := function.StringToDuration(value)
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -665,7 +665,7 @@ func (p *Parser) addDurationNode(value string) {
 		})
 		return
 	}
-	p.pushNode(&durationExpression{millis})
+	p.pushNode(&durationExpression{duration})
 }
 
 func (p *Parser) addNumberNode(value string) {

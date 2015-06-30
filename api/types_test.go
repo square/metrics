@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/square/metrics/assert"
 )
@@ -238,15 +239,15 @@ func TestTimerange_Later(t *testing.T) {
 		201,
 	}
 	for _, offset := range offsets {
-		for _, time := range ranges {
-			later := time.Shift(offset)
-			if later.End()-later.Start() != time.End()-time.Start() || later.Resolution() != time.Resolution() {
-				t.Errorf("Range %+v on offset %d fails; produces %+v", time, offset, later)
+		for _, timerange := range ranges {
+			later := timerange.Shift(time.Duration(offset) * time.Millisecond)
+			if later.End()-later.Start() != timerange.End()-timerange.Start() || later.Resolution() != timerange.Resolution() {
+				t.Errorf("Range %+v on offset %d fails; produces %+v", timerange, offset, later)
 				continue
 			}
-			later = time.Shift(-offset)
-			if later.End()-later.Start() != time.End()-time.Start() || later.Resolution() != time.Resolution() {
-				t.Errorf("Range %+v on offset %d fails; produces %+v", time, -offset, later)
+			later = timerange.Shift(-time.Duration(offset) * time.Millisecond)
+			if later.End()-later.Start() != timerange.End()-timerange.Start() || later.Resolution() != timerange.Resolution() {
+				t.Errorf("Range %+v on offset %d fails; produces %+v", timerange, -offset, later)
 				continue
 			}
 		}
