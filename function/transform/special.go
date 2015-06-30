@@ -17,6 +17,7 @@ package transform
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -31,12 +32,12 @@ var Timeshift = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		millis, err := function.ToDuration(value)
+		duration, err := value.ToDuration()
 		if err != nil {
 			return nil, err
 		}
 		newContext := context
-		newContext.Timerange = newContext.Timerange.Shift(millis)
+		newContext.Timerange = newContext.Timerange.Shift(duration)
 
 		result, err := arguments[0].Evaluate(newContext)
 		if err != nil {
@@ -63,11 +64,11 @@ var MovingAverage = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		size, err := function.ToDuration(sizeValue)
+		size, err := sizeValue.ToDuration()
 		if err != nil {
 			return nil, err
 		}
-		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
+		limit := int(float64(size/time.Millisecond)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
 			// At least one value must be included at all times
 			limit = 1

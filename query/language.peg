@@ -112,7 +112,7 @@ add_pipe <-
     (
       (
       _ PAREN_OPEN
-        (  {p.addExpressionList()} ) # argument list
+        (expressionList / {p.addExpressionList()}) # argument list
         { p.addGroupBy() } groupByClause? # optional group-by list
         _ PAREN_CLOSE
       ) / {
@@ -131,6 +131,7 @@ expression_atom <-
   # #sub-expression
   _ PAREN_OPEN expression_start _ PAREN_CLOSE /
   # constant scalar
+  _ <DURATION> { p.addDurationNode(text) } /
   _ <NUMBER> { p.addNumberNode(buffer[begin:end]) } /
   _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
 
@@ -288,6 +289,8 @@ NUMBER_NATURAL  <- "0" / [1-9] [0-9]*
 NUMBER_FRACTION <- "." [0-9]+
 NUMBER_INTEGER  <- "-"? NUMBER_NATURAL
 NUMBER_EXP      <- "e" ("+" / "-")? [0-9]+
+
+DURATION <- NUMBER [a-z]+
 
 # Syntactic elements
 # ==================

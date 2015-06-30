@@ -134,6 +134,10 @@ var selects = []string{
 	"x|y from 0 to 0",
 	"x|f + y*z from 0 to 0",
 	"x|f + y|g from 0 to 0",
+	"x|f + y|g(4) from 0 to 0",
+	"x|f(1,2,3) + y|g(4) from 0 to 0",
+	"x|f(1s,2,3y) + y|g(4mo) from 0 to 0",
+	"x|f(1s,'r3r2',3y) + y|g(4mo) from 0 to 0",
 	"1 + 2 | f from 0 to 0",
 }
 

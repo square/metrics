@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -65,6 +66,11 @@ type regexMatcher struct {
 // -----------
 // nodes related to the query evaluation
 // each of these nodes are implementations of Expression interface.
+
+// durationExpression represents a duration (in ms).
+type durationExpression struct {
+	duration time.Duration // milliseconds
+}
 
 // scalarExpression represents a scalar constant embedded within the expression.
 type scalarExpression struct {
@@ -226,6 +232,11 @@ func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 }
 
 // Expressions
+
+func (node *durationExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, fmt.Sprintf("%d ms", node.duration))
+}
 
 func (node *scalarExpression) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)

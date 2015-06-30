@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"time"
 )
 
 // MetricKey is the logical name of a given metric.
@@ -233,9 +234,9 @@ func (tr Timerange) Snap() Timerange {
 }
 
 // Later() returns a timerange which is forward in time by the amount given
-func (tr Timerange) Shift(time int64) Timerange {
-	tr.start += time
-	tr.end += time
+func (tr Timerange) Shift(shift time.Duration) Timerange {
+	tr.start += int64(shift / time.Millisecond)
+	tr.end += int64(shift / time.Millisecond)
 	return tr.Snap()
 }
 
