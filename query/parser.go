@@ -112,7 +112,7 @@ func parseDate(date string, now time.Time) (int64, error) {
 		return epoch, nil
 	}
 
-	relativeTime, err := function.ToDuration(function.StringValue(date))
+	relativeTime, err := function.StringToDuration(date)
 	if err == nil {
 		// A relative date.
 		if relativeTime > 0 {
@@ -387,7 +387,7 @@ func (p *Parser) insertPropertyKeyValue() {
 		// The value must be determined to be an int if the key is "resolution".
 		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
 			contextNode.Resolution = intValue
-		} else if duration, err := function.ToDuration(function.StringValue(value)); err == nil {
+		} else if duration, err := function.StringToDuration(value); err == nil {
 			contextNode.Resolution = duration
 		} else {
 			p.flagSyntaxError(SyntaxError{
@@ -654,6 +654,18 @@ func (p *Parser) addAndPredicate() {
 			rightPredicate,
 		},
 	})
+}
+
+func (p *Parser) addDurationNode(value string) {
+	millis, err := function.StringToDuration(value)
+	if err != nil {
+		p.flagSyntaxError(SyntaxError{
+			token:   value,
+			message: fmt.Sprintf("'%s' is not a valid duration: %s", value, err.Error()),
+		})
+		return
+	}
+	p.pushNode(&durationExpression{millis})
 }
 
 func (p *Parser) addNumberNode(value string) {

@@ -25,7 +25,10 @@ import (
 // Implementations
 // ===============
 
-// Generates a Timeseries from the encapsulated scalar.
+func (expr durationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.DurationValue(expr.duration), nil
+}
+
 func (expr scalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.value), nil
 }

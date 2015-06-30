@@ -31,7 +31,7 @@ var Timeshift = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		millis, err := function.ToDuration(value)
+		millis, err := value.ToDuration()
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,7 @@ var MovingAverage = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		size, err := function.ToDuration(sizeValue)
+		size, err := sizeValue.ToDuration()
 		if err != nil {
 			return nil, err
 		}

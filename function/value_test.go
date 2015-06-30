@@ -20,7 +20,7 @@ import (
 
 func TestToDuration(t *testing.T) {
 	helper := func(given string, expected int64) {
-		actual, err := ToDuration(StringValue(given))
+		actual, err := StringToDuration(given)
 		if err != nil || actual != expected {
 			t.Fatalf("Expected %s to produce %d but got %d", given, expected, actual)
 		}

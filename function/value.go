@@ -28,6 +28,7 @@ type Value interface {
 	ToSeriesList(api.Timerange) (api.SeriesList, error)
 	ToString() (string, error)
 	ToScalar() (float64, error)
+	ToDuration() (int64, error)
 	GetName() string
 }
 
@@ -55,6 +56,10 @@ func (value SeriesListValue) ToScalar() (float64, error) {
 	return 0, conversionError{"SeriesList", "scalar"}
 }
 
+func (value SeriesListValue) ToDuration() (int64, error) {
+	return 0, conversionError{"SeriesList", "duration"}
+}
+
 func (value SeriesListValue) GetName() string {
 	return api.SeriesList(value).Name
 }
@@ -72,6 +77,10 @@ func (value StringValue) ToString() (string, error) {
 
 func (value StringValue) ToScalar() (float64, error) {
 	return 0, conversionError{"string", "scalar"}
+}
+
+func (value StringValue) ToDuration() (int64, error) {
+	return StringToDuration(string(value))
 }
 
 func (value StringValue) GetName() string {
@@ -102,20 +111,39 @@ func (value ScalarValue) ToScalar() (float64, error) {
 	return float64(value), nil
 }
 
+func (value ScalarValue) ToDuration() (int64, error) {
+	return 0, conversionError{"scalar", "duration"}
+}
+
 func (value ScalarValue) GetName() string {
 	return fmt.Sprintf("%g", value)
 }
 
+type DurationValue int64
+
+func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList{}, conversionError{"duration", "SeriesList"}
+}
+
+func (value DurationValue) ToString() (string, error) {
+	return "", conversionError{"duration", "string"}
+}
+
+func (value DurationValue) ToScalar() (float64, error) {
+	return 0, conversionError{"duration", "scalar"}
+}
+
+func (value DurationValue) ToDuration() (int64, error) {
+	return int64(value), nil
+}
+
+func (value DurationValue) GetName() string {
+	return fmt.Sprintf("%d ms", value)
+}
+
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
 
-// toDuration will take a value, convert it to a string, and then parse it.
-// the valid suffixes are: ms, s, m, min, h, hr, d, w, M, mo, y, yr.
-// It converts the return value to milliseconds.
-func ToDuration(value Value) (int64, error) {
-	timeString, err := value.ToString()
-	if err != nil {
-		return -1, err
-	}
+func StringToDuration(timeString string) (int64, error) {
 	matches := durationRegexp.FindStringSubmatch(timeString)
 	if matches == nil {
 		return -1, fmt.Errorf("expected duration to be of the form `%s`", durationRegexp.String())
