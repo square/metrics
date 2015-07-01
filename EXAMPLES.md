@@ -1,5 +1,39 @@
 # Examples
 
+## Describe All
+
+List all metric names in the system:
+
+```
+describe all
+```
+
+## Describe
+
+Find what tagsets are associated to a given metric name:
+
+```
+describe cpu
+```
+
+If the name contains special characters (any character other than a letter, number, or period) or does not begin with a letter, then enclose the metric name in backticks:
+
+```
+describe `cpu-userspace`
+```
+
+## Describe Metrics
+
+To find every metric that has a given tag (key, value) pair, use the `describe metrics` command:
+
+```
+describe metrics where app = 'metrics-indexer'
+```
+
+Only one (key, value) pair can be selected on at a time.
+
+## Select
+
 Find how much CPU each app is using in the past 4 hours:
 
 ```
