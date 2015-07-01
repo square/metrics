@@ -133,6 +133,10 @@ func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, err
 	if err := iterator.Close(); err != nil {
 		return nil, err
 	}
+	if len(tags) == 0 {
+		//
+		return nil, newNoSuchMetricError(string(metricKey))
+	}
 	return tags, nil
 }
 

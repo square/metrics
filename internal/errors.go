@@ -122,6 +122,18 @@ func newNoMatch() ConversionError {
 	}
 }
 
+type noSuchMetricError struct {
+	name string
+}
+
+func newNoSuchMetricError(name string) noSuchMetricError {
+	return noSuchMetricError{name}
+}
+
+func (m noSuchMetricError) Error() string {
+	return fmt.Sprintf("No such metric with name `%s`", m.name)
+}
+
 // ensure interface
 var _ RuleError = (*ruleError)(nil)
 var _ ConversionError = (*conversionError)(nil)
