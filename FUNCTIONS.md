@@ -139,12 +139,23 @@ This function computes the absolute value of all values in each series of the gi
 This function replaces any `NaN` value with the last non-`NaN` value before it. For data which is very sparse, this can make graphs more readable.
 Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.default` on the result.
 
-### `transform.timeshift(list, duration)`
+### `transform.timeshift(list, offsetDuration)`
 
-This function shifts time forward or backward while computing `list`. In particular, `duration` is evaluated first, and then `list` (an arbitrary expression) is computed with a shifted timerange.
-As a result, the computed result will contain data fetched before or after the rest of the expression.
+This function shifts time forward by the specified `offsetDuration` while computing `list`. For example, the query:
 
-A positive duration is forward in time, while a negative duration is backwards in time.
+```
+select transform.timeshift(metric, -1w) from -1d to now
+```
+
+would fetch metrics from one week ago. However, their resulting timestamps would be those of the past day. For example, if we want to compare this week's cpu usage with last week's, then we could write:
+
+```
+select cpu - transform.timeshift(cpu, -1w) from -1w to now
+```
+
+And the result of the query will have timestamps from 1 week ago to today.
+
+Keep in mind that a positive shift will go forward in time, and any data fetched from a time later than `now` will be missing.
 
 ### `transform.moving_average(list, duration)`
 
@@ -153,7 +164,7 @@ The function automatically extends the timerange of `list` in order to achieve a
 
 Each value is replaced by the average of all samples (including itself) in the interval of length `duration` prior to itself. `NaN` values are treated as absent.
 
-### `tramsform.alias(list, name)`
+### `transform.alias(list, name)`
 
 This function renames the given list to be called by the given name.
 
