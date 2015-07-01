@@ -45,7 +45,8 @@ func init() {
 	MustRegister(NewTransform("transform.rate", 0, transform.Rate))
 	MustRegister(NewTransform("transform.cumulative", 0, transform.Cumulative))
 	MustRegister(NewTransform("transform.default", 1, transform.Default))
-	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker("abs", math.Abs)))
+	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
+	MustRegister(NewTransform("transform.log", 0, transform.MapMaker(math.Log10)))
 	MustRegister(NewTransform("transform.nan_keep_last", 0, transform.NaNKeepLast))
 	// Filter
 	MustRegister(NewFilter("filter.highest_mean", aggregate.Mean, false))

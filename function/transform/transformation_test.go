@@ -60,7 +60,7 @@ func TestTransformTimeseries(t *testing.T) {
 					useParam: false,
 				},
 				{
-					fun:      MapMaker("negate", func(x float64) float64 { return -x }),
+					fun:      MapMaker(func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
 					useParam: false,
 				},
@@ -318,58 +318,6 @@ func TestApplyTransformNaN(t *testing.T) {
 					break
 				}
 			}
-		}
-	}
-}
-
-func TestApplyTransformFailure(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758400000, 758400000+30000*5, 30000)
-	if err != nil {
-		t.Fatalf("invalid timerange used for testcase")
-		return
-	}
-	list := api.SeriesList{
-		Series: []api.Timeseries{
-			{
-				Values: []float64{0, 1, 2, 3, 4, 5},
-				TagSet: api.TagSet{
-					"series": "A",
-				},
-			},
-			{
-				Values: []float64{2, 2, 1, 1, 3, 3},
-				TagSet: api.TagSet{
-					"series": "B",
-				},
-			},
-			{
-				Values: []float64{0, 1, 2, 3, 2, 1},
-				TagSet: api.TagSet{
-					"series": "C",
-				},
-			},
-		},
-		Timerange: testTimerange,
-		Name:      "test",
-	}
-	testCases := []struct {
-		transform transform
-		parameter []function.Value
-	}{
-		{
-			transform: Derivative,
-			parameter: []function.Value{function.ScalarValue(3)},
-		},
-		{
-			transform: MapMaker("abs", math.Abs),
-			parameter: []function.Value{function.ScalarValue(3)},
-		},
-	}
-	for _, test := range testCases {
-		_, err := ApplyTransform(list, test.transform, test.parameter)
-		if err == nil {
-			t.Errorf("expected failure for testcase %+v", test)
-			continue
 		}
 	}
 }
