@@ -169,3 +169,21 @@ Each value is replaced by the average of all samples (including itself) in the i
 This function renames the given list to be called by the given name.
 
 ## Filter Functions
+
+Filter functions limit the number of timeseries returned by a query. Series can be sorted by their `max`, `mean`, or `min`, and ordered by `lowest` or `highest`. For example:
+
+```
+select filter.highest_mean( cpu , 5 ) from -1d to now
+```
+
+will select only the 5 series whose means are highest. The complete list of functions are:
+
+* `filter.highest_max(list, count)`
+* `filter.highest_mean(list, count)`
+* `filter.highest_min(list, count)`
+* `filter.lowest_max(list, count)`
+* `filter.lowest_mean(list, count)`
+* `filter.lowest_min(list, count)`
+
+The value for `count` will be rounded to the nearest whole number. If, after rounding, its value is negative, the query engine will produce an error.
+If the rounded `count` exceeds the number of series returned by the `list`, then all series will be retained.
