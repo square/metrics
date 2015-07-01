@@ -162,6 +162,7 @@ var syntaxErrorQuery = []string{
 	"select f(3 groupby x) from 0 to 0",
 	"select c group by a from 0 to 0",
 	"select x[] from 0 to 0",
+	"select cpu | transform.moving_average(10qq) from 0 to 0",
 }
 
 func TestParse_success(t *testing.T) {
