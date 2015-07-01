@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function"
 )
 
@@ -201,6 +202,119 @@ func TestApplyTransform(t *testing.T) {
 					t.Errorf("Expected values for series %s to be %+v but are %+v", name, expected, series.Values)
 					break
 				}
+			}
+		}
+	}
+}
+
+func TestApplyBound(t *testing.T) {
+	a := assert.New(t)
+	testTimerange, err := api.NewTimerange(758400000, 758400000+30000*5, 30000)
+	//{2, nan, nan, nan, 3, 3},
+	if err != nil {
+		t.Fatal("invalid timerange used for testcase")
+		return
+	}
+	list := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{1, 2, 3, 4, 5, 6},
+				TagSet: api.TagSet{
+					"name": "A",
+				},
+			},
+			{
+				Values: []float64{5, 5, 3, -7, math.NaN(), -20},
+				TagSet: api.TagSet{
+					"name": "B",
+				},
+			},
+			{
+				Values: []float64{math.NaN(), 100, 90, 0, 0, 3},
+				TagSet: api.TagSet{
+					"name": "C",
+				},
+			},
+		},
+		Timerange: testTimerange,
+		Name:      "test",
+	}
+	tests := []struct {
+		lower       float64
+		upper       float64
+		expectBound map[string][]float64
+		expectLower map[string][]float64
+		expectUpper map[string][]float64
+	}{
+		{
+			lower: 2,
+			upper: 5,
+			expectBound: map[string][]float64{
+				"A": {2, 2, 3, 4, 5, 5},
+				"B": {5, 5, 3, 2, math.NaN(), 2},
+				"C": {math.NaN(), 5, 5, 2, 2, 3},
+			},
+			expectLower: map[string][]float64{
+				"A": {2, 2, 3, 4, 5, 6},
+				"B": {5, 5, 3, 2, math.NaN(), 2},
+				"C": {math.NaN(), 100, 90, 2, 2, 3},
+			},
+			expectUpper: map[string][]float64{
+				"A": {1, 2, 3, 4, 5, 5},
+				"B": {5, 5, 3, -7, math.NaN(), -20},
+				"C": {math.NaN(), 5, 5, 0, 0, 3},
+			},
+		},
+		{
+			lower: -10,
+			upper: 40,
+			expectBound: map[string][]float64{
+				"A": {1, 2, 3, 4, 5, 6},
+				"B": {5, 5, 3, -7, math.NaN(), -10},
+				"C": {math.NaN(), 40, 40, 0, 0, 3},
+			},
+			expectLower: map[string][]float64{
+				"A": {1, 2, 3, 4, 5, 6},
+				"B": {5, 5, 3, -7, math.NaN(), -10},
+				"C": {math.NaN(), 100, 90, 0, 0, 3},
+			},
+			expectUpper: map[string][]float64{
+				"A": {1, 2, 3, 4, 5, 6},
+				"B": {5, 5, 3, -7, math.NaN(), -20},
+				"C": {math.NaN(), 40, 40, 0, 0, 3},
+			},
+		},
+	}
+	for _, test := range tests {
+		bounders := []struct {
+			bounder  func(values []float64, parameters []function.Value, scale float64) ([]float64, error)
+			params   []function.Value
+			expected map[string][]float64
+			name     string
+		}{
+			{bounder: Bound, params: []function.Value{function.ScalarValue(test.lower), function.ScalarValue(test.upper)}, expected: test.expectBound, name: "bound"},
+			{bounder: LowerBound, params: []function.Value{function.ScalarValue(test.lower)}, expected: test.expectLower, name: "lower"},
+			{bounder: UpperBound, params: []function.Value{function.ScalarValue(test.upper)}, expected: test.expectUpper, name: "upper"},
+		}
+		for _, bounder := range bounders {
+			bounded, err := ApplyTransform(list, bounder.bounder, bounder.params)
+			if err != nil {
+				t.Errorf(err.Error())
+				continue
+			}
+			if len(bounded.Series) != len(list.Series) {
+				t.Errorf("Expected to get %d results but got %d in %+v", len(list.Series), len(bounded.Series), bounded)
+				continue
+			}
+			// Next, check they're all unique and such
+			alreadyUsed := map[string]bool{}
+			for _, series := range bounded.Series {
+				if alreadyUsed[series.TagSet["name"]] {
+					t.Fatalf("Repeating name `%s`", series.TagSet["name"])
+				}
+				alreadyUsed[series.TagSet["name"]] = true
+				// Next, verify that it's what we expect
+				a.EqFloatArray(series.Values, bounder.expected[series.TagSet["name"]], 3e-7)
 			}
 		}
 	}
