@@ -17,6 +17,7 @@
 package transform
 
 import (
+	"errors"
 	"math"
 
 	"github.com/square/metrics/api"
@@ -152,6 +153,64 @@ func NaNKeepLast(values []float64, parameters []function.Value, scale float64) (
 		result[i] = values[i]
 		if math.IsNaN(result[i]) && i > 0 {
 			result[i] = result[i-1]
+		}
+	}
+	return result, nil
+}
+
+// Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
+func Bound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	lowerBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	upperBound, err := parameters[1].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	if lowerBound > upperBound {
+		return nil, errors.New("the upper bound must be at least the lower bound")
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] < lowerBound {
+			result[i] = lowerBound
+		}
+		if result[i] > upperBound {
+			result[i] = upperBound
+		}
+	}
+	return result, nil
+}
+
+// LowerBound replaces values that fall below the given bound with the lower bound.
+func LowerBound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	lowerBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] < lowerBound {
+			result[i] = lowerBound
+		}
+	}
+	return result, nil
+}
+
+// UpperBound replaces values that fall below the given bound with the lower bound.
+func UpperBound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	upperBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] > upperBound {
+			result[i] = upperBound
 		}
 	}
 	return result, nil

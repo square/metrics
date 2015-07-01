@@ -134,6 +134,16 @@ func Max(array []float64) float64 {
 	return max
 }
 
+// Total returns the number of values in the given list.
+func Total(array []float64) float64 {
+	return float64(len(array))
+}
+
+// Count returns the number of non-NaN values in the givne list.
+func Count(array []float64) float64 {
+	return float64(len(filterNaN(array)))
+}
+
 // applyAggregation takes an aggregation function ( [float64] => float64 ) and applies it to a given list of Timeseries
 // the list must be non-empty, or an error is returned
 func applyAggregation(group group, aggregator func([]float64) float64) api.Timeseries {
