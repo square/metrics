@@ -54,6 +54,13 @@ func init() {
 	MustRegister(NewFilter("filter.lowest_max", aggregate.Max, true))
 	MustRegister(NewFilter("filter.highest_min", aggregate.Min, false))
 	MustRegister(NewFilter("filter.lowest_min", aggregate.Min, true))
+	// Filter Recent
+	MustRegister(NewFilterRecent("filter.recent_highest_mean", aggregate.Mean, false))
+	MustRegister(NewFilterRecent("filter.recent_lowest_mean", aggregate.Mean, true))
+	MustRegister(NewFilterRecent("filter.recent_highest_max", aggregate.Max, false))
+	MustRegister(NewFilterRecent("filter.recent_lowest_max", aggregate.Max, true))
+	MustRegister(NewFilterRecent("filter.recent_highest_min", aggregate.Min, false))
+	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
 	// Weird ones
 	MustRegister(transform.Timeshift)
 	MustRegister(transform.Alias)
@@ -144,6 +151,50 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
 			result := filter.FilterBy(list, count, summary, ascending)
+			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			return function.SeriesListValue(result), nil
+		},
+	}
+}
+
+// NewFilterRecent creates a new instance of a recent-filtering function.
+func NewFilterRecent(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
+	return function.MetricFunction{
+		Name:         name,
+		MinArguments: 3,
+		MaxArguments: 3,
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
+			value, err := arguments[0].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			// The value must be a SeriesList.
+			list, err := value.ToSeriesList(context.Timerange)
+			if err != nil {
+				return nil, err
+			}
+			countValue, err := arguments[1].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			countFloat, err := countValue.ToScalar()
+			if err != nil {
+				return nil, err
+			}
+			// Round to the nearest integer.
+			count := int(countFloat + 0.5)
+			if count < 0 {
+				return nil, fmt.Errorf("expected positive count but got %d", count)
+			}
+			durationValue, err := arguments[2].Evaluate(context)
+			if err != nil {
+				return nil, err
+			}
+			duration, err := durationValue.ToDuration()
+			if err != nil {
+				return nil, err
+			}
+			result := filter.FilterRecentBy(list, count, summary, ascending, duration)
 			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
 			return function.SeriesListValue(result), nil
 		},
