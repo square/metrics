@@ -2192,6 +2192,9 @@ func (p *Parser) Init() {
 							l201:
 								position, tokenIndex, depth = position201, tokenIndex201, depth201
 							}
+							if !_rules[ruleKEY]() {
+								goto l197
+							}
 							depth--
 							add(ruleDURATION, position199)
 						}
@@ -4904,7 +4907,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 54 NUMBER_EXP <- <(('e' / 'E') ('+' / '-')? [0-9]+)> */
 		nil,
-		/* 55 DURATION <- <(NUMBER [a-z]+)> */
+		/* 55 DURATION <- <(NUMBER [a-z]+ KEY)> */
 		nil,
 		/* 56 PAREN_OPEN <- <'('> */
 		func() bool {
