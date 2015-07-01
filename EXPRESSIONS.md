@@ -109,3 +109,65 @@ They cannot be implictly converted into any type other than `SeriesList`.
 ### `StringValue`
 
 `StringValue`s come from string literals. They can be implictly converted only into `Duration`s.
+
+## Metrics
+
+When an identifier (name) is encountered on its own, it is interpreted as a metric-fetch expression.
+MQE will fetch all series having the particular metric name that satisfy the `where` clause predicate.
+
+### Metric Predicates
+
+A metric fetch expression can be optionally followed by square braces enclosing a predicate which will be applied to the particular predicate.
+
+`cpu[app = 'metrics-indexer']` will perform a fetch of `cpu` metrics only for series which have the tag `metrics-indexer`. Arbitrary predicates can be used here, so the following is also legal:
+
+`cpu[dc = 'west' or app != 'metrics-indexer']`
+
+## Functions
+
+Functions are the principle way in which expressions are transformed. A function call looks like a function call in C or Java or Go. For example:
+
+`transform.moving_average( cpu, 10m )`
+
+### Group By
+
+Aggregation functions take an optional `group by` clause, which takes a comma-separated list of tag keys on which to group input series.
+
+The function `aggregate.sum` takes a series list and condenses it into a single series whose values are the sum of all values in the original series list:
+
+`aggregate.sum( cpu )`
+
+The `group by` clause can be used to condense groups of series together, rather than combining every series at once:
+
+`aggregate.sum( cpu group by app )`
+
+will produce one series for each app tracked by the `cpu` metric. All tags other than those which are `group by`-ed will be dropped.
+
+### Pipes
+
+A sugar is provided to make it easier to chain many functions together. The first argument to a function can be "piped" into it:
+
+`f(x, ...) === x | f(...)`
+
+For example, using pipe syntax, rather than writing
+
+`transform.moving_average(cpu, 10m)`
+
+we can instead write
+
+`cpu | transform.moving_average(10m)`
+
+If the function takes only one argument, then the parentheses can be ommitted when using pipes:
+
+`cpu | aggregate.sum`
+
+will pipe the `cpu` metric fetch into `aggregate.sum`.
+
+Keep in mind that this is only syntactic sugar. MQE treats piped function calls and ordinary function calls in an identical manner.
+In particular, this has no effect on the order of argument evaluation.
+
+These calls can be chained together for ease of use. For example:
+
+`cpu | aggregate.sum(group by app) | transform.derivative | transform.moving_average(2hr)`
+
+This expression sums the cpu per-app, computes the derivative of these, and then smooths the data with a 2 hour moving average.
