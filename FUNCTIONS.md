@@ -76,7 +76,7 @@ The result of `aggregate.mean` is:
 
 |`aggregate.mean(MetricB)` TagSet |`aggregate.mean(MetricB)` Values|
 |:-------------------------------:|:------------------------------:|
-| (no tags)                       | 9 6 5                          |
+| (no tags)                       | 8 6 5                          |
 
 Aggregations can be grouped by individual tags. The series in the resulting series list preserve those tags which their group used.
 
@@ -120,12 +120,11 @@ If you do not want this behavior, use `transform.cumulative` instead, which does
 ### `transform.rate(list)`
 
 This function computes the numerical derivative of a given timeseries, as in `transform.derivative`, but it bounds the result to be at least 0.
-This is useful for timeseries which increase until reaching some cap where they reset, to avoid massive negative spikes in the resulting derivative.
-It scales the results to be `events / second`, interpreting the input with units `events`.
+This is useful for counting timeseries. The resulting units are in `events / second` (so scaling will occur depending on the resolution of the data).
 
 ### `transform.cumulative(list)`
 
-This function computes the cumulative sum of a given timeseries. It performs no scaling. `NaN` values are treated as 0.
+This function computes the raw, cumulsative sum of the values in each timeseries. It performs no scaling. `NaN` values are treated as 0.
 
 ### `transform.default(list, value)`
 
