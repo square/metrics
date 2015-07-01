@@ -1,38 +1,62 @@
 
 # Expressions
 
-## Values
+## Literals and Names
 
-Expressions in MQE evaluate to one of 5 types of values. Some of these values can be implictly converted from one to another.
-Only the first type, the `SeriesList`, is a legal top-level result in a `select` query.
+Expressions are composed of literals, operators, functions, and other syntactic constructs. Several types of names and literals are available.
 
-### `SeriesList`
+### Names
 
-A `SeriesList` has a `Name`, a set of `Series`, and a `Timerange`.
+Metric names and tag keys are both represented by identifiers. An identifier consists of either:
 
-#### `Name`
+* letters, numbers, and periods (but must start with a letter)
+* an arbitrary string (that contains no backticks) enclosed in backticks (`\``)
 
-The name identifies the `SeriesList`. As an expression is evaluated, its name is updated to describe the transformations and operations which have been applied to it.
-Names are initially the name of the metric which was fetched.
+Some examples of valid identifiers:
+```
+cpu
+host.cpu
+host.cpu.median
+`cpu`
+`host.cpu`
+`host.cpu.median`
+`host-cpu`
+```
 
-#### `Timerange`
+### Strings
 
-The `Timerange` has a start, end, and resolution. The resolution measures the time between samples.
-Both the start and end times are inclusive. Together with resolution, they uniquely determine the number of samples in each timeseries.
-Missing data will be filled with `NaN` in order to ensure that their values slices are all the correct length.
+Strings represent tag values. They are enclosed in single or double quotes, with escape sequences for backticks, backslashes, and quotes.
 
-#### `Series`
+Some examples of valid strings:
+```
+"Hello, world!"
+'Hello, world!'
+"Backslashes should be \\ escaped"
+"Similarly, \" escape your quotes"
+"You don't need to escape 'quotes' that differ from the enclosing ones"
+"But \'you are allowed to if you want\'"
+```
 
-Each `Series` has a sequence of `Values`, which are the measured metric data. In addition, it has a `TagSet`, which is a map of `string => string` that describes the series in the `SeriesList`.
-In general, all `Series` in a given `SeriesList` should use the same tag keys, and have distinct tag values so that they can be differentiated.
+### Numbers
 
-### Number
+Numbers are signed sequences of digits, possibly with a decimal component and/or an exponent.
 
-Numbers are valid values. They can be implictly converted to a Timeseries of constant value. In general, numerical operations will convert a number to a `SeriesList` before operating on them.
+Here are examples of some valid number literals:
 
-### Duration
+```
+0
+20
+7.42
+1e-5
+-1E9
+-2
+```
 
-Durations are values which correspond to a length of time. When written as a literal, they are suffixed with a unit. The following units are supported:
+### Durations
+
+Durations are signed integers with unit suffixes that represent an interval of time.
+
+The following units are supported:
 
 * ms (millisecond)
 * s (second)
@@ -43,8 +67,45 @@ Durations are values which correspond to a length of time. When written as a lit
 * M, mo (month, 30 days)
 * y, yr (year, 365 days)
 
-Durations and numbers are distinct types of data, and it is not possible to implictly convert between them. Durations cannot be converted into `SeriesList`s.
+Some examples:
 
-### String
 
-Strings are string data which generally represent key values or metric names. They are written as literals enclosed in single or double quotes.
+Some examples:
+
+```
+10h
+5m
+-4s
+0s
+24hr
+1yr
+2mo
+2M
+-30000ms
+```
+
+## Values
+
+Expressions and literals in MQE evaluate to one of 5 types of *values*. Value types are checked for correctness when functions are evaluated.
+Only the `SeriesList` type is a legal result in a `select` query.
+
+### `SeriesListValue`
+
+A `SeriesListValue` is a collection of series; the `SeriesList` as a whole has a `Timerange` (start, end, interval) which applies to every series inside it.
+Each series individually has a collection of tag (key, value) pairs and a sequence of sampled metric values associated to it.
+
+They cannot be implictly converted into any other type.
+
+### `NumberValue`
+
+`NumberValue`s come from numeric literals. They are implictly converted to `SeriesListValue` containing a single, tagless series having constant value whenever a `SeriesList` is expected.
+
+They cannot be implictly converted into any type other than `SeriesList`.
+
+### `DurationValue`
+
+`DurationValue`s come from duration literals. They cannot be implictly converted into any other type.
+
+### `StringValue`
+
+`StringValue`s come from string literals. They can be implictly converted only into `Duration`s.
