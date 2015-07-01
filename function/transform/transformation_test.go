@@ -318,6 +318,12 @@ func TestApplyBound(t *testing.T) {
 			}
 		}
 	}
+	if _, err = ApplyTransform(list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
+		t.Fatalf("Expected error on invalid bounds")
+	}
+	if _, err = ApplyTransform(list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
+		t.Fatalf("Expected error on invalid bounds")
+	}
 }
 
 func TestApplyTransformNaN(t *testing.T) {
