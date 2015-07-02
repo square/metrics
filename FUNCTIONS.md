@@ -182,7 +182,7 @@ The query `transform.deriative( disk_usage )` results in:
 
 ##### `transform.integral(list)`
 
-This function computes a numerical integral for a given timeseries. Each value will be the sum of the values up to it (including itself), a left Riemann integral.
+This function computes a numerical integral for a given timeseries. Each value will be the sum of the values up to it (including itself).
 This quantity will be scaled, interpreting each value in the series as having units of `events / second`, and producing something with the units of `events`.
 If you do not want this behavior, use `transform.cumulative` instead, which does not have scaling behavior.
 
