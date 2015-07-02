@@ -157,7 +157,7 @@ Transformation functions modify each series in a given serieslist independently.
 * `transform.integral`
 * `transform.rate`
 * `transform.cumulative`
-* `transform.default`
+* `transform.nan_fill`
 * `transform.abs`
 * `transform.nan_keep_last`
 
@@ -241,22 +241,22 @@ The query `transform.cumulative( request_counter )` results in:
 | (A1)      | transform.cumulative(request_counter) | app: ui     | 30  55  75     |
 | (A2)      | transform.cumulative(request_counter) | app: server | 120 254 404    |
 
-##### `transform.default(list, value)`
+##### `transform.nan_fill(list, value)`
 
 This function takes an extra number parameter. Any occurrence of `NaN` in any series in the list will be replaced by `value`.
 
-Consider the query `transform.default(latency, 1000)`. If `latency` is detailed as below:
+Consider the query `transform.nan_fill(latency, 1000)`. If `latency` is detailed as below:
 
 | (series†) | metric name | tags        | series values |
 |:---------:|:-----------:|:-----------:|:-------------:|
 | (A1)      | latency     | app: ui     | 80  24   15   |
 | (A2)      | latency     | app: server | 70  NaN  NaN  |
 
-Then `transform.default(latency, 1000)` produces this result:
+Then `transform.nan_fill(latency, 1000)` produces this result:
 
 | (series†) | metric name                | tags        | series values  |
 |:---------:|:--------------------------:|:-----------:|:--------------:|
-| (A1)      | transform.default(latency) | app: ui     | 80  24    15   |
+| (A1)      | transform.nan_fill(latency) | app: ui     | 80  24    15   |
 | (A2)      | transform.defailt(latency) | app: server | 70  1000  1000 |
 
 ##### `transform.abs(list)`
@@ -280,7 +280,7 @@ Then the query `transform.abs(offset)` results in:
 ##### `transform.nan_keep_last(list)`
 
 This function replaces any `NaN` value with the last non-`NaN` value before it. For data which is very sparse, this can make graphs more readable.
-Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.default` on the result.
+Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.nan_fill` on the result.
 
 Consider the metric `responses`:
 
