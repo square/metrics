@@ -17,7 +17,7 @@ Both sides of the operator are first evaluated to lists of timeseries.
 An inner join is performed between the two lists;
 every timeseries on the left is paired with every timeseries on the right, discarding those pairs which have conflicting tagsets.
 
-Two tagsets are "conflicting" if there is some key that both tagsets possess and whose value differs between the two.
+Two tagsets are "conflicting" if they both possess some tag key, but disagree on its value.
 
 The resulting pairs are then combined using the arithmetic operator, in a pairwise manner on the timeseries data.
 The tagsets of the resulting timeseries are the unions of the tagsets of the members of the original pairs.
