@@ -54,9 +54,10 @@ module.run(function($http) {
   var autocom = new Autocom(document.getElementById("query-input"));
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
   autocom.options = keywords;
-  autocom.prefixPattern = "`[a-zA-Z][a-zA-Z.-]*`?|[a-zA-Z][a-zA-Z.-]*";
+  autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
+  autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
   $http.get("/token").success(function(data, status, headers, config) {
     if (!data.success || !data.body) {
       return;
