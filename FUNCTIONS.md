@@ -13,31 +13,80 @@ MQE supports 4 binary infix numerical operators:
 * `*`
 * `/`
 
-The left- and right-hand sides of the operator must evaluate to series lists (or be convertible to series lists).
-Once they are evaluated, the [inner join](https://en.wikipedia.org/wiki/Join_(SQL\)#Inner_join) of the left and the right lists are computed.
-Each series from the left is paired with each series from the right, allowing those pairs which have no conflicting tags.
+Both sides of the operator are first evaluated to lists of timeseries.
+An inner join is performed between the two lists;
+every timeseries on the left is paired with every timeseries on the right, discarding those pairs which have conflicting tagsets.
 
-For example, in the query `MetricA + MetricB`, if our series lists look like this:
+Two tagsets are "conflicting" if they both possess some tag key, but disagree on its value.
 
-|MetricA TagSet               |MetricA Values|MetricB TagSet              |MetricB Values|
-|:---------------------------:|:------------:|:--------------------------:|:-------------:
-| app: ui, env: staging       | 1 2 1        |app: ui, latency: max       | 0 0 4        |
-| app: ui, env: production    | 3 3 3        |app: ui, latency: median    | 1 1 1        |
-| app: server, env: staging   | 0 0 1        |app: server, latency: max   | 2 1 0        |
-| app: server, env: production| 2 2 0        |app: server, latency: median| 3 2 3        |
+The resulting pairs are then combined using the arithmetic operator, in a pairwise manner on the timeseries data.
+The tagsets of the resulting timeseries are the unions of the tagsets of the members of the original pairs.
 
-Then the result of the operation will be:
+For example, imagine performing the query:
 
-|`MetricA + MetricB` TagSet                   |`MetricA + MetricB` Values|
-|:-------------------------------------------:|:------------------------:|
-|app: ui, env: staging, latency: max          | 1 2 5                    |
-|app: ui, env: staging, latency: median       | 2 3 2                    |
-|app: ui, env: production, latency: max       | 3 3 7                    |
-|app: ui, env: production, latency: median    | 4 4 4                    |
-|app: server, env: staging, latency: max      | 2 1 1                    |
-|app: server, env: staging, latency: median   | 3 2 4                    |
-|app: server, env: production, latency: max   | 4 3 0                    |
-|app: server, env: production, latency: median| 5 4 4                    |
+`latency.method + latency.connection`
+
+We evaluate `latency.method` and `latency.connection` and find the following timeseries lists are the results:
+
+| (series†) | metric name    | tags                    | series values |
+|:---------:|:--------------:|:-----------------------:|:-------------:|
+| (A1)      | latency.method | [app: ui, env: staging] | 1 1 1         |
+| (A2)      | latency.method | [app: ui, host: h0    ] | 2 2 2         |
+
+We evaluate `latency.connection` and find that the result is the following list of two timeseries:
+
+| (series†) | metric name        | tags                       | series values |
+|:---------:|:------------------:|:--------------------------:|:-------------:|
+| (B1)      | latency.connection | [app: ui,     method: rpc] | 3 3 3         |
+| (B2)      | latency.connection | [app: server, method: rpc] | 4 4 4         |
+
+† The series identifiers are purely illustrative - internally, individual timeseries are identified solely by their metric name and tags.
+
+There are 4 candidate result pairs: (A1 + B1), (A1 + B2), (A2 + B1), and (A2 + B2).
+
+Of these, (A1 + B2) and (A2 + B2) are both conflicting, since (A1) and (A2) have `app: ui` while (B2) has `app: server`.
+(A1 + B1) and (A2 + B1) are not conflicting, however.
+
+Therefore the following result is reached:
+
+| (series†) | metric name                         | tags                                               | series values |
+|:---------:|:-----------------------------------:|:--------------------------------------------------:|:-------------:|
+| (A1)+(B1) | latency.method + latency.connection | [app: ui,     env: staging,           method: rpc] | 4 4 4         |
+| (A2)+(B1) | latency.method + latency.connection | [app: server,               host: h0, method: rpc] | 5 5 5         |
+
+Important things to note:
+
+* Not every timeseries from the argument series lists will be represented in the output. (B2) conflicted with every tag from `latency.method` and therefore isn't represented in the result.
+* Timeseries can be matched with more than one series in the result. (B1) matched with *both* (A1) and (A2)
+* Series from one size of the operator aren't joined with one another. For example, although (A1) and (A2) are not conflicting, they are both from the left argument, so (A1)+(A2) isn't in the result.
+* If series have no tag keys in common, they will *always* match.
+* The left and right sides of the operator may contain different numbers of timeseries.
+
+A larger example is provided here:
+
+Consider the query `latency.method + latency.connection` over the following data:
+
+| (series†) | metric name        | tags                         | series values |
+|:---------:|:------------------:|:----------------------------:|:-------------:|
+| (A1)      | latency.method     | app: ui,     env: staging    | 1 2 1         |
+| (A2)      | latency.method     | app: ui,     env: production | 3 3 3         |
+| (A3)      | latency.method     | app: server, env: production | 0 0 1         |
+|           |                    |                              |               |
+| (B1)      | latency.connection | app: ui,     method: rpc     | 0 0 4         |
+| (B2)      | latency.connection | app: ui,     method: http    | 1 1 1         |
+| (B3)      | latency.connection | app: server, method: rpc     | 2 1 0         |
+| (B4)      | latency.connection | app: server, method: http    | 3 2 3         |
+
+The query results in a list of 6 timeseries:
+
+| (series†) | metric name                         | tags                                       | series values |
+|:---------:|:-----------------------------------:|:------------------------------------------:|:-------------:|
+| (A1)+(B1) | latency.method + latency.connection | app: ui,     env: staging,    method: rpc  | 1 2 5         |
+| (A1)+(B2) | latency.method + latency.connection | app: ui,     env: staging,    method: http | 2 3 2         |
+| (A2)+(B1) | latency.method + latency.connection | app: ui,     env: production, method: rpc  | 3 3 7         |
+| (A2)+(B2) | latency.method + latency.connection | app: ui,     env: production, method: http | 4 4 4         |
+| (A3)+(B3) | latency.method + latency.connection | app: server, env: production, method: rpc  | 2 1 1         |
+| (A3)+(B4) | latency.method + latency.connection | app: server, env: production, method: http | 3 2 4         |
 
 ## Aggregation Functions
 
@@ -49,48 +98,56 @@ The following aggregation functions are supported:
 * `aggregate.min`
 * `aggregate.max`
 
-Aggregation functions take only one argument: the series list to aggregate on. They will collapse all series in the argument list into a single resulting series.
-For example, given a series list produced by `MetricA`, writing `aggregate.sum( MetricA )` computes the following:
+Aggregation functions take only one argument: the list of series to aggregate on. They will collapse all series in the argument list into a single resulting series.
+For example, given a series list produced by `latency`:
 
-|MetricA TagSet               |MetricA Values|
-|:---------------------------:|:------------:|
-| app: ui, env: staging       | 1 2 1        |
-| app: ui, env: production    | 3 3 3        |
-| app: server, env: staging   | 0 0 1        |
-| app: server, env: production| 2 2 0        |
+| (series†) | metric name | tags                         | series values |
+|:---------:|:-----------:|:----------------------------:|:-------------:|
+| (A1)      | latency     | app: ui,     env: staging    | 1 2 1         |
+| (A2)      | latency     | app: ui,     env: production | 3 3 3         |
+| (A3)      | latency     | app: server, env: staging    | 0 0 1         |
+| (A4)      | latency     | app: server, env: production | 2 2 0         |
 
-|`aggregate.sum(MetricA)` Tagset|`aggregate.sum(MetricA)` Values|
-|:---------------------------:|:-------------------------------:|
-| (no tags)                   | 6 7 5                           |
+Querying `aggregate.sum( latency )` computes the following result, a list of a single series:
 
-Aggregators treat missing data (`NaN`) as though it were not present. For example, consider the following:
+| (series†)         | metric name            | tags      | series values |
+|:-----------------:|:----------------------:|:---------:|:-------------:|
+|(A1)+(A2)+(A3)+(A4)| aggregate.sum(latency) | (no tags) | 6 7 5         |
 
-|MetricB TagSet               |MetricB Values|
-|:---------------------------:|:------------:|
-| app: ui, env: staging       | 8   NaN 2    |
-| app: ui, env: production    | 8   6   NaN  |
-| app: server, env: staging   | NaN 9   NaN  |
-| app: server, env: production| 8   3   8    |
+Aggregators in general treat missing data (internally represented as `NaN`) as though it were not present. For example, consider the following:
+
+| (series†) | metric name | tags                         | series values |
+|:---------:|:-----------:|:----------------------------:|:-------------:|
+| (A1)      | latency     | app: ui,     env: staging    | 8   NaN 2     |
+| (A2)      | latency     | app: ui,     env: production | 8   6   NaN   |
+| (A3)      | latency     | app: server, env: staging    | NaN 9   NaN   |
+| (A4)      | latency     | app: server, env: production | 8   3   8     |
 
 The result of `aggregate.mean` is:
 
-|`aggregate.mean(MetricB)` TagSet |`aggregate.mean(MetricB)` Values|
-|:-------------------------------:|:------------------------------:|
-| (no tags)                       | 8 6 5                          |
+| (series†)         | metric name            | tags      | series values |
+|:-----------------:|:----------------------:|:---------:|:-------------:|
+|(A1)+(A2)+(A3)+(A4)| aggregate.sum(latency) | (no tags) | 8 6 5         |
 
 Aggregations can be grouped by individual tags. The series in the resulting series list preserve those tags which their group used.
 
-|MetricA TagSet               |MetricA Values|
-|:---------------------------:|:------------:|
-| app: ui, env: staging       | 1 2 1        |
-| app: ui, env: production    | 3 3 3        |
-| app: server, env: staging   | 0 0 1        |
-| app: server, env: production| 2 2 0        |
+Consider the metric `latency`:
 
-|`aggregate.sum(MetricA group by app)` TagSet|`aggregate.sum(MetricA group by app)` Values|
-|:------------------------------------------:|:------------------------------------------:|
-| app: ui                                    | 4 5 4                                      |
-| app: server                                | 2 2 1                                      |
+| (series†) | metric name | tags                         | series values |
+|:---------:|:-----------:|:----------------------------:|:-------------:|
+| (A1)      | latency     | app: ui,     env: staging    | 1 2 1         |
+| (A2)      | latency     | app: ui,     env: production | 3 3 3         |
+| (A3)      | latency     | app: server, env: staging    | 0 0 1         |
+| (A4)      | latency     | app: server, env: production | 2 2 0         |
+
+If we want to find the total latency per-app then we can run `aggregate.sum(latency group by app)`. We get the following result:
+
+| (series†) | metric name                         | tags        | series values |
+|:---------:|:-----------------------------------:|:-----------:|:-------------:|
+|(A1)+(A2)  | aggregate.sum(latency group by app) | app: ui     | 4 5 4         |
+|(A3)+(A4)  | aggregate.sum(latency group by app) | app: server | 2 2 1         |
+
+Note that only those tags which you list in the `group by` clause are preserved- even if all series in the group agree on a particular tag value, the tag will be omitted in the result.
 
 ## Transformation Functions
 
@@ -104,12 +161,12 @@ Transformation functions modify each series in a given serieslist independently.
 * `transform.abs`
 * `transform.nan_keep_last`
 
-### `transform.derivative(list)`
+##### `transform.derivative(list)`
 
 This function computes a numerical derivative for a given timeseries. Each value will be updates to be `y[i] = (x[i] - x[i-1]) / interval` where `interval` is the time between samples, measured in seconds.
 The first value is assigned 0.
 
-### `transform.integral(list)`
+##### `transform.integral(list)`
 
 This function computes a numerical integral for a given timeseries. Each value will be the sum of the values up to it (including itself), a left Riemann integral.
 This quantity will be scaled, interpreting each value in the series as having units of `events / second`, and producing something with the units of `events`.
@@ -117,29 +174,29 @@ If you do not want this behavior, use `transform.cumulative` instead, which does
 
 `NaN` values are treated as 0.
 
-### `transform.rate(list)`
+##### `transform.rate(list)`
 
 This function computes the numerical derivative of a given timeseries, as in `transform.derivative`, but it bounds the result to be at least 0.
-This is useful for counting timeseries. The resulting units are in `events / second` (so scaling will occur depending on the resolution of the data).
+This transformation is most useful on counters. The resulting units are in `events / second` (so scaling will occur depending on the resolution of the data).
 
-### `transform.cumulative(list)`
+##### `transform.cumulative(list)`
 
 This function computes the raw, cumulsative sum of the values in each timeseries. It performs no scaling. `NaN` values are treated as 0.
 
-### `transform.default(list, value)`
+##### `transform.default(list, value)`
 
 This function takes an extra number parameter. Any occurrence of `NaN` in any series in the list will be replaced by `value`.
 
-### `transform.abs(list)`
+##### `transform.abs(list)`
 
 This function computes the absolute value of all values in each series of the given list.
 
-### `transform.nan_keep_last(list)`
+##### `transform.nan_keep_last(list)`
 
 This function replaces any `NaN` value with the last non-`NaN` value before it. For data which is very sparse, this can make graphs more readable.
 Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.default` on the result.
 
-### `transform.timeshift(list, offsetDuration)`
+##### `transform.timeshift(list, offsetDuration)`
 
 This function shifts time forward by the specified `offsetDuration` while computing `list`. For example, the query:
 
@@ -157,14 +214,14 @@ And the result of the query will have timestamps from 1 week ago to today.
 
 Keep in mind that a positive shift will go forward in time, and any data fetched from a time later than `now` will be missing.
 
-### `transform.moving_average(list, duration)`
+##### `transform.moving_average(list, duration)`
 
 This function computes a moving average over the given duration for `list`.
 The function automatically extends the timerange of `list` in order to achieve a genuine moving average outside of the timerange provided by list.
 
 Each value is replaced by the average of all samples (including itself) in the interval of length `duration` prior to itself. `NaN` values are treated as absent.
 
-### `transform.alias(list, name)`
+##### `transform.alias(list, name)`
 
 This function renames the given list to be called by the given name.
 
