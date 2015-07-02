@@ -126,7 +126,7 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 		Name:         name,
 		MinArguments: 2,
 		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -163,7 +163,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 		MinArguments:  1,
 		MaxArguments:  1,
 		AllowsGroupBy: true,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
 			if err != nil {
@@ -173,15 +173,19 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 			if err != nil {
 				return nil, err
 			}
-			result := aggregate.AggregateBy(seriesList, aggregator, groups)
-			groupNames := make([]string, len(groups))
-			for i, group := range groups {
+			result := aggregate.AggregateBy(seriesList, aggregator, groups.List, groups.Combines)
+			groupNames := make([]string, len(groups.List))
+			for i, group := range groups.List {
 				groupNames[i] += group
 			}
-			if len(groups) == 0 {
+			if len(groups.List) == 0 {
 				result.Name = fmt.Sprintf("%s(%s)", name, value.GetName())
 			} else {
-				result.Name = fmt.Sprintf("%s(%s group by %s)", name, value.GetName(), strings.Join(groupNames, ", "))
+				verbName := "group"
+				if groups.Combines {
+					verbName = "combine"
+				}
+				result.Name = fmt.Sprintf("%s(%s %s by %s)", name, value.GetName(), verbName, strings.Join(groupNames, ", "))
 			}
 			return function.SeriesListValue(result), nil
 		},
@@ -194,7 +198,7 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 		Name:         name,
 		MinArguments: parameterCount + 1,
 		MaxArguments: parameterCount + 1,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			listValue, err := args[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -235,7 +239,7 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 		Name:         op,
 		MinArguments: 2,
 		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups []string) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			leftChannel := make(chan function.Value, 1)
 			rightChannel := make(chan function.Value, 1)
 			errs := make(chan error, 2)

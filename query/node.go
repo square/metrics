@@ -91,9 +91,10 @@ type metricFetchExpression struct {
 // functionExpression represents a function call with subexpressions.
 // This includes aggregate functions and arithmetic operators.
 type functionExpression struct {
-	functionName string
-	arguments    []function.Expression
-	groupBy      []string
+	functionName    string
+	arguments       []function.Expression
+	groupBy         []string
+	groupByCombines bool
 }
 
 // temporary nodes
@@ -129,7 +130,8 @@ type expressionList struct {
 }
 
 type groupByList struct {
-	list []string
+	list     []string
+	combines bool
 }
 
 // evaluationContextKey represents a key (from, to, sampleby) for the evaluation context.

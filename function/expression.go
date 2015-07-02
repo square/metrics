@@ -32,18 +32,23 @@ type Registry interface {
 	All() []string                             // all the registered functions
 }
 
+type Groups struct {
+	List     []string
+	Combines bool
+}
+
 // MetricFunction defines a common logic to dispatch a function in MQE.
 type MetricFunction struct {
 	Name          string
 	MinArguments  int
 	MaxArguments  int
 	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
-	Compute       func(EvaluationContext, []Expression, []string) (Value, error)
+	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
 }
 
 // Evaluate the given metric function.
 func (f MetricFunction) Evaluate(context EvaluationContext,
-	arguments []Expression, groupBy []string) (Value, error) {
+	arguments []Expression, groupBy []string, combines bool) (Value, error) {
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
@@ -53,7 +58,7 @@ func (f MetricFunction) Evaluate(context EvaluationContext,
 		// TODO(jee) - use typed errors
 		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
 	}
-	return f.Compute(context, arguments, groupBy)
+	return f.Compute(context, arguments, Groups{groupBy, combines})
 }
 
 // fetchCounter is used to count the number of fetches remaining in a thread-safe manner.

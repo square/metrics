@@ -445,9 +445,10 @@ func (p *Parser) addPipeExpression() {
 		return
 	}
 	p.pushNode(&functionExpression{
-		functionName: stringLiteral.literal,
-		arguments:    append([]function.Expression{expressionNode}, expressionList.expressions...),
-		groupBy:      groupBy.list,
+		functionName:    stringLiteral.literal,
+		arguments:       append([]function.Expression{expressionNode}, expressionList.expressions...),
+		groupBy:         groupBy.list,
+		groupByCombines: groupBy.combines,
 	})
 }
 
@@ -469,9 +470,10 @@ func (p *Parser) addFunctionInvocation() {
 	}
 	// user-level error generation here.
 	p.pushNode(&functionExpression{
-		functionName: stringLiteral.literal,
-		arguments:    expressionList.expressions,
-		groupBy:      groupBy.list,
+		functionName:    stringLiteral.literal,
+		arguments:       expressionList.expressions,
+		groupBy:         groupBy.list,
+		groupByCombines: groupBy.combines,
 	})
 }
 
@@ -592,7 +594,7 @@ func (p *Parser) appendLiteral(literal string) {
 }
 
 func (p *Parser) addGroupBy() {
-	p.pushNode(&groupByList{make([]string, 0)})
+	p.pushNode(&groupByList{make([]string, 0), false})
 }
 
 func (p *Parser) appendGroupBy(literal string) {
@@ -601,6 +603,16 @@ func (p *Parser) appendGroupBy(literal string) {
 		p.flagTypeAssertion()
 		return
 	}
+	listNode.list = append(listNode.list, literal)
+}
+
+func (p *Parser) appendCombineBy(literal string) {
+	listNode, ok := p.peekNode().(*groupByList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode.combines = true // Switch to combining mode
 	listNode.list = append(listNode.list, literal)
 }
 

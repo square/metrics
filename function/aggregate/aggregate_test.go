@@ -109,7 +109,7 @@ func Test_groupBy(t *testing.T) {
 		},
 	}
 	for i, testCase := range aggregateTestCases {
-		result := groupBy(listA, testCase.Tags)
+		result := groupBy(listA, testCase.Tags, false)
 		if len(result) != testCase.ExpectedGroups {
 			t.Errorf("Testcase %d results in %d groups when %d are expected (tags %+v)", i, len(result), testCase.ExpectedGroups, testCase.Tags)
 			continue
@@ -456,7 +456,7 @@ func Test_AggregateBy(t *testing.T) {
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags)
+		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags, false)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
