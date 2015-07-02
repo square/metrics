@@ -166,6 +166,20 @@ Transformation functions modify each series in a given serieslist independently.
 This function computes a numerical derivative for a given timeseries. Each value will be updates to be `y[i] = (x[i] - x[i-1]) / interval` where `interval` is the time between samples, measured in seconds.
 The first value is assigned 0.
 
+Consider performing the query `transform.derivative( disk_usage )` with a resolution of 10 seconds (30 seconds is the default resolution), where `disk_usage` is defined like this:
+
+| (series†) | metric name | tags        | series values |
+|:---------:|:-----------:|:-----------:|:-------------:|
+| (A1)      | disk_usage  | app: ui     | 300  310  315 |
+| (A2)      | disk_usage  | app: server | 440  435  450 |
+
+The query `transform.deriative( disk_usage )` results in:
+
+| (series†) | metric name                      | tags        | series values |
+|:---------:|:--------------------------------:|:-----------:|:-------------:|
+| (A1)      | transform.derivative(disk_usage) | app: ui     | 0   1    0.5  |
+| (A2)      | transform.derivative(disk_usage) | app: server | 0  -0.5  1.5  |
+
 ##### `transform.integral(list)`
 
 This function computes a numerical integral for a given timeseries. Each value will be the sum of the values up to it (including itself), a left Riemann integral.
@@ -174,27 +188,113 @@ If you do not want this behavior, use `transform.cumulative` instead, which does
 
 `NaN` values are treated as 0.
 
+Consider the query `transform.integral( request_rate )` with a resolution of 10 seconds (30 seconds is the default resolution) on the metric `request_rate` detailed below:
+
+| (series†) | metric name  | tags        | series values |
+|:---------:|:------------:|:-----------:|:-------------:|
+| (A1)      | request_rate | app: ui     | 30  25  20    |
+| (A2)      | request_rate | app: server | 120 134 150   |
+
+The query `transform.integral( request_rate )` results in:
+
+| (series†) | metric name                      | tags        | series values  |
+|:---------:|:--------------------------------:|:-----------:|:--------------:|
+| (A1)      | transform.integral(request_rate) | app: ui     | 300  550  750  |
+| (A2)      | transform.integral(request_rate) | app: server | 1200 2540 4040 |
+
 ##### `transform.rate(list)`
 
 This function computes the numerical derivative of a given timeseries, as in `transform.derivative`, but it bounds the result to be at least 0.
 This transformation is most useful on counters. The resulting units are in `events / second` (so scaling will occur depending on the resolution of the data).
 
+Consider performing the query `transform.rate( disk_usage )` with a resolution of 10 seconds (30 seconds is the default resolution), where `disk_usage` is defined like this:
+
+| (series†) | metric name | tags        | series values |
+|:---------:|:-----------:|:-----------:|:-------------:|
+| (A1)      | disk_usage  | app: ui     | 300  310  315 |
+| (A2)      | disk_usage  | app: server | 440  435  450 |
+
+The query `transform.rate( disk_usage )` results in:
+
+| (series†) | metric name                | tags        | series values |
+|:---------:|:--------------------------:|:-----------:|:-------------:|
+| (A1)      | transform.rate(disk_usage) | app: ui     | 0  1  0.5     |
+| (A2)      | transform.rate(disk_usage) | app: server | 0  0  1.5     |
+
 ##### `transform.cumulative(list)`
 
 This function computes the raw, cumulsative sum of the values in each timeseries. It performs no scaling. `NaN` values are treated as 0.
+
+If scaling is desired, use `transform.integral(list)`.
+
+Consider the query `transform.cumulative( request_counter )` with a resolution of 10 seconds (30 seconds is the default resolution) on the metric `request_rate` detailed below:
+
+| (series†) | metric name     | tags        | series values |
+|:---------:|:---------------:|:-----------:|:-------------:|
+| (A1)      | request_counter | app: ui     | 30  25  20    |
+| (A2)      | request_counter | app: server | 120 134 150   |
+
+The query `transform.cumulative( request_counter )` results in:
+
+| (series†) | metric name                           | tags        | series values  |
+|:---------:|:-------------------------------------:|:-----------:|:--------------:|
+| (A1)      | transform.cumulative(request_counter) | app: ui     | 30  55  75     |
+| (A2)      | transform.cumulative(request_counter) | app: server | 120 254 404    |
 
 ##### `transform.default(list, value)`
 
 This function takes an extra number parameter. Any occurrence of `NaN` in any series in the list will be replaced by `value`.
 
+Consider the query `transform.default(latency, 1000)`. If `latency` is detailed as below:
+
+| (series†) | metric name | tags        | series values |
+|:---------:|:-----------:|:-----------:|:-------------:|
+| (A1)      | latency     | app: ui     | 80  24   15   |
+| (A2)      | latency     | app: server | 70  NaN  NaN  |
+
+Then `transform.default(latency, 1000)` produces this result:
+
+| (series†) | metric name                | tags        | series values  |
+|:---------:|:--------------------------:|:-----------:|:--------------:|
+| (A1)      | transform.default(latency) | app: ui     | 80  24    15   |
+| (A2)      | transform.defailt(latency) | app: server | 70  1000  1000 |
+
 ##### `transform.abs(list)`
 
 This function computes the absolute value of all values in each series of the given list.
+
+Consider the query: `transform.abs(offset)` where `offset` is detailed as below:
+
+| (series†) | metric name | tags        | series values |
+|:---------:|:-----------:|:-----------:|:-------------:|
+| (A1)      | offset      | app: ui     | 30  0  -15    | 
+| (A2)      | offset      | app: server | 7   6  -3     |
+
+Then the query `transform.abs(offset)` results in:
+
+| (series†) | metric name           | tags        | series values |
+|:---------:|:---------------------:|:-----------:|:-------------:|
+| (A1)      | transform.abs(offset) | app: ui     | 30  0  15     | 
+| (A2)      | transform.abs(offset) | app: server | 7   6  3      |
 
 ##### `transform.nan_keep_last(list)`
 
 This function replaces any `NaN` value with the last non-`NaN` value before it. For data which is very sparse, this can make graphs more readable.
 Initial `NaN`s are left alone. If these need to be eliminated also, consider using `transform.default` on the result.
+
+Consider the metric `responses`:
+
+| (series†) | metric name | tags        | series values             |
+|:---------:|:-----------:|:-----------:|:-------------------------:|
+| (A1)      | responses   | app: ui     | NaN NaN 3   NaN 7 Nan NaN | 
+| (A2)      | responses   | app: server | 2   3   NaN 5   3 NaN 1   |
+
+Then the query `transform.nan_keep_last(responses)` produces the result:
+
+| (series†) | metric name                        | tags        | series values     |
+|:---------:|:----------------------------------:|:-----------:|:-----------------:|
+| (A1)      | transform.nan_keep_last(responses) | app: ui     | NaN NaN 3 3 7 7 7 | 
+| (A2)      | transform.nan_keep_last(responses) | app: server | 2   3   3 5 3 3 1 |
 
 ##### `transform.timeshift(list, offsetDuration)`
 
@@ -210,8 +310,6 @@ would fetch metrics from one week ago. However, their resulting timestamps would
 select cpu - transform.timeshift(cpu, -1w) from -1w to now
 ```
 
-And the result of the query will have timestamps from 1 week ago to today.
-
 Keep in mind that a positive shift will go forward in time, and any data fetched from a time later than `now` will be missing.
 
 ##### `transform.moving_average(list, duration)`
@@ -223,7 +321,7 @@ Each value is replaced by the average of all samples (including itself) in the i
 
 ##### `transform.alias(list, name)`
 
-This function renames the given list to be called by the given name.
+This function renames the given list to be called by the given name. It does not change the series data values themselves.
 
 ## Filter Functions
 
