@@ -1,6 +1,6 @@
 # Examples
 
-## Describe All
+### Describe All
 
 List all metric names in the system:
 
@@ -8,7 +8,7 @@ List all metric names in the system:
 describe all
 ```
 
-## Describe
+### Describe
 
 Find what tagsets are associated to a given metric name:
 
@@ -22,7 +22,7 @@ If the name contains special characters (any character other than a letter, numb
 describe `cpu-userspace`
 ```
 
-## Describe Metrics
+### Describe Metrics
 
 To find every metric that has a given tag (key, value) pair, use the `describe metrics` command:
 
@@ -32,7 +32,7 @@ describe metrics where app = 'metrics-indexer'
 
 Only one (key, value) pair can be selected on at a time.
 
-## Select
+### Select
 
 Find how much CPU each app is using in the past 4 hours:
 
@@ -88,25 +88,25 @@ Or in function notation:
 aggregate.sum(cpu group by app, datacenter) / aggregate.sum(cpu group by datacenter) * 100
 ```
 
-We might want to find how much memory our users and our kernels are using on every host:
+We might want to find how much cpu is used by userspace and say by kernel on every host:
 
 ```
-memory.kernel + memory.user from -4hr to now
+cpu.kernel + cpu.user from -4hr to now
 ```
 
 Although we might want to only restrict this to a small number of apps:
 
 ```
-memory.kernel + memory.user
+cpu.kernel + cpu.user
 where app in ('metrics-query-engine', 'blueflood', 'cassandra')
 from -4hr to now
 ```
 
-To look for only the hosts consuming the most memory, use `filter_highest.max`:
+To look for only the hosts consuming the most cpu for these apps, use `filter_highest.max`:
 
 ```
-memory.kernel + memory.user
-| filter_highest.max(10)
+cpu.kernel + cpu.user
+| filter.highest_max(10)
 where app in ('metrics-query-engine', 'blueflood', 'cassandra')
 from -4hr to now
 ```
