@@ -173,7 +173,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 			if err != nil {
 				return nil, err
 			}
-			result := aggregate.AggregateBy(seriesList, aggregator, groups.List, groups.Combines)
+			result := aggregate.AggregateBy(seriesList, aggregator, groups.List, groups.Collapses)
 			groupNames := make([]string, len(groups.List))
 			for i, group := range groups.List {
 				groupNames[i] += group
@@ -182,8 +182,8 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 				result.Name = fmt.Sprintf("%s(%s)", name, value.GetName())
 			} else {
 				verbName := "group"
-				if groups.Combines {
-					verbName = "combine"
+				if groups.Collapses {
+					verbName = "collapse"
 				}
 				result.Name = fmt.Sprintf("%s(%s %s by %s)", name, value.GetName(), verbName, strings.Join(groupNames, ", "))
 			}

@@ -445,10 +445,10 @@ func (p *Parser) addPipeExpression() {
 		return
 	}
 	p.pushNode(&functionExpression{
-		functionName:    stringLiteral.literal,
-		arguments:       append([]function.Expression{expressionNode}, expressionList.expressions...),
-		groupBy:         groupBy.list,
-		groupByCombines: groupBy.combines,
+		functionName:     stringLiteral.literal,
+		arguments:        append([]function.Expression{expressionNode}, expressionList.expressions...),
+		groupBy:          groupBy.list,
+		groupByCollapses: groupBy.collapses,
 	})
 }
 
@@ -470,10 +470,10 @@ func (p *Parser) addFunctionInvocation() {
 	}
 	// user-level error generation here.
 	p.pushNode(&functionExpression{
-		functionName:    stringLiteral.literal,
-		arguments:       expressionList.expressions,
-		groupBy:         groupBy.list,
-		groupByCombines: groupBy.combines,
+		functionName:     stringLiteral.literal,
+		arguments:        expressionList.expressions,
+		groupBy:          groupBy.list,
+		groupByCollapses: groupBy.collapses,
 	})
 }
 
@@ -606,13 +606,13 @@ func (p *Parser) appendGroupBy(literal string) {
 	listNode.list = append(listNode.list, literal)
 }
 
-func (p *Parser) appendCombineBy(literal string) {
+func (p *Parser) appendCollapseBy(literal string) {
 	listNode, ok := p.peekNode().(*groupByList)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	listNode.combines = true // Switch to combining mode
+	listNode.collapses = true // Switch to collapsing mode
 	listNode.list = append(listNode.list, literal)
 }
 

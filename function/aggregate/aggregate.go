@@ -28,23 +28,12 @@ type group struct {
 	TagSet api.TagSet
 }
 
-// If the given group will accept this given series (since it belongs to this group)
-// then groupAccept will return true.
-func groupAccepts(left api.TagSet, right api.TagSet, tags []string, combines bool) bool {
-	if combines {
-		tolerateDifferent := map[string]bool{}
-		for _, tag := range tags {
-			tolerateDifferent[tag] = true
-		}
-		for tag, leftValue := range left {
-			rightValue, ok := right[tag]
-			if ok && !tolerateDifferent[tag] && leftValue != rightValue {
-				return false
-			}
-		}
-	} else {
-		for _, tag := range tags {
-			if left[tag] != right[tag] {
+// groupAccepts determines whether the given `group` tagset will accept the `next` candidate tagset.
+// in particular, they must have the same values for any keys that they share.
+func groupAccepts(group api.TagSet, next api.TagSet) bool {
+	for tag, value := range group {
+		if nextValue, ok := next[tag]; ok {
+			if nextValue != value {
 				return false
 			}
 		}
@@ -52,30 +41,11 @@ func groupAccepts(left api.TagSet, right api.TagSet, tags []string, combines boo
 	return true
 }
 
-// addToGroup adds the series to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
-func addToGroup(rows []group, series api.Timeseries, tags []string, combines bool) []group {
-	// First we delete all tags with names other than those found in 'tags'
-	newTags := api.NewTagSet()
-	if combines {
-		// Copy the tagset, then delete `tags`.
-		for tag, value := range series.TagSet {
-			newTags[tag] = value
-		}
-		for _, deleteTag := range tags {
-			delete(newTags, deleteTag)
-		}
-	} else {
-		// Copy only those `tags` specified
-		for _, tag := range tags {
-			newTags[tag] = series.TagSet[tag]
-		}
-	}
-	// replace series' TagSet with newTags
-	series.TagSet = newTags
-
-	// Next, find the best bucket for this series:
+// addToGroup adds the `series` to the corresponding bucket, possibly modifying the input `rows` and returning a new list.
+func addToGroup(rows []group, series api.Timeseries) []group {
+	// Find the best bucket for this series:
 	for i, row := range rows {
-		if groupAccepts(row.TagSet, series.TagSet, tags, combines) {
+		if groupAccepts(row.TagSet, series.TagSet) {
 			rows[i].List = append(rows[i].List, series)
 			return rows
 		}
@@ -83,16 +53,48 @@ func addToGroup(rows []group, series api.Timeseries, tags []string, combines boo
 	// Otherwise, no bucket yet exists
 	return append(rows, group{
 		[]api.Timeseries{series},
-		newTags,
+		series.TagSet,
 	})
 }
 
-// groupBy groups the given SeriesList by tags, producing a list of lists (of type groupResult)
-// if `combines` is true, then it groups on all other tags instead.
-func groupBy(list api.SeriesList, tags []string, combines bool) []group {
+// startingGroup returns a tagset that only has tags from `original` that are found in `tags`.
+func startingGroup(original api.TagSet, tags []string) api.TagSet {
+	result := api.NewTagSet()
+	for _, tag := range tags {
+		result[tag] = original[tag]
+	}
+	return result
+}
+
+// startingCollapse returns a tagset copy of `original` but with all tags in `tags` deleted.
+func startingCollase(original api.TagSet, tags []string) api.TagSet {
+	result := api.NewTagSet()
+	for tag, value := range original {
+		result[tag] = value
+	}
+	for _, tagToDelete := range tags {
+		delete(result, tagToDelete)
+	}
+	return result
+}
+
+// filterTagSet takes a `series` and filters its `tags` based on whether it needs to `collapse` or group on these tags.
+// if `collapses` is false, then tags not found in the `tags` list will be deleted. If `collapses` is true, then tags found in `tags` will be deleted.
+func filterTagSet(series api.Timeseries, tags []string, collapses bool) api.Timeseries {
+	if collapses {
+		series.TagSet = startingCollase(series.TagSet, tags)
+	} else {
+		series.TagSet = startingGroup(series.TagSet, tags)
+	}
+	return series
+}
+
+// groupBy breaks the given `list` into `groups` that all agree on each tag they have in `tags`.
+// if `collapses` is true, then it groups on all other tags instead.
+func groupBy(list api.SeriesList, tags []string, collapses bool) []group {
 	result := []group{}
 	for _, series := range list.Series {
-		result = addToGroup(result, series, tags, combines)
+		result = addToGroup(result, filterTagSet(series, tags, collapses))
 	}
 	return result
 }
@@ -201,9 +203,9 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 // AggregateBy takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func AggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string, combines bool) api.SeriesList {
+func AggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string, collapses bool) api.SeriesList {
 	// Begin by grouping the input:
-	groups := groupBy(list, tags, combines)
+	groups := groupBy(list, tags, collapses)
 
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(groups)),

@@ -32,7 +32,7 @@ const (
 	ruleexpression_function
 	ruleexpression_metric
 	rulegroupByClause
-	rulecombineByClause
+	rulecollapseByClause
 	rulepredicateClause
 	rulepredicate_1
 	rulepredicate_2
@@ -153,7 +153,7 @@ var rul3s = [...]string{
 	"expression_function",
 	"expression_metric",
 	"groupByClause",
-	"combineByClause",
+	"collapseByClause",
 	"predicateClause",
 	"predicate_1",
 	"predicate_2",
@@ -756,10 +756,10 @@ func (p *Parser) Execute() {
 
 		case ruleAction35:
 
-			p.appendCombineBy(unescapeLiteral(text))
+			p.appendCollapseBy(unescapeLiteral(text))
 
 		case ruleAction36:
-			p.appendCombineBy(unescapeLiteral(text))
+			p.appendCollapseBy(unescapeLiteral(text))
 		case ruleAction37:
 			p.addOrPredicate()
 		case ruleAction38:
@@ -2234,7 +2234,7 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position172, tokenIndex172, depth172
 			return false
 		},
-		/* 14 optionalGroupBy <- <(Action27 (groupByClause / combineByClause)?)> */
+		/* 14 optionalGroupBy <- <(Action27 (groupByClause / collapseByClause)?)> */
 		func() bool {
 			{
 				position202 := position
@@ -2624,7 +2624,7 @@ func (p *Parser) Init() {
 								position, tokenIndex, depth = position253, tokenIndex253, depth253
 							}
 							depth--
-							add(rulecombineByClause, position229)
+							add(rulecollapseByClause, position229)
 						}
 					}
 				l206:
@@ -2644,7 +2644,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 17 groupByClause <- <(_ (('g' / 'G') ('r' / 'R') ('o' / 'O') ('u' / 'U') ('p' / 'P')) KEY _ (('b' / 'B') ('y' / 'Y')) KEY _ <COLUMN_NAME> Action33 (_ COMMA _ <COLUMN_NAME> Action34)*)> */
 		nil,
-		/* 18 combineByClause <- <(_ (('c' / 'C') ('o' / 'O') ('l' / 'L') ('l' / 'L') ('a' / 'A') ('p' / 'P') ('s' / 'S') ('e' / 'E')) KEY _ (('b' / 'B') ('y' / 'Y')) KEY _ <COLUMN_NAME> Action35 (_ COMMA _ <COLUMN_NAME> Action36)*)> */
+		/* 18 collapseByClause <- <(_ (('c' / 'C') ('o' / 'O') ('l' / 'L') ('l' / 'L') ('a' / 'A') ('p' / 'P') ('s' / 'S') ('e' / 'E')) KEY _ (('b' / 'B') ('y' / 'Y')) KEY _ <COLUMN_NAME> Action35 (_ COMMA _ <COLUMN_NAME> Action36)*)> */
 		nil,
 		/* 19 predicateClause <- <(_ (('w' / 'W') ('h' / 'H') ('e' / 'E') ('r' / 'R') ('e' / 'E')) KEY _ predicate_1)> */
 		nil,
@@ -5473,10 +5473,10 @@ func (p *Parser) Init() {
 		 }> */
 		nil,
 		/* 101 Action35 <- <{
-		   p.appendCombineBy(unescapeLiteral(text))
+		   p.appendCollapseBy(unescapeLiteral(text))
 		 }> */
 		nil,
-		/* 102 Action36 <- <{p.appendCombineBy(unescapeLiteral(text))}> */
+		/* 102 Action36 <- <{p.appendCollapseBy(unescapeLiteral(text))}> */
 		nil,
 		/* 103 Action37 <- <{ p.addOrPredicate() }> */
 		nil,

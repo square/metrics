@@ -136,7 +136,7 @@ expression_atom <-
   _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
 
 
-optionalGroupBy <- { p.addGroupBy() } (groupByClause / combineByClause)?
+optionalGroupBy <- { p.addGroupBy() } (groupByClause / collapseByClause)?
 
 expression_function  <-
   # We allow syntax of the form:
@@ -169,12 +169,12 @@ groupByClause <-
     }
   )*
 
-combineByClause <-
+collapseByClause <-
   _ "collapse" KEY _ "by" KEY _ <COLUMN_NAME> {
-    p.appendCombineBy(unescapeLiteral(text))
+    p.appendCollapseBy(unescapeLiteral(text))
   }
   (
-  _ COMMA _ <COLUMN_NAME> {p.appendCombineBy(unescapeLiteral(text))}
+  _ COMMA _ <COLUMN_NAME> {p.appendCollapseBy(unescapeLiteral(text))}
   )*
 
 predicateClause <- _ "where" KEY _ predicate_1
