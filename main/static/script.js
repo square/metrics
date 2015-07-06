@@ -128,39 +128,41 @@ function clearChart(chart) {
   }
 };
 
-module.factory("$asyncRender", function($chartWaiting) {
-  return function($scope, chart, dataTable, options) {
+module.factory("$asyncRender", function($chartWaiting, $rootScope) {
+  return function(chart, dataTable, options) {
     google.visualization.events.addListener(chart.chart, "ready", function() {
-      $scope.$apply(function() { $chartWaiting.dec(); });
+      $rootScope.$apply(function() { $chartWaiting.dec(); });
     });
     setTimeout(function(){chart.chart.draw(dataTable, options)}, 1);
   };
 });
 
-module.factory("$launchRequest", function($google, $http, $receive, $queryTicketBooth, $launchedQueries) {
-  return function($scope, params) {
+module.factory("$launchRequest", function($google, $http, $receive, $queryTicketBooth, $launchedQueries, $q) {
+  return function(params) {
+    var resultPromise = $q.defer(); // Will be resolved with received value.
     var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
       params:params
     }).success(function(data, status, headers, config) {
       $launchedQueries.dec();
-      $scope.queryResult = data;
       if (ticket.valid()) {
-        $google(function() { $receive($scope, data) });
+        resultPromise.resolve(data);
+        $google(function() { $receive(data) });
       }
     }).error(function(data, status, headers, config) {
       $launchedQueries.dec();
-      $scope.queryResult = data;
       if (ticket.valid()) {
-        $google(function() { $receive($scope, data) });
+        resultPromise.resolve(data);
+        $google(function() { $receive(data) });
       }
     });
+    return resultPromise.promise;
   };
 });
 
-module.factory("$receiveSelect", function($chartWaiting, $asyncRender) {
-  return function($scope, object, chart) {
+module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRender) {
+  return function(object, chart) {
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
       return;
@@ -192,22 +194,29 @@ module.factory("$receiveSelect", function($chartWaiting, $asyncRender) {
       legend: {position: "bottom"},
       chartArea: {left: "5%", width:"90%", top: "5%", height: "90%"}
     }
-    if ($scope.inputModel.renderType === "line") {
+    if ($inputModel.renderType === "line") {
       chart.chart = new google.visualization.LineChart(chart.dom);
-    } else if ($scope.inputModel.renderType === "area") {
+    } else if ($inputModel.renderType === "area") {
       options.isStacked = true;
       chart.chart = new google.visualization.AreaChart(chart.dom);
     }
-    $asyncRender($scope, chart, dataTable, options);
+    $asyncRender(chart, dataTable, options);
   };
 });
 
-module.factory("$receiveProfile", function($chartWaiting, $asyncRender) {
-  return function($scope, object, chart) {
-    if (!$scope.hasProfiling()) {
+module.factory("$profilingEnabled", function() {
+  return {
+    hasProfiling: function() {
+      return false;
+    }
+  };
+});
+
+module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $asyncRender) {
+  return function(object, chart) {
+    if (!$profilingEnabled.hasProfiling()) {
       return
     }
-    console.log('increase');
     $chartWaiting.inc();
     var dataTable = new google.visualization.DataTable();
     var options = {
@@ -232,7 +241,7 @@ module.factory("$receiveProfile", function($chartWaiting, $asyncRender) {
       var row = [ profile.name , normalize(profile.start), normalize(profile.finish) ];
       dataTable.addRows([row]);
     }
-    $asyncRender($scope, chart, dataTable, options);
+    $asyncRender(chart, dataTable, options);
   };
 });
 
@@ -250,11 +259,19 @@ module.factory("$timelineChart", function() {
 });
 
 module.factory("$receive", function($mainChart, $timelineChart, $receiveSelect, $receiveProfile) {
-  return function($scope, object) {
+  return function(object) {
     clearChart($mainChart);
     clearChart($timelineChart);
-    $receiveSelect($scope, object, $mainChart);
-    $receiveProfile($scope, object, $timelineChart);
+    $receiveSelect(object, $mainChart);
+    $receiveProfile(object, $timelineChart);
+  };
+});
+
+module.factory("$inputModel", function() {
+  return {
+    profile: false,
+    query: "",
+    renderType: "line"
   };
 });
 
@@ -263,25 +280,25 @@ module.controller("mainCtrl", function(
   $scope,
   $launchedQueries,
   $chartWaiting,
-  $launchRequest
+  $launchRequest,
+  $inputModel,
+  $profilingEnabled
   ) {
+
+  // Store the $inputModel so that the view can change it through inputs.
+  $scope.inputModel = $inputModel;
 
   $scope.embedLink = "";
 
   $scope.queryResult = "";
-  $scope.inputModel = {
-    profile: false,
-    query: "",
-    renderType: "line"
-  };
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
     // TODO - unhack this.
-    $scope.inputModel.query = document.getElementById("query-input").value;
-    $location.search("query", $scope.inputModel.query);
-    $location.search("renderType", $scope.inputModel.renderType);
-    $location.search("profile", $scope.inputModel.profile.toString());
+    $inputModel.query = document.getElementById("query-input").value;
+    $location.search("query", $inputModel.query);
+    $location.search("renderType", $inputModel.renderType);
+    $location.search("profile", $inputModel.profile.toString());
 
     var url = $location.absUrl();
     var queryAt = url.indexOf("?");
@@ -291,13 +308,15 @@ module.controller("mainCtrl", function(
   $scope.$on("$locationChangeSuccess", function() {
     // this triggers at least once (in the beginning).
     var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    $scope.inputModel.profile = queries["profile"] === "true";
-    if ($scope.inputModel.query) {
-      $launchRequest($scope, {
-        profile: $scope.inputModel.profile,
-        query:   $scope.inputModel.query
+    $inputModel.query = queries["query"] || "";
+    $inputModel.renderType = queries["renderType"] || "line";
+    $inputModel.profile = queries["profile"] === "true";
+    if ($inputModel.query) {
+      $launchRequest({
+        profile: $inputModel.profile,
+        query:   $inputModel.query
+      }).then(function(data) {
+        $scope.queryResult = data;
       });
     }
   });
@@ -306,9 +325,11 @@ module.controller("mainCtrl", function(
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
-  $scope.hasProfiling = function() {
+  $profilingEnabled.hasProfiling = function() {
     return !!($scope.queryResult && $scope.queryResult.profile);
   };
+
+  $scope.hasProfiling = $profilingEnabled.hasProfiling; // So that the HTML view can check for profiling
 
   $scope.screenState = function() {
     if ($launchedQueries.pos()) {
@@ -324,10 +345,9 @@ module.controller("mainCtrl", function(
   var url = $location.absUrl();
   var queryAt = url.indexOf("?");
   $scope.embedLink = url.substring(0, queryAt) + "embed.html" + url.substring(queryAt);
-  console.log($scope.embedLink);
 });
 
-module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest){
+module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest, $inputModel, $profilingEnabled){
   $scope.queryResult = "";
   $scope.screenState = function() {
     if ($launchedQueries.pos()) {
@@ -340,16 +360,17 @@ module.controller("embedCtrl", function($location, $scope, $launchedQueries, $ch
       return "rendered";
     }
   };
-  $scope.hasProfiling = function() {
-    return false;
-  };
+  $scope.hasProfiling = $profilingEnabled.hasProfiling;
 
   var queries = $location.search();
-  $scope.inputModel = { renderType: "line" };
-  $scope.inputModel.renderType = queries["renderType"] || "line";
-  $launchRequest($scope, {
+  $inputModel.profile = false;
+  $inputModel.query = "";
+  $inputModel.renderType = queries["renderType"] || "line";
+  $launchRequest({
     profile: false,
     query:   queries["query"] || ""
+  }).then(function(data) {
+    $scope.queryResult = data;
   });
 
   var url = $location.absUrl();
