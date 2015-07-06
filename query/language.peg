@@ -290,7 +290,7 @@ NUMBER_FRACTION <- "." [0-9]+
 NUMBER_INTEGER  <- "-"? NUMBER_NATURAL
 NUMBER_EXP      <- "e" ("+" / "-")? [0-9]+
 
-DURATION <- NUMBER [a-z]+
+DURATION <- NUMBER [a-z]+ KEY
 
 # Syntactic elements
 # ==================
