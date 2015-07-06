@@ -397,6 +397,62 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
+		{
+			[]string{},
+			Total,
+			[]api.Timeseries{
+				{
+					Values: []float64{8, 8, 8},
+					TagSet: map[string]string{},
+				},
+			},
+		},
+		{
+			[]string{"dc"},
+			Total,
+			[]api.Timeseries{
+				{
+					Values: []float64{4, 4, 4},
+					TagSet: map[string]string{"dc": "A"},
+				},
+				{
+					Values: []float64{3, 3, 3},
+					TagSet: map[string]string{"dc": "B"},
+				},
+				{
+					Values: []float64{1, 1, 1},
+					TagSet: map[string]string{"dc": "C"},
+				},
+			},
+		},
+		{
+			[]string{},
+			Count,
+			[]api.Timeseries{
+				{
+					Values: []float64{6, 7, 6},
+					TagSet: map[string]string{},
+				},
+			},
+		},
+		{
+			[]string{"dc"},
+			Count,
+			[]api.Timeseries{
+				{
+					Values: []float64{3, 3, 3},
+					TagSet: map[string]string{"dc": "A"},
+				},
+				{
+					Values: []float64{2, 3, 2},
+					TagSet: map[string]string{"dc": "B"},
+				},
+				{
+					Values: []float64{1, 1, 1},
+					TagSet: map[string]string{"dc": "C"},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range aggregatedTests {

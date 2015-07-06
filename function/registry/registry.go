@@ -39,6 +39,8 @@ func init() {
 	MustRegister(NewAggregate("aggregate.min", aggregate.Min))
 	MustRegister(NewAggregate("aggregate.mean", aggregate.Mean))
 	MustRegister(NewAggregate("aggregate.sum", aggregate.Sum))
+	MustRegister(NewAggregate("aggregate.total", aggregate.Total))
+	MustRegister(NewAggregate("aggregate.count", aggregate.Count))
 	// Transformations
 	MustRegister(NewTransform("transform.derivative", 0, transform.Derivative))
 	MustRegister(NewTransform("transform.integral", 0, transform.Integral))
@@ -48,6 +50,9 @@ func init() {
 	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
 	MustRegister(NewTransform("transform.log", 0, transform.MapMaker(math.Log10)))
 	MustRegister(NewTransform("transform.nan_keep_last", 0, transform.NaNKeepLast))
+	MustRegister(NewTransform("transform.bound", 2, transform.Bound))
+	MustRegister(NewTransform("transform.lower_bound", 1, transform.LowerBound))
+	MustRegister(NewTransform("transform.upper_bound", 1, transform.UpperBound))
 	// Filter
 	MustRegister(NewFilter("filter.highest_mean", aggregate.Mean, false))
 	MustRegister(NewFilter("filter.lowest_mean", aggregate.Mean, true))
