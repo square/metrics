@@ -26,86 +26,92 @@ const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error b
 
 // Checks that groupBy() behaves as expected
 func Test_groupBy(t *testing.T) {
-	var (
-		listA = api.SeriesList{
-			Series: []api.Timeseries{
-				api.Timeseries{
-					Values: []float64{0, 0, 0},
-					TagSet: map[string]string{
-						"dc":   "A",
-						"env":  "production",
-						"host": "#1",
-					},
-				},
-				api.Timeseries{
-					Values: []float64{1, 1, 1},
-					TagSet: map[string]string{
-						"dc":   "B",
-						"env":  "staging",
-						"host": "#1",
-					},
-				},
-				api.Timeseries{
-					Values: []float64{2, 2, 2},
-					TagSet: map[string]string{
-						"dc":   "C",
-						"env":  "staging",
-						"host": "#1",
-					},
-				},
-				api.Timeseries{
-					Values: []float64{3, 3, 3},
-					TagSet: map[string]string{
-						"dc":   "B",
-						"env":  "production",
-						"host": "#2",
-					},
-				},
-				api.Timeseries{
-					Values: []float64{4, 4, 4},
-					TagSet: map[string]string{
-						"dc":   "C",
-						"env":  "staging",
-						"host": "#2",
-					},
+	var listA = api.SeriesList{
+		Series: []api.Timeseries{
+			api.Timeseries{
+				Values: []float64{0, 0, 0},
+				TagSet: map[string]string{
+					"dc":   "A",
+					"env":  "production",
+					"host": "#1",
 				},
 			},
-			Timerange: api.Timerange{},
-			Name:      "",
-		}
-	)
+			api.Timeseries{
+				Values: []float64{1, 1, 1},
+				TagSet: map[string]string{
+					"dc":   "B",
+					"env":  "staging",
+					"host": "#1",
+				},
+			},
+			api.Timeseries{
+				Values: []float64{2, 2, 2},
+				TagSet: map[string]string{
+					"dc":   "C",
+					"env":  "staging",
+					"host": "#1",
+				},
+			},
+			api.Timeseries{
+				Values: []float64{3, 3, 3},
+				TagSet: map[string]string{
+					"dc":   "B",
+					"env":  "production",
+					"host": "#2",
+				},
+			},
+			api.Timeseries{
+				Values: []float64{4, 4, 4},
+				TagSet: map[string]string{
+					"dc":   "C",
+					"env":  "staging",
+					"host": "#2",
+				},
+			},
+		},
+		Timerange: api.Timerange{},
+		Name:      "",
+	}
 
 	var aggregateTestCases = []struct {
-		Tags           []string
-		ExpectedGroups int
+		Tags             []string
+		ExpectedGroups   int
+		ExpectedCombines int
 	}{
 		{
 			[]string{"dc"},
 			3,
+			4,
 		},
 		{
 			[]string{"host"},
 			2,
+			4,
 		},
 		{
 			[]string{"env"},
 			2,
+			5,
 		},
 		{
 			[]string{"dc", "host"},
 			5,
+			2,
 		},
 		{
 			[]string{"dc", "env"},
 			4,
+			2,
 		},
 		{
 			[]string{"dc", "env"},
 			4,
+			2,
 		},
 		{
 			[]string{},
 			1,
+			5,
 		},
 	}
 	for i, testCase := range aggregateTestCases {
@@ -117,23 +123,52 @@ func Test_groupBy(t *testing.T) {
 		for _, row := range result {
 			// Further consistency checks are needed
 			for _, series := range row.List {
+				if len(series.Values) != 3 {
+					t.Errorf("groupBy changed the number of elements in Values: %+v", series)
+					continue
+				}
+				originalIndex := int(series.Values[0])
+				if originalIndex < 0 || originalIndex >= len(listA.Series) {
+					t.Errorf("groupBy has changed the values in Values: %+v", series)
+					continue
+				}
+				original := listA.Series[originalIndex]
 				for _, tag := range testCase.Tags {
 					if series.TagSet[tag] != row.TagSet[tag] {
 						t.Errorf("Series %+v in row %+v has inconsistent tag %s", series, row, tag)
 						continue
 					}
-					if len(series.Values) != 3 {
-						t.Errorf("groupBy changed the number of elements in Values: %+v", series)
-						continue
-					}
-					originalIndex := int(series.Values[0])
-					if originalIndex < 0 || originalIndex >= len(listA.Series) {
-						t.Errorf("groupBy has changed the values in Values: %+v", series)
-						continue
-					}
-					original := listA.Series[originalIndex]
 					if original.TagSet[tag] != series.TagSet[tag] {
 						t.Errorf("groupBy changed a series' tagset[%s]: original %+v; result %+v", tag, original, series)
+						continue
+					}
+				}
+			}
+		}
+		resultCombine := groupBy(listA, testCase.Tags, true)
+		if len(resultCombine) != testCase.ExpectedCombines {
+			t.Errorf("Testcase %d combines results in %d groups when %d are expected (tags %+v)", i, len(result), testCase.ExpectedCombines, testCase.Tags)
+		}
+		for _, row := range result {
+			// Further consistency checks are needed
+			for _, series := range row.List {
+				if len(series.Values) != 3 {
+					t.Errorf("groupBy changed the number of elements in Values: %+v", series)
+					continue
+				}
+				originalIndex := int(series.Values[0])
+				if originalIndex < 0 || originalIndex >= len(listA.Series) {
+					t.Errorf("groupBy has changed the values in Values: %+v", series)
+					continue
+				}
+				original := listA.Series[originalIndex]
+				for tag := range series.TagSet {
+					if series.TagSet[tag] != row.TagSet[tag] {
+						t.Errorf("Series %+v in row %+v has inconsistent tag %s", series, row, tag)
+						continue
+					}
+					if original.TagSet[tag] != series.TagSet[tag] {
+						t.Errorf("groupBy combine changed a series' tagset[%s]: original %+v; result %+v", tag, original, series)
 						continue
 					}
 				}
@@ -302,11 +337,13 @@ func Test_AggregateBy(t *testing.T) {
 	var aggregatedTests = []struct {
 		Tags       []string
 		Aggregator func([]float64) float64
+		Combines   bool
 		Results    []api.Timeseries
 	}{
 		{
 			[]string{"env"},
 			Sum,
+			false,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{1, 11, 3},
@@ -325,6 +362,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{"dc"},
 			Max,
+			false,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 2, 2},
@@ -349,6 +387,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{"dc", "env"},
 			Mean,
+			false,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{0, 1, 2},
@@ -390,6 +429,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{},
 			Sum,
+			false,
 			[]api.Timeseries{
 				api.Timeseries{
 					Values: []float64{5, 16, 9},
@@ -400,6 +440,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{},
 			Total,
+			false,
 			[]api.Timeseries{
 				{
 					Values: []float64{8, 8, 8},
@@ -410,6 +451,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{"dc"},
 			Total,
+			false,
 			[]api.Timeseries{
 				{
 					Values: []float64{4, 4, 4},
@@ -428,6 +470,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{},
 			Count,
+			false,
 			[]api.Timeseries{
 				{
 					Values: []float64{6, 7, 6},
@@ -438,6 +481,7 @@ func Test_AggregateBy(t *testing.T) {
 		{
 			[]string{"dc"},
 			Count,
+			false,
 			[]api.Timeseries{
 				{
 					Values: []float64{3, 3, 3},
@@ -453,10 +497,64 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
+		// Combine tests:
+		{
+			[]string{"host"},
+			Sum,
+			true,
+			[]api.Timeseries{
+				{
+					Values: []float64{0, 1, 2},
+					TagSet: map[string]string{
+						"env": "staging",
+						"dc":  "A",
+					},
+				},
+				{
+					Values: []float64{4, 4, 4},
+					TagSet: map[string]string{
+						"env": "staging",
+						"dc":  "B",
+					},
+				},
+				{
+					Values: []float64{-1, 1, 2},
+					TagSet: map[string]string{
+						"env": "production",
+						"dc":  "A",
+					},
+				},
+				{
+					Values: []float64{2, 10, 0},
+					TagSet: map[string]string{
+						"env": "production",
+						"dc":  "B",
+					},
+				},
+				{
+					Values: []float64{0, 0, 1},
+					TagSet: map[string]string{
+						"env": "production",
+						"dc":  "C",
+					},
+				},
+			},
+		},
+		{
+			[]string{"host", "dc", "env"},
+			Sum,
+			true,
+			[]api.Timeseries{
+				{
+					Values: []float64{5, 16, 9},
+					TagSet: map[string]string{},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags, false)
+		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags, testCase.Combines)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
