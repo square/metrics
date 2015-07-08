@@ -16,15 +16,17 @@ package tag
 
 import (
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/function"
 )
 
 // dropTagSeries returns a copy of the timeseries where the given `dropTag` has been removed from its TagSet.
 func dropTagSeries(series api.Timeseries, dropTag string) api.Timeseries {
 	tagSet := api.NewTagSet()
 	for tag, val := range series.TagSet {
-		tagSet[tag] = val
+		if tag != dropTag {
+			tagSet[tag] = val
+		}
 	}
-	delete(tagSet, dropTag)
 	series.TagSet = tagSet
 	return series
 }
@@ -64,4 +66,66 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 		list.Timerange,
 		list.Name,
 	}
+}
+
+// DropFunction wraps up DropTag into a MetricFunction called "tag.drop"
+var DropFunction = function.MetricFunction{
+	Name:         "tag.drop",
+	MinArguments: 2,
+	MaxArguments: 2,
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		result, err := arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := result.ToSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		value, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		dropTag, err := value.ToString()
+		if err != nil {
+			return nil, err
+		}
+		// Drop the tag from the list.
+		return function.SeriesListValue(DropTag(list, dropTag)), nil
+	},
+}
+
+// SetFunction wraps up SetTag into a MetricFunction called "tag.set"
+var SetFunction = function.MetricFunction{
+	Name:         "tag.set",
+	MinArguments: 3,
+	MaxArguments: 3,
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		result, err := arguments[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		list, err := result.ToSeriesList(context.Timerange)
+		if err != nil {
+			return nil, err
+		}
+		tagValue, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		tag, err := tagValue.ToString()
+		if err != nil {
+			return nil, err
+		}
+		setValue, err := arguments[2].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		set, err := setValue.ToString()
+		if err != nil {
+			return nil, err
+		}
+		// Set the tag for the list:
+		return function.SeriesListValue(SetTag(list, tag, set)), nil
+	},
 }
