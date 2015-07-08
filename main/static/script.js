@@ -191,7 +191,12 @@ module.factory("$receiveSelect", function(
     for (var t = 0; t < series[0].values.length; t++) {
       var row = [dateFromIndex(t, timerange)];
       for (var i = 0; i < series.length; i++) {
-        row.push(series[i].values[t] || NaN);
+        var cell = series[i].values[t];
+        if (cell === null) {
+          row.push(NaN);
+        } else {
+          row.push(cell);
+        }
       }
       table.push(row);
     }
