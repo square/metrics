@@ -161,7 +161,13 @@ module.factory("$launchRequest", function($google, $http, $receive, $queryTicket
   };
 });
 
-module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRender, $mainChart) {
+module.factory("$receiveSelect", function(
+      $asyncRender,
+      $chartWaiting,
+      $inputModel,
+      $location,
+      $mainChart
+  ) {
   return function(object) {
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
@@ -191,7 +197,8 @@ module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRend
     }
     var dataTable = google.visualization.arrayToDataTable(table);
     var options = {
-      legend: {position: "bottom"},
+      legend:    {position: "bottom"},
+      title:     $location.search()["title"],
       chartArea: {left: "5%", width:"90%", top: "5%", height: "90%"}
     }
     if ($inputModel.renderType === "line") {
@@ -223,7 +230,6 @@ module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $as
       chartArea: {left: "5%", width:"90%", height: "500px"},
       avoidOverlappingGridLines: false
     };
-    console.log("new dom!");
     $timelineChart.chart = new google.visualization.Timeline($timelineChart.dom);
     dataTable.addColumn({ type: 'string', id: 'Name' });
     dataTable.addColumn({ type: 'number', id: 'Start' });
@@ -252,6 +258,7 @@ module.factory("$mainChart", function() {
     chart: null
   };
 });
+
 module.factory("$timelineChart", function() {
   return {
     dom:   document.getElementById("timeline-div"),
@@ -293,15 +300,18 @@ module.controller("mainCtrl", function(
 
   $scope.queryResult = "";
 
+  function updateEmbed() {
+    var url = $location.absUrl();
+    var queryAt = url.indexOf("?");
+    $scope.embedLink = $location.protocol() + "://" + $location.host() + ":" + $location.port()
+      + "/embed" + url.substring(queryAt);
+  }
+
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
     $location.search("query", $inputModel.query);
     $location.search("renderType", $inputModel.renderType);
     $location.search("profile", $inputModel.profile.toString());
-
-    var url = $location.absUrl();
-    var queryAt = url.indexOf("?");
-    $scope.embedLink = url.substring(0, queryAt) + "embed.html" + url.substring(queryAt);
   };
 
   $scope.$on("$locationChangeSuccess", function() {
@@ -338,9 +348,7 @@ module.controller("mainCtrl", function(
       return "rendered";
     }
   };
-  var url = $location.absUrl();
-  var queryAt = url.indexOf("?");
-  $scope.embedLink = url.substring(0, queryAt) + "embed.html" + url.substring(queryAt);
+  updateEmbed()
 });
 
 module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest, $inputModel, $profilingEnabled){
@@ -370,9 +378,9 @@ module.controller("embedCtrl", function($location, $scope, $launchedQueries, $ch
   });
 
   var url = $location.absUrl();
-  var embedString = "embed.html";
-  var at = url.indexOf(embedString);
-  $scope.metricsURL = url.substring(0, at) + url.substring(at + embedString.length);
+  var at = url.indexOf("?");
+  $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port()
+    + "/ui" + url.substring(at);
 });
 
 function dateFromIndex(index, timerange) {
