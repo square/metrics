@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 	"strconv"
 	"time"
 
@@ -168,14 +169,24 @@ type staticHandler struct {
 }
 
 func (h staticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	res := h.Directory + request.URL.Path[len(h.StaticPath):]
+	res := path.Join(h.Directory, request.URL.Path[len(h.StaticPath):])
 	log.Infof("url.path=%s, resource=%s\n", request.URL.Path, res)
 	http.ServeFile(writer, request, res)
+}
+
+type singleStaticHandler struct {
+	Path string
+}
+
+func (h singleStaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	http.ServeFile(writer, request, h.Path)
 }
 
 func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
+	httpMux.Handle("/ui", singleStaticHandler{path.Join(config.StaticDir, "index.html")})
+	httpMux.Handle("/embed", singleStaticHandler{path.Join(config.StaticDir, "embed.html")})
 	httpMux.Handle("/query", queryHandler{
 		context: context,
 		hook:    hook,
