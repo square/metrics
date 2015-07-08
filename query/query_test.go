@@ -119,6 +119,9 @@ var selects = []string{
 	"x[y = 'z'] from 0 to 0",
 	// selects - complicated queries
 	"aggregate.max(x[y = 'z'] group by foo) from 0 to 0",
+	"aggregate.max(x[y = 'z'] collapse by foo) from 0 to 0",
+	"aggregate.max(x[y = 'z'] group by foo, bar) from 0 to 0",
+	"aggregate.max(x[y = 'z'] collapse by foo, bar) from 0 to 0",
 	"cpu.user + cpu.kernel where host = 'apa3.sjc2b' from 0 to 0",
 	"'string literal' where host = 'apa3.sjc2b' from 0 to 0",
 	"timeshift( metric, '5h') where host = 'apa3.sjc2b' from 0 to 0",
@@ -162,6 +165,7 @@ var syntaxErrorQuery = []string{
 	"select f(3 groupby x) from 0 to 0",
 	"select c group by a from 0 to 0",
 	"select x[] from 0 to 0",
+	"select cpu | transform.moving_average(10qq) from 0 to 0",
 }
 
 func TestParse_success(t *testing.T) {

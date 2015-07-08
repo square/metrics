@@ -93,7 +93,7 @@ func (expr *functionExpression) Evaluate(context function.EvaluationContext) (fu
 		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}
 	}
 
-	return fun.Evaluate(context, expr.arguments, expr.groupBy)
+	return fun.Evaluate(context, expr.arguments, expr.groupBy, expr.groupByCollapses)
 }
 
 // Auxiliary functions

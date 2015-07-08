@@ -508,6 +508,14 @@ func TestNaming(t *testing.T) {
 			expected: "aggregate.sum(series_1 group by dc, env)",
 		},
 		{
+			query:    "select aggregate.sum(series_1 collapse by dc) from 0 to 0",
+			expected: "aggregate.sum(series_1 collapse by dc)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 collapse by dc,env) from 0 to 0",
+			expected: "aggregate.sum(series_1 collapse by dc, env)",
+		},
+		{
 			query:    "select transform.alias(aggregate.sum(series_1 group by dc,env), 'hello') from 0 to 0",
 			expected: "hello",
 		},

@@ -63,10 +63,8 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 	if db == nil {
 		return
 	}
-	if tags, err := db.GetTagSet("sample"); err != nil {
-		t.Errorf("Error fetching tags from Cassandra")
-	} else {
-		a.EqInt(len(tags), 0)
+	if _, err := db.GetTagSet("sample"); err == nil {
+		t.Errorf("Cassandra should error on fetching nonexistent metric")
 	}
 
 	metricNamesTests := []struct {

@@ -445,9 +445,10 @@ func (p *Parser) addPipeExpression() {
 		return
 	}
 	p.pushNode(&functionExpression{
-		functionName: stringLiteral.literal,
-		arguments:    append([]function.Expression{expressionNode}, expressionList.expressions...),
-		groupBy:      groupBy.list,
+		functionName:     stringLiteral.literal,
+		arguments:        append([]function.Expression{expressionNode}, expressionList.expressions...),
+		groupBy:          groupBy.list,
+		groupByCollapses: groupBy.collapses,
 	})
 }
 
@@ -469,9 +470,10 @@ func (p *Parser) addFunctionInvocation() {
 	}
 	// user-level error generation here.
 	p.pushNode(&functionExpression{
-		functionName: stringLiteral.literal,
-		arguments:    expressionList.expressions,
-		groupBy:      groupBy.list,
+		functionName:     stringLiteral.literal,
+		arguments:        expressionList.expressions,
+		groupBy:          groupBy.list,
+		groupByCollapses: groupBy.collapses,
 	})
 }
 
@@ -592,7 +594,7 @@ func (p *Parser) appendLiteral(literal string) {
 }
 
 func (p *Parser) addGroupBy() {
-	p.pushNode(&groupByList{make([]string, 0)})
+	p.pushNode(&groupByList{make([]string, 0), false})
 }
 
 func (p *Parser) appendGroupBy(literal string) {
@@ -601,6 +603,16 @@ func (p *Parser) appendGroupBy(literal string) {
 		p.flagTypeAssertion()
 		return
 	}
+	listNode.list = append(listNode.list, literal)
+}
+
+func (p *Parser) appendCollapseBy(literal string) {
+	listNode, ok := p.peekNode().(*groupByList)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	listNode.collapses = true // Switch to collapsing mode
 	listNode.list = append(listNode.list, literal)
 }
 
@@ -658,26 +670,24 @@ func (p *Parser) addAndPredicate() {
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
+	p.pushNode(&durationExpression{duration})
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
 			message: fmt.Sprintf("'%s' is not a valid duration: %s", value, err.Error()),
 		})
-		return
 	}
-	p.pushNode(&durationExpression{duration})
 }
 
 func (p *Parser) addNumberNode(value string) {
 	parsedValue, err := strconv.ParseFloat(value, 64)
+	p.pushNode(&scalarExpression{parsedValue})
 	if err != nil || math.IsNaN(parsedValue) {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
 			message: fmt.Sprintf("Cannot parse the number: %s", value),
 		})
-		return
 	}
-	p.pushNode(&scalarExpression{parsedValue})
 }
 
 func (p *Parser) addStringNode(value string) {

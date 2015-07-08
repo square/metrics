@@ -96,7 +96,7 @@ func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
 			}
 		} else {
 			delta := actual[i] - expected[i]
-			if math.IsNaN(delta) || delta > epsilon {
+			if math.IsNaN(delta) || math.Abs(delta) > epsilon {
 				assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
 				return
 			}

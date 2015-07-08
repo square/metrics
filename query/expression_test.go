@@ -322,7 +322,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 
 		metricFun := registry.NewOperator(test.functionName, test.evalFunction)
 
-		value, err := metricFun.Evaluate(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{})
+		value, err := metricFun.Evaluate(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{}, false)
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue

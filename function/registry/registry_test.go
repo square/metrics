@@ -22,7 +22,7 @@ import (
 	"github.com/square/metrics/function"
 )
 
-var dummyCompute = func(function.EvaluationContext, []function.Expression, []string) (function.Value, error) {
+var dummyCompute = func(function.EvaluationContext, []function.Expression, function.Groups) (function.Value, error) {
 	return nil, errors.New("Not implemented")
 }
 

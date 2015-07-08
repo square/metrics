@@ -18,7 +18,6 @@ package transform
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/square/metrics/api"
@@ -58,20 +57,8 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []funct
 	return result, nil
 }
 
-// checkParameters is used to make sure that each transform is given the right number of parameters.
-func checkParameters(name string, expected int, parameters []function.Value) error {
-	if len(parameters) != expected {
-		printArgs := append([]function.Value{function.StringValue("(SeriesList)")}, parameters...)
-		return errors.New(fmt.Sprintf("expected %s to be given %d parameters but was given %d: %+v", name, expected+1, len(parameters)+1, printArgs))
-	}
-	return nil
-}
-
 // transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
 func Derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.derivative", 0, parameters); err != nil {
-		return nil, err
-	}
 	result := make([]float64, len(values))
 	for i := range values {
 		if i == 0 {
@@ -85,12 +72,9 @@ func Derivative(values []float64, parameters []function.Value, scale float64) ([
 	return result, nil
 }
 
-// transformIntegral integrates a series whose values are "X per millisecond" to estimate "total X so far"
+// Integral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
 func Integral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.integral", 0, parameters); err != nil {
-		return nil, err
-	}
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
@@ -102,12 +86,9 @@ func Integral(values []float64, parameters []function.Value, scale float64) ([]f
 	return result, nil
 }
 
-// transformRate functions exactly like transformDerivative but bounds the result to be positive and does not normalize.
+// Rate functions exactly like transformDerivative but bounds the result to be positive.
 // That is, it returns consecutive differences which are at least 0.
 func Rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.rate", 0, parameters); err != nil {
-		return nil, err
-	}
 	result := make([]float64, len(values))
 	for i := range values {
 		if i == 0 {
@@ -122,11 +103,8 @@ func Rate(values []float64, parameters []function.Value, scale float64) ([]float
 	return result, nil
 }
 
-// transformCumulative computes the cumulative sum of the given values.
+// Cumulative computes the cumulative sum of the given values.
 func Cumulative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.cumulative", 0, parameters); err != nil {
-		return nil, err
-	}
 	result := make([]float64, len(values))
 	sum := 0.0
 	for i := range values {
@@ -141,11 +119,8 @@ func Cumulative(values []float64, parameters []function.Value, scale float64) ([
 // MapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `MapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func MapMaker(name string, fun func(float64) float64) func([]float64, []function.Value, float64) ([]float64, error) {
+func MapMaker(fun func(float64) float64) func([]float64, []function.Value, float64) ([]float64, error) {
 	return func(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-		if err := checkParameters(fmt.Sprintf("transform.%s", name), 0, parameters); err != nil {
-			return nil, err
-		}
 		result := make([]float64, len(values))
 		for i := range values {
 			result[i] = fun(values[i])
@@ -154,11 +129,8 @@ func MapMaker(name string, fun func(float64) float64) func([]float64, []function
 	}
 }
 
-// transformDefault will replacing missing data (NaN) with the `default` value supplied as a parameter.
+// Default will replacing missing data (NaN) with the `default` value supplied as a parameter.
 func Default(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.default", 1, parameters); err != nil {
-		return nil, err
-	}
 	defaultValue, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
@@ -174,16 +146,71 @@ func Default(values []float64, parameters []function.Value, scale float64) ([]fl
 	return result, nil
 }
 
-// transformNaNKeepLast will replace missing NaN data with the data before it
+// NaNKeepLast will replace missing NaN data with the data before it
 func NaNKeepLast(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	if err := checkParameters("transform.nan_keep_last", 0, parameters); err != nil {
-		return nil, err
-	}
 	result := make([]float64, len(values))
 	for i := range result {
 		result[i] = values[i]
 		if math.IsNaN(result[i]) && i > 0 {
 			result[i] = result[i-1]
+		}
+	}
+	return result, nil
+}
+
+// Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
+func Bound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	lowerBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	upperBound, err := parameters[1].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	if lowerBound > upperBound {
+		return nil, errors.New("the upper bound must be at least the lower bound")
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] < lowerBound {
+			result[i] = lowerBound
+		}
+		if result[i] > upperBound {
+			result[i] = upperBound
+		}
+	}
+	return result, nil
+}
+
+// LowerBound replaces values that fall below the given bound with the lower bound.
+func LowerBound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	lowerBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] < lowerBound {
+			result[i] = lowerBound
+		}
+	}
+	return result, nil
+}
+
+// UpperBound replaces values that fall below the given bound with the lower bound.
+func UpperBound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	upperBound, err := parameters[0].ToScalar()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]float64, len(values))
+	for i := range result {
+		result[i] = values[i]
+		if result[i] > upperBound {
+			result[i] = upperBound
 		}
 	}
 	return result, nil
