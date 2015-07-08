@@ -169,7 +169,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 		Name:         name,
 		MinArguments: 3,
 		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups []string) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
 				return nil, err
