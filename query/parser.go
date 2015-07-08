@@ -670,26 +670,24 @@ func (p *Parser) addAndPredicate() {
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
+	p.pushNode(&durationExpression{duration})
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
 			message: fmt.Sprintf("'%s' is not a valid duration: %s", value, err.Error()),
 		})
-		return
 	}
-	p.pushNode(&durationExpression{duration})
 }
 
 func (p *Parser) addNumberNode(value string) {
 	parsedValue, err := strconv.ParseFloat(value, 64)
+	p.pushNode(&scalarExpression{parsedValue})
 	if err != nil || math.IsNaN(parsedValue) {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
 			message: fmt.Sprintf("Cannot parse the number: %s", value),
 		})
-		return
 	}
-	p.pushNode(&scalarExpression{parsedValue})
 }
 
 func (p *Parser) addStringNode(value string) {
