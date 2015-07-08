@@ -74,7 +74,7 @@ module.run(function($http) {
       }));
     }
   });
-})
+});
 
 // A counter is an object with .inc() and .dec() methods,
 // as well as .pos() and .zero() predicates.
@@ -161,8 +161,8 @@ module.factory("$launchRequest", function($google, $http, $receive, $queryTicket
   };
 });
 
-module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRender) {
-  return function(object, chart) {
+module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRender, $mainChart) {
+  return function(object) {
     if (!(object && object.name == "select" && object.body && object.body.length && object.body[0].series && object.body[0].series.length && object.body[0].timerange)) {
       // invalid data.
       return;
@@ -195,26 +195,26 @@ module.factory("$receiveSelect", function($inputModel, $chartWaiting, $asyncRend
       chartArea: {left: "5%", width:"90%", top: "5%", height: "90%"}
     }
     if ($inputModel.renderType === "line") {
-      chart.chart = new google.visualization.LineChart(chart.dom);
+      $mainChart.chart = new google.visualization.LineChart($mainChart.dom);
     } else if ($inputModel.renderType === "area") {
       options.isStacked = true;
-      chart.chart = new google.visualization.AreaChart(chart.dom);
+      $mainChart.chart = new google.visualization.AreaChart($mainChart.dom);
     }
-    $asyncRender(chart, dataTable, options);
+    $asyncRender($mainChart, dataTable, options);
   };
 });
 
-module.factory("$profilingEnabled", function() {
+module.factory("$profilingEnabled", function($inputModel) {
   return {
-    hasProfiling: function() {
-      return false;
+    hasProfiling: function(data) {
+      return $inputModel.profile && data && data.profile;
     }
   };
 });
 
-module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $asyncRender) {
-  return function(object, chart) {
-    if (!$profilingEnabled.hasProfiling()) {
+module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $asyncRender, $timelineChart) {
+  return function(object) {
+    if (!$profilingEnabled.hasProfiling(object)) {
       return
     }
     $chartWaiting.inc();
@@ -223,7 +223,8 @@ module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $as
       chartArea: {left: "5%", width:"90%", height: "500px"},
       avoidOverlappingGridLines: false
     };
-    chart.chart = new google.visualization.Timeline(chart.dom);
+    console.log("new dom!");
+    $timelineChart.chart = new google.visualization.Timeline($timelineChart.dom);
     dataTable.addColumn({ type: 'string', id: 'Name' });
     dataTable.addColumn({ type: 'number', id: 'Start' });
     dataTable.addColumn({ type: 'number', id: 'End' });
@@ -241,7 +242,7 @@ module.factory("$receiveProfile", function($profilingEnabled, $chartWaiting, $as
       var row = [ profile.name , normalize(profile.start), normalize(profile.finish) ];
       dataTable.addRows([row]);
     }
-    $asyncRender(chart, dataTable, options);
+    $asyncRender($timelineChart, dataTable, options);
   };
 });
 
@@ -322,9 +323,6 @@ module.controller("mainCtrl", function(
   // true if the output should be tabular.
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
-  };
-  $profilingEnabled.hasProfiling = function() {
-    return !!($scope.queryResult && $scope.queryResult.profile);
   };
 
   $scope.hasProfiling = $profilingEnabled.hasProfiling; // So that the HTML view can check for profiling
