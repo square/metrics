@@ -113,7 +113,7 @@ add_pipe <-
       (
       _ PAREN_OPEN
         (expressionList / {p.addExpressionList()}) # argument list
-        { p.addGroupBy() } groupByClause? # optional group-by list
+        optionalGroupBy
         _ PAREN_CLOSE
       ) / {
         p.addExpressionList()
@@ -136,6 +136,8 @@ expression_atom <-
   _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
 
 
+optionalGroupBy <- { p.addGroupBy() } (groupByClause / collapseByClause)?
+
 expression_function  <-
   # We allow syntax of the form:
   # func(expr_a, expr_b, expr_c group by column_a, column_b, column_c)
@@ -144,7 +146,7 @@ expression_function  <-
     p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
   }
   _ PAREN_OPEN
-    expressionList { p.addGroupBy() } groupByClause?
+    expressionList optionalGroupBy
   _ PAREN_CLOSE {
     p.addFunctionInvocation()
   }
@@ -163,8 +165,16 @@ groupByClause <-
   }
   (
     _ COMMA _ <COLUMN_NAME> {
-    p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
+      p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
     }
+  )*
+
+collapseByClause <-
+  _ "collapse" KEY _ "by" KEY _ <COLUMN_NAME> {
+    p.appendCollapseBy(unescapeLiteral(text))
+  }
+  (
+  _ COMMA _ <COLUMN_NAME> {p.appendCollapseBy(unescapeLiteral(text))}
   )*
 
 predicateClause <- _ "where" KEY _ predicate_1
@@ -251,6 +261,7 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "by" /
   "describe" /
   "group" /
+  "collapse" /
   "in" /
   "matches" /
   "not" /
