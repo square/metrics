@@ -25,6 +25,7 @@ import (
 	"github.com/square/metrics/function/aggregate"
 	"github.com/square/metrics/function/filter"
 	"github.com/square/metrics/function/join"
+	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
 )
 
@@ -71,6 +72,9 @@ func init() {
 	MustRegister(transform.Timeshift)
 	MustRegister(transform.Alias)
 	MustRegister(transform.MovingAverage)
+	// Tags
+	MustRegister(tag.DropFunction)
+	MustRegister(tag.SetFunction)
 }
 
 // StandardRegistry of a functions available in MQE.

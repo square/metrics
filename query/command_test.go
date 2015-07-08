@@ -556,3 +556,106 @@ func TestNaming(t *testing.T) {
 	}
 
 }
+
+func TestTag(t *testing.T) {
+	fakeApi := mocks.NewFakeApi()
+	fakeBackend := backend.NewSequentialMultiBackend(fakeApiBackend{})
+	tests := []struct {
+		query    string
+		expected api.SeriesList
+	}{
+		{
+			query: "select series_2 | tag.drop('dc') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{},
+					},
+				},
+			},
+		},
+		{
+			query: "select series_2 | tag.drop('none') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{"dc": "west"},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{"dc": "east"},
+					},
+				},
+			},
+		},
+		{
+			query: "select series_2 | tag.set('dc', 'north') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{"dc": "north"},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{"dc": "north"},
+					},
+				},
+			},
+		},
+		{
+			query: "select series_2 | tag.set('none', 'north') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{"dc": "west", "none": "north"},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{"dc": "east", "none": "north"},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		command, err := Parse(test.query)
+		if err != nil {
+			t.Fatalf("Unexpected error while parsing")
+			return
+		}
+		if command.Name() != "select" {
+			t.Errorf("Expected select command but got %s", command.Name())
+			continue
+		}
+		rawResult, err := command.Execute(ExecutionContext{Backend: fakeBackend, API: fakeApi, FetchLimit: 1000, Timeout: 0})
+		if err != nil {
+			t.Errorf("Unexpected error while execution: %s", err.Error())
+			continue
+		}
+		seriesListList, ok := rawResult.([]function.Value)
+		if !ok || len(seriesListList) != 1 {
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
+			continue
+		}
+		list, err := seriesListList[0].ToSeriesList(api.Timerange{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := assert.New(t)
+		expectedSeries := test.expected.Series
+		for i, series := range list.Series {
+			a.EqFloatArray(series.Values, expectedSeries[i].Values, 1e-100)
+			if !series.TagSet.Equals(expectedSeries[i].TagSet) {
+				t.Errorf("expected tagset %+v but got %+v for series %d of query %s", expectedSeries[i].TagSet, series.TagSet, i, test.query)
+			}
+		}
+	}
+}
