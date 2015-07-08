@@ -17,6 +17,7 @@ package filter
 import (
 	"math"
 	"sort"
+	"time"
 
 	"github.com/square/metrics/api"
 )
@@ -58,13 +59,46 @@ func newFilterList(size int, ascending bool) filterList {
 // They're chosen by sorting by `summary` in `ascending` or descending order.
 func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool) api.SeriesList {
 	if len(list.Series) < count {
-		// No need to change if there's already fewer.
-		return list
+		// Limit the count to the number of available series
+		count = len(list.Series)
 	}
 	array := newFilterList(len(list.Series), lowest)
 	for i := range array.index {
 		array.index[i] = i
 		array.value[i] = summary(list.Series[i].Values)
+	}
+	sort.Sort(array)
+
+	series := make([]api.Timeseries, count)
+	for i := range series {
+		series[i] = list.Series[array.index[i]]
+	}
+
+	return api.SeriesList{
+		Series:    series,
+		Timerange: list.Timerange,
+	}
+}
+
+func FilterRecentBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
+	if len(list.Series) < count {
+		count = len(list.Series) // Limit the count to the number of available series
+	}
+	array := newFilterList(len(list.Series), lowest)
+
+	// The number of elements to include
+	elements := int(int64(duration/time.Millisecond) / list.Timerange.Resolution())
+	if elements < 1 {
+		elements = 1
+	}
+	if elements > list.Timerange.Slots() {
+		elements = list.Timerange.Slots()
+	}
+	for i := range array.index {
+		array.index[i] = i
+		values := list.Series[i].Values
+		// Include only the last `elements`.
+		array.value[i] = summary(values[len(values)-elements:])
 	}
 	sort.Sort(array)
 

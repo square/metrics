@@ -35,6 +35,7 @@ func (f fakeApiBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.T
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
 		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
+		"series_3": {{[]float64{1, 1, 1, 4, 4}, api.ParseTagSet("dc=west")}, {[]float64{5, 5, 5, 2, 2}, api.ParseTagSet("dc=east")}, {[]float64{3, 3, 3, 3, 3}, api.ParseTagSet("dc=north")}},
 	}
 	if string(request.Metric.MetricKey) == "series_timeout" {
 		<-make(chan struct{}) // block forever
@@ -98,6 +99,9 @@ func TestCommand_Select(t *testing.T) {
 	fakeApi.AddPair(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")}, emptyGraphiteName)
 	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")}, emptyGraphiteName)
 	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_3", api.ParseTagSet("dc=west")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_3", api.ParseTagSet("dc=east")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")}, emptyGraphiteName)
 	fakeApi.AddPair(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")}, emptyGraphiteName)
 	var fakeBackend fakeApiBackend
 	testTimerange, err := api.NewTimerange(0, 120, 30)
@@ -207,6 +211,198 @@ func TestCommand_Select(t *testing.T) {
 			}},
 			Timerange: lateTimerange,
 			Name:      "series_1",
+		}},
+		{"select series_3 from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(3, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(2, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(1, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(3, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(4, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(1, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_highest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+			},
+		}},
+		{"select series_3 | filter.recent_lowest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+			},
 		}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
