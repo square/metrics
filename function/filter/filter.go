@@ -59,8 +59,8 @@ func newFilterList(size int, ascending bool) filterList {
 // They're chosen by sorting by `summary` in `ascending` or descending order.
 func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool) api.SeriesList {
 	if len(list.Series) < count {
-		// No need to change if there's already fewer.
-		return list
+		// Limit the count to the number of available series
+		count = len(list.Series)
 	}
 	array := newFilterList(len(list.Series), lowest)
 	for i := range array.index {
@@ -82,8 +82,7 @@ func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, l
 
 func FilterRecentBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
 	if len(list.Series) < count {
-		// No need to change anything.
-		return list
+		count = len(list.Series) // Limit the count to the number of available series
 	}
 	array := newFilterList(len(list.Series), lowest)
 
