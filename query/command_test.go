@@ -296,18 +296,20 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}},
-		{"select series_3 | filter.recent_lowest_max(70, 30ms) from 0 to 120 resolution 30ms", true, api.SeriesList{
-			{
-				[]float64{1, 1, 1, 4, 4},
-				api.ParseTagSet("dc=west"),
-			},
-			{
-				[]float64{3, 3, 3, 3, 3},
-				api.ParseTagSet("dc=north"),
-			},
-			{
-				[]float64{5, 5, 5, 2, 2},
-				api.ParseTagSet("dc=east"),
+		{"select series_3 | filter.recent_highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+			Series: []api.Timeseries{
+				{
+					[]float64{1, 1, 1, 4, 4},
+					api.ParseTagSet("dc=west"),
+				},
+				{
+					[]float64{3, 3, 3, 3, 3},
+					api.ParseTagSet("dc=north"),
+				},
+				{
+					[]float64{5, 5, 5, 2, 2},
+					api.ParseTagSet("dc=east"),
+				},
 			},
 		}},
 		{"select series_3 | filter.recent_lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
