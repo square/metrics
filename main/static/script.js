@@ -55,9 +55,11 @@ module.run(function($http) {
   var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
   autocom.options = keywords;
   autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
+  autocom.continuePattern = "[a-zA-Z_`.-]";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
   autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
+  autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
   $http.get("/token").success(function(data, status, headers, config) {
     if (!data.success || !data.body) {
       return;

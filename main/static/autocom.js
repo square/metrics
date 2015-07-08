@@ -39,8 +39,10 @@ window.Autocom = (function(){
 	// Assign the options for our Autocom
 	colorCom.options = ["red", "orange", "yellow", "yellow-green", "green", "cyan", "blue", "purple"];
 	
-	// Add the hyphen to the possible set of letters (but can't start the word)
+	// Words are made of lowercase letters and hyphens, but can't start with a hyphen
 	colorCom.prefixPattern = "[a-z][a-z\\-]+";
+	// The continue pattern is checked against, but its actual value is discard. Matching one letter is enough:
+	colorCom.prefixContinue = "[a-z\\-];"
 
 	// Adjust the tooltip position offset
 	colorCom.tooltipX = 25;
@@ -65,12 +67,14 @@ Fields:
 	options: (default []) an array of strings; these are the options which autocomplete suggests
 	
 	prefixPattern: (default "[a-zA-Z]+") the regex to match the prefix of a valid word
+	prefixContinue: (default "[a-zA-Z]+") the regex to match the "middle" of a valid word
 
 	config:
 		threshold:        (default 0)    // Autocomplete score threshold required to show (for fuzzy suggestions)
 		skipGiven:        (default 2)    // Penalty for skipping a letter in the input
-		skipSpecialGiven: (default 0.25) // Penality for skipping a special character in the input ("non-letter" having same upper- and lower-case form)
-		skipWord:         (default 0.25) // Pentalty for skipping a prefixed letter in the suggestion
+		skipSpecialGiven: (default 0.25) // Penalty for skipping a special character in the input ("non-letter" having same upper- and lower-case form)
+		skipWord:         (default 0.25) // Penalty for skipping a prefixed letter in the suggestion
+		skipWordEnd:      (default 0)    // Penalty for skipping characters at the end of the candidate word (for most applications, it should be much smaller than skipWord)
 		count:            (default 8)    // The maximum number of autocomplete suggestions shown 
 
 	tooltipX: (default 0) the X offset for the tooltip (relative to the cursor)
@@ -91,7 +95,7 @@ function isLetter(c) {
 // The config contains parameters for this procedure.
 function scoreTable(table, A, B, i, j, config) {
 	if (i >= A.length || j >= B.length) {
-		return config.skipGiven * (i - A.length); // Don't penalize for the end of the second word
+		return config.skipGiven * (i - A.length) + config.skipEndCandidate * (j - B.length);
 	}
 	if (table[i][j] !== null) {
 		return table[i][j];
@@ -171,13 +175,12 @@ function generateElements(input) {
 
 // predictReady determines whether or not the input is ready for prediction,
 // and it asks for something that matches non-separators.
-function predictReady(input, prefixPattern) {
+function predictReady(input, prefixPattern, continuePattern) {
 	if (input.selectionStart !== input.selectionEnd) {
 		return null;
 	}
 	var at = input.selectionStart;
-	var mm; // TODO remove
-	if (mm = input.value.substring(at).match("^(" + prefixPattern + ")")) {
+	if (input.value.substring(at).match("^(" + continuePattern + ")")) {
 		// Can't be going from the middle of a word.
 		return null;
 	}
@@ -285,6 +288,7 @@ function Autocom(input) {
 		skipGiven: 2,
 		skipSpecialGiven: 0.25,
 		skipWord: 0.25,
+		skipWordEnd: 0,
 		count: 8
 	};
 
@@ -335,7 +339,7 @@ function Autocom(input) {
 	function renderTooltip() {
 		moveTooltip(elements, self.tooltipX, self.tooltipY);
 
-		var result = predict(predictReady(input, self.prefixPattern), self.options.slice(0), self.config);
+		var result = predict(predictReady(input, self.prefixPattern, self.continuePattern), self.options.slice(0), self.config);
 		if (result && !tooltipSuppress && document.activeElement === input) {
 			// If it's not currently active, then become active.
 			tooltipState = {
