@@ -361,7 +361,7 @@ func TestNaming(t *testing.T) {
 
 }
 
-func TestTagDrop(t *testing.T) {
+func TestTag(t *testing.T) {
 	fakeApi := mocks.NewFakeApi()
 	fakeBackend := backend.NewSequentialMultiBackend(fakeApiBackend{})
 	tests := []struct {
@@ -394,6 +394,36 @@ func TestTagDrop(t *testing.T) {
 					{
 						Values: []float64{3, 0, 3, 6, 2},
 						TagSet: api.TagSet{"dc": "east"},
+					},
+				},
+			},
+		},
+		{
+			query: "select series_2 | tag.set('dc', 'north') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{"dc": "north"},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{"dc": "north"},
+					},
+				},
+			},
+		},
+		{
+			query: "select series_2 | tag.set('none', 'north') from 0  to 120",
+			expected: api.SeriesList{
+				Series: []api.Timeseries{
+					{
+						Values: []float64{1, 2, 3, 4, 5},
+						TagSet: api.TagSet{"dc": "west", "none": "north"},
+					},
+					{
+						Values: []float64{3, 0, 3, 6, 2},
+						TagSet: api.TagSet{"dc": "east", "none": "north"},
 					},
 				},
 			},
