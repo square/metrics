@@ -95,7 +95,7 @@ function isLetter(c) {
 // The config contains parameters for this procedure.
 function scoreTable(table, A, B, i, j, config) {
 	if (i >= A.length || j >= B.length) {
-		return config.skipGiven * (i - A.length) + config.skipEndCandidate * (j - B.length);
+		return config.skipGiven * (i - A.length) + config.skipWordEnd * (j - B.length);
 	}
 	if (table[i][j] !== null) {
 		return table[i][j];
