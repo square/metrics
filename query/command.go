@@ -157,7 +157,18 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 			return nil, err
 		}
 	} else {
-		return evaluateExpressions(evaluationContext, cmd.expressions)
+		values, err := evaluateExpressions(evaluationContext, cmd.expressions)
+		if err != nil {
+			return nil, err
+		}
+		lists := make([]api.SeriesList, len(values))
+		for i := range values {
+			lists[i], err = values[i].ToSeriesList(evaluationContext.Timerange)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return lists, nil
 	}
 }
 

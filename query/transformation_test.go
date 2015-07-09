@@ -19,6 +19,7 @@ package query
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
@@ -55,7 +56,7 @@ func TestMovingAverage(t *testing.T) {
 		groupBy:      []string{},
 		arguments: []function.Expression{
 			&metricFetchExpression{"series", api.TruePredicate},
-			stringExpression{"300ms"},
+			durationExpression{"300ms", 300 * time.Millisecond},
 		},
 	}
 

@@ -34,12 +34,17 @@ type Value interface {
 }
 
 type conversionError struct {
-	from string
-	to   string
+	from  string // the original data type
+	to    string // the type that attempted to convert to
+	value string // a short string representation of the value
 }
 
 func (e conversionError) Error() string {
-	return fmt.Sprintf("cannot convert from type %s to type %s", e.from, e.to)
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.value, e.from, e.to)
+}
+
+func (e conversionError) TokenName() string {
+	return fmt.Sprintf("%+v (type %s)", e.value, e.from)
 }
 
 // A seriesListValue is a value which holds a SeriesList
@@ -50,15 +55,15 @@ func (value SeriesListValue) ToSeriesList(time api.Timerange) (api.SeriesList, e
 }
 
 func (value SeriesListValue) ToString() (string, error) {
-	return "", conversionError{"SeriesList", "string"}
+	return "", conversionError{"SeriesList", "string", fmt.Sprintf("serieslist[%s]", value.Name)}
 }
 
 func (value SeriesListValue) ToScalar() (float64, error) {
-	return 0, conversionError{"SeriesList", "scalar"}
+	return 0, conversionError{"SeriesList", "scalar", fmt.Sprintf("serieslist[%s]", value.Name)}
 }
 
 func (value SeriesListValue) ToDuration() (time.Duration, error) {
-	return 0, conversionError{"SeriesList", "duration"}
+	return 0, conversionError{"SeriesList", "duration", fmt.Sprintf("serieslist[%s]", value.Name)}
 }
 
 func (value SeriesListValue) GetName() string {
@@ -69,7 +74,7 @@ func (value SeriesListValue) GetName() string {
 type StringValue string
 
 func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, conversionError{"string", "SeriesList"}
+	return api.SeriesList{}, conversionError{"string", "SeriesList", fmt.Sprintf("%q", value)}
 }
 
 func (value StringValue) ToString() (string, error) {
@@ -77,11 +82,11 @@ func (value StringValue) ToString() (string, error) {
 }
 
 func (value StringValue) ToScalar() (float64, error) {
-	return 0, conversionError{"string", "scalar"}
+	return 0, conversionError{"string", "scalar", fmt.Sprintf("%q", value)}
 }
 
 func (value StringValue) ToDuration() (time.Duration, error) {
-	return StringToDuration(string(value))
+	return 0, conversionError{"string", "duration", fmt.Sprintf("%q", value)}
 }
 
 func (value StringValue) GetName() string {
@@ -105,7 +110,7 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 }
 
 func (value ScalarValue) ToString() (string, error) {
-	return "", conversionError{"scalar", "string"}
+	return "", conversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
 func (value ScalarValue) ToScalar() (float64, error) {
@@ -113,33 +118,40 @@ func (value ScalarValue) ToScalar() (float64, error) {
 }
 
 func (value ScalarValue) ToDuration() (time.Duration, error) {
-	return 0, conversionError{"scalar", "duration"}
+	return 0, conversionError{"scalar", "duration", fmt.Sprintf("%f", value)}
 }
 
 func (value ScalarValue) GetName() string {
 	return fmt.Sprintf("%g", value)
 }
 
-type DurationValue time.Duration
+type DurationValue struct {
+	name     string
+	duration time.Duration
+}
+
+func NewDurationValue(name string, duration time.Duration) DurationValue {
+	return DurationValue{name, duration}
+}
 
 func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, conversionError{"duration", "SeriesList"}
+	return api.SeriesList{}, conversionError{"duration", "SeriesList", value.name}
 }
 
 func (value DurationValue) ToString() (string, error) {
-	return "", conversionError{"duration", "string"}
+	return "", conversionError{"duration", "string", value.name}
 }
 
 func (value DurationValue) ToScalar() (float64, error) {
-	return 0, conversionError{"duration", "scalar"}
+	return 0, conversionError{"duration", "scalar", value.name}
 }
 
 func (value DurationValue) ToDuration() (time.Duration, error) {
-	return time.Duration(value), nil
+	return time.Duration(value.duration), nil
 }
 
 func (value DurationValue) GetName() string {
-	return fmt.Sprintf("%d ms", value)
+	return value.name
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)

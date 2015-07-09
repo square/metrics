@@ -113,6 +113,9 @@ func filterNaN(array []float64) []float64 {
 // Sum returns the mean of the given slice
 func Sum(array []float64) float64 {
 	array = filterNaN(array)
+	if len(array) == 0 {
+		return math.NaN()
+	}
 	sum := 0.0
 	for _, v := range array {
 		sum += v

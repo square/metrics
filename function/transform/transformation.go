@@ -17,7 +17,7 @@
 package transform
 
 import (
-	"errors"
+	"fmt"
 	"math"
 
 	"github.com/square/metrics/api"
@@ -158,6 +158,20 @@ func NaNKeepLast(values []float64, parameters []function.Value, scale float64) (
 	return result, nil
 }
 
+// boundError represents an error in bounds, when (lower > upper) so the interval is empty.
+type boundError struct {
+	lower float64
+	upper float64
+}
+
+func (b boundError) Error() string {
+	return fmt.Sprintf("the lower bound (%f) should be no more than the upper bound (%f) in the parameters to transform.bound( ..., %f, %f)", b.lower, b.upper, b.lower, b.upper)
+}
+
+func (b boundError) TokenName() string {
+	return fmt.Sprintf("transform.bound(..., %f, %f)", b.lower, b.upper)
+}
+
 // Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
 func Bound(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	lowerBound, err := parameters[0].ToScalar()
@@ -169,7 +183,7 @@ func Bound(values []float64, parameters []function.Value, scale float64) ([]floa
 		return nil, err
 	}
 	if lowerBound > upperBound {
-		return nil, errors.New("the upper bound must be at least the lower bound")
+		return nil, boundError{lowerBound, upperBound}
 	}
 	result := make([]float64, len(values))
 	for i := range result {

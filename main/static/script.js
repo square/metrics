@@ -52,7 +52,7 @@ module.run(function($http) {
     return;
   }
   var autocom = new Autocom(document.getElementById("query-input"));
-  var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by"];
+  var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by", "now"];
   autocom.options = keywords;
   autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
   autocom.continuePattern = "[a-zA-Z_`.-]";
@@ -318,6 +318,7 @@ module.controller("mainCtrl", function(
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
+    $inputModel.query = document.getElementById("query-input").value;
     $location.search("query", $inputModel.query);
     $location.search("renderType", $inputModel.renderType);
     $location.search("profile", $inputModel.profile.toString());

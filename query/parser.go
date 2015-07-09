@@ -670,7 +670,7 @@ func (p *Parser) addAndPredicate() {
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
-	p.pushNode(&durationExpression{duration})
+	p.pushNode(&durationExpression{value, duration})
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
