@@ -47,7 +47,7 @@ func init() {
 	MustRegister(NewTransform("transform.integral", 0, transform.Integral))
 	MustRegister(NewTransform("transform.rate", 0, transform.Rate))
 	MustRegister(NewTransform("transform.cumulative", 0, transform.Cumulative))
-	MustRegister(NewTransform("transform.default", 1, transform.Default))
+	MustRegister(NewTransform("transform.nan_fill", 1, transform.Default))
 	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
 	MustRegister(NewTransform("transform.log", 0, transform.MapMaker(math.Log10)))
 	MustRegister(NewTransform("transform.nan_keep_last", 0, transform.NaNKeepLast))
