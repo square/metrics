@@ -543,12 +543,12 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.([]function.Value)
+		seriesListList, ok := rawResult.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
 			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
-		actual := api.SeriesList(seriesListList[0].(function.SeriesListValue)).Name
+		actual := seriesListList[0].Name
 		if actual != test.expected {
 			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
 			continue
@@ -640,12 +640,12 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.([]function.Value)
+		seriesListList, ok := rawResult.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
 			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
-		list, err := seriesListList[0].ToSeriesList(api.Timerange{})
+		list := seriesListList[0]
 		if err != nil {
 			t.Fatal(err)
 		}
