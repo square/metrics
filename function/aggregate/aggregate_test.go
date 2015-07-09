@@ -551,6 +551,61 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
+		{
+			[]string{"host"}, // This test verifies that aggregate.sum() on all NaN data returns NaN, not 0
+			Sum,
+			false,
+			[]api.Timeseries{
+				api.Timeseries{
+					Values: []float64{0, 1, 2},
+					TagSet: api.TagSet{
+						"host": "q77",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{4, 4, 4},
+					TagSet: api.TagSet{
+						"host": "r53",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{-1, -1, 2},
+					TagSet: api.TagSet{
+						"host": "y1",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{0, 2, 0},
+					TagSet: api.TagSet{
+						"host": "w20",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{2, 0, 0},
+					TagSet: api.TagSet{
+						"host": "t8",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{0, 0, 1},
+					TagSet: api.TagSet{
+						"host": "b38",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{math.NaN(), math.NaN(), math.NaN()},
+					TagSet: api.TagSet{
+						"host": "n44",
+					},
+				},
+				api.Timeseries{
+					Values: []float64{math.NaN(), 10, math.NaN()},
+					TagSet: api.TagSet{
+						"host": "n10",
+					},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range aggregatedTests {
