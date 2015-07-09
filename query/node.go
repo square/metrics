@@ -69,6 +69,7 @@ type regexMatcher struct {
 
 // durationExpression represents a duration (in ms).
 type durationExpression struct {
+	name     string
 	duration time.Duration // milliseconds
 }
 

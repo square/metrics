@@ -26,7 +26,7 @@ import (
 // ===============
 
 func (expr durationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.DurationValue(expr.duration), nil
+	return function.NewDurationValue(expr.name, expr.duration), nil
 }
 
 func (expr scalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
