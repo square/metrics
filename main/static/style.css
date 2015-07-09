@@ -53,32 +53,48 @@ textarea.queryinput {
   height:500px;
 }
 
+/* Query History CSS */
 .history-box {
   position:absolute;
   left: 100%;
   top: 0;
   width: 100px;
-  height: 500px;
+  height: 250px;
+  z-index: 100;
+}
+
+.history-row:nth-child(even) {
+  background: #F0F0F0;
+}
+.history-row:nth-child(odd) {
+  background: #F5F5F5;
 }
 
 .history-row {
-  background: #EEE;
-  height: 1.5em;
+  border-top: 1px solid #DDD;
+  border-left: 1px solid #DDD;
+  border-right: 1px solid #DDD;
+  font-family: Consolas, monospace;
+  padding: 3px;
   /* move as far right as possible, but expand to the left */
   position:relative;
   float:right;
   right: 0;
+  -webkit-transition:max-width 2s;
   width: 100%;
+  min-width: 100%;
   /* hide text that goes off the edge */
   white-space: nowrap;
   overflow: hidden;
+
+
 }
 
 .history-row:hover {
   /* highlight color */
-  background: #DDD;
+  background: #CDF;
   /* change to cursor pointer */
   cursor: pointer;
   /* expand width */
-  width: 800px;
+  width: auto;
 }

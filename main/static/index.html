@@ -19,8 +19,8 @@
         <div class="col-sm-10">
           <textarea id="query-input" ng-model="inputModel.query" class="form-control queryinput"></textarea>
           <div class="history-box">
-            <div ng-repeat="oldQuery in queryHistory" class="history-row">
-             {{ oldQuery }} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras rhoncus sodales iaculis. Vivamus volutpat leo eget quam tempus venenatis. Vivamus non auctor felis.
+            <div ng-repeat="query in queryHistory track by $index" class="history-row" ng-click = "historySelect(query)">
+             {{ query }}
             </div>
           </div>
         </div>
