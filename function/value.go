@@ -43,6 +43,10 @@ func (e conversionError) Error() string {
 	return fmt.Sprintf("cannot convert %+v (type %s) to type %s", e.value, e.from, e.to)
 }
 
+func (e conversionError) TokenName() string {
+	return fmt.Sprintf("%+v (type %s)", e.value, e.from)
+}
+
 // A seriesListValue is a value which holds a SeriesList
 type SeriesListValue api.SeriesList
 
