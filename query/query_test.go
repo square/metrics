@@ -146,11 +146,13 @@ var selects = []string{
 
 // these queries should fail with a syntax error.
 var syntaxErrorQuery = []string{
-	"select ( from 0 to 0",
-	"select ) from 0 to 0",
 	"describe ( from 0 to 0",
 	"describe in from 0 to 0",
-	"describe invalid_regex where key matches 'ab[' from 0 to 0",
+	"describe invalid_regex where key matches 'ab['",
+	"describe invalid_property \nwhere key matches 'ab' from 0 to 0",
+	"select 'a\nac\nabc",
+	"select ( from 0 to 0",
+	"select ) from 0 to 0",
 	"select x invalid_property 0 from 0 to 0",
 	"select x sampleby 0 from 0 to 0",
 	"select x sample 0 from 0 to 0",
@@ -194,6 +196,7 @@ func TestParse_syntaxError(t *testing.T) {
 			t.Errorf("[%s] should have failed to parse", row)
 		} else if _, ok := err.(SyntaxErrors); !ok {
 			t.Logf("[%s] Expected SyntaxErrors, got: %s", row, err.Error())
+			err.Error() // test that it does not panic.
 		}
 	}
 }

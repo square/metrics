@@ -137,10 +137,15 @@ func Parse(query string) (Command, error) {
 	if err := p.Parse(); err != nil {
 		// Parsing error - invalid syntax.
 		// TODO - return the token where the error is occurring.
-		return nil, SyntaxErrors([]SyntaxError{{
-			token:   "",
-			message: err.Error(),
-		}})
+		if _, ok := err.(*parseError); ok {
+			return nil, SyntaxErrors([]SyntaxError{{
+				token:   "",
+				message: customParseError(&p),
+			}})
+		} else {
+			// generic error (should not occur).
+			return nil, AssertionError{"Non-parse error raised"}
+		}
 	}
 	p.Execute()
 	if len(p.assertions) > 0 {
@@ -728,6 +733,75 @@ func functionName(depth int) string {
 	runtime.Callers(depth+2, pc)
 	f := runtime.FuncForPC(pc[0])
 	return functionNameRegex.FindString(f.Name())
+}
+
+// modified version of (*parseError).Error() so that it is not ANSI-colored.
+func customParseError(parser *Parser) string {
+	type pair struct {
+		start int
+		end   int
+	}
+	tokens, error := parser.tokenTree.Error(), ""
+	positions, p := make([]int, 2*len(tokens)), 0
+	for _, token := range tokens {
+		positions[p], p = int(token.begin), p+1
+		positions[p], p = int(token.end), p+1
+	}
+	translations := translatePositions(parser.Buffer, positions)
+	printedPositions := make(map[pair]bool)
+	for _, token := range tokens {
+		begin, end := int(token.begin), int(token.end)
+		if token.pegRule == ruleUnknown {
+			continue // skip the unknown rule.
+		} else if printedPositions[pair{begin, end}] {
+			continue // already printed error for this position
+		}
+		printedPositions[pair{begin, end}] = true
+		line, underline := makePrettyLine(parser, token, translations)
+		error += fmt.Sprintf("parse error near [%v] (line %v symbol %v - line %v symbol %v):\n%s\n%s\n",
+			rul3s[token.pegRule],
+			translations[begin].line, translations[begin].symbol,
+			translations[end].line, translations[end].symbol,
+			line,
+			underline,
+		)
+	}
+
+	return error
+}
+
+func makePrettyLine(parser *Parser, token token32, translations textPositionMap) (string, string) {
+	begin, end := int(token.begin), int(token.end)
+	lineStart := begin - translations[begin].symbol + 1
+	lineEnd := lineStart
+	for i := lineStart; i < len(parser.Buffer) && parser.Buffer[i] != '\n'; i++ {
+		lineEnd = i
+	}
+	if parser.Buffer[lineEnd] != '\n' {
+		lineEnd = lineEnd + 1
+	}
+	line := parser.Buffer[lineStart:lineEnd]
+	symbolBegin := translations[begin].symbol - 1
+	if symbolBegin < 0 {
+		symbolBegin = 0
+	}
+	if translations[begin].line == translations[end].line {
+		// error occurs within a single line - print the entire line.
+		length := translations[end].symbol - translations[begin].symbol
+		if length <= 0 {
+			length = 1
+		}
+		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
+		return line, underline
+	} else {
+		// error occurs within a single line - print the entire line.
+		length := lineEnd - lineStart - translations[begin].symbol - 1
+		if length <= 0 {
+			length = 1
+		}
+		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
+		return line, underline
+	}
 }
 
 // utility type variables
