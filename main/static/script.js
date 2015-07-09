@@ -300,6 +300,8 @@ module.controller("mainCtrl", function(
   $profilingEnabled
   ) {
 
+  $scope.queryHistory = [];
+
   // Store the $inputModel so that the view can change it through inputs.
   $scope.inputModel = $inputModel;
 
