@@ -331,10 +331,11 @@ module.controller("mainCtrl", function(
     $inputModel.renderType = queries["renderType"] || "line";
     $inputModel.profile = queries["profile"] === "true";
     // Add the query to the history, if it hasn't been seen before and it's non-empty
-    if ($inputModel.query.trim() !== "" && $scope.queryHistory.indexOf($inputModel.query.trim()) === -1) {
-      $scope.queryHistory.push($inputModel.query.trim());
+    var trimmedQuery = $inputModel.query.trim();
+    if (trimmedQuery !== "" && $scope.queryHistory.indexOf(trimmedQuery) === -1) {
+      $scope.queryHistory.push(trimmedQuery);
     }
-    if ($inputModel.query) {
+    if (trimmedQuery) {
       $launchRequest({
         profile: $inputModel.profile,
         query:   $inputModel.query

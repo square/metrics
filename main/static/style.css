@@ -86,8 +86,6 @@ textarea.queryinput {
   /* hide text that goes off the edge */
   white-space: nowrap;
   overflow: hidden;
-
-
 }
 
 .history-row:hover {
