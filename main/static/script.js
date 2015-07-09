@@ -206,7 +206,7 @@ module.factory("$receiveSelect", function(
     var options = {
       legend:    {position: "bottom"},
       title:     $location.search()["title"],
-      chartArea: {left: "5%", width:"90%", top: "5%", height: "90%"}
+      chartArea: {left: "5%", width:"90%", top: "5%", height: "85%"}
     }
     if ($inputModel.renderType === "line") {
       $mainChart.chart = new google.visualization.LineChart($mainChart.dom);
@@ -277,8 +277,8 @@ module.factory("$receive", function($mainChart, $timelineChart, $receiveSelect, 
   return function(object) {
     clearChart($mainChart);
     clearChart($timelineChart);
-    $receiveSelect(object, $mainChart);
-    $receiveProfile(object, $timelineChart);
+    $receiveSelect(object);
+    $receiveProfile(object);
   };
 });
 
@@ -299,6 +299,8 @@ module.controller("mainCtrl", function(
   $inputModel,
   $profilingEnabled
   ) {
+
+  $scope.queryHistory = [];
 
   // Store the $inputModel so that the view can change it through inputs.
   $scope.inputModel = $inputModel;
@@ -328,7 +330,12 @@ module.controller("mainCtrl", function(
     $inputModel.query = queries["query"] || "";
     $inputModel.renderType = queries["renderType"] || "line";
     $inputModel.profile = queries["profile"] === "true";
-    if ($inputModel.query) {
+    // Add the query to the history, if it hasn't been seen before and it's non-empty
+    var trimmedQuery = $inputModel.query.trim();
+    if (trimmedQuery !== "" && $scope.queryHistory.indexOf(trimmedQuery) === -1) {
+      $scope.queryHistory.push(trimmedQuery);
+    }
+    if (trimmedQuery) {
       $launchRequest({
         profile: $inputModel.profile,
         query:   $inputModel.query
@@ -337,6 +344,10 @@ module.controller("mainCtrl", function(
       });
     }
   });
+
+  $scope.historySelect = function(query) {
+    $inputModel.query = query;
+  }
 
   // true if the output should be tabular.
   $scope.isTabular = function() {
