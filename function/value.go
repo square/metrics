@@ -34,13 +34,13 @@ type Value interface {
 }
 
 type conversionError struct {
-	from  string
-	to    string
-	value interface{}
+	from  string // the original data type
+	to    string // the type that attempted to convert to
+	value string // a short string representation of the value
 }
 
 func (e conversionError) Error() string {
-	return fmt.Sprintf("cannot convert %+v (type %s) to type %s", e.value, e.from, e.to)
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.value, e.from, e.to)
 }
 
 func (e conversionError) TokenName() string {
@@ -110,7 +110,7 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 }
 
 func (value ScalarValue) ToString() (string, error) {
-	return "", conversionError{"scalar", "string", value}
+	return "", conversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
 func (value ScalarValue) ToScalar() (float64, error) {
@@ -118,7 +118,7 @@ func (value ScalarValue) ToScalar() (float64, error) {
 }
 
 func (value ScalarValue) ToDuration() (time.Duration, error) {
-	return 0, conversionError{"scalar", "duration", value}
+	return 0, conversionError{"scalar", "duration", fmt.Sprintf("%f", value)}
 }
 
 func (value ScalarValue) GetName() string {
@@ -135,15 +135,15 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 }
 
 func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, conversionError{"duration", "SeriesList", fmt.Sprintf("%dms", value.duration)}
+	return api.SeriesList{}, conversionError{"duration", "SeriesList", value.name}
 }
 
 func (value DurationValue) ToString() (string, error) {
-	return "", conversionError{"duration", "string", fmt.Sprintf("%dms", value.name)}
+	return "", conversionError{"duration", "string", value.name}
 }
 
 func (value DurationValue) ToScalar() (float64, error) {
-	return 0, conversionError{"duration", "scalar", fmt.Sprintf("%dms", value.name)}
+	return 0, conversionError{"duration", "scalar", value.name}
 }
 
 func (value DurationValue) ToDuration() (time.Duration, error) {
