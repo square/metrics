@@ -76,7 +76,7 @@ var MovingAverage = function.MetricFunction{
 
 		newContext := context
 		timerange := context.Timerange
-		newContext.Timerange, err = api.NewTimerange(timerange.Start()-int64(limit-1)*timerange.Resolution(), timerange.End(), timerange.Resolution())
+		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.Resolution(), timerange.End(), timerange.Resolution())
 		if err != nil {
 			return nil, err
 		}
