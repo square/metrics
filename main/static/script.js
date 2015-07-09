@@ -316,6 +316,7 @@ module.controller("mainCtrl", function(
 
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function() {
+    $inputModel.query = document.getElementById("query-input").value;
     $location.search("query", $inputModel.query);
     $location.search("renderType", $inputModel.renderType);
     $location.search("profile", $inputModel.profile.toString());
