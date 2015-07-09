@@ -786,7 +786,7 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 		symbolBegin = 0
 	}
 	if translations[begin].line == translations[end].line {
-		// error occurs within a single line - print the entire line.
+		// single-line error - print the entire line and draw carets under the token.
 		length := translations[end].symbol - translations[begin].symbol
 		if length <= 0 {
 			length = 1
@@ -794,7 +794,7 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
 		return line, underline
 	} else {
-		// error occurs within a single line - print the entire line.
+		// multi-line error - print the firsst line and draw carets under the token until the line finishes.
 		length := lineEnd - lineStart - translations[begin].symbol - 1
 		if length <= 0 {
 			length = 1
