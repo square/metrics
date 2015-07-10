@@ -76,6 +76,8 @@ const (
 	rulePAREN_CLOSE
 	ruleCOMMA
 	rule_
+	ruleCOMMENT_TRAIL
+	ruleCOMMENT_BLOCK
 	ruleKEY
 	ruleSPACE
 	ruleAction0
@@ -197,6 +199,8 @@ var rul3s = [...]string{
 	"PAREN_CLOSE",
 	"COMMA",
 	"_",
+	"COMMENT_TRAIL",
+	"COMMENT_BLOCK",
 	"KEY",
 	"SPACE",
 	"Action0",
@@ -585,7 +589,7 @@ type Parser struct {
 
 	Buffer string
 	buffer []rune
-	rules  [114]func() bool
+	rules  [116]func() bool
 	Parse  func(rule ...int) error
 	Reset  func()
 	tokenTree
@@ -5309,7 +5313,7 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position624, tokenIndex624, depth624
 			return false
 		},
-		/* 61 _ <- <SPACE*> */
+		/* 61 _ <- <((&('/') COMMENT_BLOCK) | (&('-') COMMENT_TRAIL) | (&('\t' | '\n' | ' ') SPACE))*> */
 		func() bool {
 			{
 				position627 := position
@@ -5318,34 +5322,125 @@ func (p *Parser) Init() {
 				{
 					position629, tokenIndex629, depth629 := position, tokenIndex, depth
 					{
-						position630 := position
-						depth++
-						{
-							switch buffer[position] {
-							case '\t':
-								if buffer[position] != rune('\t') {
+						switch buffer[position] {
+						case '/':
+							{
+								position631 := position
+								depth++
+								if buffer[position] != rune('/') {
 									goto l629
 								}
 								position++
-								break
-							case '\n':
-								if buffer[position] != rune('\n') {
+								if buffer[position] != rune('*') {
 									goto l629
 								}
 								position++
-								break
-							default:
-								if buffer[position] != rune(' ') {
+							l632:
+								{
+									position633, tokenIndex633, depth633 := position, tokenIndex, depth
+									{
+										position634, tokenIndex634, depth634 := position, tokenIndex, depth
+										if buffer[position] != rune('*') {
+											goto l634
+										}
+										position++
+										if buffer[position] != rune('/') {
+											goto l634
+										}
+										position++
+										goto l633
+									l634:
+										position, tokenIndex, depth = position634, tokenIndex634, depth634
+									}
+									if !matchDot() {
+										goto l633
+									}
+									goto l632
+								l633:
+									position, tokenIndex, depth = position633, tokenIndex633, depth633
+								}
+								if buffer[position] != rune('*') {
 									goto l629
 								}
 								position++
-								break
+								if buffer[position] != rune('/') {
+									goto l629
+								}
+								position++
+								depth--
+								add(ruleCOMMENT_BLOCK, position631)
 							}
-						}
+							break
+						case '-':
+							{
+								position635 := position
+								depth++
+								if buffer[position] != rune('-') {
+									goto l629
+								}
+								position++
+								if buffer[position] != rune('-') {
+									goto l629
+								}
+								position++
+							l636:
+								{
+									position637, tokenIndex637, depth637 := position, tokenIndex, depth
+									{
+										position638, tokenIndex638, depth638 := position, tokenIndex, depth
+										if buffer[position] != rune('\n') {
+											goto l638
+										}
+										position++
+										goto l637
+									l638:
+										position, tokenIndex, depth = position638, tokenIndex638, depth638
+									}
+									if !matchDot() {
+										goto l637
+									}
+									goto l636
+								l637:
+									position, tokenIndex, depth = position637, tokenIndex637, depth637
+								}
+								depth--
+								add(ruleCOMMENT_TRAIL, position635)
+							}
+							break
+						default:
+							{
+								position639 := position
+								depth++
+								{
+									switch buffer[position] {
+									case '\t':
+										if buffer[position] != rune('\t') {
+											goto l629
+										}
+										position++
+										break
+									case '\n':
+										if buffer[position] != rune('\n') {
+											goto l629
+										}
+										position++
+										break
+									default:
+										if buffer[position] != rune(' ') {
+											goto l629
+										}
+										position++
+										break
+									}
+								}
 
-						depth--
-						add(ruleSPACE, position630)
+								depth--
+								add(ruleSPACE, position639)
+							}
+							break
+						}
 					}
+
 					goto l628
 				l629:
 					position, tokenIndex, depth = position629, tokenIndex629, depth629
@@ -5355,163 +5450,167 @@ func (p *Parser) Init() {
 			}
 			return true
 		},
-		/* 62 KEY <- <!ID_CONT> */
+		/* 62 COMMENT_TRAIL <- <('-' '-' (!'\n' .)*)> */
+		nil,
+		/* 63 COMMENT_BLOCK <- <('/' '*' (!('*' '/') .)* ('*' '/'))> */
+		nil,
+		/* 64 KEY <- <!ID_CONT> */
 		func() bool {
-			position632, tokenIndex632, depth632 := position, tokenIndex, depth
+			position643, tokenIndex643, depth643 := position, tokenIndex, depth
 			{
-				position633 := position
+				position644 := position
 				depth++
 				{
-					position634, tokenIndex634, depth634 := position, tokenIndex, depth
+					position645, tokenIndex645, depth645 := position, tokenIndex, depth
 					if !_rules[ruleID_CONT]() {
-						goto l634
+						goto l645
 					}
-					goto l632
-				l634:
-					position, tokenIndex, depth = position634, tokenIndex634, depth634
+					goto l643
+				l645:
+					position, tokenIndex, depth = position645, tokenIndex645, depth645
 				}
 				depth--
-				add(ruleKEY, position633)
+				add(ruleKEY, position644)
 			}
 			return true
-		l632:
-			position, tokenIndex, depth = position632, tokenIndex632, depth632
+		l643:
+			position, tokenIndex, depth = position643, tokenIndex643, depth643
 			return false
 		},
-		/* 63 SPACE <- <((&('\t') '\t') | (&('\n') '\n') | (&(' ') ' '))> */
+		/* 65 SPACE <- <((&('\t') '\t') | (&('\n') '\n') | (&(' ') ' '))> */
 		nil,
-		/* 65 Action0 <- <{
+		/* 67 Action0 <- <{
 		   p.makeSelect()
 		 }> */
 		nil,
-		/* 66 Action1 <- <{ p.makeDescribeAll() }> */
+		/* 68 Action1 <- <{ p.makeDescribeAll() }> */
 		nil,
-		/* 67 Action2 <- <{ p.makeDescribeMetrics() }> */
+		/* 69 Action2 <- <{ p.makeDescribeMetrics() }> */
 		nil,
 		nil,
-		/* 69 Action3 <- <{ p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }> */
+		/* 71 Action3 <- <{ p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 70 Action4 <- <{ p.makeDescribe() }> */
+		/* 72 Action4 <- <{ p.makeDescribe() }> */
 		nil,
-		/* 71 Action5 <- <{ p.addEvaluationContext() }> */
+		/* 73 Action5 <- <{ p.addEvaluationContext() }> */
 		nil,
-		/* 72 Action6 <- <{ p.addPropertyKey(buffer[begin:end])   }> */
+		/* 74 Action6 <- <{ p.addPropertyKey(buffer[begin:end])   }> */
 		nil,
-		/* 73 Action7 <- <{ p.addPropertyValue(buffer[begin:end]) }> */
+		/* 75 Action7 <- <{ p.addPropertyValue(buffer[begin:end]) }> */
 		nil,
-		/* 74 Action8 <- <{ p.insertPropertyKeyValue() }> */
+		/* 76 Action8 <- <{ p.insertPropertyKeyValue() }> */
 		nil,
-		/* 75 Action9 <- <{ p.checkPropertyClause() }> */
+		/* 77 Action9 <- <{ p.checkPropertyClause() }> */
 		nil,
-		/* 76 Action10 <- <{ p.addNullPredicate() }> */
+		/* 78 Action10 <- <{ p.addNullPredicate() }> */
 		nil,
-		/* 77 Action11 <- <{ p.addExpressionList() }> */
+		/* 79 Action11 <- <{ p.addExpressionList() }> */
 		nil,
-		/* 78 Action12 <- <{ p.appendExpression() }> */
+		/* 80 Action12 <- <{ p.appendExpression() }> */
 		nil,
-		/* 79 Action13 <- <{ p.appendExpression() }> */
+		/* 81 Action13 <- <{ p.appendExpression() }> */
 		nil,
-		/* 80 Action14 <- <{ p.addOperatorLiteral("+") }> */
+		/* 82 Action14 <- <{ p.addOperatorLiteral("+") }> */
 		nil,
-		/* 81 Action15 <- <{ p.addOperatorLiteral("-") }> */
+		/* 83 Action15 <- <{ p.addOperatorLiteral("-") }> */
 		nil,
-		/* 82 Action16 <- <{ p.addOperatorFunction() }> */
+		/* 84 Action16 <- <{ p.addOperatorFunction() }> */
 		nil,
-		/* 83 Action17 <- <{ p.addOperatorLiteral("/") }> */
+		/* 85 Action17 <- <{ p.addOperatorLiteral("/") }> */
 		nil,
-		/* 84 Action18 <- <{ p.addOperatorLiteral("*") }> */
+		/* 86 Action18 <- <{ p.addOperatorLiteral("*") }> */
 		nil,
-		/* 85 Action19 <- <{ p.addOperatorFunction() }> */
+		/* 87 Action19 <- <{ p.addOperatorFunction() }> */
 		nil,
-		/* 86 Action20 <- <{
+		/* 88 Action20 <- <{
 		   p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
-		/* 87 Action21 <- <{p.addExpressionList()}> */
+		/* 89 Action21 <- <{p.addExpressionList()}> */
 		nil,
-		/* 88 Action22 <- <{
+		/* 90 Action22 <- <{
 		   p.addExpressionList()
 		   p.addGroupBy()
 		 }> */
 		nil,
-		/* 89 Action23 <- <{
+		/* 91 Action23 <- <{
 		   p.addPipeExpression()
 		 }> */
 		nil,
-		/* 90 Action24 <- <{ p.addDurationNode(text) }> */
+		/* 92 Action24 <- <{ p.addDurationNode(text) }> */
 		nil,
-		/* 91 Action25 <- <{ p.addNumberNode(buffer[begin:end]) }> */
+		/* 93 Action25 <- <{ p.addNumberNode(buffer[begin:end]) }> */
 		nil,
-		/* 92 Action26 <- <{ p.addStringNode(unescapeLiteral(buffer[begin:end])) }> */
+		/* 94 Action26 <- <{ p.addStringNode(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 93 Action27 <- <{ p.addGroupBy() }> */
+		/* 95 Action27 <- <{ p.addGroupBy() }> */
 		nil,
-		/* 94 Action28 <- <{
+		/* 96 Action28 <- <{
 		   p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
-		/* 95 Action29 <- <{
+		/* 97 Action29 <- <{
 		   p.addFunctionInvocation()
 		 }> */
 		nil,
-		/* 96 Action30 <- <{
+		/* 98 Action30 <- <{
 		   p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
-		/* 97 Action31 <- <{ p.addNullPredicate() }> */
+		/* 99 Action31 <- <{ p.addNullPredicate() }> */
 		nil,
-		/* 98 Action32 <- <{
+		/* 100 Action32 <- <{
 		   p.addMetricExpression()
 		 }> */
 		nil,
-		/* 99 Action33 <- <{
+		/* 101 Action33 <- <{
 		   p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
-		/* 100 Action34 <- <{
+		/* 102 Action34 <- <{
 		   p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
-		/* 101 Action35 <- <{
+		/* 103 Action35 <- <{
 		   p.appendCollapseBy(unescapeLiteral(text))
 		 }> */
 		nil,
-		/* 102 Action36 <- <{p.appendCollapseBy(unescapeLiteral(text))}> */
+		/* 104 Action36 <- <{p.appendCollapseBy(unescapeLiteral(text))}> */
 		nil,
-		/* 103 Action37 <- <{ p.addOrPredicate() }> */
+		/* 105 Action37 <- <{ p.addOrPredicate() }> */
 		nil,
-		/* 104 Action38 <- <{ p.addAndPredicate() }> */
+		/* 106 Action38 <- <{ p.addAndPredicate() }> */
 		nil,
-		/* 105 Action39 <- <{ p.addNotPredicate() }> */
+		/* 107 Action39 <- <{ p.addNotPredicate() }> */
 		nil,
-		/* 106 Action40 <- <{
+		/* 108 Action40 <- <{
 		   p.addLiteralMatcher()
 		 }> */
 		nil,
-		/* 107 Action41 <- <{
+		/* 109 Action41 <- <{
 		   p.addLiteralMatcher()
 		   p.addNotPredicate()
 		 }> */
 		nil,
-		/* 108 Action42 <- <{
+		/* 110 Action42 <- <{
 		   p.addRegexMatcher()
 		 }> */
 		nil,
-		/* 109 Action43 <- <{
+		/* 111 Action43 <- <{
 		   p.addListMatcher()
 		 }> */
 		nil,
-		/* 110 Action44 <- <{
+		/* 112 Action44 <- <{
 		  p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
 		}> */
 		nil,
-		/* 111 Action45 <- <{ p.addLiteralList() }> */
+		/* 113 Action45 <- <{ p.addLiteralList() }> */
 		nil,
-		/* 112 Action46 <- <{
+		/* 114 Action46 <- <{
 		  p.appendLiteral(unescapeLiteral(buffer[begin:end]))
 		}> */
 		nil,
-		/* 113 Action47 <- <{ p.addTagLiteral(unescapeLiteral(buffer[begin:end])) }> */
+		/* 115 Action47 <- <{ p.addTagLiteral(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 	}
 	p.rules = _rules

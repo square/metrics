@@ -309,6 +309,8 @@ DURATION <- NUMBER [a-z]+ KEY
 PAREN_OPEN <-  "("
 PAREN_CLOSE <- ")"
 COMMA <-       ","
-_  <-          SPACE* # Optional spaces
-KEY <- !ID_CONT 
+_  <-          (SPACE / COMMENT_TRAIL / COMMENT_BLOCK) * # Optional spaces
+COMMENT_TRAIL  <- "--" (!"\n" .)*
+COMMENT_BLOCK  <- "/*" (!"*/" .)* "*/"
+KEY <-         !ID_CONT
 SPACE <-       " " / "\n" / "\t"
