@@ -51,9 +51,14 @@ func Less(strA string, strB string) bool {
 			continue
 		}
 		if runeA != runeB {
+			if unicode.ToLower(runeA) == unicode.ToLower(runeB) {
+				return unicode.IsLower(runeB)
+			}
 			// Compare their lowercase versions (so that A < a < B < b; instead of ASCII A < B < a < b)
 			return unicode.ToLower(runeA) < unicode.ToLower(runeB)
 		}
+		iA++
+		iB++
 	}
 	return len(runesA) < len(runesB)
 }
