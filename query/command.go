@@ -23,6 +23,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/query/natural_sort"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
@@ -77,7 +78,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, erro
 			output = append(output, tag.Serialize())
 		}
 	}
-	sort.Strings(output)
+	natural_sort.Sort(output)
 	return output, nil
 }
 func (cmd *DescribeCommand) Name() string {
