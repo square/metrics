@@ -30,6 +30,23 @@ textarea.queryinput {
   white-space: pre;
 }
 
+.table-column {
+  display: inline-block;
+  margin-right: 10px;
+  float: left;
+  width: auto;
+  min-width: 100px;
+  border-left: 1px solid #DDD;
+  border-right: 1px solid #DDD;
+  border-bottom: 1px solid #DDD;
+  border-radius: 2px;
+}
+
+.table-column tr, .table-column tbody, .table-column td, .table-column th {
+  display:block;
+}
+
+
 #chart-div {
   background:#EEE;
   width:100%;

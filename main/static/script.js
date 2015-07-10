@@ -367,8 +367,10 @@ module.controller("mainCtrl", function(
       return "rendered";
     }
   };
+  scope = $scope;
   updateEmbed()
 });
+var scope;
 
 module.controller("embedCtrl", function($location, $scope, $launchedQueries, $chartWaiting, $launchRequest, $inputModel, $profilingEnabled){
   $scope.queryResult = "";
