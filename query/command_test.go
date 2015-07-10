@@ -404,6 +404,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}},
+		{"select series_1 from -1000d to now resolution 30s", true, api.SeriesList{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
