@@ -65,6 +65,12 @@ var inputs = []string{
 	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
 	"select(f(g(5)group by`a`,w,q)) from 0 to 0",
 	"select(fromx+tox+groupx+byx+selectx+describex+allx+wherex) from 0 to 0",
+	// comments
+	"describe all-- trailing comment",
+	"describe-- trailing comment\n all",
+	"describe/* inline */all",
+	"describe/**/all",
+	"select/**/(/**/f/**/(/**/g/**/(/**/5/**/)group/**/by/**/`a`/**/,/**/w/**/,/**/q/**/)/**/)/**/from/**/0/**/to/**/0",
 }
 
 var selects = []string{
