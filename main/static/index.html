@@ -77,7 +77,7 @@
         <div ng-show="isTabular() && queryResult.name == 'describe'">
           <table ng-repeat="(key, list) in queryResult.body" class="table table-striped table-column">
             <tr><th>{{key}}</th></tr>
-            <tr ng-repeat="value in list"><td>{{value}}</td></tr>
+            <tr ng-repeat="value in list track by $index"><td>{{value}}</td></tr>
           </table>
         </div>
         <div>{{ (queryResult || "").trim() }}</div>

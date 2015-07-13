@@ -50,8 +50,11 @@ type queryHandler struct {
 
 // generic response functions
 // --------------------------
-
+func commonResponse(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "application/json")
+}
 func errorResponse(writer http.ResponseWriter, code int, err error) {
+	commonResponse(writer)
 	writer.WriteHeader(code)
 	encoded, err := json.MarshalIndent(response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
@@ -63,6 +66,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 }
 
 func bodyResponse(writer http.ResponseWriter, response response) {
+	commonResponse(writer)
 	response.Success = true
 	encoded, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
