@@ -154,6 +154,11 @@ func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
 	return api.TaggedMetric{}, false
 }
 
+// GraphitePatternTags return a list of tags available in the original metric.
+func (rule Rule) GraphitePatternTags() []string {
+	return rule.graphitePatternTags
+}
+
 // ToGraphiteName transforms the given tagged metric back to its graphite name,
 // checking against all the rules.
 func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (api.GraphiteMetric, error) {
