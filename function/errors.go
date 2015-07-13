@@ -25,6 +25,38 @@ type ExecutionError interface {
 	TokenName() string // name of the token / expression which have caused it.
 }
 
+type LimitError interface {
+	Actual() interface{} // actual from the system which triggered this error.
+	Limit() interface{}  // configured limit
+	error
+}
+
+func NewLimitError(message string, actual interface{}, limit interface{}) LimitError {
+	return defaultLimitError{
+		message: message,
+		limit:   limit,
+		actual:  actual,
+	}
+}
+
+type defaultLimitError struct {
+	message string
+	actual  interface{}
+	limit   interface{}
+}
+
+func (err defaultLimitError) Error() string {
+	return fmt.Sprintf("%s (actual=%v limit=%v)", err.message, err.actual, err.limit)
+}
+
+func (err defaultLimitError) Actual() interface{} {
+	return err.actual
+}
+
+func (err defaultLimitError) Limit() interface{} {
+	return err.limit
+}
+
 type ArgumentLengthError struct {
 	Name        string
 	ExpectedMin int

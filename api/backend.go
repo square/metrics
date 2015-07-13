@@ -132,6 +132,10 @@ func (err BackendError) Error() string {
 	return formatted
 }
 
+func (err BackendError) TokenName() string {
+	return string(err.Metric.MetricKey)
+}
+
 // ProfilingBackend wraps an ordinary backend so that whenever data is fetched, a profile is recorded for the fetch's duration.
 type ProfilingBackend struct {
 	Backend Backend

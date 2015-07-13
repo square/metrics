@@ -16,6 +16,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/square/metrics/log"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
@@ -25,6 +30,22 @@ import (
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
 )
+
+func startServer(config common.UIConfig, context query.ExecutionContext) {
+	httpMux := ui.NewMux(config.Config, context, ui.Hook{})
+
+	server := &http.Server{
+		Addr:           fmt.Sprintf(":%d", config.Port),
+		Handler:        httpMux,
+		ReadTimeout:    time.Duration(config.Timeout) * time.Second,
+		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Infof(err.Error())
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -41,7 +62,7 @@ func main() {
 		MultiBackend: backend.NewParallelMultiBackend(blueflood, 20),
 	}
 
-	ui.Main(config.UIConfig, query.ExecutionContext{
+	startServer(config.UIConfig, query.ExecutionContext{
 		API: apiInstance, Backend: backend, FetchLimit: 1000,
 		Registry: registry.Default(),
 	})

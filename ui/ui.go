@@ -16,7 +16,6 @@ package ui
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path"
 	"strconv"
@@ -51,8 +50,11 @@ type queryHandler struct {
 
 // generic response functions
 // --------------------------
-
+func commonResponse(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "application/json")
+}
 func errorResponse(writer http.ResponseWriter, code int, err error) {
+	commonResponse(writer)
 	writer.WriteHeader(code)
 	encoded, err := json.MarshalIndent(response{Success: false, Message: err.Error()}, "", "  ")
 	if err != nil {
@@ -64,6 +66,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 }
 
 func bodyResponse(writer http.ResponseWriter, response response) {
+	commonResponse(writer)
 	response.Success = true
 	encoded, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
@@ -198,20 +201,4 @@ func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.Serv
 	staticPath := "/static/"
 	httpMux.Handle(staticPath, staticHandler{StaticPath: staticPath, Directory: config.StaticDir})
 	return httpMux
-}
-
-func Main(config Config, context query.ExecutionContext) {
-	httpMux := NewMux(config, context, Hook{})
-
-	server := &http.Server{
-		Addr:           fmt.Sprintf(":%d", config.Port),
-		Handler:        httpMux,
-		ReadTimeout:    time.Duration(config.Timeout) * time.Second,
-		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Infof(err.Error())
-	}
 }
