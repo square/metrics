@@ -52,6 +52,7 @@ func TestRandom(t *testing.T) {
 	a.Eq(test, expected)
 	for i := 0; i < 1000; i++ {
 		testShuffle(test)
+		a := a.Contextf("input: %+v", test)
 		Sort(test)
 		a.Eq(test, expected)
 	}
