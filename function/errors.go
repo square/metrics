@@ -26,25 +26,35 @@ type ExecutionError interface {
 }
 
 type LimitError interface {
-	Value() interface{}
+	Actual() interface{} // actual from the system which triggered this error.
+	Limit() interface{}  // configured limit
 	error
 }
 
-func NewLimitError(message string, limit interface{}) LimitError {
-	return defaultLimitError{message, limit}
+func NewLimitError(message string, actual interface{}, limit interface{}) LimitError {
+	return defaultLimitError{
+		message: message,
+		limit:   limit,
+		actual:  actual,
+	}
 }
 
 type defaultLimitError struct {
 	message string
-	value   interface{}
+	actual  interface{}
+	limit   interface{}
 }
 
 func (err defaultLimitError) Error() string {
-	return err.message
+	return fmt.Sprintf("%s (actual=%v limit=%v)", err.message, err.actual, err.limit)
 }
 
-func (err defaultLimitError) Value() interface{} {
-	return err.value
+func (err defaultLimitError) Actual() interface{} {
+	return err.actual
+}
+
+func (err defaultLimitError) Limit() interface{} {
+	return err.limit
 }
 
 type ArgumentLengthError struct {

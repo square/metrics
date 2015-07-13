@@ -143,7 +143,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 			limitMessage = "the configured limit %d"
 		}
 		limitMessage = fmt.Sprintf(limitMessage, slotLimit)
-		return nil, function.NewLimitError(fmt.Sprintf("Requested number of data points (%d) exceeds %s", timerange.Slots(), limitMessage), slotLimit)
+		return nil, function.NewLimitError(
+			"Requested number of data points exceeds the configured limit",
+			timerange.Slots(), slotLimit)
 	}
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable
@@ -183,7 +185,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		}()
 		select {
 		case <-timeout:
-			return nil, function.NewLimitError("Timeout while executing the query.", context.Timeout)
+			return nil, function.NewLimitError("Timeout while executing the query.",
+				context.Timeout, context.Timeout)
 		case result := <-results:
 			return result, nil
 		case err := <-errors:

@@ -58,7 +58,9 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	ok := context.FetchLimit.Consume(len(filtered))
 
 	if !ok {
-		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch", context.FetchLimit.Limit())
+		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
+			context.FetchLimit.Current(),
+			context.FetchLimit.Limit())
 	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
