@@ -82,7 +82,7 @@ func (c FetchCounter) Limit() int {
 }
 
 func (c FetchCounter) Current() int {
-	return int(atomic.LoadInt32(c.count)) - c.limit
+	return c.limit - int(atomic.LoadInt32(c.count))
 }
 
 // Consume decrements the internal counter and returns whether the result is at least 0.
