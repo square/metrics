@@ -34,6 +34,7 @@ type ExecutionContext struct {
 	Timeout    time.Duration     // optional
 	Profiler   *inspect.Profiler // optional
 	Registry   function.Registry // optional
+	SlotLimit  int               // optional (0 => default 1000)
 }
 
 // Command is the final result of the parsing.
@@ -71,16 +72,33 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
-	tags, _ := context.API.GetAllTags(cmd.metricName)
-	output := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		if cmd.predicate.Apply(tag) {
-			output = append(output, tag.Serialize())
+	tagsets, _ := context.API.GetAllTags(cmd.metricName)
+	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
+	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
+	for _, tagset := range tagsets {
+		if cmd.predicate.Apply(tagset) {
+			// Add each key as needed
+			for key, value := range tagset {
+				if keyValueSets[key] == nil {
+					keyValueSets[key] = map[string]bool{}
+				}
+				keyValueSets[key][value] = true // add `value` to the set for `key`
+			}
 		}
 	}
-	natural_sort.Sort(output)
-	return output, nil
+	keyValueLists := map[string][]string{} // a map of tag_key => list[tag_value]
+	for key, set := range keyValueSets {
+		list := make([]string, 0, len(set))
+		for value := range set {
+			list = append(list, value)
+		}
+		// sort the result
+		natural_sort.Sort(list)
+		keyValueLists[key] = list
+	}
+	return keyValueLists, nil
 }
+
 func (cmd *DescribeCommand) Name() string {
 	return "describe"
 }
@@ -112,6 +130,21 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return nil, err
+	}
+	slotLimit := context.SlotLimit
+	defaultLimit := 1000
+	if slotLimit == 0 {
+		slotLimit = defaultLimit // the default limit
+	}
+	if timerange.Slots() > slotLimit {
+		var limitMessage string
+		if context.SlotLimit == 0 {
+			limitMessage = "the default limit %d (no limit has been configured)"
+		} else {
+			limitMessage = "the configured limit %d"
+		}
+		limitMessage = fmt.Sprintf(limitMessage, slotLimit)
+		return nil, fmt.Errorf("Requested number of data points (%d) exceeds %s", timerange.Slots(), limitMessage)
 	}
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable

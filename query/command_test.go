@@ -65,20 +65,20 @@ func TestCommand_Describe(t *testing.T) {
 	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")}, emptyGraphiteName)
 
 	for _, test := range []struct {
-		query   string
-		backend api.API
-		length  int // expected length of the result.
+		query    string
+		backend  api.API
+		expected map[string][]string
 	}{
-		{"describe series_0", fakeApi, 4},
-		{"describe`series_0`", fakeApi, 4},
-		{"describe series_0 where dc='west'", fakeApi, 2},
-		{"describe`series_0`where(dc='west')", fakeApi, 2},
-		{"describe series_0 where dc='west' or env = 'production'", fakeApi, 3},
-		{"describe series_0 where`dc`='west'or`env`='production'", fakeApi, 3},
-		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", fakeApi, 2},
-		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", fakeApi, 2},
-		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeApi, 0},
-		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeApi, 0},
+		{"describe series_0", fakeApi, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
+		{"describe`series_0`", fakeApi, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
+		{"describe series_0 where dc='west'", fakeApi, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe`series_0`where(dc='west')", fakeApi, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where dc='west' or env = 'production'", fakeApi, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
+		{"describe series_0 where`dc`='west'or`env`='production'", fakeApi, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
+		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", fakeApi, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", fakeApi, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeApi, map[string][]string{}},
+		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeApi, map[string][]string{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)
@@ -86,10 +86,10 @@ func TestCommand_Describe(t *testing.T) {
 			a.Errorf("Unexpected error while parsing")
 			continue
 		}
+
 		a.EqString(command.Name(), "describe")
 		rawResult, _ := command.Execute(ExecutionContext{Backend: nil, API: test.backend, FetchLimit: 1000, Timeout: 0})
-		parsedResult := rawResult.([]string)
-		a.EqInt(len(parsedResult), test.length)
+		a.Eq(rawResult, test.expected)
 	}
 }
 
@@ -404,6 +404,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}},
+		{"select series_1 from -1000d to now resolution 30s", true, api.SeriesList{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
