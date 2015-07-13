@@ -16,7 +16,6 @@ package ui
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path"
 	"strconv"
@@ -198,20 +197,4 @@ func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.Serv
 	staticPath := "/static/"
 	httpMux.Handle(staticPath, staticHandler{StaticPath: staticPath, Directory: config.StaticDir})
 	return httpMux
-}
-
-func Main(config Config, context query.ExecutionContext) {
-	httpMux := NewMux(config, context, Hook{})
-
-	server := &http.Server{
-		Addr:           fmt.Sprintf(":%d", config.Port),
-		Handler:        httpMux,
-		ReadTimeout:    time.Duration(config.Timeout) * time.Second,
-		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Infof(err.Error())
-	}
 }

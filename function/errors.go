@@ -25,6 +25,28 @@ type ExecutionError interface {
 	TokenName() string // name of the token / expression which have caused it.
 }
 
+type LimitError interface {
+	Value() interface{}
+	error
+}
+
+func NewLimitError(message string, limit interface{}) LimitError {
+	return defaultLimitError{message, limit}
+}
+
+type defaultLimitError struct {
+	message string
+	value   interface{}
+}
+
+func (err defaultLimitError) Error() string {
+	return err.message
+}
+
+func (err defaultLimitError) Value() interface{} {
+	return err.value
+}
+
 type ArgumentLengthError struct {
 	Name        string
 	ExpectedMin int

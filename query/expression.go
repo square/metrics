@@ -15,7 +15,6 @@
 package query
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/square/metrics/api"
@@ -59,7 +58,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	ok := context.FetchLimit.Consume(len(filtered))
 
 	if !ok {
-		return nil, errors.New("fetch limit exceeded: too many series to fetch")
+		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch", context.FetchLimit.Limit())
 	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))

@@ -38,10 +38,16 @@ var (
 	Logger     = flag.String("logger", "glog", "Selects the logger to use")
 )
 
+type UIConfig struct {
+	Port      int `yaml:"port"`
+	Timeout   int `yaml:"timeout"`
+	ui.Config `yaml:"config"`
+}
+
 type Config struct {
 	Blueflood blueflood.Config `yaml:"blueflood"`
 	API       api.Config       `yaml:"api"` // TODO: Probably rethink how we name this
-	UIConfig  ui.Config        `yaml:"ui"`
+	UIConfig  UIConfig         `yaml:"ui"`
 }
 
 func LoadConfig() Config {

@@ -28,6 +28,7 @@ textarea.queryinput {
 
 .alert-danger {
   white-space: pre;
+  font-family: Consolas, monospace;
 }
 
 .table-column {
