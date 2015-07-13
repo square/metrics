@@ -70,15 +70,32 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
-	tags, _ := context.API.GetAllTags(cmd.metricName)
-	output := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		if cmd.predicate.Apply(tag) {
-			output = append(output, tag.Serialize())
+	tagsets, _ := context.API.GetAllTags(cmd.metricName)
+	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
+	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
+	for _, tagset := range tagsets {
+		if cmd.predicate.Apply(tagset) {
+			// Add each key as needed
+			for key, value := range tagset {
+				if keyValueSets[key] == nil {
+					keyValueSets[key] = map[string]bool{}
+				}
+				keyValueSets[key][value] = true // add `value` to the set for `key`
+			}
 		}
 	}
-	sort.Strings(output)
-	return output, nil
+	keyValueLists := map[string][]string{} // a map of tag_key => list[tag_value]
+	for key, set := range keyValueSets {
+		list := make([]string, 0, len(set))
+		for value := range set {
+			list = append(list, value)
+		}
+		// sort the result
+		sort.Strings(list)
+		keyValueLists[key] = list
+	}
+
+	return keyValueLists, nil
 }
 func (cmd *DescribeCommand) Name() string {
 	return "describe"
