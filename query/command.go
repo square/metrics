@@ -33,6 +33,7 @@ type ExecutionContext struct {
 	Timeout    time.Duration     // optional
 	Profiler   *inspect.Profiler // optional
 	Registry   function.Registry // optional
+	SlotLimit  int               // optional (0 => default 1000)
 }
 
 // Command is the final result of the parsing.
@@ -128,6 +129,21 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return nil, err
+	}
+	slotLimit := context.SlotLimit
+	defaultLimit := 1000
+	if slotLimit == 0 {
+		slotLimit = defaultLimit // the default limit
+	}
+	if timerange.Slots() > slotLimit {
+		var limitMessage string
+		if context.SlotLimit == 0 {
+			limitMessage = "the default limit %d (no limit has been configured)"
+		} else {
+			limitMessage = "the configured limit %d"
+		}
+		limitMessage = fmt.Sprintf(limitMessage, slotLimit)
+		return nil, fmt.Errorf("Requested number of data points (%d) exceeds %s", timerange.Slots(), limitMessage)
 	}
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable
