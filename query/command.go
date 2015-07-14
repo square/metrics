@@ -169,7 +169,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		results := make(chan interface{})
 		errors := make(chan error)
 		go func() {
-			result, err := evaluateExpressions(evaluationContext, cmd.expressions)
+			result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 			if err != nil {
 				errors <- err
 			} else {
@@ -186,7 +186,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 			return nil, err
 		}
 	} else {
-		values, err := evaluateExpressions(evaluationContext, cmd.expressions)
+		values, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
 			return nil, err
 		}

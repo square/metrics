@@ -109,22 +109,3 @@ func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet
 	}
 	return output
 }
-
-// evaluateExpressions evaluates all provided Expressions in the
-// EvaluationContext. If any evaluations error, evaluateExpressions will
-// propagate that error. The resulting SeriesLists will be in an order
-// corresponding to the provided Expresesions.
-func evaluateExpressions(context function.EvaluationContext, expressions []function.Expression) ([]function.Value, error) {
-	if len(expressions) == 0 {
-		return []function.Value{}, nil
-	}
-	results := make([]function.Value, len(expressions))
-	for i, expr := range expressions {
-		result, err := expr.Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		results[i] = result
-	}
-	return results, nil
-}

@@ -68,6 +68,7 @@ func init() {
 	MustRegister(NewFilterRecent("filter.recent_lowest_max", aggregate.Max, true))
 	MustRegister(NewFilterRecent("filter.recent_highest_min", aggregate.Min, false))
 	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
+
 	// Weird ones
 	MustRegister(transform.Timeshift)
 	MustRegister(transform.Alias)
@@ -125,7 +126,7 @@ func (r StandardRegistry) Register(fun function.MetricFunction) error {
 func MustRegister(fun function.MetricFunction) {
 	err := defaultRegistry.Register(fun)
 	if err != nil {
-		panic(fmt.Sprintf("function %s in failed to register", fun.Name))
+		panic(fmt.Sprintf("function %s has failed to register", fun.Name))
 	}
 }
 
@@ -295,30 +296,12 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 		MinArguments: 2,
 		MaxArguments: 2,
 		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			leftChannel := make(chan function.Value, 1)
-			rightChannel := make(chan function.Value, 1)
-			errs := make(chan error, 2)
-			go func() {
-				leftValue, err := args[0].Evaluate(context)
-				leftChannel <- leftValue
-				errs <- err
-			}()
-			go func() {
-				rightValue, err := args[1].Evaluate(context)
-				rightChannel <- rightValue
-				errs <- err
-			}()
-			err := <-errs
+			evaluated, err := function.EvaluateMany(context, args)
 			if err != nil {
 				return nil, err
 			}
-			err = <-errs
-			if err != nil {
-				return nil, err
-			}
-			leftValue := <-leftChannel
-			rightValue := <-rightChannel
-
+			leftValue := evaluated[0]
+			rightValue := evaluated[1]
 			leftList, err := leftValue.ToSeriesList(context.Timerange)
 			if err != nil {
 				return nil, err
