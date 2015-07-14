@@ -102,3 +102,43 @@ type Expression interface {
 	// Evaluate the given expression.
 	Evaluate(context EvaluationContext) (Value, error)
 }
+
+// EvaluateMany evaluates a list of expressions using a single EvaluationContext.
+// If any evaluation errors, EvaluateMany will propagate that error. The resulting values
+// will be in the order corresponding to the provided expressions.
+func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value, error) {
+	type result struct {
+		index int
+		err   error
+		value Value
+	}
+	length := len(expressions)
+	if length == 0 {
+		return []Value{}, nil
+	} else if length == 1 {
+		result, err := expressions[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		return []Value{result}, nil
+	} else {
+		// concurrent evaluations
+		results := make(chan result, length)
+		for i, expr := range expressions {
+			go func(i int, expr Expression) {
+				value, err := expr.Evaluate(context)
+				results <- result{i, err, value}
+			}(i, expr)
+		}
+		array := make([]Value, length)
+		for i := 0; i < length; i++ {
+			result := <-results
+			if result.err != nil {
+				return nil, result.err
+			} else {
+				array[result.index] = result.value
+			}
+		}
+		return array, nil
+	}
+}
