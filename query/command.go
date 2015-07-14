@@ -23,6 +23,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/query/natural_sort"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
@@ -92,12 +93,12 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, erro
 			list = append(list, value)
 		}
 		// sort the result
-		sort.Strings(list)
+		natural_sort.Sort(list)
 		keyValueLists[key] = list
 	}
-
 	return keyValueLists, nil
 }
+
 func (cmd *DescribeCommand) Name() string {
 	return "describe"
 }
