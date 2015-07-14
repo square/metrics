@@ -26,8 +26,11 @@ import (
 // these queries should successfully parse,
 // with a corresponding command.
 var inputs = []string{
-	// describes
+	// describe all
 	"describe all",
+	"describe all matches 'abc'",
+	"describe all matches \"abc\"",
+	// describes
 	"describe x",
 	"describe cpu_usage",
 	"describe inspect",
@@ -158,10 +161,14 @@ var syntaxErrorQuery = []string{
 	"\t",
 	" ",
 	"// comment only",
+	// invalid regex
+	"describe all matches 'ab['",
+	"describe invalid_regex where key matches 'ab['",
+	// invalid syntax
+	"describe (",
 	"describe ( from 0 to 0",
 	"describe in",
 	"describe in from 0 to 0",
-	"describe invalid_regex where key matches 'ab['",
 	"describe invalid_property \nwhere key matches 'ab' from 0 to 0",
 	"select 'a\nac\nabc",
 	"select ( from 0 to 0",

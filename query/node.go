@@ -40,6 +40,9 @@ type Node interface {
 	Print(buffer *bytes.Buffer, indent int)
 }
 
+// Predicates
+// ----------
+
 type andPredicate struct {
 	predicates []api.Predicate
 }
@@ -96,6 +99,13 @@ type functionExpression struct {
 	arguments        []function.Expression
 	groupBy          []string
 	groupByCollapses bool
+}
+
+// etc nodes
+// ---------
+
+type matcherClause struct {
+	regex *regexp.Regexp
 }
 
 // temporary nodes
@@ -232,6 +242,11 @@ func (node *groupByList) Print(buffer *bytes.Buffer, indent int) {
 func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, fmt.Sprintf("%s", node.tag))
+}
+
+func (node *matcherClause) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.regex.String())
 }
 
 // Expressions

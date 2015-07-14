@@ -83,7 +83,11 @@ func (fa *FakeApi) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
 }
 
 func (fa *FakeApi) GetAllMetrics() ([]api.MetricKey, error) {
-	return nil, errors.New("Implement me")
+	array := []api.MetricKey{}
+	for key := range fa.metricTagSets {
+		array = append(array, key)
+	}
+	return array, nil
 }
 
 // Adds a metric to the Key/Value set list.

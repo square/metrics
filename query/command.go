@@ -54,6 +54,7 @@ type DescribeCommand struct {
 
 // DescribeAllCommand returns all the metrics available in the system.
 type DescribeAllCommand struct {
+	matcher *matcherClause
 }
 
 // DescribeMetricsCommand returns all metrics that use a particular key-value pair.
@@ -107,9 +108,16 @@ func (cmd *DescribeCommand) Name() string {
 func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
 	result, err := context.API.GetAllMetrics()
 	if err == nil {
-		sort.Sort(api.MetricKeys(result))
+		filtered := make([]api.MetricKey, 0, len(result))
+		for _, row := range result {
+			if cmd.matcher.regex.MatchString(string(row)) {
+				filtered = append(filtered, row)
+			}
+		}
+		sort.Sort(api.MetricKeys(filtered))
+		return filtered, nil
 	}
-	return result, err
+	return nil, err
 }
 
 func (cmd *DescribeAllCommand) Name() string {
