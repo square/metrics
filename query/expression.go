@@ -85,7 +85,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	serieslist.Name = expr.metricName
 
-	return function.SeriesListValue(serieslist), nil
+	return serieslist, nil
 }
 
 func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {

@@ -91,7 +91,7 @@ var DropFunction = function.MetricFunction{
 			return nil, err
 		}
 		// Drop the tag from the list.
-		return function.SeriesListValue(DropTag(list, dropTag)), nil
+		return DropTag(list, dropTag), nil
 	},
 }
 
@@ -126,6 +126,6 @@ var SetFunction = function.MetricFunction{
 			return nil, err
 		}
 		// Set the tag for the list:
-		return function.SeriesListValue(SetTag(list, tag, set)), nil
+		return SetTag(list, tag, set), nil
 	},
 }

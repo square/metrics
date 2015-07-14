@@ -163,7 +163,7 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 			}
 			result := filter.FilterBy(list, count, summary, ascending)
 			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
-			return function.SeriesListValue(result), nil
+			return result, nil
 		},
 	}
 }
@@ -207,7 +207,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 			}
 			result := filter.FilterRecentBy(list, count, summary, ascending, duration)
 			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
-			return function.SeriesListValue(result), nil
+			return result, nil
 		},
 	}
 }
@@ -243,7 +243,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 				}
 				result.Name = fmt.Sprintf("%s(%s %s by %s)", name, value.GetName(), verbName, strings.Join(groupNames, ", "))
 			}
-			return function.SeriesListValue(result), nil
+			return result, nil
 		},
 	}
 }
@@ -283,7 +283,7 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 			} else {
 				result.Name = fmt.Sprintf("%s(%s)", name, listValue.GetName())
 			}
-			return function.SeriesListValue(result), nil
+			return result, nil
 		},
 	}
 }
@@ -325,11 +325,11 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 				result[i] = api.Timeseries{array, row.TagSet}
 			}
 
-			return function.SeriesListValue(api.SeriesList{
+			return api.SeriesList{
 				Series:    result,
 				Timerange: context.Timerange,
 				Name:      fmt.Sprintf("(%s %s %s)", leftValue.GetName(), op, rightValue.GetName()),
-			}), nil
+			}, nil
 		},
 	}
 }

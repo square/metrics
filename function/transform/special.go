@@ -44,7 +44,7 @@ var Timeshift = function.MetricFunction{
 			return nil, err
 		}
 
-		if seriesValue, ok := result.(function.SeriesListValue); ok {
+		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
 			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
 			return seriesValue, nil
@@ -125,7 +125,7 @@ var MovingAverage = function.MetricFunction{
 			list.Series[index].Values = results
 		}
 		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		return function.SeriesListValue(list), nil
+		return list, nil
 	},
 }
 
@@ -151,6 +151,6 @@ var Alias = function.MetricFunction{
 			return nil, err
 		}
 		list.Name = name
-		return function.SeriesListValue(list), nil
+		return list, nil
 	},
 }

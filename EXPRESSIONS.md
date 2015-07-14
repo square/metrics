@@ -89,16 +89,16 @@ Some examples:
 Expressions and literals in MQE evaluate to one of 5 types of *values*. Value types are checked for correctness when functions are evaluated.
 Only the `SeriesList` type is a legal result in a `select` query.
 
-### `SeriesListValue`
+### `SeriesList`
 
-A `SeriesListValue` is a collection of series; the `SeriesList` as a whole has a `Timerange` (start, end, interval) which applies to every series inside it.
+A `SeriesList` is a collection of series; the `SeriesList` as a whole has a `Timerange` (start, end, interval) which applies to every series inside it.
 Each series individually has a collection of tag (key, value) pairs and a sequence of sampled metric values associated to it.
 
 They cannot be implictly converted into any other type.
 
 ### `NumberValue`
 
-`NumberValue`s come from numeric literals. They are implictly converted to `SeriesListValue` containing a single, tagless series having constant value whenever a `SeriesList` is expected.
+`NumberValue`s come from numeric literals. They are implictly converted to `SeriesList` containing a single, tagless series having constant value whenever a `SeriesList` is expected.
 
 They cannot be implictly converted into any type other than `SeriesList`.
 
