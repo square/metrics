@@ -771,15 +771,18 @@ func customParseError(parser *Parser) string {
 }
 
 func makePrettyLine(parser *Parser, token token32, translations textPositionMap) (string, string) {
+	N := len(parser.Buffer)
 	begin, end := int(token.begin), int(token.end)
 	lineStart := begin - translations[begin].symbol + 1
 	lineEnd := lineStart
-	for i := lineStart; i < len(parser.Buffer) && parser.Buffer[i] != '\n'; i++ {
+	for i := lineStart; i < N && parser.Buffer[i] != '\n'; i++ {
 		lineEnd = i
 	}
-	if parser.Buffer[lineEnd] != '\n' {
+	if lineEnd < N && parser.Buffer[lineEnd] != '\n' {
 		lineEnd = lineEnd + 1
 	}
+	lineStart = min(N-1, lineStart)
+	lineEnd = min(N-1, lineEnd)
 	line := parser.Buffer[lineStart:lineEnd]
 	symbolBegin := translations[begin].symbol - 1
 	if symbolBegin < 0 {
@@ -802,6 +805,13 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
 		return line, underline
 	}
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }
 
 // utility type variables
