@@ -153,6 +153,7 @@ var selects = []string{
 // these queries should fail with a syntax error.
 var syntaxErrorQuery = []string{
 	"describe ( from 0 to 0",
+	"describe in",
 	"describe in from 0 to 0",
 	"describe invalid_regex where key matches 'ab['",
 	"describe invalid_property \nwhere key matches 'ab' from 0 to 0",
