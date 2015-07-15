@@ -32,7 +32,7 @@ module.factory("$windowSize", function($window) {
 module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
   return {
     restrict: "E",
-    template: "<div style='width:100%;height:100px'> <pre>{{ data }} {{ option }}</pre></div>",
+    template: "<div style='width:100%;height:100px'></div>",
     scope: {
       chartType: "&",
       data:      "&",
