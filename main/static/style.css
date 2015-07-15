@@ -47,11 +47,17 @@ textarea.queryinput {
   display:block;
 }
 
+.metric-chart {
+	display:    block;
+  background: #EEE;
+  width:      100%;
+  height:     150px;
+}
 
-#chart-div {
-  background:#EEE;
-  width:100%;
-  height:500px;
+.timeline-chart {
+	display: block;
+  width:   100%;
+  height:  1000px;
 }
 
 .autocom-tooltip-box {
@@ -64,11 +70,6 @@ textarea.queryinput {
 }
 .autocom-tooltip-selected {
 	background: #CCDDFF;
-}
-
-#timeline-div {
-  width:100%;
-  height:500px;
 }
 
 /* Query History CSS */
