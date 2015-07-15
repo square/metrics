@@ -48,28 +48,30 @@ textarea.queryinput {
 }
 
 .metric-chart {
-	display:    block;
+  display:    block;
   background: #EEE;
   width:      100%;
   height:     150px;
 }
 
 .timeline-chart {
-	display: block;
+  display: block;
   width:   100%;
   height:  1000px;
 }
 
 .autocom-tooltip-box {
-	background:#F5F5F5;
-	font-family: Consolas, monospace;
+  background:#F5F5F5;
+  font-family: Consolas, monospace;
 }
+
 .autocom-tooltip-line {
-	padding: 3px;
-	cursor: pointer;
+  padding: 3px;
+  cursor: pointer;
 }
+
 .autocom-tooltip-selected {
-	background: #CCDDFF;
+  background: #CCDDFF;
 }
 
 /* Query History CSS */

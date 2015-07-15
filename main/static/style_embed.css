@@ -26,7 +26,7 @@ body {
 }
 
 .metric-chart {
-	display:    block;
+  display:    block;
   background: #EEE;
   width:      100%;
   height:     100%;
