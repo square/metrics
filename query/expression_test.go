@@ -33,10 +33,10 @@ type LiteralExpression struct {
 }
 
 func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.SeriesListValue(api.SeriesList{
+	return api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{expr.Values, api.NewTagSet()}},
 		Timerange: api.Timerange{},
-	}), nil
+	}, nil
 }
 
 type LiteralSeriesExpression struct {
@@ -44,7 +44,7 @@ type LiteralSeriesExpression struct {
 }
 
 func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.SeriesListValue(expr.list), nil
+	return expr.list, nil
 }
 
 func Test_ScalarExpression(t *testing.T) {

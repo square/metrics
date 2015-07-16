@@ -315,6 +315,8 @@ func (sm SampleMethod) String() string {
 }
 
 // SeriesList is a list of time series sharing the same time range.
+// this struct must satisfy the `function.Value` interface. However, a type assertion
+// cannot be held here due to a circular import.
 type SeriesList struct {
 	Series    []Timeseries `json:"series"`
 	Timerange Timerange    `json:"timerange"`
@@ -330,4 +332,38 @@ func (list SeriesList) isValid() bool {
 		}
 	}
 	return true // validation is now successful.
+}
+
+func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
+	return list, nil
+}
+
+func (list SeriesList) ToString() (string, error) {
+	return "", ConversionError{"SeriesList", "string", fmt.Sprintf("serieslist[%s]", list.Name)}
+}
+
+func (list SeriesList) ToScalar() (float64, error) {
+	return 0, ConversionError{"SeriesList", "scalar", fmt.Sprintf("serieslist[%s]", list.Name)}
+}
+
+func (list SeriesList) ToDuration() (time.Duration, error) {
+	return 0, ConversionError{"SeriesList", "duration", fmt.Sprintf("serieslist[%s]", list.Name)}
+}
+
+func (list SeriesList) GetName() string {
+	return list.Name
+}
+
+type ConversionError struct {
+	From  string // the original data type
+	To    string // the type that attempted to convert to
+	Value string // a short string representation of the value
+}
+
+func (e ConversionError) Error() string {
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Value, e.From, e.To)
+}
+
+func (e ConversionError) TokenName() string {
+	return fmt.Sprintf("%+v (type %s)", e.Value, e.From)
 }
