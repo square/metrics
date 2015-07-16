@@ -68,14 +68,13 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
 
       function render() {
         $timeout(function(){
-          // TODO - add this somewhere.
-          google.visualization.events.addListener(chart, "ready", function() {
-            scope.$apply(function() { $chartWaiting.dec(); });
-          });
           var data = scope.data();
           var option = scope.option();
           if (data && option) {
             $chartWaiting.inc();
+            google.visualization.events.addListener(chart, "ready", function() {
+              scope.$apply(function() { $chartWaiting.dec(); });
+            });
             chart.draw(data, option);
           }
         }, 1);

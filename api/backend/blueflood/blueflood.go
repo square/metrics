@@ -35,21 +35,21 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl  string               `yaml:"base_url"`
-	TenantId string               `yaml:"tenant_id"`
-	Ttls     map[Resolution]int64 `yaml:"ttls"` // Ttl in days
-	Timeout  time.Duration        `yaml:"timeout"`
+	BaseUrl  string           `yaml:"base_url"`
+	TenantId string           `yaml:"tenant_id"`
+	Ttls     map[string]int64 `yaml:"ttls"` // Ttl in days
+	Timeout  time.Duration    `yaml:"timeout"`
 }
 
-func (c Config) getTtlInMillis(r Resolution) int64 {
+func (c Config) getTTL(r Resolution) time.Duration {
 	var ttl int64
-	if v, ok := c.Ttls[r]; ok {
+	if v, ok := c.Ttls[r.bluefloodEnum]; ok {
 		ttl = v
 	} else {
 		// Use blueflood defaults
 		switch r {
 		case ResolutionFull:
-			ttl = 7
+			ttl = 1
 		case Resolution5Min:
 			ttl = 30
 		case Resolution20Min:
@@ -67,7 +67,7 @@ func (c Config) getTtlInMillis(r Resolution) int64 {
 		}
 	}
 
-	return ttl * 24 * 60 * 60 * 1000
+	return time.Duration(ttl) * 24 * time.Hour
 }
 
 type blueflood struct {
@@ -88,20 +88,31 @@ type metricPoint struct {
 	Variance  float64 `json:"variance"`
 }
 
-type Resolution string
+type Resolution struct {
+	bluefloodEnum string
+	duration      time.Duration
+}
 
-const (
-	ResolutionFull    Resolution = "FULL"
-	Resolution5Min               = "MIN5"
-	Resolution20Min              = "MIN20"
-	Resolution60Min              = "MIN60"
-	Resolution240Min             = "MIN240"
-	Resolution1440Min            = "MIN1440"
+var (
+	ResolutionFull    Resolution = Resolution{"FULL", time.Second * 30}
+	Resolution5Min               = Resolution{"MIN5", time.Minute * 5}
+	Resolution20Min              = Resolution{"MIN20", time.Minute * 20}
+	Resolution60Min              = Resolution{"MIN60", time.Minute * 60}
+	Resolution240Min             = Resolution{"MIN240", time.Minute * 240}
+	Resolution1440Min            = Resolution{"MIN1440", time.Minute * 1440}
 )
+var Resolutions []Resolution = []Resolution{
+	ResolutionFull,
+	Resolution5Min,
+	Resolution20Min,
+	Resolution60Min,
+	Resolution240Min,
+	Resolution1440Min,
+}
 
 func NewBlueflood(c Config) api.Backend {
 	b := blueflood{config: c, client: http.DefaultClient}
-	b.config.Ttls = map[Resolution]int64{}
+	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
 		b.config.Ttls[k] = v
 	}
@@ -119,8 +130,11 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
+	queryResolution := b.config.bluefloodResolution(
+		request.Timerange.Resolution(),
+		request.Timerange.Start())
 
-	queryUrl, err := b.constructURL(request, sampler)
+	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
@@ -131,7 +145,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		return api.Timeseries{}, err
 	}
 
-	values := processResult(parsedResult, request.Timerange, sampler)
+	values := processResult(parsedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
@@ -144,7 +158,9 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 // ----------------
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
-func (b *blueflood) constructURL(request api.FetchSeriesRequest, sampler sampler) (*url.URL, error) {
+func (b *blueflood) constructURL(request api.FetchSeriesRequest,
+	sampler sampler,
+	queryResolution Resolution) (*url.URL, error) {
 	graphiteName, err := request.API.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
@@ -159,8 +175,8 @@ func (b *blueflood) constructURL(request api.FetchSeriesRequest, sampler sampler
 	params.Set("from", strconv.FormatInt(request.Timerange.Start(), 10))
 	// Pull a bit outside of the requested range from blueflood so we
 	// have enough data to generate all snapped values
-	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.Resolution(), 10))
-	params.Set("resolution", b.config.bluefloodResolution(request.Timerange.Resolution(), request.Timerange.Start()))
+	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.ResolutionMillis(), 10))
+	params.Set("resolution", queryResolution.bluefloodEnum)
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
 	result.RawQuery = params.Encode()
 	return result, nil
@@ -207,7 +223,10 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	}
 }
 
-func processResult(parsedResult queryResponse, timerange api.Timerange, sampler sampler) []float64 {
+func processResult(parsedResult queryResponse,
+	timerange api.Timerange,
+	sampler sampler,
+	queryResolution Resolution) []float64 {
 	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
 	buckets := bucketsFromMetricPoints(parsedResult.Values, sampler.fieldSelector, timerange)
 
@@ -221,6 +240,8 @@ func processResult(parsedResult queryResponse, timerange api.Timerange, sampler 
 		}
 		values[i] = sampler.bucketSampler(bucket)
 	}
+
+	// interpolate.
 	return values
 }
 
@@ -228,7 +249,7 @@ func addMetricPoint(metricPoint metricPoint, field func(metricPoint) float64, ti
 	value := field(metricPoint)
 	// The index to assign within the array is computed using the timestamp.
 	// It floors to the nearest index.
-	index := (metricPoint.Timestamp - timerange.Start()) / timerange.Resolution()
+	index := (metricPoint.Timestamp - timerange.Start()) / timerange.ResolutionMillis()
 	if index < 0 || index >= int64(timerange.Slots()) {
 		return false
 	}
@@ -238,10 +259,6 @@ func addMetricPoint(metricPoint metricPoint, field func(metricPoint) float64, ti
 
 func bucketsFromMetricPoints(metricPoints []metricPoint, resultField func(metricPoint) float64, timerange api.Timerange) [][]float64 {
 	buckets := make([][]float64, timerange.Slots())
-	// Make the buckets:
-	for i := range buckets {
-		buckets[i] = []float64{}
-	}
 	for _, point := range metricPoints {
 		addMetricPoint(point, resultField, timerange, buckets)
 	}
@@ -286,21 +303,23 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
 // between them.
-func (c Config) bluefloodResolution(resolution int64, timestamp int64) string {
-	now := time.Now().UTC().Unix() * 1000
-
+func (c Config) bluefloodResolution(
+	desiredResolution time.Duration,
+	startMs int64) Resolution {
+	now := time.Now().Unix() * 1000
 	// Choose the appropriate resolution based on TTL, fetching the highest resolution data we can
-	switch {
-	case resolution < 5*60*1000 && now-timestamp < c.getTtlInMillis(ResolutionFull):
-		return string(ResolutionFull)
-	case resolution < 20*60*1000 && now-timestamp < c.getTtlInMillis(Resolution5Min):
-		return string(Resolution5Min)
-	case resolution < 60*60*1000 && now-timestamp < c.getTtlInMillis(Resolution20Min):
-		return string(Resolution20Min)
-	case resolution < 240*60*1000 && now-timestamp < c.getTtlInMillis(Resolution60Min):
-		return string(Resolution60Min)
-	case resolution < 1440*60*1000 && now-timestamp < c.getTtlInMillis(Resolution240Min):
-		return string(Resolution240Min)
+	for _, current := range Resolutions {
+		age := time.Duration(now-startMs) * time.Millisecond
+		maxAge := c.getTTL(current)
+		log.Debugf("Desired (s): %d\n", desiredResolution/time.Second)
+		log.Debugf("Current (s): %d\n", current.duration/time.Second)
+		log.Debugf("age (s): %d\n", age/time.Second)
+		log.Debugf("ttl (s): %d\n", maxAge/time.Second)
+		if desiredResolution <= current.duration &&
+			age < c.getTTL(current) {
+			return current
+		}
 	}
-	return string(Resolution1440Min)
+	// return the coarsest resolution.
+	return Resolutions[len(Resolutions)-1]
 }

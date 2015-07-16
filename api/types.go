@@ -174,9 +174,14 @@ func (tr Timerange) MarshalJSON() ([]byte, error) {
 	}{tr.start, tr.end, tr.resolution})
 }
 
-// Resolution() returns the .resolution field
-func (tr Timerange) Resolution() int64 {
+// ResolutionMillis() returns the .resolution field
+func (tr Timerange) ResolutionMillis() int64 {
 	return tr.resolution
+}
+
+// Resolution() returns the resolution in time.Duration.
+func (tr Timerange) Resolution() time.Duration {
+	return time.Duration(tr.resolution) * time.Millisecond
 }
 
 // NewTimerange creates a timerange which is validated, providing error otherwise.
