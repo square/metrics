@@ -49,7 +49,8 @@ type API interface {
 
 // Configuration is the struct that tells how to instantiate a new copy of an API.
 type Config struct {
-	ConversionRulesPath string `yaml:"conversion_rules_path"` // Location of the rule yaml file.
+	// Location of conversion rules. All *.yaml files in here will be loaded.
+	ConversionRulesPath string `yaml:"conversion_rules_path"`
 
 	// Database configurations
 	// mostly cassandra configurations from
