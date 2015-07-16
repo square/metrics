@@ -56,17 +56,29 @@
     <div
       ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'"
       class="col-xs-12">
-      <div id="chart-div"></div>
+      <google-chart
+        class="metric-chart"
+        data="selectResult"
+        option="selectOptions"
+        chart-type="inputModel.renderType"
+      >
+      </google-chart>
     </div>
     <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
-      Embed link: <pre>{{ embedLink }}</pre>
+      <a ng-href="{{ embedLink }}" target="_blank">Embed Link</a>
     </div>
 
     <div
       ng-show="screenState() != 'loading' && screenState() != 'error' && hasProfiling(queryResult)"
       class="col-xs-12">
       <h1>Profiling Information</h1>
-     <div id="timeline-div"></div>
+      <google-chart
+        class="timeline-chart"
+        data="profileResult"
+        option="profileResult"
+        chart-type="'timeline'"
+      >
+      </google-chart>
     </div>
 
     <div>

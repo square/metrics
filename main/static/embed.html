@@ -17,11 +17,14 @@
     <div class="alert alert-info"   ng-show="screenState() == 'rendering'">Rendering chart...</div>
     <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
   </div>
-  <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'" id="chart-div" >
-    
-  </div>
+  <google-chart ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'"
+		class="metric-chart"
+		data="selectResult"
+		option="selectOptions"
+		chart-type="inputModel.renderType">
+	</google-chart>
   <div class="metrics-link">
-    <a href="{{metricsURL}}" target="_self">See on metrics indexer</a>
+    <a ng-href="{{metricsURL}}" target="_blank">See on metrics indexer</a>
   </div>
 </div>
 </body>
