@@ -3,6 +3,8 @@ package internal
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -17,18 +19,11 @@ type defaultAPI struct {
 
 // NewAPI creates a new instance of API from the given configuration.
 func NewAPI(config api.Config) (api.API, error) {
-	file, err := os.Open(config.ConversionRulesPath)
+	ruleset, err := loadRules(config.ConversionRulesPath)
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	ruleset, err := LoadYAML(bytes)
-	if err != nil {
-		return nil, err
-	}
+
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
@@ -41,6 +36,41 @@ func NewAPI(config api.Config) (api.API, error) {
 		db:      db,
 		ruleset: ruleset,
 	}, nil
+}
+
+func loadRules(conversionRulesPath string) (RuleSet, error) {
+	ruleSet := RuleSet{
+		rules: []Rule{},
+	}
+
+	filenames, err := filepath.Glob(filepath.Join(conversionRulesPath, "*.yaml"))
+	if err != nil {
+		return RuleSet{}, err
+	}
+
+	sort.Strings(filenames)
+
+	for _, filename := range filenames {
+		file, err := os.Open(filename)
+		if err != nil {
+			return RuleSet{}, err
+		}
+		defer file.Close()
+
+		bytes, err := ioutil.ReadAll(file)
+		if err != nil {
+			return RuleSet{}, err
+		}
+
+		rs, err := LoadYAML(bytes)
+		if err != nil {
+			return RuleSet{}, err
+		}
+
+		ruleSet.rules = append(ruleSet.rules, rs.rules...)
+	}
+
+	return ruleSet, nil
 }
 
 func (a *defaultAPI) AddMetric(metric api.TaggedMetric) error {
