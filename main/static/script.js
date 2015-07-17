@@ -92,7 +92,6 @@ module.run(function($window, $timeout, $windowSize) {
     var currentCounter = counter; // capture the current value via the closure.
     $timeout(function() {
       if (currentCounter  == counter) {
-        // console.log('new size:', $window.innerWidth, $window.innerHeight);
         $windowSize.height = $window.innerHeight;
         $windowSize.width = $window.innerWidth;
         $windowSize.version++;
@@ -452,7 +451,6 @@ function convertSelectResponse(object) {
         if (s.tagset.$linewidth) {
           singleSeriesOption.lineWidth = parseFloat(s.tagset.$linewidth);
         }
-        debugger
         labels.push(makeLabel(onlySingleSeries, serieslist, s));
       } else {
         break;
