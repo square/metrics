@@ -154,6 +154,7 @@ var selects = []string{
 var syntaxErrorQuery = []string{
 	"",
 	"\n",
+	" \n",
 	"\t",
 	" ",
 	"// comment only",
