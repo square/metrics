@@ -152,6 +152,12 @@ var selects = []string{
 
 // these queries should fail with a syntax error.
 var syntaxErrorQuery = []string{
+	"",
+	"\n",
+	" \n",
+	"\t",
+	" ",
+	"// comment only",
 	"describe ( from 0 to 0",
 	"describe in",
 	"describe in from 0 to 0",

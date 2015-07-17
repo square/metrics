@@ -781,8 +781,8 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 	if lineEnd < N && parser.Buffer[lineEnd] != '\n' {
 		lineEnd = lineEnd + 1
 	}
-	lineStart = min(N-1, lineStart)
-	lineEnd = min(N-1, lineEnd)
+	lineStart = max(0, min(N-1, lineStart))
+	lineEnd = max(0, min(N-1, lineEnd))
 	line := parser.Buffer[lineStart:lineEnd]
 	symbolBegin := translations[begin].symbol - 1
 	if symbolBegin < 0 {
@@ -809,6 +809,13 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 
 func min(x, y int) int {
 	if x < y {
+		return x
+	}
+	return y
+}
+
+func max(x, y int) int {
+	if x > y {
 		return x
 	}
 	return y
