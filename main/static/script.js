@@ -1,4 +1,4 @@
-// Copyright 2015 Square Inc.
+// Copyright 2015 Square Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -257,7 +257,12 @@ module.controller("commonCtrl", function(
   $scope.selectOptions = {
     legend:    {position: "bottom"},
     title:     $location.search()["title"],
-    chartArea: {left: "5%", width:"90%", top: "5%", height: "85%"}
+    chartArea: {left: "5%", width:"90%", top: "5%", height: "80%"},
+    series:    null,
+    vAxes: {
+      0: {title: ""},
+      1: {title: ""}
+    }
   };
   $scope.$watch("inputModel.renderType", function(newValue) {
     if (newValue === "area") {
@@ -270,7 +275,14 @@ module.controller("commonCtrl", function(
   $scope.maxResult = MAX_RENDERED;
   $scope.setQueryResult = function(queryResult) {
     $scope.queryResult =   queryResult;
-    $scope.selectResult =  convertSelectResponse(queryResult);
+    var selectResponse = convertSelectResponse(queryResult);
+    if (selectResponse) {
+      $scope.selectResult = selectResponse.dataTable;
+      $scope.selectOptions.series = selectResponse.seriesOptions;
+    } else {
+      $scope.selectResult = null;
+      $scope.selectOptions.series = null;
+    }
     $scope.totalResult = 0;
     $scope.profileResult = convertProfileResponse(queryResult);
     if ($scope.selectResult) {
@@ -414,6 +426,7 @@ function convertSelectResponse(object) {
     // invalid data.
     return null;
   }
+  var seriesOptions = {};
   var series = [];
   var labels = ["Time"];
   var table = [labels];
@@ -424,7 +437,22 @@ function convertSelectResponse(object) {
     for (var j = 0; j < serieslist.series.length; j++) {
       if (series.length < MAX_RENDERED) {
         var s = object.body[i].series[j];
+        var singleSeriesOption = {};
         series.push(s);
+        seriesOptions[series.length-1] = singleSeriesOption;
+        // special tags.
+        if (s.tagset.$secondaxis === "true") {
+          singleSeriesOption.targetAxisIndex = 0;
+        } else {
+          singleSeriesOption.targetAxisIndex = 1;
+        }
+        if (s.tagset.$color) {
+          singleSeriesOption.color = s.tagset.$color;
+        }
+        if (s.tagset.$linewidth) {
+          singleSeriesOption.lineWidth = parseFloat(s.tagset.$linewidth);
+        }
+        debugger
         labels.push(makeLabel(onlySingleSeries, serieslist, s));
       } else {
         break;
@@ -445,7 +473,10 @@ function convertSelectResponse(object) {
     }
     table.push(row);
   }
-  return google.visualization.arrayToDataTable(table);
+  return {
+    dataTable: google.visualization.arrayToDataTable(table),
+    seriesOptions: seriesOptions
+  }
 }
 
 
@@ -457,7 +488,9 @@ function makeLabel(onlySingleSeries, serieslist, series) {
   var tagsets = [];
   var label;
   for (var key in series.tagset) {
-    tagsets.push(key + ":" + series.tagset[key]);
+    if (key[0] !== "$") {
+      tagsets.push(key + ":" + series.tagset[key]);
+    }
   }
   if (onlySingleSeries) {
     if (tagsets.length > 0) {
