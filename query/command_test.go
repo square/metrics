@@ -107,8 +107,8 @@ func TestCommand_DescribeAll(t *testing.T) {
 		expected []api.MetricKey
 	}{
 		{"describe all", fakeApi, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
-		{"describe all matches '_0'", fakeApi, []api.MetricKey{"series_0"}},
-		{"describe all matches '_5'", fakeApi, []api.MetricKey{}},
+		{"describe all match '_0'", fakeApi, []api.MetricKey{"series_0"}},
+		{"describe all match '_5'", fakeApi, []api.MetricKey{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)

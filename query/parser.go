@@ -259,13 +259,13 @@ func (p *Parser) makeSelect() {
 	}
 }
 
-func (p *Parser) addNullMatchesClause() {
-	p.pushNode(&matcherClause{regexp.MustCompile("")})
+func (p *Parser) addNullMatchClause() {
+	p.pushNode(&matcherClause{regex: regexp.MustCompile("")})
 }
 
-func (p *Parser) addMatchesClause() {
+func (p *Parser) addMatchClause() {
 	compiled := p.popRegex()
-	p.pushNode(&matcherClause{compiled})
+	p.pushNode(&matcherClause{regex: compiled})
 }
 
 func (p *Parser) makeDescribeAll() {
@@ -274,7 +274,7 @@ func (p *Parser) makeDescribeAll() {
 		p.flagTypeAssertion()
 		return
 	}
-	p.command = &DescribeAllCommand{matcherClause}
+	p.command = &DescribeAllCommand{matcher: matcherClause}
 }
 
 func (p *Parser) makeDescribeMetrics() {

@@ -28,8 +28,8 @@ import (
 var inputs = []string{
 	// describe all
 	"describe all",
-	"describe all matches 'abc'",
-	"describe all matches \"abc\"",
+	"describe all match 'abc'",
+	"describe all match \"abc\"",
 	// describes
 	"describe x",
 	"describe cpu_usage",
@@ -44,8 +44,8 @@ var inputs = []string{
 	"describe cpu_usage where (key = 'value')",
 	"describe cpu_usage where key = 'value' or key = 'value'",
 	"describe cpu_usage where key in ('value', 'value')",
-	"describe cpu_usage where key matches 'abc'",
-	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host matches 'fwd'",
+	"describe cpu_usage where key match 'abc'",
+	"describe nodes.cpu.usage where datacenter='sjc1b' and type='idle' and host match 'fwd'",
 	// predicate parenthesis test
 	"describe cpu_usage where key = 'value' and (key = 'value')",
 	"describe cpu_usage where (key = 'value') and key = 'value'",
@@ -162,14 +162,15 @@ var syntaxErrorQuery = []string{
 	" ",
 	"// comment only",
 	// invalid regex
-	"describe all matches 'ab['",
-	"describe invalid_regex where key matches 'ab['",
+	"describe all match 'ab['",
+	"describe invalid_regex where key match 'ab['",
 	// invalid syntax
 	"describe (",
 	"describe ( from 0 to 0",
 	"describe in",
 	"describe in from 0 to 0",
-	"describe invalid_property \nwhere key matches 'ab' from 0 to 0",
+	"describe invalid_property \nwhere key match 'ab' from 0 to 0",
+	"describe all matches 'abc'", // matches is not a keyword.
 	"select 'a\nac\nabc",
 	"select ( from 0 to 0",
 	"select ) from 0 to 0",
