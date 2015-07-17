@@ -15,6 +15,8 @@
 
 var module = angular.module("main",[]);
 
+var MAX_RENDERED = 200;
+
 google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
 
 module.config(function($locationProvider) {
@@ -205,25 +207,26 @@ module.factory("$queryTicketBooth", function() {
 module.factory("$launchRequest", function($google, $http, $queryTicketBooth, $launchedQueries, $q) {
   return function(params) {
     var resultPromise = $q.defer(); // Will be resolved with received value.
+    var start = new Date();
     var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
       params:params
     }).success(function(data, status, headers, config) {
       $launchedQueries.dec();
-      if (ticket.valid()) {
-        resultPromise.resolve(data);
-      } else {
-        resultPromise.reject(null);
-      }
+      resolve(data);
     }).error(function(data, status, headers, config) {
       $launchedQueries.dec();
+      resolve(data);
+    });
+    function resolve(data) {
+      var elapsedMs = new Date().getTime() - start.getTime();
       if (ticket.valid()) {
-        resultPromise.resolve(data);
+        resultPromise.resolve({elapsedMs: elapsedMs, payload: data});
       } else {
         resultPromise.reject(null);
       }
-    });
+    }
     return resultPromise.promise;
   };
 });
@@ -251,19 +254,31 @@ module.controller("commonCtrl", function(
       return "rendered";
     }
   };
+  $scope.selectOptions = {
+    legend:    {position: "bottom"},
+    title:     $location.search()["title"],
+    chartArea: {left: "5%", width:"90%", top: "5%", height: "85%"}
+  };
+  $scope.$watch("inputModel.renderType", function(newValue) {
+    if (newValue === "area") {
+      $scope.selectOptions.isStacked = true;
+    } else {
+      $scope.selectOptions.isStacked = false;
+    }
+  });
+
+  $scope.maxResult = MAX_RENDERED;
   $scope.setQueryResult = function(queryResult) {
-    var options = {
-      legend:    {position: "bottom"},
-      title:     $location.search()["title"],
-      chartArea: {left: "5%", width:"90%", top: "5%", height: "85%"}
-    }
-    if ($scope.inputModel.renderType === "area") {
-      options.isStacked = true;
-    }
     $scope.queryResult =   queryResult;
-    $scope.selectOptions = options;
     $scope.selectResult =  convertSelectResponse(queryResult);
+    $scope.totalResult = 0;
     $scope.profileResult = convertProfileResponse(queryResult);
+    if ($scope.selectResult) {
+      for (var i = 0; i < queryResult.body.length; i++) {
+        // Each of these is a list of series
+        $scope.totalResult += queryResult.body[i].series.length;
+      }
+    }
   };
 });
 
@@ -315,7 +330,9 @@ module.controller("mainCtrl", function(
         profile: $scope.inputModel.profile,
         query:   $scope.inputModel.query
       }).then(function(data) {
-        $scope.setQueryResult(data);
+        $scope.setQueryResult(data.payload);
+        $scope.elapsedMs = data.elapsedMs;
+        updateEmbed();
       });
     }
   });
@@ -328,7 +345,7 @@ module.controller("mainCtrl", function(
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
-  updateEmbed()
+  updateEmbed();
 });
 
 module.controller("embedCtrl", function(
@@ -352,14 +369,13 @@ module.controller("embedCtrl", function(
     profile: false,
     query:   queries["query"] || ""
   }).then(function(data) {
-    $scope.setQueryResult(data);
+    $scope.setQueryResult(data.payload);
   });
 
   var url = $location.absUrl();
   var at = url.indexOf("?");
   $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port()
     + "/ui" + url.substring(at);
-  debugger;
 });
 
 // utility functions
@@ -401,13 +417,18 @@ function convertSelectResponse(object) {
   var series = [];
   var labels = ["Time"];
   var table = [labels];
+  var onlySingleSeries = object.body.length === 1;
   for (var i = 0; i < object.body.length; i++) {
     // Each of these is a list of series
     var serieslist = object.body[i];
     for (var j = 0; j < serieslist.series.length; j++) {
-      var s = object.body[i].series[j];
-      series.push(s);
-      labels.push(makeLabel(serieslist, s));
+      if (series.length < MAX_RENDERED) {
+        var s = object.body[i].series[j];
+        series.push(s);
+        labels.push(makeLabel(onlySingleSeries, serieslist, s));
+      } else {
+        break;
+      }
     }
   }
   // Next, add each row.
@@ -432,10 +453,22 @@ function dateFromIndex(index, timerange) {
   return new Date(timerange.start + timerange.resolution * index);
 }
 
-function makeLabel(serieslist, series) {
-  var label = serieslist.name + " ";
+function makeLabel(onlySingleSeries, serieslist, series) {
+  var tagsets = [];
+  var label;
   for (var key in series.tagset) {
-    label += key + ":" + series.tagset[key] + " "; 
+    tagsets.push(key + ":" + series.tagset[key]);
+  }
+  if (onlySingleSeries) {
+    if (tagsets.length > 0) {
+      // for a single graph, only return the tags.
+      return tagsets.join(" ");
+    }
+    // if no tags, then return the name.
+    return serieslist.name;
+  } else {
+    // return both name and tags.
+    return serieslist.name + " " + tagsets.join(" ");
   }
   return label;
 }

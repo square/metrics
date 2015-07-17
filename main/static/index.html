@@ -53,6 +53,15 @@
       <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
     </div>
 
+    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
+      <div class="col-xs-10">
+        Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned.
+        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b>
+      </div>
+      <div class="col-xs-2">
+        <a ng-href="{{ embedLink }}" class="btn btn-default" target="_blank">Embed Link</a>
+      </div>
+    </div>
     <div
       ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'"
       class="col-xs-12">
@@ -64,10 +73,6 @@
       >
       </google-chart>
     </div>
-    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
-      <a ng-href="{{ embedLink }}" target="_blank">Embed Link</a>
-    </div>
-
     <div
       ng-show="screenState() != 'loading' && screenState() != 'error' && hasProfiling(queryResult)"
       class="col-xs-12">
