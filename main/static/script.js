@@ -1,4 +1,4 @@
-// Copyright 2015 Square Inc.
+// Copyright 2015 Square Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 "use strict";
 
 var module = angular.module("main",[]);
+
+var MAX_RENDERED = 200;
 
 google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
 
@@ -90,7 +92,6 @@ module.run(function($window, $timeout, $windowSize) {
     var currentCounter = counter; // capture the current value via the closure.
     $timeout(function() {
       if (currentCounter  == counter) {
-        // console.log('new size:', $window.innerWidth, $window.innerHeight);
         $windowSize.height = $window.innerHeight;
         $windowSize.width = $window.innerWidth;
         $windowSize.version++;
@@ -205,25 +206,26 @@ module.factory("$queryTicketBooth", function() {
 module.factory("$launchRequest", function($google, $http, $queryTicketBooth, $launchedQueries, $q) {
   return function(params) {
     var resultPromise = $q.defer(); // Will be resolved with received value.
+    var start = new Date();
     var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
       params:params
     }).success(function(data, status, headers, config) {
       $launchedQueries.dec();
-      if (ticket.valid()) {
-        resultPromise.resolve(data);
-      } else {
-        resultPromise.reject(null);
-      }
+      resolve(data);
     }).error(function(data, status, headers, config) {
       $launchedQueries.dec();
+      resolve(data);
+    });
+    function resolve(data) {
+      var elapsedMs = new Date().getTime() - start.getTime();
       if (ticket.valid()) {
-        resultPromise.resolve(data);
+        resultPromise.resolve({elapsedMs: elapsedMs, payload: data});
       } else {
         resultPromise.reject(null);
       }
-    });
+    }
     return resultPromise.promise;
   };
 });
@@ -251,19 +253,43 @@ module.controller("commonCtrl", function(
       return "rendered";
     }
   };
+  $scope.selectOptions = {
+    legend:    {position: "bottom"},
+    title:     $location.search()["title"],
+    chartArea: {left: "5%", width:"90%", top: "5%", height: "80%"},
+    series:    null,
+    vAxes: {
+      0: {title: ""},
+      1: {title: ""}
+    }
+  };
+  $scope.$watch("inputModel.renderType", function(newValue) {
+    if (newValue === "area") {
+      $scope.selectOptions.isStacked = true;
+    } else {
+      $scope.selectOptions.isStacked = false;
+    }
+  });
+
+  $scope.maxResult = MAX_RENDERED;
   $scope.setQueryResult = function(queryResult) {
-    var options = {
-      legend:    {position: "bottom"},
-      title:     $location.search()["title"],
-      chartArea: {left: "5%", width:"90%", top: "5%", height: "85%"}
-    }
-    if ($scope.inputModel.renderType === "area") {
-      options.isStacked = true;
-    }
     $scope.queryResult =   queryResult;
-    $scope.selectOptions = options;
-    $scope.selectResult =  convertSelectResponse(queryResult);
+    var selectResponse = convertSelectResponse(queryResult);
+    if (selectResponse) {
+      $scope.selectResult = selectResponse.dataTable;
+      $scope.selectOptions.series = selectResponse.seriesOptions;
+    } else {
+      $scope.selectResult = null;
+      $scope.selectOptions.series = null;
+    }
+    $scope.totalResult = 0;
     $scope.profileResult = convertProfileResponse(queryResult);
+    if ($scope.selectResult) {
+      for (var i = 0; i < queryResult.body.length; i++) {
+        // Each of these is a list of series
+        $scope.totalResult += queryResult.body[i].series.length;
+      }
+    }
   };
 });
 
@@ -315,7 +341,9 @@ module.controller("mainCtrl", function(
         profile: $scope.inputModel.profile,
         query:   $scope.inputModel.query
       }).then(function(data) {
-        $scope.setQueryResult(data);
+        $scope.setQueryResult(data.payload);
+        $scope.elapsedMs = data.elapsedMs;
+        updateEmbed();
       });
     }
   });
@@ -328,7 +356,7 @@ module.controller("mainCtrl", function(
   $scope.isTabular = function() {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
-  updateEmbed()
+  updateEmbed();
 });
 
 module.controller("embedCtrl", function(
@@ -352,14 +380,13 @@ module.controller("embedCtrl", function(
     profile: false,
     query:   queries["query"] || ""
   }).then(function(data) {
-    $scope.setQueryResult(data);
+    $scope.setQueryResult(data.payload);
   });
 
   var url = $location.absUrl();
   var at = url.indexOf("?");
   $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port()
     + "/ui" + url.substring(at);
-  debugger;
 });
 
 // utility functions
@@ -398,16 +425,36 @@ function convertSelectResponse(object) {
     // invalid data.
     return null;
   }
+  var seriesOptions = {};
   var series = [];
   var labels = ["Time"];
   var table = [labels];
+  var onlySingleSeries = object.body.length === 1;
   for (var i = 0; i < object.body.length; i++) {
     // Each of these is a list of series
     var serieslist = object.body[i];
     for (var j = 0; j < serieslist.series.length; j++) {
-      var s = object.body[i].series[j];
-      series.push(s);
-      labels.push(makeLabel(serieslist, s));
+      if (series.length < MAX_RENDERED) {
+        var s = object.body[i].series[j];
+        var singleSeriesOption = {};
+        series.push(s);
+        seriesOptions[series.length-1] = singleSeriesOption;
+        // special tags.
+        if (s.tagset.$secondaxis === "true") {
+          singleSeriesOption.targetAxisIndex = 0;
+        } else {
+          singleSeriesOption.targetAxisIndex = 1;
+        }
+        if (s.tagset.$color) {
+          singleSeriesOption.color = s.tagset.$color;
+        }
+        if (s.tagset.$linewidth) {
+          singleSeriesOption.lineWidth = parseFloat(s.tagset.$linewidth);
+        }
+        labels.push(makeLabel(onlySingleSeries, serieslist, s));
+      } else {
+        break;
+      }
     }
   }
   // Next, add each row.
@@ -424,7 +471,10 @@ function convertSelectResponse(object) {
     }
     table.push(row);
   }
-  return google.visualization.arrayToDataTable(table);
+  return {
+    dataTable: google.visualization.arrayToDataTable(table),
+    seriesOptions: seriesOptions
+  }
 }
 
 
@@ -432,10 +482,24 @@ function dateFromIndex(index, timerange) {
   return new Date(timerange.start + timerange.resolution * index);
 }
 
-function makeLabel(serieslist, series) {
-  var label = serieslist.name + " ";
+function makeLabel(onlySingleSeries, serieslist, series) {
+  var tagsets = [];
+  var label;
   for (var key in series.tagset) {
-    label += key + ":" + series.tagset[key] + " "; 
+    if (key[0] !== "$") {
+      tagsets.push(key + ":" + series.tagset[key]);
+    }
+  }
+  if (onlySingleSeries) {
+    if (tagsets.length > 0) {
+      // for a single graph, only return the tags.
+      return tagsets.join(" ");
+    }
+    // if no tags, then return the name.
+    return serieslist.name;
+  } else {
+    // return both name and tags.
+    return serieslist.name + " " + tagsets.join(" ");
   }
   return label;
 }
