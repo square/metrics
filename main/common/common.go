@@ -64,7 +64,7 @@ func LoadConfig() Config {
 	}
 
 	if err := yaml.Unmarshal(bytes, &config); err != nil {
-		ExitWithMessage(fmt.Sprintf("unable to load config file `%s`", *ConfigFile))
+		ExitWithMessage(fmt.Sprintf("unable to load config file `%s`: %s", *ConfigFile, err.Error()))
 	}
 
 	fmt.Printf("parsed config: %#v\n", config)

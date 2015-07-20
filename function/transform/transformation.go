@@ -49,7 +49,7 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []funct
 	}
 	var err error
 	for i, series := range list.Series {
-		result.Series[i], err = transformTimeseries(series, transform, parameters, float64(list.Timerange.Resolution())/1000)
+		result.Series[i], err = transformTimeseries(series, transform, parameters, float64(list.Timerange.ResolutionMillis())/1000)
 		if err != nil {
 			return api.SeriesList{}, err
 		}

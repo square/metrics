@@ -33,7 +33,7 @@ func Test_Blueflood(t *testing.T) {
 	defaultClientConfig := Config{
 		"https://blueflood.url",
 		"square",
-		make(map[Resolution]int64),
+		make(map[string]int64),
 		time.Millisecond,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use

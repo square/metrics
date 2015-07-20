@@ -63,7 +63,10 @@ func main() {
 	}
 
 	startServer(config.UIConfig, query.ExecutionContext{
-		API: apiInstance, Backend: backend, FetchLimit: 1000,
-		Registry: registry.Default(),
+		API:        apiInstance,
+		Backend:    backend,
+		FetchLimit: 1000,
+		SlotLimit:  5000,
+		Registry:   registry.Default(),
 	})
 }
