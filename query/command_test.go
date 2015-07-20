@@ -88,7 +88,38 @@ func TestCommand_Describe(t *testing.T) {
 		}
 
 		a.EqString(command.Name(), "describe")
-		rawResult, _ := command.Execute(ExecutionContext{Backend: nil, API: test.backend, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{Backend: nil, API: test.backend, FetchLimit: 1000, Timeout: 0})
+		a.CheckError(err)
+		a.Eq(rawResult, test.expected)
+	}
+}
+
+func TestCommand_DescribeAll(t *testing.T) {
+	fakeApi := mocks.NewFakeApi()
+	fakeApi.AddPair(api.TaggedMetric{"series_0", api.ParseTagSet("")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_1", api.ParseTagSet("")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_2", api.ParseTagSet("")}, emptyGraphiteName)
+	fakeApi.AddPair(api.TaggedMetric{"series_3", api.ParseTagSet("")}, emptyGraphiteName)
+
+	for _, test := range []struct {
+		query    string
+		backend  api.API
+		expected []api.MetricKey
+	}{
+		{"describe all", fakeApi, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
+		{"describe all match '_0'", fakeApi, []api.MetricKey{"series_0"}},
+		{"describe all match '_5'", fakeApi, []api.MetricKey{}},
+	} {
+		a := assert.New(t).Contextf("query=%s", test.query)
+		command, err := Parse(test.query)
+		if err != nil {
+			a.Errorf("Unexpected error while parsing")
+			continue
+		}
+
+		a.EqString(command.Name(), "describe all")
+		rawResult, err := command.Execute(ExecutionContext{Backend: nil, API: test.backend, FetchLimit: 1000, Timeout: 0})
+		a.CheckError(err)
 		a.Eq(rawResult, test.expected)
 	}
 }

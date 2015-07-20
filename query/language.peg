@@ -36,7 +36,7 @@ type Parser Peg {
 
 # The following queries are support
 
-# describe all              <- describe all statement - returns all metric keys.
+# describe all [match x]  <- describe all statement - returns all metric keys.
 # describe metric where ... <- describes a single metric - returns all tagsets within a single metric key.
 # select ...                <- select statement - retrieves, transforms, and aggregates time serieses.
 
@@ -56,7 +56,11 @@ selectStmt <- _ ("select" KEY)?
 
 describeStmt <- _ "describe" KEY (describeAllStmt / describeMetrics / describeSingleStmt)
 
-describeAllStmt <- _ "all" KEY { p.makeDescribeAll() }
+describeAllStmt <- _ "all" KEY optionalMatchClause { p.makeDescribeAll() }
+
+optionalMatchClause <- matchClause / { p.addNullMatchClause() }
+
+matchClause <- _ "match" KEY literalString { p.addMatchClause() }
 
 describeMetrics <- _ "metrics" KEY _ "where" KEY tagName _ "=" literalString { p.makeDescribeMetrics() }
 
@@ -206,7 +210,7 @@ tagMatcher <-
     p.addLiteralMatcher()
     p.addNotPredicate()
   } /
-  tagName _ "matches" KEY literalString {
+  tagName _ "match" KEY literalString {
     p.addRegexMatcher()
   } /
   tagName _ "in" KEY literalList {
@@ -263,7 +267,7 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "group" /
   "collapse" /
   "in" /
-  "matches" /
+  "match" /
   "not" /
   "or" /
   "select" /
