@@ -19,7 +19,7 @@ type defaultAPI struct {
 
 // NewAPI creates a new instance of API from the given configuration.
 func NewAPI(config api.Config) (api.API, error) {
-	ruleset, err := loadRules(config.ConversionRulesPath)
+	ruleset, err := LoadRules(config.ConversionRulesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	}, nil
 }
 
-func loadRules(conversionRulesPath string) (RuleSet, error) {
+func LoadRules(conversionRulesPath string) (RuleSet, error) {
 	ruleSet := RuleSet{
 		rules: []Rule{},
 	}

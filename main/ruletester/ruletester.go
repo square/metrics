@@ -22,9 +22,9 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/internal"
@@ -35,23 +35,8 @@ var (
 	metricsFile      = flag.String("metrics-file", "", "Location of YAML configuration file.")
 	unmatchedFile    = flag.String("unmatched-file", "", "location of metrics list to output unmatched transformations.")
 	insertToDatabase = flag.Bool("insert-to-db", false, "If true, insert rows to database.")
+	reverse          = flag.Bool("reverse", false, "If true, then attempt the reverse-rule lookup also.")
 )
-
-func readRule(filename string) *internal.RuleSet {
-	file, err := os.Open(filename)
-	if err != nil {
-		common.ExitWithMessage("No rule file")
-	}
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		common.ExitWithMessage("Cannot read the rule YAML")
-	}
-	rule, err := internal.LoadYAML(bytes)
-	if err != nil {
-		common.ExitWithMessage("Cannot parse Rule file")
-	}
-	return &rule
-}
 
 // Statistics represents the aggregated result of rules
 // after running through the test file.
@@ -76,7 +61,10 @@ func main() {
 
 	config := common.LoadConfig()
 
-	ruleset := readRule(config.API.ConversionRulesPath)
+	ruleset, err := internal.LoadRules(config.API.ConversionRulesPath)
+	if err != nil {
+		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
+	}
 	metricFile, err := os.Open(*metricsFile)
 	if err != nil {
 		common.ExitWithMessage("No metric file.")
@@ -94,37 +82,71 @@ func main() {
 	report(stat)
 }
 
-func run(ruleset *internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, unmatched *os.File) Statistics {
+func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, unmatched *os.File) Statistics {
+	var wg sync.WaitGroup
 	stat := Statistics{
 		perMetric: make(map[api.MetricKey]PerMetricStatistics),
 	}
-	for scanner.Scan() {
-		input := scanner.Text()
-		converted, matched := ruleset.MatchRule(input)
-		if matched {
-			stat.matched++
-			perMetric := stat.perMetric[converted.MetricKey]
-			perMetric.matched++
-			reversed, err := ruleset.ToGraphiteName(converted)
-			if *insertToDatabase {
-				apiInstance.AddMetric(converted)
-			}
-			if err != nil {
-				perMetric.reverseError++
-			} else if string(reversed) != input {
-				perMetric.reverseIncorrect++
-			} else {
-				perMetric.reverseSuccess++
-			}
-			stat.perMetric[converted.MetricKey] = perMetric
-		} else {
-			stat.unmatched++
-			if unmatched != nil {
-				unmatched.WriteString(input)
-				unmatched.WriteString("\n")
-			}
-		}
+	type result struct {
+		input   string
+		result  api.TaggedMetric
+		success bool
 	}
+	inputBuffer := make(chan string, 10)
+	outputBuffer := make(chan result, 10)
+	for id := 0; id < 8; id++ {
+		go func() {
+			for input := range inputBuffer {
+				metric, matched := ruleset.MatchRule(input)
+				outputBuffer <- result{
+					input,
+					metric,
+					matched,
+				}
+			}
+		}()
+	}
+	go func() {
+		// aggregate function.
+		for {
+			output := <-outputBuffer
+			converted, matched := output.result, output.success
+			if matched {
+				stat.matched++
+				perMetric := stat.perMetric[converted.MetricKey]
+				perMetric.matched++
+				if *insertToDatabase {
+					apiInstance.AddMetric(converted)
+				}
+				if *reverse {
+					reversed, err := ruleset.ToGraphiteName(converted)
+					if err != nil {
+						perMetric.reverseError++
+					} else if string(reversed) != output.input {
+						perMetric.reverseIncorrect++
+					} else {
+						perMetric.reverseSuccess++
+					}
+				}
+				stat.perMetric[converted.MetricKey] = perMetric
+			} else {
+				stat.unmatched++
+				if unmatched != nil {
+					unmatched.WriteString(output.input)
+					unmatched.WriteString("\n")
+				}
+			}
+			wg.Done()
+		}
+	}()
+
+	for scanner.Scan() {
+		wg.Add(1)
+		input := scanner.Text()
+		inputBuffer <- input
+	}
+	wg.Wait()
+
 	return stat
 }
 
