@@ -188,6 +188,9 @@ func (h singleStaticHandler) ServeHTTP(writer http.ResponseWriter, request *http
 func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
+	httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, "/ui", http.StatusTemporaryRedirect)
+	})
 	httpMux.Handle("/ui", singleStaticHandler{path.Join(config.StaticDir, "index.html")})
 	httpMux.Handle("/embed", singleStaticHandler{path.Join(config.StaticDir, "embed.html")})
 	httpMux.Handle("/query", queryHandler{
