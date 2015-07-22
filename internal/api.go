@@ -143,4 +143,4 @@ func (a *defaultAPI) SupportsGraphiteStore() bool {
 
 // ensure interface
 var _ api.API = (*defaultAPI)(nil)
-var _ api.APIGraphiteStore = (*defaultAPI)(nil)
+var _ api.GraphiteStore = (*defaultAPI)(nil)

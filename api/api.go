@@ -47,10 +47,7 @@ type API interface {
 	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
 }
 
-type APIGraphiteStore interface {
-	// Embed the API interface
-	API
-
+type GraphiteStore interface {
 	// Add a Graphite metric to the complete list (as needed)
 	AddGraphiteMetric(metric GraphiteMetric) error
 
@@ -108,14 +105,14 @@ func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, 
 	return api.API.GetMetricsForTag(tagKey, tagValue)
 }
 func (api ProfilingAPI) AddGraphiteMetric(metric GraphiteMetric) error {
-	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+	if apiGraphite, ok := api.API.(GraphiteStore); ok {
 		defer api.Profiler.Record("api.AddGraphiteMetric")()
 		return apiGraphite.AddGraphiteMetric(metric)
 	}
 	return nil
 }
 func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
-	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+	if apiGraphite, ok := api.API.(GraphiteStore); ok {
 		defer api.Profiler.Record("api.GetAllGraphiteMetrics")()
 		return apiGraphite.GetAllGraphiteMetrics()
 	} else {
@@ -123,7 +120,7 @@ func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
 	}
 }
 func (api ProfilingAPI) SupportsGraphiteStore() bool {
-	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+	if apiGraphite, ok := api.API.(GraphiteStore); ok {
 		return apiGraphite.SupportsGraphiteStore()
 	}
 	return false
