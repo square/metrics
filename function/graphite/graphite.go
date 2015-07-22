@@ -60,6 +60,10 @@ func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
 		return nil
 	}
 	pieces := strings.Split(pattern, "%")
+	if len(pieces)%2 == 0 {
+		// The pattern is invalid since some % isn't closed
+		return nil
+	}
 	metrics, err := graphiteAPI.GetAllGraphiteMetrics()
 	if err != nil {
 		// There was some issue with data
