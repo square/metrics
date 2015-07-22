@@ -110,6 +110,9 @@ func (a *defaultAPI) RemoveMetric(metric api.TaggedMetric) error {
 }
 
 func (a *defaultAPI) ToGraphiteName(metric api.TaggedMetric) (api.GraphiteMetric, error) {
+	if metric.MetricKey == "#graphite" {
+		return api.GraphiteMetric(metric.TagSet["#graphite"]), nil
+	}
 	return a.ruleset.ToGraphiteName(metric)
 }
 

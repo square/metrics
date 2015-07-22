@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/aggregate"
 	"github.com/square/metrics/function/filter"
+	"github.com/square/metrics/function/graphite"
 	"github.com/square/metrics/function/join"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
@@ -76,6 +77,9 @@ func init() {
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
+
+	// Really weird ones
+	MustRegister(graphiteSelect)
 }
 
 // StandardRegistry of a functions available in MQE.
@@ -332,4 +336,42 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 			}, nil
 		},
 	}
+}
+
+var graphiteSelect = function.MetricFunction{
+	Name:         "graphite",
+	MinArguments: 1,
+	MaxArguments: 1,
+	Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
+		graphiteQuery, err := args[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		graphitePattern, err := graphiteQuery.ToString()
+		if err != nil {
+			return nil, err
+		}
+		results := graphite.GetGraphiteMetrics(graphitePattern, context.API)
+		if len(results) == 0 {
+			return nil, fmt.Errorf("graphite query %s resulted in no graphite metrics", graphiteQuery)
+		}
+		serieslist, err := context.MultiBackend.FetchMultipleSeries(
+			api.FetchMultipleRequest{
+				results,
+				context.SampleMethod,
+				context.Timerange,
+				context.API,
+				context.Cancellable,
+				context.Profiler,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, series := range serieslist.Series {
+			// remove the intermediate "#graphite" tag from each series
+			delete(series.TagSet, "#graphite")
+		}
+		return serieslist, nil
+	},
 }
