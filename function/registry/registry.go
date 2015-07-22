@@ -369,8 +369,8 @@ var graphiteSelect = function.MetricFunction{
 			return nil, err
 		}
 		for _, series := range serieslist.Series {
-			// remove the intermediate "#graphite" tag from each series
-			delete(series.TagSet, "#graphite")
+			// remove the intermediate "$graphite" tag from each series
+			delete(series.TagSet, graphite.SpecialGraphiteName)
 		}
 		return serieslist, nil
 	},

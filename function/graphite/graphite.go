@@ -21,11 +21,13 @@ import (
 	"github.com/square/metrics/api"
 )
 
+const SpecialGraphiteName = "$graphite"
+
 var segmentRegex = regexp.MustCompile(`^[^.]*`)
 
 func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 	tagset := api.NewTagSet()
-	tagset["#graphite"] = metric
+	tagset[SpecialGraphiteName] = metric
 	for i, piece := range pieces {
 		if i%2 == 0 {
 			// Literal. Compare and match
@@ -48,7 +50,7 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 		return api.TaggedMetric{}, false
 	}
 	return api.TaggedMetric{
-		MetricKey: "#graphite",
+		MetricKey: SpecialGraphiteName,
 		TagSet:    tagset,
 	}, true
 }
