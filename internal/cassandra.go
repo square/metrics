@@ -41,6 +41,16 @@ type Database interface {
 	RemoveFromTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
 }
 
+type DatabaseGraphiteStore interface {
+	// Embed the Database interface
+	Database
+
+	// Add a Graphite name to the database
+	AddGraphiteMetric(graphiteName api.GraphiteMetric) error
+	// Get all the Graphite names stored in the database
+	GetAllGraphiteMetrics() ([]api.GraphiteMetric, error)
+}
+
 type tagIndexCacheKey struct {
 	key    string
 	value  string
@@ -196,4 +206,25 @@ func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, me
 		tagKey,
 		tagValue,
 	).Exec()
+}
+
+func (db *defaultDatabase) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	return db.session.Query(
+		"INSERT INTO graphite_names VALUES (graphite_name) VALUES (?) USING TTL 30000", // Slightly more than 8 hours TTL
+		metric,
+	).Exec()
+}
+func (db *defaultDatabase) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	iter := db.session.Query(
+		"SELECT graphite_name FROM graphite_names",
+	).Iter()
+	list := []api.GraphiteMetric{}
+	var item api.GraphiteMetric
+	for iter.Scan(&item) {
+		list = append(list, item)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	return list, nil
 }

@@ -121,5 +121,23 @@ func (a *defaultAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, 
 	return api.TaggedMetric{}, newNoMatch()
 }
 
+func (a *defaultAPI) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
+		return graphiteDB.AddGraphiteMetric(metric)
+	}
+	return nil
+}
+func (a *defaultAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
+		return graphiteDB.GetAllGraphiteMetrics()
+	}
+	return nil, nil
+}
+func (a *defaultAPI) SupportsGraphiteStore() bool {
+	_, ok := a.db.(DatabaseGraphiteStore)
+	return ok
+}
+
 // ensure interface
 var _ api.API = (*defaultAPI)(nil)
+var _ api.APIGraphiteStore = (*defaultAPI)(nil)

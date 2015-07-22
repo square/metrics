@@ -56,6 +56,9 @@ type APIGraphiteStore interface {
 
 	// Get all the Graphite metrics
 	GetAllGraphiteMetrics() ([]GraphiteMetric, error)
+
+	// Checks whether (at runtime) the object actually is capable of performing these queries
+	SupportsGraphiteStore() bool
 }
 
 // Configuration is the struct that tells how to instantiate a new copy of an API.
@@ -118,4 +121,10 @@ func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
 	} else {
 		return nil, nil
 	}
+}
+func (api ProfilingAPI) SupportsGraphiteStore() bool {
+	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+		return apiGraphite.SupportsGraphiteStore()
+	}
+	return false
 }
