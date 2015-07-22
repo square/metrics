@@ -16,8 +16,13 @@ import (
 type defaultAPI struct {
 	db      Database
 	ruleset RuleSet
-	cached  map[api.GraphiteMetric]api.TaggedMetric
+	cached  map[api.GraphiteMetric]cachedResult
 	mutex   *sync.Mutex
+}
+
+type cachedResult struct {
+	tagged api.TaggedMetric
+	err    error
 }
 
 // NewAPI creates a new instance of API from the given configuration.
@@ -38,7 +43,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	return &defaultAPI{
 		db:      db,
 		ruleset: ruleset,
-		cached:  map[api.GraphiteMetric]api.TaggedMetric{},
+		cached:  map[api.GraphiteMetric]cachedResult{},
 		mutex:   &sync.Mutex{},
 	}, nil
 }
@@ -122,16 +127,19 @@ func (a *defaultAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, 
 	a.mutex.Lock()
 	if result, ok := a.cached[metric]; ok {
 		a.mutex.Unlock()
-		return result, nil
+		return result.tagged, result.err
 	}
 	a.mutex.Unlock()
 	match, matched := a.ruleset.MatchRule(string(metric))
 	if matched {
 		a.mutex.Lock()
-		a.cached[metric] = match
+		a.cached[metric] = cachedResult{tagged: match, err: nil}
 		a.mutex.Unlock()
 		return match, nil
 	}
+	a.mutex.Lock()
+	a.cached[metric] = cachedResult{err: newNoMatch()}
+	a.mutex.Unlock()
 	return api.TaggedMetric{}, newNoMatch()
 }
 
