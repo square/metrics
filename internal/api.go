@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -15,6 +16,8 @@ import (
 type defaultAPI struct {
 	db      Database
 	ruleset RuleSet
+	cached  map[api.GraphiteMetric]api.TaggedMetric
+	mutex   *sync.Mutex
 }
 
 // NewAPI creates a new instance of API from the given configuration.
@@ -35,6 +38,8 @@ func NewAPI(config api.Config) (api.API, error) {
 	return &defaultAPI{
 		db:      db,
 		ruleset: ruleset,
+		cached:  map[api.GraphiteMetric]api.TaggedMetric{},
+		mutex:   &sync.Mutex{},
 	}, nil
 }
 
@@ -114,8 +119,17 @@ func (a *defaultAPI) ToGraphiteName(metric api.TaggedMetric) (api.GraphiteMetric
 }
 
 func (a *defaultAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, error) {
+	a.mutex.Lock()
+	if result, ok := a.cached[metric]; ok {
+		a.mutex.Unlock()
+		return result, nil
+	}
+	a.mutex.Unlock()
 	match, matched := a.ruleset.MatchRule(string(metric))
 	if matched {
+		a.mutex.Lock()
+		a.cached[metric] = match
+		a.mutex.Unlock()
 		return match, nil
 	}
 	return api.TaggedMetric{}, newNoMatch()
