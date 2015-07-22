@@ -55,7 +55,7 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 
 func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
 	graphiteAPI, ok := API.(api.GraphiteStore)
-	if !ok || !graphiteAPI.SupportsGraphiteStore() {
+	if !ok {
 		// API is not able to fetch metrics
 		return nil
 	}

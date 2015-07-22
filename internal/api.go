@@ -136,10 +136,6 @@ func (a *defaultAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
 	}
 	return nil, nil
 }
-func (a *defaultAPI) SupportsGraphiteStore() bool {
-	_, ok := a.db.(DatabaseGraphiteStore)
-	return ok
-}
 
 // ensure interface
 var _ api.API = (*defaultAPI)(nil)
