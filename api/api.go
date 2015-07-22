@@ -47,6 +47,17 @@ type API interface {
 	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
 }
 
+type APIGraphiteStore interface {
+	// Embed the API interface
+	API
+
+	// Add a Graphite metric to the complete list (as needed)
+	AddGraphiteMetric(metric GraphiteMetric) error
+
+	// Get all the Graphite metrics
+	GetAllGraphiteMetrics() ([]GraphiteMetric, error)
+}
+
 // Configuration is the struct that tells how to instantiate a new copy of an API.
 type Config struct {
 	// Location of conversion rules. All *.yaml files in here will be loaded.
@@ -92,4 +103,19 @@ func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
 func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
 	defer api.Profiler.Record("api.GetMetricsForTag")()
 	return api.API.GetMetricsForTag(tagKey, tagValue)
+}
+func (api ProfilingAPI) AddGraphiteMetric(metric GraphiteMetric) error {
+	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+		defer api.Profiler.Record("api.AddGraphiteMetric")()
+		return apiGraphite.AddGraphiteMetric(metric)
+	}
+	return nil
+}
+func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
+	if apiGraphite, ok := api.API.(APIGraphiteStore); ok {
+		defer api.Profiler.Record("api.GetAllGraphiteMetrics")()
+		return apiGraphite.GetAllGraphiteMetrics()
+	} else {
+		return nil, nil
+	}
 }
