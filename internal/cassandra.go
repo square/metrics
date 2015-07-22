@@ -42,9 +42,6 @@ type Database interface {
 }
 
 type DatabaseGraphiteStore interface {
-	// Embed the Database interface
-	Database
-
 	// Add a Graphite name to the database
 	AddGraphiteMetric(graphiteName api.GraphiteMetric) error
 	// Get all the Graphite names stored in the database
@@ -210,7 +207,8 @@ func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, me
 
 func (db *defaultDatabase) AddGraphiteMetric(metric api.GraphiteMetric) error {
 	return db.session.Query(
-		"INSERT INTO graphite_names VALUES (graphite_name) VALUES (?) USING TTL 30000", // Slightly more than 8 hours TTL
+		"INSERT INTO graphite_names VALUES (shard, graphite_name) VALUES (?, ?) USING TTL 30000", // Slightly more than 8 hours TTL
+		0,
 		metric,
 	).Exec()
 }
