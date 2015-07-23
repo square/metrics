@@ -96,7 +96,9 @@ func NewAPI(config api.Config) api.API {
 func SetupLogger() {
 	if *Logger == "glog" {
 		log.InitLogger(&glog.Logger{})
+		log.Infof("Using glog logger")
 	} else {
 		log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
+		log.Infof("Using standard logger")
 	}
 }

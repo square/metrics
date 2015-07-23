@@ -10,6 +10,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/graphite"
+	"github.com/square/metrics/log"
 )
 
 // API implementations.
@@ -20,7 +21,7 @@ type defaultAPI struct {
 
 // NewAPI creates a new instance of API from the given configuration.
 func NewAPI(config api.Config) (api.API, error) {
-	ruleset, err := loadRules(config.ConversionRulesPath)
+	ruleset, err := LoadRules(config.ConversionRulesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +40,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	}, nil
 }
 
-func loadRules(conversionRulesPath string) (RuleSet, error) {
+func LoadRules(conversionRulesPath string) (RuleSet, error) {
 	ruleSet := RuleSet{
 		rules: []Rule{},
 	}
@@ -52,6 +53,7 @@ func loadRules(conversionRulesPath string) (RuleSet, error) {
 	sort.Strings(filenames)
 
 	for _, filename := range filenames {
+		log.Infof("Loading rules from %s", filename)
 		file, err := os.Open(filename)
 		if err != nil {
 			return RuleSet{}, err
