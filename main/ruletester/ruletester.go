@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"sync"
 
@@ -95,7 +96,7 @@ func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, 
 	inputBuffer := make(chan string, 10)
 	outputBuffer := make(chan result, 10)
 	done := make(chan struct{})
-	for id := 0; id < 8; id++ {
+	for id := 0; id < runtime.NumCPU(); id++ {
 		go func() {
 			for {
 				select {
