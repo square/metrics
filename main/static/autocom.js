@@ -304,30 +304,39 @@ function Autocom(input) {
 				tooltipSuppress = true;
 				refresh();
 				return;
-			}
-			if (e.keyCode == 38) { // UP
+			} else if (e.keyCode == 38) { // UP
 				e.preventDefault();
 				tooltipState.index--;
 				if (tooltipState.index < 0) {
 					tooltipState.index = tooltipState.words.length-1;
 				}
 				return;
-			}
-			if (e.keyCode == 40) { // DOWN
+			} else if (e.keyCode == 40) { // DOWN
 				e.preventDefault();
 				tooltipState.index++;
 				if (tooltipState.index >= tooltipState.words.length) {
 					tooltipState.index = 0;
 				}
 				return;
-			}
-			if (e.keyCode == 27) { // ESC
+			} else if (
+					e.keyCode == 27 || // ESC
+					e.keyCode == 16 // shift
+			) {
 				tooltipSuppress = true;
 				return;
 			}
 		}
-		tooltipSuppress = false; // Start showing the tooltip again.
-		refresh();
+
+		if (
+			e.keyCode == 16 ||
+			e.getModifierState("Shift")
+		) {
+			// shift is pressed
+			tooltipSuppress = true;
+		} else {
+			tooltipSuppress = false; // Start showing the tooltip again.
+			refresh();
+		}
 	}
 	input.addEventListener("keydown", keyPress, false);
 

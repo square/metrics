@@ -130,7 +130,20 @@ module.run(function($http) {
     return;
   }
   var autocom = new Autocom(document.getElementById("query-input"));
-  var keywords = ["describe", "select", "from", "to", "resolution", "where", "all", "metrics", "sample", "by", "now"];
+  var keywords = [
+    "all",
+    "by",
+    "describe",
+    "from",
+    "match",
+    "metrics",
+    "now",
+    "resolution",
+    "sample",
+    "select",
+    "to",
+    "where"
+  ];
   autocom.options = keywords;
   autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
   autocom.continuePattern = "[a-zA-Z_`.-]";
