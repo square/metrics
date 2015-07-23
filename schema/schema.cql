@@ -29,5 +29,5 @@ create table metric_name_set (
 create table graphite_names (
   shard int,
   graphite_name varchar,
-  primary key (shard)
+  primary key ((shard) graphite_name)
 );

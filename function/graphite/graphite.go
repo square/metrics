@@ -45,8 +45,12 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 				// Nothing found
 				return api.TaggedMetric{}, false
 			}
+			metric = metric[len(value):]
 			tagset[tag] = value
 		}
+	}
+	if len(metric) != 0 {
+		// There's still unconsumed parts of the metric left
 		return api.TaggedMetric{}, false
 	}
 	return api.TaggedMetric{

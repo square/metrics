@@ -207,7 +207,7 @@ func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, me
 
 func (db *defaultDatabase) AddGraphiteMetric(metric api.GraphiteMetric) error {
 	return db.session.Query(
-		"INSERT INTO graphite_names VALUES (shard, graphite_name) VALUES (?, ?) USING TTL 30000", // Slightly more than 8 hours TTL
+		"INSERT INTO graphite_names (shard, graphite_name) VALUES (?, ?) USING TTL 30000", // Slightly more than 8 hours TTL
 		0,
 		metric,
 	).Exec()
