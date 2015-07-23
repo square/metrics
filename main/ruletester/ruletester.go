@@ -94,14 +94,20 @@ func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, 
 	}
 	inputBuffer := make(chan string, 10)
 	outputBuffer := make(chan result, 10)
+	done := make(chan struct{})
 	for id := 0; id < 8; id++ {
 		go func() {
-			for input := range inputBuffer {
-				metric, matched := ruleset.MatchRule(input)
-				outputBuffer <- result{
-					input,
-					metric,
-					matched,
+			for {
+				select {
+				case <-done:
+					return
+				case input := <-inputBuffer:
+					metric, matched := ruleset.MatchRule(input)
+					outputBuffer <- result{
+						input,
+						metric,
+						matched,
+					}
 				}
 			}
 		}()
@@ -109,34 +115,38 @@ func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, 
 	go func() {
 		// aggregate function.
 		for {
-			output := <-outputBuffer
-			converted, matched := output.result, output.success
-			if matched {
-				stat.matched++
-				perMetric := stat.perMetric[converted.MetricKey]
-				perMetric.matched++
-				if *insertToDatabase {
-					apiInstance.AddMetric(converted)
-				}
-				if *reverse {
-					reversed, err := ruleset.ToGraphiteName(converted)
-					if err != nil {
-						perMetric.reverseError++
-					} else if string(reversed) != output.input {
-						perMetric.reverseIncorrect++
-					} else {
-						perMetric.reverseSuccess++
+			select {
+			case <-done:
+				return
+			case output := <-outputBuffer:
+				converted, matched := output.result, output.success
+				if matched {
+					stat.matched++
+					perMetric := stat.perMetric[converted.MetricKey]
+					perMetric.matched++
+					if *insertToDatabase {
+						apiInstance.AddMetric(converted)
+					}
+					if *reverse {
+						reversed, err := ruleset.ToGraphiteName(converted)
+						if err != nil {
+							perMetric.reverseError++
+						} else if string(reversed) != output.input {
+							perMetric.reverseIncorrect++
+						} else {
+							perMetric.reverseSuccess++
+						}
+					}
+					stat.perMetric[converted.MetricKey] = perMetric
+				} else {
+					stat.unmatched++
+					if unmatched != nil {
+						unmatched.WriteString(output.input)
+						unmatched.WriteString("\n")
 					}
 				}
-				stat.perMetric[converted.MetricKey] = perMetric
-			} else {
-				stat.unmatched++
-				if unmatched != nil {
-					unmatched.WriteString(output.input)
-					unmatched.WriteString("\n")
-				}
+				wg.Done()
 			}
-			wg.Done()
 		}
 	}()
 
@@ -146,7 +156,7 @@ func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, 
 		inputBuffer <- input
 	}
 	wg.Wait()
-
+	close(done) // broadcast to shutdown all goroutines.
 	return stat
 }
 
