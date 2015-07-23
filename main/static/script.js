@@ -465,7 +465,7 @@ function convertSelectResponse(object) {
       if (cell === null) {
         row.push(NaN);
       } else {
-        row.push(cell);
+        row.push(parseFloat(cell.toFixed(2)));
       }
     }
     table.push(row);

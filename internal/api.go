@@ -9,6 +9,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/log"
 )
 
 // API implementations.
@@ -51,6 +52,7 @@ func LoadRules(conversionRulesPath string) (RuleSet, error) {
 	sort.Strings(filenames)
 
 	for _, filename := range filenames {
+		log.Infof("Loading rules from %s", filename)
 		file, err := os.Open(filename)
 		if err != nil {
 			return RuleSet{}, err
