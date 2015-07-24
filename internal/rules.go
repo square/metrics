@@ -76,7 +76,7 @@ func Compile(rule RawRule) (Rule, error) {
 	}
 	graphitePatternTags := extractTags(rule.Pattern)
 	if graphitePatternTags == nil {
-		return Rule{}, newInvalidPattern(rule.Pattern)
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
 	}
 	metricKeyTags := extractTags(string(rule.MetricKeyPattern))
 	if !isSubset(metricKeyTags, graphitePatternTags) {
