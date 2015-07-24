@@ -133,8 +133,10 @@ module.run(function($http) {
   var keywords = [
     "all",
     "by",
+    "collapse",
     "describe",
     "from",
+    "group",
     "match",
     "metrics",
     "now",
