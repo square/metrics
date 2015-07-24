@@ -24,37 +24,14 @@ import (
 )
 
 type fakeGraphiteAPI struct {
-}
-
-func (a fakeGraphiteAPI) AddMetric(metric api.TaggedMetric) error {
-	return nil
-}
-
-func (a fakeGraphiteAPI) RemoveMetric(metric api.TaggedMetric) error {
-	return nil
+	api.API
 }
 
 func (a fakeGraphiteAPI) ToGraphiteName(metric api.TaggedMetric) (api.GraphiteMetric, error) {
 	if graphiteMetric, ok := metric.TagSet["$graphite"]; ok {
 		return api.GraphiteMetric(graphiteMetric), nil
 	}
-	panic("ToGraphiteName invoked on fakeGraphiteAPI without a $graphite tag")
-}
-
-func (a fakeGraphiteAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, error) {
-	panic("ToTaggedName invoked on fakeGraphiteAPI")
-}
-
-func (a fakeGraphiteAPI) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
-	return nil, nil
-}
-
-func (a fakeGraphiteAPI) GetAllMetrics() ([]api.MetricKey, error) {
-	return nil, nil
-}
-
-func (a fakeGraphiteAPI) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {
-	return nil, nil
+	return a.API.ToGraphiteName(metric)
 }
 
 func (a fakeGraphiteAPI) AddGraphiteMetric(api.GraphiteMetric) error {
