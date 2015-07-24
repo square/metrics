@@ -59,18 +59,13 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 	}, true
 }
 
-func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
-	graphiteAPI, ok := API.(api.GraphiteStore)
-	if !ok {
-		// API is not able to fetch metrics
-		return nil
-	}
+func GetGraphiteMetrics(pattern string, API api.GraphiteStore) []api.TaggedMetric {
 	pieces := strings.Split(pattern, "%")
 	if len(pieces)%2 == 0 {
 		// The pattern is invalid since some % isn't closed
 		return nil
 	}
-	metrics, err := graphiteAPI.GetAllGraphiteMetrics()
+	metrics, err := API.GetAllGraphiteMetrics()
 	if err != nil {
 		// There was some issue with data
 		return nil
