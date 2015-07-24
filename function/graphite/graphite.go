@@ -31,6 +31,9 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 	for i, piece := range pieces {
 		if i%2 == 0 {
 			// Literal. Compare and match
+			if len(piece) > len(metric) {
+				return api.TaggedMetric{}, false
+			}
 			if metric[0:len(piece)] != piece {
 				// Didn't match
 				return api.TaggedMetric{}, false

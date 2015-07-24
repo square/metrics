@@ -108,3 +108,163 @@ func TestApplyPattern(t *testing.T) {
 		}
 	}
 }
+
+type testStore struct {
+}
+
+func (t testStore) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	return []api.GraphiteMetric{
+		"server.north.cpu.mean",
+		"server.north.cpu.median",
+		"server.south.cpu.mean",
+		"server.south.cpu.median",
+		"proxy.south.cpu.mean",
+		"proxy.south.cpu.median",
+		"host45.latency.http",
+		"host12.latency.http",
+		"host12.latency.rpc",
+	}, nil
+}
+func (t testStore) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	// A no-op for testing
+	return nil
+}
+
+func TestGetGraphiteMetrics(t *testing.T) {
+	store := testStore{}
+	tests := []struct {
+		pattern string
+		expect  []api.TaggedMetric
+	}{
+		{
+			pattern: "%app%.%dc%.cpu.%quantity%",
+			expect: []api.TaggedMetric{
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "server.north.cpu.mean",
+						"app":       "server",
+						"dc":        "north",
+						"quantity":  "mean",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "server.north.cpu.median",
+						"app":       "server",
+						"dc":        "north",
+						"quantity":  "median",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "server.south.cpu.mean",
+						"app":       "server",
+						"dc":        "south",
+						"quantity":  "mean",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "server.south.cpu.median",
+						"app":       "server",
+						"dc":        "south",
+						"quantity":  "median",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "proxy.south.cpu.mean",
+						"app":       "proxy",
+						"dc":        "south",
+						"quantity":  "mean",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "proxy.south.cpu.median",
+						"app":       "proxy",
+						"dc":        "south",
+						"quantity":  "median",
+					},
+				},
+			},
+		},
+		{
+			pattern: "does.not.exist",
+			expect:  []api.TaggedMetric{},
+		},
+		{
+			pattern: "invalid.metric%",
+			expect:  []api.TaggedMetric{},
+		},
+		{
+			pattern: "host45.latency.http",
+			expect: []api.TaggedMetric{
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "host45.latency.http",
+					},
+				},
+			},
+		},
+		{
+			pattern: "%host%.latency.%method%",
+			expect: []api.TaggedMetric{
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "host45.latency.http",
+						"host":      "host45",
+						"method":    "http",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "host12.latency.http",
+						"host":      "host12",
+						"method":    "http",
+					},
+				},
+				{
+					MetricKey: "$graphite",
+					TagSet: api.TagSet{
+						"$graphite": "host12.latency.rpc",
+						"host":      "host12",
+						"method":    "rpc",
+					},
+				},
+			},
+		},
+	}
+	for testNumber, test := range tests {
+		result := GetGraphiteMetrics(test.pattern, store)
+		if len(test.expect) != len(result) {
+			t.Errorf("Test #%d: Expected %d but got %d results: %+v, %+v",
+				testNumber,
+				len(test.expect),
+				len(result),
+				test.expect,
+				result,
+			)
+			continue
+		}
+		for i, tagged := range result {
+			expected := test.expect[i]
+			if expected.MetricKey != tagged.MetricKey {
+				t.Errorf("Test #%d: Expected metric key %s but got %s", testNumber, expected.MetricKey, tagged.MetricKey)
+				break
+			}
+			if !expected.TagSet.Equals(tagged.TagSet) {
+				t.Errorf("Test #%d: Expected tagset %+v but got %+v", testNumber, expected.TagSet, tagged.TagSet)
+			}
+		}
+	}
+}
