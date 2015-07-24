@@ -28,18 +28,18 @@ func applyPattern(rule internal.Rule, metric string) (api.TaggedMetric, bool) {
 	return tagged, true
 }
 
-func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
+func GetGraphiteMetrics(pattern string, API api.API) ([]api.TaggedMetric, error) {
 	rule, err := internal.Compile(internal.RawRule{
 		Pattern:          pattern,
 		MetricKeyPattern: api.SpecialGraphiteName,
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	metrics, err := API.GetAllGraphiteMetrics()
 	if err != nil {
 		// There was some issue with data
-		return nil
+		return nil, err
 	}
 	results := []api.TaggedMetric{}
 	for _, metric := range metrics {
@@ -48,5 +48,5 @@ func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
 			results = append(results, result)
 		}
 	}
-	return results
+	return results, nil
 }

@@ -351,7 +351,10 @@ var graphiteSelect = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		metrics := graphite.GetGraphiteMetrics(graphitePattern, context.API)
+		metrics, err := graphite.GetGraphiteMetrics(graphitePattern, context.API)
+		if err != nil {
+			return nil, err
+		}
 		if len(metrics) == 0 {
 			return nil, fmt.Errorf("there are no graphite metrics matching your pattern", graphiteQuery)
 		}

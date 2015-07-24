@@ -275,7 +275,10 @@ func TestGetGraphiteMetrics(t *testing.T) {
 		},
 	}
 	for testNumber, test := range tests {
-		result := GetGraphiteMetrics(test.pattern, store)
+		result, err := GetGraphiteMetrics(test.pattern, store)
+		if err != nil {
+			t.Fatalf("Unexpected error occurred: %s", err.Error())
+		}
 		if len(test.expect) != len(result) {
 			t.Errorf("Test #%d: Expected %d but got %d results: %+v, %+v",
 				testNumber,
