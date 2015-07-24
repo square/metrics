@@ -351,11 +351,24 @@ var graphiteSelect = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		results := graphite.GetGraphiteMetrics(graphitePattern, context.API)
-		if len(results) == 0 {
-			return nil, fmt.Errorf("graphite query %s resulted in no graphite metrics", graphiteQuery)
+		metrics := graphite.GetGraphiteMetrics(graphitePattern, context.API)
+		if len(metrics) == 0 {
+			return nil, fmt.Errorf("there are no graphite metrics matching your pattern", graphiteQuery)
 		}
-		ok := context.FetchLimit.Consume(len(results))
+		// filter the metrics according to our predicate (if present)
+		if context.Predicate != nil {
+			filtered := []api.TaggedMetric{}
+			for _, metric := range metrics {
+				if context.Predicate.Apply(metric.TagSet) {
+					filtered = append(filtered, metric)
+				}
+			}
+			if len(filtered) == 0 {
+				return nil, fmt.Errorf("some graphite metrics exist that match your pattern, but none of these pass your predicate")
+			}
+			metrics = filtered
+		}
+		ok := context.FetchLimit.Consume(len(metrics))
 		if !ok {
 			return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
 				context.FetchLimit.Current(),
@@ -363,7 +376,7 @@ var graphiteSelect = function.MetricFunction{
 		}
 		serieslist, err := context.MultiBackend.FetchMultipleSeries(
 			api.FetchMultipleRequest{
-				results,
+				metrics,
 				context.SampleMethod,
 				context.Timerange,
 				context.API,
@@ -377,16 +390,6 @@ var graphiteSelect = function.MetricFunction{
 		for _, series := range serieslist.Series {
 			// remove the intermediate "$graphite" tag from each series
 			delete(series.TagSet, api.SpecialGraphiteName)
-		}
-		if context.Predicate != nil {
-			// Apply this filter
-			filteredSeries := []api.Timeseries{}
-			for _, series := range serieslist.Series {
-				if context.Predicate.Apply(series.TagSet) {
-					filteredSeries = append(filteredSeries, series)
-				}
-			}
-			serieslist.Series = filteredSeries
 		}
 		serieslist.Name = api.SpecialGraphiteName
 		return serieslist, nil
