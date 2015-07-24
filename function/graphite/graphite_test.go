@@ -19,7 +19,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/internal"
-	//"github.com/square/metrics/mocks"
+	"github.com/square/metrics/mocks"
 )
 
 func TestApplyPattern(t *testing.T) {
@@ -119,29 +119,7 @@ func TestApplyPattern(t *testing.T) {
 }
 
 type testStore struct {
-	// mocks.FakeApi
-}
-
-func (t testStore) AddMetric(api.TaggedMetric) error {
-	return nil
-}
-func (t testStore) GetAllMetrics() ([]api.MetricKey, error) {
-	return nil, nil
-}
-func (t testStore) GetAllTags(api.MetricKey) ([]api.TagSet, error) {
-	return nil, nil
-}
-func (t testStore) GetMetricsForTag(string, string) ([]api.MetricKey, error) {
-	return nil, nil
-}
-func (t testStore) RemoveMetric(api.TaggedMetric) error {
-	return nil
-}
-func (t testStore) ToGraphiteName(api.TaggedMetric) (api.GraphiteMetric, error) {
-	return "", nil
-}
-func (t testStore) ToTaggedName(api.GraphiteMetric) (api.TaggedMetric, error) {
-	return api.TaggedMetric{}, nil
+	api.API
 }
 
 func (t testStore) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
@@ -163,7 +141,7 @@ func (t testStore) AddGraphiteMetric(metric api.GraphiteMetric) error {
 }
 
 func TestGetGraphiteMetrics(t *testing.T) {
-	store := testStore{}
+	store := testStore{&mocks.FakeApi{}}
 	tests := []struct {
 		pattern string
 		expect  []api.TagSet
