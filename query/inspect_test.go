@@ -75,6 +75,13 @@ MetricLoop:
 	return list, nil
 }
 
+func (a fakeAPI) AddGraphiteMetric(api.GraphiteMetric) error {
+	return nil
+}
+func (a fakeAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	return nil, nil
+}
+
 type fakeBackend struct {
 }
 

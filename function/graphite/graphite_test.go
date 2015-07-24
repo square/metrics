@@ -112,6 +112,28 @@ func TestApplyPattern(t *testing.T) {
 type testStore struct {
 }
 
+func (t testStore) AddMetric(api.TaggedMetric) error {
+	return nil
+}
+func (t testStore) GetAllMetrics() ([]api.MetricKey, error) {
+	return nil, nil
+}
+func (t testStore) GetAllTags(api.MetricKey) ([]api.TagSet, error) {
+	return nil, nil
+}
+func (t testStore) GetMetricsForTag(string, string) ([]api.MetricKey, error) {
+	return nil, nil
+}
+func (t testStore) RemoveMetric(api.TaggedMetric) error {
+	return nil
+}
+func (t testStore) ToGraphiteName(api.TaggedMetric) (api.GraphiteMetric, error) {
+	return "", nil
+}
+func (t testStore) ToTaggedName(api.GraphiteMetric) (api.TaggedMetric, error) {
+	return api.TaggedMetric{}, nil
+}
+
 func (t testStore) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
 	return []api.GraphiteMetric{
 		"server.north.cpu.mean",

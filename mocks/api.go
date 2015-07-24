@@ -29,6 +29,7 @@ type FakeApi struct {
 		key   string
 		value string
 	}][]api.MetricKey
+	graphiteList []api.GraphiteMetric
 }
 
 func NewFakeApi() *FakeApi {
@@ -50,6 +51,8 @@ func (fa *FakeApi) AddPair(tm api.TaggedMetric, gm api.GraphiteMetric) {
 	} else {
 		fa.metricTagSets[tm.MetricKey] = append(metricTagSets, tm.TagSet)
 	}
+
+	fa.graphiteList = append(fa.graphiteList, gm)
 }
 
 func (fa *FakeApi) AddMetric(metric api.TaggedMetric) error {
@@ -102,4 +105,13 @@ func (fa *FakeApi) AddMetricsForTag(key string, value string, metric string) {
 
 func (fa *FakeApi) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {
 	return nil, errors.New("Implement me")
+}
+
+// Makes the FakeApi into graphite metric storage
+func (fa *FakeApi) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	return fa.graphiteList, nil
+}
+func (fa *FakeApi) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	fa.graphiteList = append(fa.graphiteList, metric)
+	return nil
 }

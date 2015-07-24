@@ -142,4 +142,3 @@ func (a *defaultAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
 
 // ensure interface
 var _ api.API = (*defaultAPI)(nil)
-var _ api.GraphiteStore = (*defaultAPI)(nil)

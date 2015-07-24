@@ -351,15 +351,11 @@ var graphiteSelect = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		graphiteAPI, ok := context.API.(api.GraphiteStore)
-		if !ok {
-			return nil, fmt.Errorf("your API does not support graphite queries")
-		}
-		results := graphite.GetGraphiteMetrics(graphitePattern, graphiteAPI)
+		results := graphite.GetGraphiteMetrics(graphitePattern, context.API)
 		if len(results) == 0 {
 			return nil, fmt.Errorf("graphite query %s resulted in no graphite metrics", graphiteQuery)
 		}
-		ok = context.FetchLimit.Consume(len(results))
+		ok := context.FetchLimit.Consume(len(results))
 		if !ok {
 			return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
 				context.FetchLimit.Current(),

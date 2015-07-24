@@ -62,7 +62,7 @@ func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
 	}, true
 }
 
-func GetGraphiteMetrics(pattern string, API api.GraphiteStore) []api.TaggedMetric {
+func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
 	pieces := strings.Split(pattern, "%")
 	if len(pieces)%2 == 0 {
 		// The pattern is invalid since some % isn't closed
