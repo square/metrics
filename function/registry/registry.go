@@ -376,7 +376,7 @@ var graphiteSelect = function.MetricFunction{
 		}
 		for _, series := range serieslist.Series {
 			// remove the intermediate "$graphite" tag from each series
-			delete(series.TagSet, graphite.SpecialGraphiteName)
+			delete(series.TagSet, api.SpecialGraphiteName)
 		}
 		if context.Predicate != nil {
 			// Apply this filter
@@ -388,7 +388,7 @@ var graphiteSelect = function.MetricFunction{
 			}
 			serieslist.Series = filteredSeries
 		}
-		serieslist.Name = graphite.SpecialGraphiteName
+		serieslist.Name = api.SpecialGraphiteName
 		return serieslist, nil
 	},
 }

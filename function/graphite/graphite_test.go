@@ -18,43 +18,44 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/internal"
 )
 
 func TestApplyPattern(t *testing.T) {
 	tests := []struct {
-		pieces  []string
+		pattern string
 		metric  string
 		success bool
 		expect  api.TagSet
 	}{
 		{
-			pieces:  []string{"this.is.a.graphite.metric"},
+			pattern: "this.is.a.graphite.metric",
 			metric:  "this.is.a.graphite.metric",
 			success: true,
 			expect:  api.TagSet{"$graphite": "this.is.a.graphite.metric"},
 		},
 		{
-			pieces:  []string{"this.is.a.graphite.metric"},
+			pattern: "this.is.a.graphite.metric",
 			metric:  "this.is.a.different_graphite.metric",
 			success: false,
 		},
 		{
-			pieces:  []string{"this.is.a.graphite.metric"},
+			pattern: "this.is.a.graphite.metric",
 			metric:  "this.is.a.different.graphite.metric",
 			success: false,
 		},
 		{
-			pieces:  []string{"this.is.a.graphite.metric"},
+			pattern: "this.is.a.graphite.metric",
 			metric:  "this.is.a.graphite.metric.too",
 			success: false,
 		},
 		{
-			pieces:  []string{"this.is.a.graphite.metric"},
+			pattern: "this.is.a.graphite.metric",
 			metric:  "this.is.a.graphite.metricQ",
 			success: false,
 		},
 		{
-			pieces:  []string{"this.is.a.", "something", ".metric"},
+			pattern: "this.is.a.%something%.metric",
 			metric:  "this.is.a.graphite.metric",
 			success: true,
 			expect: api.TagSet{
@@ -63,7 +64,7 @@ func TestApplyPattern(t *testing.T) {
 			},
 		},
 		{
-			pieces:  []string{"this.is.a.", "something", ".", "type", ""},
+			pattern: "this.is.a.%something%.%type%",
 			metric:  "this.is.a.graphite.metric",
 			success: true,
 			expect: api.TagSet{
@@ -73,7 +74,7 @@ func TestApplyPattern(t *testing.T) {
 			},
 		},
 		{
-			pieces:  []string{"", "word1", ".", "word2", ".", "word3", ".", "word4", ".", "word5", ""},
+			pattern: "%word1%.%word2%.%word3%.%word4%.%word5%",
 			metric:  "this.is.a.graphite.metric",
 			success: true,
 			expect: api.TagSet{
@@ -86,7 +87,7 @@ func TestApplyPattern(t *testing.T) {
 			},
 		},
 		{
-			pieces:  []string{"", "app", ".", "datacenter", ".cpu.", "quantity", ""},
+			pattern: "%app%.%datacenter%.cpu.%quantity%",
 			metric:  "metrics-query-engine.north.cpu.total",
 			success: true,
 			expect: api.TagSet{
@@ -98,7 +99,14 @@ func TestApplyPattern(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		result, ok := applyPattern(test.pieces, test.metric)
+		rule, err := internal.Compile(internal.RawRule{Pattern: test.pattern, MetricKeyPattern: "$graphite"})
+		if (err != nil) && test.success {
+			t.Errorf("Expected success, but rule compilation failed for test %+v", test)
+		}
+		if err != nil {
+			continue
+		}
+		result, ok := applyPattern(rule, test.metric)
 		if ok != test.success {
 			t.Errorf("Test i = %d, test = %+v: didn't expect ok = %t", i, test, ok)
 			continue

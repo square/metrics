@@ -9,7 +9,6 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/function/graphite"
 	"github.com/square/metrics/log"
 )
 
@@ -113,8 +112,8 @@ func (a *defaultAPI) RemoveMetric(metric api.TaggedMetric) error {
 }
 
 func (a *defaultAPI) ToGraphiteName(metric api.TaggedMetric) (api.GraphiteMetric, error) {
-	if metric.MetricKey == graphite.SpecialGraphiteName {
-		return api.GraphiteMetric(metric.TagSet[graphite.SpecialGraphiteName]), nil
+	if metric.MetricKey == api.SpecialGraphiteName {
+		return api.GraphiteMetric(metric.TagSet[api.SpecialGraphiteName]), nil
 	}
 	return a.ruleset.ToGraphiteName(metric)
 }

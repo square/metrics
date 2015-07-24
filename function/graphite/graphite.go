@@ -15,57 +15,25 @@
 package graphite
 
 import (
-	"regexp"
-	"strings"
-
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/internal"
 )
 
-const SpecialGraphiteName = "$graphite"
-
-var segmentRegex = regexp.MustCompile(`^[^.]*`)
-
-func applyPattern(pieces []string, metric string) (api.TaggedMetric, bool) {
-	tagset := api.NewTagSet()
-	tagset[SpecialGraphiteName] = metric
-	for i, piece := range pieces {
-		if i%2 == 0 {
-			// Literal. Compare and match
-			if len(piece) > len(metric) {
-				return api.TaggedMetric{}, false
-			}
-			if metric[0:len(piece)] != piece {
-				// Didn't match
-				return api.TaggedMetric{}, false
-			}
-			// Chop this part off of the metric
-			metric = metric[len(piece):]
-		} else {
-			// It's a tag value
-			tag := piece
-			value := segmentRegex.FindString(metric)
-			if value == "" {
-				// Nothing found
-				return api.TaggedMetric{}, false
-			}
-			metric = metric[len(value):]
-			tagset[tag] = value
-		}
+func applyPattern(rule internal.Rule, metric string) (api.TaggedMetric, bool) {
+	tagged, ok := rule.MatchRule(metric)
+	if !ok {
+		return api.TaggedMetric{}, ok
 	}
-	if len(metric) != 0 {
-		// There's still unconsumed parts of the metric left
-		return api.TaggedMetric{}, false
-	}
-	return api.TaggedMetric{
-		MetricKey: SpecialGraphiteName,
-		TagSet:    tagset,
-	}, true
+	tagged.TagSet[api.SpecialGraphiteName] = metric
+	return tagged, true
 }
 
 func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
-	pieces := strings.Split(pattern, "%")
-	if len(pieces)%2 == 0 {
-		// The pattern is invalid since some % isn't closed
+	rule, err := internal.Compile(internal.RawRule{
+		Pattern:          pattern,
+		MetricKeyPattern: api.SpecialGraphiteName,
+	})
+	if err != nil {
 		return nil
 	}
 	metrics, err := API.GetAllGraphiteMetrics()
@@ -73,10 +41,9 @@ func GetGraphiteMetrics(pattern string, API api.API) []api.TaggedMetric {
 		// There was some issue with data
 		return nil
 	}
-
 	results := []api.TaggedMetric{}
 	for _, metric := range metrics {
-		result, ok := applyPattern(pieces, string(metric))
+		result, ok := applyPattern(rule, string(metric))
 		if ok {
 			results = append(results, result)
 		}

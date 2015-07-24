@@ -100,6 +100,9 @@ func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, 
 	defer api.Profiler.Record("api.GetMetricsForTag")()
 	return api.API.GetMetricsForTag(tagKey, tagValue)
 }
+
+const SpecialGraphiteName = "$graphite"
+
 func (api ProfilingAPI) AddGraphiteMetric(metric GraphiteMetric) error {
 	defer api.Profiler.Record("api.AddGraphiteMetric")()
 	return api.AddGraphiteMetric(metric)
