@@ -29,10 +29,7 @@ func applyPattern(rule internal.Rule, metric string) (api.TaggedMetric, bool) {
 }
 
 func GetGraphiteMetrics(pattern string, API api.API) ([]api.TaggedMetric, error) {
-	rule, err := internal.Compile(internal.RawRule{
-		Pattern:          pattern,
-		MetricKeyPattern: api.SpecialGraphiteName,
-	})
+	rule, err := internal.CompileGraphiteRule(pattern)
 	if err != nil {
 		return nil, err
 	}

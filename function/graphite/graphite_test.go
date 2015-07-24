@@ -19,6 +19,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/internal"
+	//"github.com/square/metrics/mocks"
 )
 
 func TestApplyPattern(t *testing.T) {
@@ -118,6 +119,7 @@ func TestApplyPattern(t *testing.T) {
 }
 
 type testStore struct {
+	// mocks.FakeApi
 }
 
 func (t testStore) AddMetric(api.TaggedMetric) error {
@@ -164,114 +166,84 @@ func TestGetGraphiteMetrics(t *testing.T) {
 	store := testStore{}
 	tests := []struct {
 		pattern string
-		expect  []api.TaggedMetric
+		expect  []api.TagSet
 	}{
 		{
 			pattern: "%app%.%dc%.cpu.%quantity%",
-			expect: []api.TaggedMetric{
+			expect: []api.TagSet{
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "server.north.cpu.mean",
-						"app":       "server",
-						"dc":        "north",
-						"quantity":  "mean",
-					},
+					"$graphite": "server.north.cpu.mean",
+					"app":       "server",
+					"dc":        "north",
+					"quantity":  "mean",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "server.north.cpu.median",
-						"app":       "server",
-						"dc":        "north",
-						"quantity":  "median",
-					},
+					"$graphite": "server.north.cpu.median",
+					"app":       "server",
+					"dc":        "north",
+					"quantity":  "median",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "server.south.cpu.mean",
-						"app":       "server",
-						"dc":        "south",
-						"quantity":  "mean",
-					},
+					"$graphite": "server.south.cpu.mean",
+					"app":       "server",
+					"dc":        "south",
+					"quantity":  "mean",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "server.south.cpu.median",
-						"app":       "server",
-						"dc":        "south",
-						"quantity":  "median",
-					},
+					"$graphite": "server.south.cpu.median",
+					"app":       "server",
+					"dc":        "south",
+					"quantity":  "median",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "proxy.south.cpu.mean",
-						"app":       "proxy",
-						"dc":        "south",
-						"quantity":  "mean",
-					},
+					"$graphite": "proxy.south.cpu.mean",
+					"app":       "proxy",
+					"dc":        "south",
+					"quantity":  "mean",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "proxy.south.cpu.median",
-						"app":       "proxy",
-						"dc":        "south",
-						"quantity":  "median",
-					},
+					"$graphite": "proxy.south.cpu.median",
+					"app":       "proxy",
+					"dc":        "south",
+					"quantity":  "median",
 				},
 			},
 		},
 		{
-			pattern: "does.not.exist",
-			expect:  []api.TaggedMetric{},
-		},
-		{
-			pattern: "invalid.metric%",
-			expect:  []api.TaggedMetric{},
-		},
-		{
 			pattern: "host45.latency.http",
-			expect: []api.TaggedMetric{
+			expect: []api.TagSet{
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "host45.latency.http",
-					},
+					"$graphite": "host45.latency.http",
 				},
 			},
 		},
 		{
 			pattern: "%host%.latency.%method%",
-			expect: []api.TaggedMetric{
+			expect: []api.TagSet{
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "host45.latency.http",
-						"host":      "host45",
-						"method":    "http",
-					},
+					"$graphite": "host45.latency.http",
+					"host":      "host45",
+					"method":    "http",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "host12.latency.http",
-						"host":      "host12",
-						"method":    "http",
-					},
+					"$graphite": "host12.latency.http",
+					"host":      "host12",
+					"method":    "http",
 				},
 				{
-					MetricKey: "$graphite",
-					TagSet: api.TagSet{
-						"$graphite": "host12.latency.rpc",
-						"host":      "host12",
-						"method":    "rpc",
-					},
+					"$graphite": "host12.latency.rpc",
+					"host":      "host12",
+					"method":    "rpc",
 				},
 			},
+		},
+		{
+			pattern: "does.not.exist",
+			expect:  []api.TagSet{},
+		},
+		{
+			pattern: "%does%.not.exist",
+			expect:  []api.TagSet{},
 		},
 	}
 	for testNumber, test := range tests {
@@ -291,13 +263,26 @@ func TestGetGraphiteMetrics(t *testing.T) {
 		}
 		for i, tagged := range result {
 			expected := test.expect[i]
-			if expected.MetricKey != tagged.MetricKey {
-				t.Errorf("Test #%d: Expected metric key %s but got %s", testNumber, expected.MetricKey, tagged.MetricKey)
-				break
+			if !expected.Equals(tagged.TagSet) {
+				t.Errorf("Test #%d: Expected tagset %+v but got %+v", testNumber, expected, tagged.TagSet)
 			}
-			if !expected.TagSet.Equals(tagged.TagSet) {
-				t.Errorf("Test #%d: Expected tagset %+v but got %+v", testNumber, expected.TagSet, tagged.TagSet)
-			}
+		}
+	}
+}
+
+func TestFailures(t *testing.T) {
+	store := testStore{}
+	tests := []struct {
+		pattern string
+	}{
+		{
+			pattern: "invalid.metric%",
+		},
+	}
+	for testNumber, test := range tests {
+		result, err := GetGraphiteMetrics(test.pattern, store)
+		if err == nil {
+			t.Fatalf("Expected error on input `%s`, test %d; got %+v", test, testNumber, result)
 		}
 	}
 }
