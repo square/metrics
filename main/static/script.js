@@ -100,8 +100,10 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
             google.visualization.events.addListener(chart, "ready", function() {
               scope.$apply(function() { $chartWaiting.dec(); });
             });
-            var totalWidth = window.innerWidth;
-            var totalHeight = window.innerHeight - 30;
+            var totalWidth = getComputedStyle(element[0]).width;
+            totalWidth = totalWidth.substring(0, totalWidth.length-2) * 1;
+            var totalHeight = getComputedStyle(element[0]).height;
+            totalHeight = totalHeight.substring(0, totalHeight.length-2) * 1;
             option = deepCopy(option);
             if (option && option.chartArea) {
               var area = option.chartArea;
@@ -319,7 +321,7 @@ module.controller("commonCtrl", function(
   $scope.selectOptions = {
     legend:    {position: "bottom"},
     title:     $location.search()["title"],
-    chartArea: {left: "10px", right:"25px", top: "5px", bottom: "30px"},
+    chartArea: {left: "10px", right:"25px", top: "15px", bottom: "60px"},
     series:    null,
     vAxes: {
       0: {title: ""},
