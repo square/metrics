@@ -304,14 +304,14 @@ function Autocom(input) {
 				tooltipSuppress = true;
 				refresh();
 				return;
-			} else if (e.keyCode == 38) { // UP
+			} else if (e.keyCode == 38 && !e.shiftKey) { // UP
 				e.preventDefault();
 				tooltipState.index--;
 				if (tooltipState.index < 0) {
 					tooltipState.index = tooltipState.words.length-1;
 				}
 				return;
-			} else if (e.keyCode == 40) { // DOWN
+			} else if (e.keyCode == 40 & &!e.shiftKey) { // DOWN
 				e.preventDefault();
 				tooltipState.index++;
 				if (tooltipState.index >= tooltipState.words.length) {
@@ -320,7 +320,6 @@ function Autocom(input) {
 				return;
 			} else if (
 					e.keyCode == 27 || // ESC
-					e.keyCode == 16 // shift
 			) {
 				tooltipSuppress = true;
 				return;
