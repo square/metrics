@@ -65,13 +65,24 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         }
         render();
       });
-
+      function unitless(value) {
+        if (typeof value !== "string") {
+          return value;
+        }
+        if (value.substring(value.length-2) == "px") {
+          return value.substring(0, value.length-2);
+        }
+        if (value.substring(value.length-1) == "%") {
+          return value.substring(0, value.length-1);
+        }
+        return value;
+      }
       function fixUnits(value , total) {
         if (typeof value !== "string") {
           return value;
         }
         if (value.substring(value.length-2) == "px") {
-          var valuePixels = value.substring(0, value.length-2);
+          var valuePixels = unitless(value);
           return valuePixels / total * 100 + "%";
         }
         return value;
@@ -100,10 +111,8 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
             google.visualization.events.addListener(chart, "ready", function() {
               scope.$apply(function() { $chartWaiting.dec(); });
             });
-            var totalWidth = getComputedStyle(element[0]).width;
-            totalWidth = totalWidth.substring(0, totalWidth.length-2) * 1;
-            var totalHeight = getComputedStyle(element[0]).height;
-            totalHeight = totalHeight.substring(0, totalHeight.length-2) * 1;
+            var totalWidth = unitless(getComputedStyle(element[0]).width) * 1;
+            var totalHeight = unitless(getComputedStyle(element[0]).height) * 1;
             option = deepCopy(option);
             if (option && option.chartArea) {
               var area = option.chartArea;
@@ -114,10 +123,10 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
               var width = fixUnits(area.width, totalWidth);
               var height = fixUnits(area.height, totalHeight);
               if (right !== undefined) {
-                width = (100 - left.substring(0, left.length-1) - right.substring(0, right.length-1)) + "%";
+                width = (100 - unitless(left) - unitless(right)) + "%";
               }
               if (bottom !== undefined) {
-                height = (100 - top.substring(0, top.length-1) - bottom.substring(0, bottom.length-1)) + "%";
+                height = (100 - unitless(top) - unitless(bottom)) + "%";
               }
               option.chartArea = {
                 left:   left,
