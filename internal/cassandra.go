@@ -64,10 +64,14 @@ type defaultDatabase struct {
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
-func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) {
+func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig, databaseConfig api.DatabaseConfig) (Database, error) {
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err
+	}
+	graphiteMetricTTL := databaseConfig.GraphiteMetricTTL
+	if graphiteMetricTTL == 0 {
+		graphiteMetricTTL = 90000 // slightly more than 24 hours as a default
 	}
 	return &defaultDatabase{
 		session:           session,
@@ -75,7 +79,7 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 		allMetricsMutex:   &sync.Mutex{},
 		tagIndexCache:     make(map[tagIndexCacheKey]bool),
 		tagIndexMutex:     &sync.Mutex{},
-		graphiteMetricTTL: 90000, // Slightly more than 24 hours TTL
+		graphiteMetricTTL: graphiteMetricTTL,
 	}, nil
 }
 

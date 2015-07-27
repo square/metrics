@@ -30,7 +30,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
 	clusterConfig.Timeout = time.Second * 30
-	db, err := NewCassandraDatabase(clusterConfig)
+	db, err := NewCassandraDatabase(clusterConfig, config.DatabaseConfig)
 	if err != nil {
 		return nil, err
 	}

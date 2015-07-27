@@ -62,8 +62,14 @@ type Config struct {
 	// Database configurations
 	// mostly cassandra configurations from
 	// https://github.com/gocql/gocql/blob/master/cluster.go
-	Hosts    []string `yaml:"hosts"`
-	Keyspace string   `yaml:"keyspace"`
+	Hosts    []string       `yaml:"hosts"`
+	Keyspace string         `yaml:"keyspace"`
+	Database DatabaseConfig `yaml:"database"`
+}
+
+// Configuration for the Database attached to the default API
+type DatabaseConfig struct {
+	GraphiteMetricTTL int `yaml:graphite_metric_ttl` // in seconds
 }
 
 // ProfilingAPI wraps an ordinary API and also records profiling metrics to a given Profiler object.
