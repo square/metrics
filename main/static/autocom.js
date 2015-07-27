@@ -284,9 +284,13 @@ function generateTooltipContents(tooltip, words, index, selectedCallback) {
 }
 
 // Inserts `word` at the location specified by `at` inside of `input`.
-function insertWord(input, at, word) {
+function insertWord(input, at, word, supressCallback) {
 	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
-	input.selectionStart = input.selectionEnd = at.from + word.length;
+	setTimeout(function() {
+		input.focus();
+		input.selectionStart = input.selectionEnd = at.from + word.length;
+		supressCallback();
+	}, 1);
 }
 
 
@@ -312,12 +316,16 @@ function Autocom(input) {
 	var tooltipState = {active: false, index: 0};
 	var tooltipSuppress = false;
 
+	function supressCallback() {
+		tooltipSuppress = true;
+	}
+
 	function keyPress(e) {
 		if (tooltipState.active && !tooltipSuppress) {
 			if (e.keyCode == 9 || e.keyCode == 13) { // TAB or ENTER
 				// Tab
 				e.preventDefault();
-				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index]);
+				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index], supressCallback);
 				tooltipSuppress = true;
 				refresh();
 				return;
@@ -328,16 +336,14 @@ function Autocom(input) {
 					tooltipState.index = tooltipState.words.length-1;
 				}
 				return;
-			} else if (e.keyCode == 40 & &!e.shiftKey) { // DOWN
+			} else if (e.keyCode == 40 && !e.shiftKey) { // DOWN
 				e.preventDefault();
 				tooltipState.index++;
 				if (tooltipState.index >= tooltipState.words.length) {
 					tooltipState.index = 0;
 				}
 				return;
-			} else if (
-					e.keyCode == 27 || // ESC
-			) {
+			} else if (e.keyCode == 27) { // ESC
 				tooltipSuppress = true;
 				return;
 			}
@@ -357,7 +363,7 @@ function Autocom(input) {
 	input.addEventListener("keydown", keyPress, false);
 
 	function completeSelect(index) {
-		insertWord(input, tooltipState.at, tooltipState.words[index]);
+		insertWord(input, tooltipState.at, tooltipState.words[index], supressCallback);
 		refresh();
 	}
 	function renderTooltip() {
