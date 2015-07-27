@@ -31,10 +31,28 @@ textarea.queryinput {
   font-family: Consolas, monospace;
 }
 
+.describe-container {
+  white-space: nowrap;
+  overflow-x: scroll;
+  max-height: 500px;
+}
+
+::-webkit-scrollbar {
+    -webkit-appearance: none;
+    background: #EEE;
+    width: 7px;
+    height: 7px;
+}
+::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0,0,0,.5);
+    -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+}
+
 .table-column {
+  vertical-align: top;
   display: inline-block;
   margin-right: 10px;
-  float: left;
   width: auto;
   min-width: 100px;
   border-left: 1px solid #DDD;

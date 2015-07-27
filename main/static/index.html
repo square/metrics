@@ -91,11 +91,12 @@
         <table ng-show="isTabular() && queryResult.name != 'describe'" class="table table-striped">
           <tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
         </table>
-        <div ng-show="isTabular() && queryResult.name == 'describe'">
+        <div ng-show="isTabular() && queryResult.name == 'describe'" class='describe-container'>
           <table ng-repeat="(key, list) in queryResult.body" class="table table-striped table-column">
             <tr><th>{{key}}</th></tr>
             <tr ng-repeat="value in list track by $index"><td>{{value}}</td></tr>
           </table>
+          <div style="clear:both;"></div>
         </div>
         <div>{{ (queryResult || "").trim() }}</div>
       </div>
