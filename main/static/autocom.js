@@ -373,12 +373,12 @@ function Autocom(input) {
 			// If it's not currently active, then become active.
 			tooltipState = {
 				active: true,
-				index: 0,
+				index: tooltipState.index || 0,
 				words: result.words,
 				at: result.at,
 			};
 			if (tooltipState.index >= tooltipState.words.length) {
-				tooltipState.index = 0;
+				tooltipState.index = tooltipState.active ? tooltipState.index : 0;
 			}
 			generateTooltipContents(elements.tooltip, tooltipState.words, tooltipState.index, completeSelect);
 			
