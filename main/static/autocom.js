@@ -114,9 +114,25 @@ function scoreTable(table, A, B, i, j, config) {
 	return table[i][j] = Math.max( advanceI, advanceJ );
 }
 
+
+function serializeConfig(config) {
+	var configs = [];
+	for (var i in config) {
+		configs.push(i + ": " + config[i]);
+	}
+	configs.sort();
+	return configs.join(", ");
+}
+
+var scoreAgainstCache = {};
+
 // scoreAgainst computes how well the "letters" match "word" (this is not commutative).
 // The config contains parameters for the algorithm.
 function scoreAgainst(letters, word, config) {
+	var cacheIndex = letters + "||" + word + "||" + serializeConfig(config);
+	if (scoreAgainstCache[cacheIndex]) {
+		return scoreAgainstCache[cacheIndex];
+	}
 	var table = [];
 	for (var i = 0; i < letters.length; i++) {
 		table[i] = [];
@@ -125,7 +141,7 @@ function scoreAgainst(letters, word, config) {
 		}
 	}
 	var s = scoreTable(table, letters, word, 0, 0, config);
-	return s;
+	return scoreAgainstCache[cacheIndex] = s;
 }
 
 // generateElements creates the elements needed by an Autocom, based on the given input.
@@ -194,10 +210,11 @@ function predictReady(input, prefixPattern, continuePattern) {
 
 // filterCandidates finds a list of candidates, pursuant to the config, among the options
 // from the given prefix `word`.
-function filterCandidates(word, options, config) {
+function filterCandidates(word, givenOptions, config) {
 	// Compute the scores for each word.
-	for (var i = 0; i < options.length; i++) {
-		options[i] = { word: options[i], score: scoreAgainst(word, options[i], config) };
+	var options = [];
+	for (var i = 0; i < givenOptions.length; i++) {
+		options[i] = { word: givenOptions[i], score: scoreAgainst(word, givenOptions[i], config) };
 	}
 	options.sort(function(a, b) {
 		return b.score - a.score;
@@ -232,8 +249,8 @@ function moveTooltip(elements, offsetX, offsetY) {
 	// Resize the shadower:
 	elements.shadow.style.width = getComputedStyle(elements.input).width;
 	// Fill prior and after with text:
-	elements.prior.innerHTML = elements.input.value.substring(0, elements.input.selectionStart);
-	elements.after.innerHTML = elements.input.value.substring(elements.input.selectionStart);
+	elements.prior.textContent = elements.input.value.substring(0, elements.input.selectionStart);
+	elements.after.textContent = elements.input.value.substring(elements.input.selectionStart);
 	// Use marker's location to reposition tooltip:
 	elements.tooltip.style.left = Math.floor(elements.input.offsetLeft + elements.marker.offsetLeft + offsetX) + "px";
 	elements.tooltip.style.top = Math.floor(elements.input.offsetTop + elements.marker.offsetTop - elements.input.scrollTop + offsetY) + "px";
@@ -343,16 +360,14 @@ function Autocom(input) {
 		insertWord(input, tooltipState.at, tooltipState.words[index]);
 		refresh();
 	}
-
 	function renderTooltip() {
 		moveTooltip(elements, self.tooltipX, self.tooltipY);
-
 		var result = predict(predictReady(input, self.prefixPattern, self.continuePattern), self.options.slice(0), self.config);
 		if (result && !tooltipSuppress && document.activeElement === input) {
 			// If it's not currently active, then become active.
 			tooltipState = {
 				active: true,
-				index: tooltipState.active ? tooltipState.index : 0,
+				index: 0,
 				words: result.words,
 				at: result.at,
 			};
