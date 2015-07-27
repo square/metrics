@@ -66,6 +66,31 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         render();
       });
 
+      function fixUnits(value , total) {
+        if (typeof value !== "string") {
+          return value;
+        }
+        if (value.substring(value.length-2) == "px") {
+          var valuePixels = value.substring(0, value.length-2);
+          return valuePixels / total * 100 + "%";
+        }
+        return value;
+      }
+
+      function deepCopy(thing) {
+        if (typeof thing != "object") {
+          return thing;
+        }
+        if (thing instanceof Array) {
+          return thing;
+        }
+        var copy = {};
+        for (var i in thing) {
+          copy[i] = deepCopy(thing[i]);
+        }
+        return copy;
+      }
+
       function render() {
         $timeout(function(){
           var data = scope.data();
@@ -75,6 +100,30 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
             google.visualization.events.addListener(chart, "ready", function() {
               scope.$apply(function() { $chartWaiting.dec(); });
             });
+            var totalWidth = window.innerWidth;
+            var totalHeight = window.innerHeight - 30;
+            option = deepCopy(option);
+            if (option && option.chartArea) {
+              var area = option.chartArea;
+              var left = fixUnits(area.left, totalWidth);
+              var top = fixUnits(area.top, totalHeight);
+              var right = fixUnits(area.right, totalWidth);
+              var bottom = fixUnits(area.bottom, totalHeight);
+              var width = fixUnits(area.width, totalWidth);
+              var height = fixUnits(area.height, totalHeight);
+              if (right !== undefined) {
+                width = (100 - left.substring(0, left.length-1) - right.substring(0, right.length-1)) + "%";
+              }
+              if (bottom !== undefined) {
+                height = (100 - top.substring(0, top.length-1) - bottom.substring(0, bottom.length-1)) + "%";
+              }
+              option.chartArea = {
+                left:   left,
+                top:    top,
+                width:  width,
+                height: height
+              };
+            }
             chart.draw(data, option);
           }
         }, 1);
@@ -270,7 +319,7 @@ module.controller("commonCtrl", function(
   $scope.selectOptions = {
     legend:    {position: "bottom"},
     title:     $location.search()["title"],
-    chartArea: {left: "5%", width:"90%", top: "5%", height: "80%"},
+    chartArea: {left: "10px", right:"25px", top: "5px", bottom: "30px"},
     series:    null,
     vAxes: {
       0: {title: ""},
