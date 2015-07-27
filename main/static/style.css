@@ -33,7 +33,7 @@ textarea.queryinput {
 
 .describe-container {
   white-space: nowrap;
-  overflow-x: scroll;
+  overflow-x: auto;
   max-height: 500px;
 }
 
