@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -130,13 +131,13 @@ func (a *defaultAPI) AddGraphiteMetric(metric api.GraphiteMetric) error {
 	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
 		return graphiteDB.AddGraphiteMetric(metric)
 	}
-	return nil
+	return fmt.Errorf("database does not support the AddGraphiteMetric operator")
 }
 func (a *defaultAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
 	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
 		return graphiteDB.GetAllGraphiteMetrics()
 	}
-	return nil, nil
+	return nil, fmt.Errorf("database does not support the GetAllGraphiteMetrics operator")
 }
 
 // ensure interface

@@ -55,11 +55,12 @@ type tagIndexCacheKey struct {
 }
 
 type defaultDatabase struct {
-	session         *gocql.Session
-	allMetricsCache map[api.MetricKey]bool
-	allMetricsMutex *sync.Mutex
-	tagIndexCache   map[tagIndexCacheKey]bool
-	tagIndexMutex   *sync.Mutex
+	session           *gocql.Session
+	allMetricsCache   map[api.MetricKey]bool
+	allMetricsMutex   *sync.Mutex
+	tagIndexCache     map[tagIndexCacheKey]bool
+	tagIndexMutex     *sync.Mutex
+	graphiteMetricTTL int
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
@@ -69,11 +70,12 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) 
 		return nil, err
 	}
 	return &defaultDatabase{
-		session:         session,
-		allMetricsCache: make(map[api.MetricKey]bool),
-		allMetricsMutex: &sync.Mutex{},
-		tagIndexCache:   make(map[tagIndexCacheKey]bool),
-		tagIndexMutex:   &sync.Mutex{},
+		session:           session,
+		allMetricsCache:   make(map[api.MetricKey]bool),
+		allMetricsMutex:   &sync.Mutex{},
+		tagIndexCache:     make(map[tagIndexCacheKey]bool),
+		tagIndexMutex:     &sync.Mutex{},
+		graphiteMetricTTL: 90000, // Slightly more than 24 hours TTL
 	}, nil
 }
 
@@ -207,9 +209,10 @@ func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, me
 
 func (db *defaultDatabase) AddGraphiteMetric(metric api.GraphiteMetric) error {
 	return db.session.Query(
-		"INSERT INTO graphite_names (shard, graphite_name) VALUES (?, ?) USING TTL 90000", // Slightly more than 24 hours TTL
+		"INSERT INTO graphite_names (shard, graphite_name) VALUES (?, ?) USING TTL ?",
 		0,
 		metric,
+		db.graphiteMetricTTL,
 	).Exec()
 }
 func (db *defaultDatabase) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {

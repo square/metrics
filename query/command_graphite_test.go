@@ -234,6 +234,7 @@ func TestGraphite(t *testing.T) {
 		}
 		a := assert.New(t)
 		expectedSeries := test.expected
+		a.EqInt(len(list.Series), len(expectedSeries))
 		lookup := map[string][]float64{}
 		for _, expect := range expectedSeries {
 			lookup[expect.TagSet.Serialize()] = expect.Values
@@ -296,9 +297,6 @@ func TestGraphiteLimits(t *testing.T) {
 			continue
 		}
 		list := seriesListList[0]
-		if err != nil {
-			t.Fatal(err)
-		}
 		a := assert.New(t)
 		expectedSeries := test.expected
 		lookup := map[string][]float64{}
