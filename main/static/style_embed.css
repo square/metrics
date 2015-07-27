@@ -29,9 +29,8 @@ body {
   display:    block;
   position: absolute;
   background: #EEE;
-  margin-top: 30px;
   width:      100%;
-  top: 0;
+  top: 30px;
   bottom: 0;
 }
 
