@@ -23,6 +23,16 @@ module.config(function($locationProvider) {
   $locationProvider.html5Mode(true);
 });
 
+module.factory("$hosts", function($http, $q) {
+  var result = $q.defer();
+  $http.get("/static/hosts.json").success(function(data, status, headers, config) {
+    result.resolve(data);
+  }).error(function() {
+    result.resolve(["/"]); // in the event of failure, assume only this host can communicate
+  });
+  return result;
+});
+
 module.factory("$windowSize", function($window) {
   return {
     height:  $window.innerHeight,
@@ -217,19 +227,18 @@ module.factory("$queryTicketBooth", function() {
   return new TicketBooth();
 });
 
-module.factory("$launchRequest", function($google, $http, $queryTicketBooth, $launchedQueries, $q) {
-  return function(params) {
+module.factory("$launchRequestToHost", function($google, $http, $q) {
+  return function(host, params, ticket) {
+    if (host.match(/\/$/)) {
+      host = host.substring(0, host.length-1);
+    }
     var resultPromise = $q.defer(); // Will be resolved with received value.
     var start = new Date();
-    var ticket = $queryTicketBooth.next();
-    $launchedQueries.inc();
-    var request = $http.get("/query", {
+    var request = $http.get(host + "/query", {
       params:params
     }).success(function(data, status, headers, config) {
-      $launchedQueries.dec();
       resolve(data);
     }).error(function(data, status, headers, config) {
-      $launchedQueries.dec();
       resolve(data);
     });
     function resolve(data) {
@@ -241,6 +250,80 @@ module.factory("$launchRequest", function($google, $http, $queryTicketBooth, $la
       }
     }
     return resultPromise.promise;
+  };
+});
+
+module.factory("$unifyQuery", function() {
+  return function(list) {
+    console.log(list);
+    var elapsedMs = list[0].elapsedMs;
+    var payloads = [];
+    for (var i = 0; i < list.length; i++) {
+      elapsedMs = Math.max(elapsedMs, list[i].elapsedMs);
+      payloads.push(list[i].payload);
+    }
+    var success = [];
+    var fail = [];
+    for (var i = 0; i < payloads.length; i++) {
+      var payload = payloads[i];
+      if (payload.success) {
+        success.push(payload);
+      } else {
+        fail.push(payload);
+      }
+    }
+    if (success.length == 0) {
+      return {payload: fail[0], elapsedMs: elapsedMs};
+    }
+    // Check the type of returned data - it should be consistent, and from the known set
+    for (var i = 0; i < success.length; i++) {
+      if (success[i].name != success[0].name) {
+        throw "mixed names: `" + success[i].name + "` and `" + success[0].name + "`";
+      }
+    }
+    switch (success[0].name) {
+    case "select":
+      var body = [];
+      console.log(success);
+      for (var i = 0; i < success.length; i++) {
+        body = body.concat(success[i].body);
+      }
+      var payload = {success: true, name: "select", body: body};
+      break;
+    default: 
+      throw "not a known query type: `" + success[0].name + "`";
+    }
+    console.log(payload);
+    // var payload = success[0];
+    return {payload: payload, elapsedMs: elapsedMs};
+  };
+});
+
+module.factory("$launchRequest", function($launchRequestToHost, $launchedQueries, $queryTicketBooth, $q, $hosts, $unifyQuery) {
+  return function(params) {
+    var ticket = $queryTicketBooth.next();
+    var result = $q.defer();
+    $launchedQueries.inc();
+    $hosts.promise.then(function(hosts) {
+      var count = hosts.length;
+      var list = [];
+      for (var i = 0; i < hosts.length; i++) {
+        $launchRequestToHost(hosts[i], params, ticket).then(function(value) {
+          list.push(value);
+          count--;
+          if (count == 0) {
+            result.resolve($unifyQuery(list));
+            $launchedQueries.dec();
+            count = -1;
+          }
+        }, function(value) {
+          count = -1;
+          result.reject(null);
+          $launchedQueries.dec();
+        });
+      }
+    });
+    return result.promise;
   };
 });
 
