@@ -135,30 +135,9 @@ func (cmd *DescribeMetricsCommand) Name() string {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error) {
-	slotLimit := context.SlotLimit
-	defaultLimit := 1000
-	if slotLimit == 0 {
-		slotLimit = defaultLimit // the default limit
-	}
-	resolutions := []int64{
-		cmd.context.Resolution,
-		// Try each of these resolutions in order
-		// Use the first that's fine-grained enough, if the user-specified value fails
-		30 * 1000,
-		5 * 60 * 1000,
-		60 * 60 * 1000,
-		1440 * 60 * 1000,
-	}
-	var timerange api.Timerange
-	var err error
-	for _, resolution := range resolutions {
-		timerange, err = api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, resolution)
-		if err != nil {
-			return nil, err
-		}
-		if timerange.Slots() <= 3000 {
-			break
-		}
+	timerange, err := context.Backend.DecideTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
+	if err != nil {
+		return nil, err
 	}
 	fmt.Printf("Picked a timerange: %+v\n", timerange)
 	hasTimeout := context.Timeout != 0

@@ -42,6 +42,10 @@ func (m *sequentialMultiBackend) FetchMultipleSeries(request api.FetchMultipleRe
 	}, nil
 }
 
+func (m *sequentialMultiBackend) DecideTimerange(start int64, end int64, userResolutionMillis int64) (api.Timerange, error) {
+	return m.Backend.DecideTimerange(start, end, userResolutionMillis)
+}
+
 type parallelMultiBackend struct {
 	limit   int
 	tickets chan struct{}
@@ -134,4 +138,8 @@ func (m *parallelMultiBackend) FetchMultipleSeries(request api.FetchMultipleRequ
 		Series:    resultSeries,
 		Timerange: request.Timerange,
 	}, nil
+}
+
+func (m *parallelMultiBackend) DecideTimerange(start int64, end int64, userResolutionMillis int64) (api.Timerange, error) {
+	return m.Backend.DecideTimerange(start, end, userResolutionMillis)
 }

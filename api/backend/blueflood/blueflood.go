@@ -323,3 +323,26 @@ func (c Config) bluefloodResolution(
 	// return the coarsest resolution.
 	return Resolutions[len(Resolutions)-1]
 }
+
+func (b blueflood) DecideTimerange(start int64, end int64, userResolutionMillis int64) (api.Timerange, error) {
+	slotLimit := 3000
+	resolutions := []int64{
+		userResolutionMillis,
+		// Try each of these resolutions in order
+		// Use the first that's fine-grained enough, if the user-specified value fails
+		30 * 1000,
+		5 * 60 * 1000,
+		60 * 60 * 1000,
+		1440 * 60 * 1000,
+	}
+	for _, resolution := range resolutions {
+		timerange, err := api.NewSnappedTimerange(start, end, resolution)
+		if err != nil {
+			continue
+		}
+		if timerange.Slots() <= slotLimit {
+			return timerange, nil
+		}
+	}
+	return api.Timerange{}, fmt.Errorf("no resolution produced a valid timerange")
+}

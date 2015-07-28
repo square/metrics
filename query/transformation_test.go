@@ -30,6 +30,10 @@ import (
 
 type movingAverageBackend struct{}
 
+func (b movingAverageBackend) DecideTimerange(start int64, end int64, resolution int64) (api.Timerange, error) {
+	return api.NewSnappedTimerange(start, end, resolution)
+}
+
 func (b movingAverageBackend) FetchSingleSeries(r api.FetchSeriesRequest) (api.Timeseries, error) {
 	t := r.Timerange
 	values := []float64{9, 2, 1, 6, 4, 5}

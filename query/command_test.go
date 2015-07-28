@@ -31,6 +31,10 @@ var emptyGraphiteName = api.GraphiteMetric("")
 
 type fakeApiBackend struct{}
 
+func (b fakeApiBackend) DecideTimerange(start int64, end int64, resolution int64) (api.Timerange, error) {
+	return api.NewSnappedTimerange(start, end, resolution)
+}
+
 func (f fakeApiBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
