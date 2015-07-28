@@ -146,9 +146,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		// Use the first that's fine-grained enough, if the user-specified value fails
 		30 * 1000,
 		5 * 60 * 1000,
-		20 * 60 * 1000,
 		60 * 60 * 1000,
-		240 * 60 * 1000,
 		1440 * 60 * 1000,
 	}
 	var timerange api.Timerange
@@ -158,7 +156,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		if err != nil {
 			return nil, err
 		}
-		if timerange.Slots() <= slotLimit {
+		if timerange.Slots() <= 3000 {
 			break
 		}
 	}
