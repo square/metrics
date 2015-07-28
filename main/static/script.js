@@ -65,27 +65,32 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         }
         render();
       });
-      function unitless(value) {
+      function getUnits(value) {
         if (typeof value !== "string") {
-          return value;
+          return null;
         }
-        if (value.substring(value.length-2) == "px") {
-          return value.substring(0, value.length-2);
+        var result = value.match(/^([0-9.-]+)(%|px)$/);
+        if (result === null) {
+          return null;
+        } else {
+          return { value: parseFloat(result[1]), units: result[2] };
         }
-        if (value.substring(value.length-1) == "%") {
-          return value.substring(0, value.length-1);
-        }
-        return value;
+      }
+      function unitless(value) {
+        return getUnits(value).value;
       }
       function fixUnits(value , total) {
-        if (typeof value !== "string") {
-          return value;
+        var match = getUnits(value);
+        if (match == null) {
+          return null;
         }
-        if (value.substring(value.length-2) == "px") {
-          var valuePixels = unitless(value);
-          return valuePixels / total * 100 + "%";
+        switch (match.units) {
+          case "px":
+            return (match.value / total * 100) + "%";
+          case "%":
+            return match.value + "%";
         }
-        return value;
+        throw "not accessible";
       }
 
       function deepCopy(thing) {
@@ -111,8 +116,9 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
             google.visualization.events.addListener(chart, "ready", function() {
               scope.$apply(function() { $chartWaiting.dec(); });
             });
-            var totalWidth = unitless(getComputedStyle(element[0]).width) * 1;
-            var totalHeight = unitless(getComputedStyle(element[0]).height) * 1;
+            var elementStyle = getComputedStyle(element[0]);
+            var totalWidth = unitless(elementStyle.width) * 1;
+            var totalHeight = unitless(elementStyle.height) * 1;
             option = deepCopy(option);
             if (option && option.chartArea) {
               var area = option.chartArea;
@@ -134,6 +140,7 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
                 width:  width,
                 height: height
               };
+              console.log(option.chartArea);
             }
             chart.draw(data, option);
           }
@@ -327,10 +334,16 @@ module.controller("commonCtrl", function(
       return "rendered";
     }
   };
+  function applyDefault(name, value) {
+    if ($location.search()[name] !== undefined) {
+      return $location.search()[name];
+    }
+    return value;
+  }
   $scope.selectOptions = {
     legend:    {position: "bottom"},
-    title:     $location.search()["title"],
-    chartArea: {left: "10px", right:"25px", top: "15px", bottom: "60px"},
+    title:     applyDefault("title", ""),
+    chartArea: {left: applyDefault("marginleft", "10px"), right: applyDefault("marginright","25px"), top: applyDefault("margintop","15px"), bottom: applyDefault("marginbottom","60px")},
     series:    null,
     vAxes: {
       0: {title: ""},
