@@ -111,9 +111,9 @@ const SpecialGraphiteName = "$graphite"
 
 func (api ProfilingAPI) AddGraphiteMetric(metric GraphiteMetric) error {
 	defer api.Profiler.Record("api.AddGraphiteMetric")()
-	return api.AddGraphiteMetric(metric)
+	return api.API.AddGraphiteMetric(metric)
 }
 func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
 	defer api.Profiler.Record("api.GetAllGraphiteMetrics")()
-	return api.GetAllGraphiteMetrics()
+	return api.API.GetAllGraphiteMetrics()
 }
