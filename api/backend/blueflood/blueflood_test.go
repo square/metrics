@@ -31,10 +31,10 @@ func Test_Blueflood(t *testing.T) {
 		return
 	}
 	defaultClientConfig := Config{
-		"https://blueflood.url",
-		"square",
-		make(map[string]int64),
-		time.Millisecond,
+		BaseUrl:  "https://blueflood.url",
+		TenantId: "square",
+		Ttls:     make(map[string]int64),
+		Timeout:  time.Millisecond,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
 	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"

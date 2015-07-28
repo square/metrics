@@ -35,10 +35,11 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl  string           `yaml:"base_url"`
-	TenantId string           `yaml:"tenant_id"`
-	Ttls     map[string]int64 `yaml:"ttls"` // Ttl in days
-	Timeout  time.Duration    `yaml:"timeout"`
+	BaseUrl   string           `yaml:"base_url"`
+	TenantId  string           `yaml:"tenant_id"`
+	Ttls      map[string]int64 `yaml:"ttls"` // Ttl in days
+	Timeout   time.Duration    `yaml:"timeout"`
+	SlotLimit int64            `yaml:"slots"` // maximum number of slots
 }
 
 func (c Config) getTTL(r Resolution) time.Duration {
@@ -111,6 +112,10 @@ var Resolutions []Resolution = []Resolution{
 }
 
 func NewBlueflood(c Config) api.Backend {
+	if c.SlotLimit == 0 {
+		// Enforce a default
+		c.SlotLimit = 3000
+	}
 	b := blueflood{config: c, client: http.DefaultClient}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
@@ -132,7 +137,9 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
-		request.Timerange.Start())
+		request.Timerange.Start(),
+		time.Duration(request.Timerange.End()-request.Timerange.Start())*time.Millisecond,
+	)
 
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
@@ -305,7 +312,8 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 // between them.
 func (c Config) bluefloodResolution(
 	desiredResolution time.Duration,
-	startMs int64) Resolution {
+	startMs int64,
+	length time.Duration) Resolution {
 	now := time.Now().Unix() * 1000
 	// Choose the appropriate resolution based on TTL, fetching the highest resolution data we can
 	for _, current := range Resolutions {
@@ -316,7 +324,8 @@ func (c Config) bluefloodResolution(
 		log.Debugf("age (s): %d\n", age/time.Second)
 		log.Debugf("ttl (s): %d\n", maxAge/time.Second)
 		if desiredResolution <= current.duration &&
-			age < c.getTTL(current) {
+			age < c.getTTL(current) &&
+			int64(length/current.duration) < c.SlotLimit {
 			return current
 		}
 	}
