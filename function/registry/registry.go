@@ -362,6 +362,7 @@ var graphiteSelect = function.MetricFunction{
 		if context.Predicate != nil {
 			filtered := []api.TaggedMetric{}
 			for _, metric := range metrics {
+				metric.MetricKey = api.SpecialGraphiteName
 				if context.Predicate.Apply(metric.TagSet) {
 					filtered = append(filtered, metric)
 				}
