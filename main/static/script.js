@@ -333,10 +333,16 @@ module.controller("commonCtrl", function(
       return "rendered";
     }
   };
-  $scope.hiding = {
-    explore: ($location.search().explore || "").toLowerCase() == "hide",
-    legend: ($location.search().legend || "").toLowerCase() == "hide",
+  $scope.hidden = {
+    all: ($location.search().hideall || "").toLowerCase() == "true",
   };
+  $scope.hidden = {
+    explore: ($location.search().explore || "").toLowerCase() == "hide" || $scope.hidden.all,
+    legend: ($location.search().legend || "").toLowerCase() == "hide" || $scope.hidden.all,
+    xaxis: ($location.search().xaxis || "").toLowerCase() == "hide" || $scope.hidden.all,
+    yaxis: ($location.search().yaxis || "").toLowerCase() == "hide" || $scope.hidden.all,
+  };
+
   $scope.applyDefault = function(name, value) {
     if ($location.search()[name] !== undefined) {
       return $location.search()[name];
@@ -345,18 +351,24 @@ module.controller("commonCtrl", function(
   }
 
   $scope.selectOptions = {
-    legend:    {position: $scope.hiding.legend ? "none" : "bottom"},
+    legend:    {position: $scope.hidden.legend ? "none" : "bottom"},
     title:     $scope.applyDefault("title", ""),
     chartArea: {
       left: $scope.applyDefault("marginleft", "10px"),
-      right: $scope.applyDefault("marginright","70px"),
-      top: $scope.applyDefault("margintop", "20px"),
-      bottom: $scope.applyDefault("marginbottom",$scope.hiding.legend ? "30px" : "60px")
+      right: $scope.applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "70px"),
+      top: $scope.applyDefault("margintop", "10px"),
+      bottom: $scope.applyDefault("marginbottom",(($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
     },
     series:    null,
     vAxes: {
       0: {title: ""},
       1: {title: ""}
+    },
+    vAxis: !$scope.hidden.yaxis ? null : {
+      textPosition: "none"
+    },
+    hAxis: !$scope.hidden.xaxis ? null : {
+      textPosition: "none"
     }
   };
   $scope.$watch("inputModel.renderType", function(newValue) {
@@ -467,7 +479,7 @@ module.controller("embedCtrl", function(
   $controller("commonCtrl", {$scope: $scope});
   $scope.queryResult =  null;
 
-  $scope.selectOptions.chartArea.top = $scope.applyDefault("margintop", $scope.hiding.explore ? "20px" : "40px");
+  $scope.selectOptions.chartArea.top = $scope.applyDefault("margintop", $scope.hidden.explore ? "20px" : "40px");
 
   var queries = $location.search();
   // Store the $inputModel so that the view can change it through inputs.
