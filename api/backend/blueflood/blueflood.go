@@ -341,7 +341,7 @@ func (b blueflood) DecideTimerange(start int64, end int64, resolution int64) (ap
 		return answer, nil
 	}
 	for _, resolution := range Resolutions {
-		if timerange, err := api.NewSnappedTimerange(start, end, int64(resolution.duration/time.Millisecond)); err == nill && timerange.Slots() <= slotLimit {
+		if timerange, err := api.NewSnappedTimerange(start, end, int64(resolution.duration/time.Millisecond)); err == nil && timerange.Slots() <= slotLimit {
 			return timerange, nil
 		}
 	}

@@ -34,7 +34,6 @@ type ExecutionContext struct {
 	Timeout    time.Duration     // optional
 	Profiler   *inspect.Profiler // optional
 	Registry   function.Registry // optional
-	SlotLimit  int               // optional (0 => default 1000)
 }
 
 // Command is the final result of the parsing.
