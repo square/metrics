@@ -24,7 +24,7 @@
 		chart-type="inputModel.renderType">
 	</google-chart>
   <div class="metrics-link">
-    <a ng-href="{{metricsURL}}" target="_blank">Explore in MQE</a>
+    <a ng-show="!hiding.explore" ng-href="{{metricsURL}}" target="_blank">Explore in MQE</a>
   </div>
   <div class="limit-warning" ng-show="totalResult > maxResult">Embedded view is only rendering {{ maxResult }} results of {{ totalResult }} total.</div>
 </div>
