@@ -52,9 +52,9 @@
       <div class="alert alert-info"   ng-show="screenState() == 'rendering'">Rendering chart...</div>
       <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
     </div>
-    <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">Query resulted in 0 series</div>
+    <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
 
-    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
+    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
       <div class="col-xs-10">
         Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned.
         <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b>
