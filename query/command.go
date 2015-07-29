@@ -138,7 +138,6 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Picked a timerange: %+v\n", timerange)
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable
 	if hasTimeout {
