@@ -355,7 +355,7 @@ module.controller("commonCtrl", function(
     title:     $scope.applyDefault("title", ""),
     chartArea: {
       left: $scope.applyDefault("marginleft", "10px"),
-      right: $scope.applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "70px"),
+      right: $scope.applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "50px"),
       top: $scope.applyDefault("margintop", "10px"),
       bottom: $scope.applyDefault("marginbottom",(($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
     },
@@ -364,11 +364,12 @@ module.controller("commonCtrl", function(
       0: {title: ""},
       1: {title: ""}
     },
-    vAxis: !$scope.hidden.yaxis ? null : {
-      textPosition: "none"
+    vAxis: {
+      textPosition: $scope.hidden.yaxis ? "none" : "out",
+      format: "short"
     },
-    hAxis: !$scope.hidden.xaxis ? null : {
-      textPosition: "none"
+    hAxis: {
+      textPosition: $scope.hidden.xaxis ? "none" : "out"
     }
   };
   $scope.$watch("inputModel.renderType", function(newValue) {
