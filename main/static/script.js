@@ -318,7 +318,6 @@ module.controller("commonCtrl", function(
     if ($scope.selectResult) {
       for (var i = 0; i < queryResult.body.length; i++) {
         // Each of these is a list of series
-        console.log("?", queryResult.body[i].series.length);
         $scope.totalResult += queryResult.body[i].series.length;
       }
     }

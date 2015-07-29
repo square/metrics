@@ -18,7 +18,8 @@
     <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
   </div>
   <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
-  <google-chart ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
+  <google-chart
+    ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
 		class="metric-chart"
 		data="selectResult"
 		option="selectOptions"
