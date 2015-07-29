@@ -140,7 +140,6 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
                 width:  width,
                 height: height
               };
-              console.log(option.chartArea);
             }
             chart.draw(data, option);
           }
