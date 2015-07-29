@@ -275,7 +275,7 @@ module.controller("commonCtrl", function(
     vAxes: {
       0: {title: ""},
       1: {title: ""}
-    }
+    },
   };
   $scope.$watch("inputModel.renderType", function(newValue) {
     if (newValue === "area") {
@@ -284,11 +284,21 @@ module.controller("commonCtrl", function(
       $scope.selectOptions.isStacked = false;
     }
   });
+  $scope.timezone = (function() {
+    if ($location.search().timezone) {
+      return $location.search().timezone;
+    } else {
+      return "LOCAL";
+    }
+  })();
+  $scope.displayTimezone = (function() {
+    return getZoneName($scope.timezone);
+  })();
 
   $scope.maxResult = MAX_RENDERED;
   $scope.setQueryResult = function(queryResult) {
     $scope.queryResult =   queryResult;
-    var selectResponse = convertSelectResponse(queryResult);
+    var selectResponse = convertSelectResponse(queryResult, $scope.timezone);
     if (selectResponse) {
       $scope.selectResult = selectResponse.dataTable;
       $scope.selectOptions.series = selectResponse.seriesOptions;
@@ -429,7 +439,7 @@ function convertProfileResponse(object) {
   return dataTable;
 }
 
-function convertSelectResponse(object) {
+function convertSelectResponse(object, timezone) {
   if (!(object && object.name == "select" &&
         object.body &&
         object.body.length &&
@@ -474,7 +484,7 @@ function convertSelectResponse(object) {
   // Next, add each row.
   var timerange = object.body[0].timerange;
   for (var t = 0; t < series[0].values.length; t++) {
-    var row = [dateFromIndex(t, timerange)];
+    var row = [dateFromIndex(t, timerange, timezone)];
     for (var i = 0; i < series.length; i++) {
       var cell = series[i].values[t];
       if (cell === null) {
@@ -485,15 +495,90 @@ function convertSelectResponse(object) {
     }
     table.push(row);
   }
+  var chartTable = google.visualization.arrayToDataTable(table);
   return {
-    dataTable: google.visualization.arrayToDataTable(table),
+    dataTable: chartTable,
     seriesOptions: seriesOptions
   }
 }
 
+var timezones = {
+  EDT: -4,
+  EST: -5,
+  MDT: -6,
+  MST: -7,
+  PDT: -7,
+  PST: -8,
+  UTC: 0,
+  ET: {
+    D: "EDT",
+    S: "EST"
+  },
+  MT: {
+    D: "MDT",
+    S: "MST"
+  },
+  PT: {
+    D: "PDT",
+    S: "PST"
+  },
+  LOCAL: -(new Date().getTimezoneOffset() / 60)
+};
 
-function dateFromIndex(index, timerange) {
-  return new Date(timerange.start + timerange.resolution * index);
+function isLocalDaylightSavings() {
+  return new Date().getTimezoneOffset() == new Date( new Date().getFullYear(), 6, 1 ).getTimezoneOffset();
+}
+
+function getZoneName(zone) {
+  if (parseFloat(zone)) {
+    if (zone == 0) {
+     return "UTC"; 
+    }
+    var positive = zone > 0;
+    var hour = (Math.abs(zone) | 0) + "";
+    var minutes = Math.abs(zone) % 1 * 60 + "";
+    if (hour.length == 1) {
+      hour = "0" + hour;
+    }
+    if (minutes.length == 1) {
+      minutes = "0" + minutes;
+    }
+    return "UTC" + (positive ? "+" : "-") + hour + ":" + minutes;
+  }
+  zone = zone.toUpperCase();
+  if (zone === "LOCAL") {
+    return getZoneName(timezones["LOCAL"]);
+  }
+  while (typeof timezones[zone] == "object") {
+    if (isLocalDaylightSavings()) {
+      zone = timezones[zone].D;
+    } else {
+      zone = timezones[zone].S;
+    }
+  }
+  return zone;
+}
+function getOffset(zone) {
+  if (parseFloat(zone)) {
+    return parseFloat(zone);
+  }
+  if (zone == "LOCAL") {
+    return timezones["LOCAL"];
+  }
+  var result = timezones[getZoneName(zone)];
+  if (result === undefined) {
+    return 0;
+  }
+  return result;
+}
+
+function dateFromIndex(index, timerange, timezone) {
+  console.log(timezone);
+  if (!parseFloat(timezone)) {
+    timezone = getOffset(timezone);
+  }
+  var offset = new Date().getTimezoneOffset() * 60 * 1000;
+  return new Date(timerange.start + timerange.resolution * index + offset + timezone * 60 * 60 * 1000);
 }
 
 function makeLabel(onlySingleSeries, serieslist, series) {
