@@ -324,23 +324,24 @@ func (c Config) bluefloodResolution(
 	return Resolutions[len(Resolutions)-1]
 }
 
-func (b blueflood) DecideTimerange(start int64, end int64, userResolutionMillis int64) (api.Timerange, error) {
-	slotLimit := 3000
-	resolutions := []int64{
-		userResolutionMillis,
-		// Try each of these resolutions in order
-		// Use the first that's fine-grained enough, if the user-specified value fails
-		30 * 1000,
-		5 * 60 * 1000,
-		60 * 60 * 1000,
-		1440 * 60 * 1000,
+func tryTimerange(start int64, end int64, resolution int64, slotsLimit int) (api.Timerange, error) {
+	timerange, err := api.NewSnappedTimerange(start, end, resolution)
+	if err != nil {
+		return api.Timerange{}, err
 	}
-	for _, resolution := range resolutions {
-		timerange, err := api.NewSnappedTimerange(start, end, resolution)
-		if err != nil {
-			continue
-		}
-		if timerange.Slots() <= slotLimit {
+	if timerange.Slots() > slotsLimit {
+		return api.Timerange{}, fmt.Errorf("timerange requires %d slots but only %d are allowed", timerange.Slots(), slotsLimit)
+	}
+	return timerange, nil
+}
+
+func (b blueflood) DecideTimerange(start int64, end int64, resolution int64) (api.Timerange, error) {
+	slotLimit := 3000
+	if answer, err := tryTimerange(start, end, resolution, slotLimit); err == nil {
+		return answer, nil
+	}
+	for _, resolution := range Resolutions {
+		if timerange, err := api.NewSnappedTimerange(start, end, int64(resolution.duration/time.Millisecond)); err == nill && timerange.Slots() <= slotLimit {
 			return timerange, nil
 		}
 	}
