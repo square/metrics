@@ -509,6 +509,7 @@ var timezones = {
   MST: -7,
   PDT: -7,
   PST: -8,
+  JST: +9,
   UTC: 0,
   ET: {
     D: "EDT",
@@ -573,7 +574,6 @@ function getOffset(zone) {
 }
 
 function dateFromIndex(index, timerange, timezone) {
-  console.log(timezone);
   if (!parseFloat(timezone)) {
     timezone = getOffset(timezone);
   }
