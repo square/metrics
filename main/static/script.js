@@ -65,6 +65,47 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         }
         render();
       });
+      function getUnits(value) {
+        if (typeof value !== "string") {
+          return null;
+        }
+        var result = value.match(/^([0-9.-]+)(%|px)$/);
+        if (result === null) {
+          return null;
+        } else {
+          return { value: parseFloat(result[1]), units: result[2] };
+        }
+      }
+      function unitless(value) {
+        return getUnits(value).value;
+      }
+      function fixUnits(value , total) {
+        var match = getUnits(value);
+        if (match == null) {
+          return null;
+        }
+        switch (match.units) {
+          case "px":
+            return (match.value / total * 100) + "%";
+          case "%":
+            return match.value + "%";
+        }
+        throw "not accessible";
+      }
+
+      function deepCopy(thing) {
+        if (typeof thing != "object") {
+          return thing;
+        }
+        if (thing instanceof Array) {
+          return thing;
+        }
+        var copy = {};
+        for (var i in thing) {
+          copy[i] = deepCopy(thing[i]);
+        }
+        return copy;
+      }
 
       function render() {
         $timeout(function(){
@@ -75,6 +116,31 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
             google.visualization.events.addListener(chart, "ready", function() {
               scope.$apply(function() { $chartWaiting.dec(); });
             });
+            var elementStyle = getComputedStyle(element[0]);
+            var totalWidth = unitless(elementStyle.width) * 1;
+            var totalHeight = unitless(elementStyle.height) * 1;
+            option = deepCopy(option);
+            if (option && option.chartArea) {
+              var area = option.chartArea;
+              var left = fixUnits(area.left, totalWidth);
+              var top = fixUnits(area.top, totalHeight);
+              var right = fixUnits(area.right, totalWidth);
+              var bottom = fixUnits(area.bottom, totalHeight);
+              var width = fixUnits(area.width, totalWidth);
+              var height = fixUnits(area.height, totalHeight);
+              if (right !== undefined) {
+                width = (100 - unitless(left) - unitless(right)) + "%";
+              }
+              if (bottom !== undefined) {
+                height = (100 - unitless(top) - unitless(bottom)) + "%";
+              }
+              option.chartArea = {
+                left:   left,
+                top:    top,
+                width:  width,
+                height: height
+              };
+            }
             chart.draw(data, option);
           }
         }, 1);
@@ -267,10 +333,16 @@ module.controller("commonCtrl", function(
       return "rendered";
     }
   };
+  function applyDefault(name, value) {
+    if ($location.search()[name] !== undefined) {
+      return $location.search()[name];
+    }
+    return value;
+  }
   $scope.selectOptions = {
     legend:    {position: "bottom"},
-    title:     $location.search()["title"],
-    chartArea: {left: "5%", width:"90%", top: "5%", height: "80%"},
+    title:     applyDefault("title", ""),
+    chartArea: {left: applyDefault("marginleft", "10px"), right: applyDefault("marginright","25px"), top: applyDefault("margintop","15px"), bottom: applyDefault("marginbottom","60px")},
     series:    null,
     vAxes: {
       0: {title: ""},
