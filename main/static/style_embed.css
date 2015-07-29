@@ -21,8 +21,17 @@ body {
 }
 
 .alert-danger {
+  position: absolute;
+  width: 100%;
+  margin-top: -25px;
+  top: 50%;
+  height: 50px;
+  line-height: 50px;
+  padding-top: 0;
+  padding-bottom: 0;
   white-space: pre;
   font-family: Consolas, monospace;
+  text-align: center;
 }
 
 .metric-chart {

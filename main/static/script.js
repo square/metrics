@@ -277,6 +277,18 @@ module.controller("commonCtrl", function(
       1: {title: ""}
     }
   };
+  $scope.queryResultIsEmpty = function() {
+    var result = $scope.queryResult;
+    if (!result || result.name != "select") {
+      return false;
+    }
+    for (var i = 0; i < result.body.length; i++) {
+      if (result.body[i].series.length != 0) {
+        return false;
+      }
+    }
+    return true;
+  };
   $scope.$watch("inputModel.renderType", function(newValue) {
     if (newValue === "area") {
       $scope.selectOptions.isStacked = true;
