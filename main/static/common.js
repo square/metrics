@@ -109,6 +109,7 @@ module.directive("googleChart", function(_chart, $timeout) {
   return {
     restrict: "E",
     template: "<div></div>",
+    scope: true,
     link: function(scope, element, attrs) {
       var chartElement = element[0];
       var name;
@@ -307,9 +308,38 @@ module.factory("_receiveFailure", function(_receiveListeners) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: clean up the below
-
 var MAX_RENDERED = 200;
+
+var seriesFormatters = [];
+
+function formatTargetAxis(tagset, option) {
+  if (tagset.$secondaxis === "true") {
+    option.targetAxisIndex = 0;
+  } else {
+    option.targetAxisIndex = 1;
+  }
+}
+function formatColor(tagset, option) {
+  if (tagset.$color) {
+    option.color = tagset.$color;
+  }
+}
+function formatLineWidth(tagset, option) {
+  if (tagset.$linewidth) {
+    option.lineWidth = parseFloat(tagset.$linewidth);
+  }
+}
+seriesFormatters.push(formatTargetAxis);
+seriesFormatters.push(formatColor);
+seriesFormatters.push(formatLineWidth);
+
+function getFormattingOption(tagset) {
+  var option = {};
+  for (var i = 0; i < seriesFormatters.length; i++) {
+    seriesFormatters[i](tagset, option);
+  }
+  return option;
+}
 
 function convertSelectResponse(object) {
   if (!(object &&
@@ -320,59 +350,50 @@ function convertSelectResponse(object) {
     // invalid data.
     return null;
   }
-  var seriesOptions = {};
-  var series = [];
-  var labels = ["Time"];
-  var table = [labels];
-  var onlySingleSeries = object.length === 1;
+  
+  var labels = ["Time"]; // describes the labels for each component in the graph
+  var tableArray = [labels]; // This array will become our table; the first row is labels
+  var expressionCount = object.length;
+
+  var seriesList = []; // The series to render (maximum of MAX_RENDERED of these)
+  var optionList = []; // describes the per-series options (color, etc.)
+  
   for (var i = 0; i < object.length; i++) {
-    // Each of these is a list of series
-    var serieslist = object[i];
-    for (var j = 0; j < serieslist.series.length; j++) {
-      if (series.length < MAX_RENDERED) {
-        var s = object[i].series[j];
-        var singleSeriesOption = {};
-        series.push(s);
-        seriesOptions[series.length-1] = singleSeriesOption;
-        // special tags.
-        if (s.tagset.$secondaxis === "true") {
-          singleSeriesOption.targetAxisIndex = 0;
-        } else {
-          singleSeriesOption.targetAxisIndex = 1;
-        }
-        if (s.tagset.$color) {
-          singleSeriesOption.color = s.tagset.$color;
-        }
-        if (s.tagset.$linewidth) {
-          singleSeriesOption.lineWidth = parseFloat(s.tagset.$linewidth);
-        }
-        labels.push(makeLabel(onlySingleSeries, serieslist, s));
-      } else {
+    for (var j = 0; j < object[i].series.length; j++) {
+      if (seriesList.length >= MAX_RENDERED) {
         break;
       }
+      //
+      var series = object[i].series[j];
+      var option = getFormattingOption(series.tagset);
+      //
+      seriesList.push(series);
+      optionList.push(option);
+      labels.push(makeLabel(expressionCount === 1, object[i], series));
     }
   }
-  // Next, add each row.
-  var timerange = object[0].timerange;
-  for (var t = 0; t < series[0].values.length; t++) {
-    var row = [dateFromIndex(t, timerange)];
-    for (var i = 0; i < series.length; i++) {
-      var cell = series[i].values[t];
+
+  // Take each of these series and add them to the table array.
+  var timerange = object[0].timerange; // they all have the same timerange
+
+  for (var t = 0; t < seriesList[0].values.length; t++) {
+    var row = [dateFromIndex(t, timerange)]; // the time component
+    for (var i = 0; i < seriesList.length; i++) {
+      var cell = seriesList[i].values[t];
       if (cell === null) {
         row.push(NaN);
       } else {
         row.push(parseFloat(cell.toFixed(2)));
       }
     }
-    table.push(row);
+    tableArray.push(row);
   }
+
   return {
-    dataTable: google.visualization.arrayToDataTable(table),
-    seriesOptions: seriesOptions
-  }
+    dataTable: google.visualization.arrayToDataTable(tableArray),
+    options: optionList
+  };
 }
-
-
 
 function makeLabel(onlySingleSeries, serieslist, series) {
   var tagsets = [];

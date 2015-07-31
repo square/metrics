@@ -14,16 +14,20 @@
   		_launchRequest({
   			query: $scope.inputModel.query
   		});
+      $scope.state = "loading";
+      $scope.rendered = false;
   	}
   	$scope.state = "wait";
   	$scope.message = "";
+
   	_receiveSuccess(function(name, body, latency) {
   		$scope.state = name;
   		$scope.result = body;
   		if (name == "select") {
   			// Send this data to _chart
+        var converted = convertSelectResponse(body);
   			_chart.sets("select", {
-  				data: convertSelectResponse(body).dataTable,
+  				data: converted.dataTable,
   				chartType: "line",
   				option: {
   					legend: {position: "bottom"},
@@ -34,7 +38,7 @@
   						top: "20px",
   						bottom: "40px",
   					},
-  					series: null,
+  					series: converted.options,
   					vAxes: {
   						0: {title: ""},
   						1: {title: ""}
@@ -55,11 +59,7 @@
   		$scope.errorMessage = message;
   	});
   	_chart.addListener("select/waiting", function(value) {
-  		if (value.waiting) {
-  			$scope.rendered = false;
-  		} else {
-  			$scope.rendered = true; 
-  		}
+  		$scope.rendered = !value.waiting;
   	});
   });
   </script>
@@ -95,16 +95,25 @@
   </style>
 </head>
 <body ng-app=main>
-	<div ng-controller="newController">
+<div ng-controller="newController">
 	<textarea ng-model="inputModel.query"></textarea>
 	<button ng-click="click()">Click me!</button>
 	<div class="error" ng-show="state == 'failure'">{{errorMessage}}</div>
+  <div class="warning" ng-show="state == 'loading'">Waiting for response...</div>
 	<div class="warning" ng-show="state == 'select' && !rendered">Chart is rendering...</div>
 	<div class="chart-container" ng-show="state == 'select'">
 		<google-chart chart-name="select"></google-chart>
 	</div>
-	<div ng-show=""></div>
-	
-	</div>
+  <div ng-if="state == 'describe all' || state == 'describe metrics'">
+    <div ng-repeat="row in result track by $index">{{row}}</div>
+  </div>
+  <div ng-if="state == 'describe'">
+    <div ng-repeat="(key, values) in result track by $index">
+      <div><strong>{{key}}</strong></div>
+      <div ng-repeat="value in values track by $index">{{value}}</div>
+    </div>
+  </div>
+
+</div>
 </body>
 </html>
