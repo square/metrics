@@ -11,27 +11,124 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-"use strict";
 
+"use strict";
 var module = angular.module("main",[]);
 
-var MAX_RENDERED = 200;
-
 google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
+
+// Autocompletion setup (depends on $http to perform request to /token).
+module.directive("autocom", function($http) {
+  return {
+    restrict: "A",
+    link: function(scope, element) {
+      var autocom = new Autocom(element[0]);
+      var keywords = [
+        "all",
+        "by",
+        "collapse",
+        "describe",
+        "from",
+        "group",
+        "match",
+        "metrics",
+        "now",
+        "resolution",
+        "sample",
+        "select",
+        "to",
+        "where"
+      ];
+      autocom.options = keywords;
+      autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
+      autocom.continuePattern = "[a-zA-Z_`.-]";
+      autocom.tooltipX = 0;
+      autocom.tooltipY = 20;
+      autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
+      autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
+      $http.get("/token").success(function(data, status, headers, config) {
+        if (!data.success || !data.body) {
+          return;
+        }
+        if (data.body.functions) {
+          autocom.options = autocom.options.concat( data.body.functions );
+        }
+        if (data.body.metrics) {
+          autocom.options = autocom.options.concat( data.body.metrics.map(function(name) {
+            if (name.indexOf("-") >= 0) {
+              return "`" + name + "`";
+            }
+            return name;
+          }));
+        }
+      });
+    }
+  };
+});
 
 module.config(function($locationProvider) {
   $locationProvider.html5Mode(true);
 });
 
-module.factory("_windowSize", function($window) {
-  return {
+module.factory("_windowSize", function($window, $timeout) {
+  var size = {
     height:  $window.innerHeight,
     width:   $window.innerWidth,
     version: 0 // updated whenever width or height is updated, so this object can be watched.
   }
+  var DELAY_MS = 100;
+  var counter = 0;
+  angular.element($window).bind("resize", function() {
+    counter++; // invalidate the old counter
+    var currentCounter = counter; // capture the current value via the closure.
+    $timeout(function() {
+      if (currentCounter == counter) {
+        size.height = $window.innerHeight;
+        size.width = $window.innerWidth;
+        size.version++;
+      }
+    }, DELAY_MS);
+  })
+  return size;
 });
 
-module.directive("googleChart", function(_chartWaiting, $timeout, _windowSize) {
+// A ticket booth will give you a ticket with .next()
+// The ticket will be .valid() until another ticket has been asked for.
+function TicketBooth() {
+  var count = 0;
+  function Ticket(n) {
+    this.valid = function() {
+      return n === count;
+    }
+  }
+  this.next = function() {
+    return new Ticket(++count);
+  };
+}
+
+module.run(function($window, $timeout, _windowSize) {
+  var DELAY_MS = 100;
+  var booth = new TicketBooth();
+  angular.element($window).bind("resize", function() {
+    var ticket = booth.next(); // ask for a ticket from the ticket booth
+    $timeout(function() {
+      if (ticket.valid()) {
+        _windowSize.height = $window.innerHeight;
+        _windowSize.width = $window.innerWidth;
+        _windowSize.version++;
+      }
+    }, DELAY_MS);
+  })
+});
+
+
+module.controller("newController", function($scope) {
+
+});
+
+var MAX_RENDERED = 200;
+
+module.directive("googleChart", function(_chartWaitingCount, $timeout, _windowSize) {
   return {
     restrict: "E",
     template: "<div style='width:100%;height:100px'></div>",
@@ -112,9 +209,9 @@ module.directive("googleChart", function(_chartWaiting, $timeout, _windowSize) {
           var data = scope.data();
           var option = scope.option();
           if (data && option) {
-            _chartWaiting.inc();
+            _chartWaitingCount.inc();
             google.visualization.events.addListener(chart, "ready", function() {
-              scope.$apply(function() { _chartWaiting.dec(); });
+              scope.$apply(function() { _chartWaitingCount.dec(); });
             });
             var elementStyle = getComputedStyle(element[0]);
             var totalWidth = unitless(elementStyle.width) * 1;
@@ -149,47 +246,6 @@ module.directive("googleChart", function(_chartWaiting, $timeout, _windowSize) {
   };
 });
 
-module.run(function($window, $timeout, _windowSize) {
-  var DELAY_MS = 100;
-  var counter = 0;
-  angular.element($window).bind("resize", function() {
-    counter++;
-    var currentCounter = counter; // capture the current value via the closure.
-    $timeout(function() {
-      if (currentCounter  == counter) {
-        _windowSize.height = $window.innerHeight;
-        _windowSize.width = $window.innerWidth;
-        _windowSize.version++;
-      }
-    }, DELAY_MS);
-  })
-});
-
-module.factory("_google", function($rootScope) {
-  // abstraction over the async loading of google libraries.
-  // registered functions are either invoked immediately (if the library finished loading).
-  // or queued in an array.
-  var googleFunctions = [];
-  var googleLoaded = false;
-  google.setOnLoadCallback(function(){
-    $rootScope.$apply(function() {
-      googleLoaded = true;
-      googleFunctions.map(function(googleFunction) {
-        googleFunction();
-      });
-      googleFunctions.length = 0; // clear the array.
-    });
-  });
-
-  return function(func) {
-    if (googleLoaded) {
-      func();
-    } else {
-      googleFunctions.push(func);
-    }
-  }
-});
-
 // A counter is an object with .inc() and .dec() methods,
 // as well as .pos() and .zero() predicates.
 function Counter() {
@@ -212,105 +268,124 @@ function Counter() {
 module.factory("_launchedQueries", function() {
   return new Counter();
 });
+// A function to check for whether queries are in flight
+module.factory("_requestMidAir", function(_launchedQueries) {
+  return function() {
+    return _launchedQueries.pos();
+  };
+});
 
 // A singleton Counter for waiting charts
-module.factory("_chartWaiting", function() {
+module.factory("_chartWaitingCount", function() {
   return new Counter();
 });
-
-// A ticket booth will give you a ticket with .next()
-// The ticket will be .valid() until another ticket has been asked for.
-function TicketBooth() {
-  var count = 0;
-  function Ticket(n) {
-    this.valid = function() {
-      return n === count;
-    }
-  }
-  this.next = function() {
-    return new Ticket(++count);
+// A function to check whether we're waiting on charts
+module.factory("_chartWaiting", function(_chartWaitingCount) {
+  return function() {
+    _chartWaitingCount.pos();
   };
-}
-// A singleton ticketbooth for query counting
-module.factory("_queryTicketBooth", function() {
-  return new TicketBooth();
 });
 
-module.factory("_launchRequest", function(_google, $http, _queryTicketBooth, _launchedQueries, $q) {
+module.factory("_launchRequest", function($http, _launchedQueries, $q) {
+  var availableTickets = new TicketBooth();
   return function(params) {
-    var resultPromise = $q.defer(); // Will be resolved with received value.
+    var result = $q.defer(); // Will be resolved with received value.
     var start = new Date();
-    var ticket = _queryTicketBooth.next();
+    var ticket = availableTickets.next();
     _launchedQueries.inc();
-    var request = $http.get("/query", {
+    $http.get("/query", {
       params:params
     }).success(function(data, status, headers, config) {
-      _launchedQueries.dec();
       resolve(data);
     }).error(function(data, status, headers, config) {
-      _launchedQueries.dec();
       resolve(data);
     });
     function resolve(data) {
+      _launchedQueries.dec();
       var elapsedMs = new Date().getTime() - start.getTime();
       if (ticket.valid()) {
-        resultPromise.resolve({elapsedMs: elapsedMs, payload: data});
+        result.resolve({elapsedMs: elapsedMs, payload: data});
       } else {
-        resultPromise.reject(null);
+        result.reject(null);
       }
     }
-    return resultPromise.promise;
+    return result.promise;
   };
 });
 
+module.factory("_applyDefault", function($location) {
+  return function(name, value) {
+    if ($location.search()[name] !== undefined) {
+      return $location.search()[name];
+    }
+    return value;
+  };
+})
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 module.controller("commonCtrl", function(
   _chartWaiting,
-  _launchedQueries,
+  _requestMidAir,
+  _applyDefault,
   $location,
   $scope
   ){
+  // The input model for the user:
+  // * profile:    whether to enable profiling
+  // * query:      the input query
+  // * renderType: "line" or "area" to describe desired chart type
   $scope.inputModel = {
     profile: false,
     query: "",
     renderType: "line"
   };
-  $scope.hasProfiling = hasProfiling;
+  // A function to determine whether the current query has an attached profile
+  $scope.hasProfiling = function() {
+    return $scope.queryResult && $scope.queryResult.profile;
+  }
   $scope.screenState = function() {
-    if (_launchedQueries.pos()) {
+    // A go-style switch statement as an if-else
+    switch (true) {
+    case _requestMidAir(): // a request is in progress
       return "loading";
-    } else if (_launchedQueries.zero() && _chartWaiting.pos()) {
+    case _chartWaiting(): // no request waiting, but a chart loading
       return "rendering";
-    } else if ($scope.queryResult && !$scope.queryResult.success) {
+    case $scope.queryResult && !$scope.queryResult.success: // nothing loading, but not successful
       return "error";
-    } else {
+    default: // otherwise, everything is successful
       return "rendered";
     }
   };
-  $scope.hidden = {
-    all: ($location.search().hideall || "").toLowerCase() == "true",
-  };
-  $scope.hidden = {
-    explore: ($location.search().explore || "").toLowerCase() == "hide" || $scope.hidden.all,
-    legend: ($location.search().legend || "").toLowerCase() == "hide" || $scope.hidden.all,
-    xaxis: ($location.search().xaxis || "").toLowerCase() == "hide" || $scope.hidden.all,
-    yaxis: ($location.search().yaxis || "").toLowerCase() == "hide" || $scope.hidden.all,
-  };
-
-  $scope.applyDefault = function(name, value) {
-    if ($location.search()[name] !== undefined) {
-      return $location.search()[name];
-    }
-    return value;
+  var allHidden = ($location.search().hideall || "").toLowerCase() == "true",
+  function propertyHidden(name) {
+    return allHidden || ($location.search()[name] || "") .toLowerCase() == "hide";
   }
+  $scope.hidden = {
+    explore: allHidden("explore"),
+    legend:  allHidden("legend"),
+    xaxis:   allHidden("xaxis"),
+    yaxis:   allHidden("yaxis")
+  };
 
-  $scope.selectOptions = {
+  // graphOptions is a member of the $scope, and can be used as a model
+  // for interaction with the outside world.
+  // In particular, you can set defaults based on the legend/title etc. status.
+
+  // The given values are sane defaults - but they won't update if the $scope.hidden values update.
+  // This is not an expected use-case.
+  // If this behavior is desired, the logic below can be duplicated to the view.
+  $scope.graphOptions = {
     legend:    {position: $scope.hidden.legend ? "none" : "bottom"},
-    title:     $scope.applyDefault("title", ""),
+    title:     _applyDefault("title", ""),
     chartArea: {
-      left: $scope.applyDefault("marginleft", "10px"),
-      right: $scope.applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "50px"),
-      top: $scope.applyDefault("margintop", "10px"),
-      bottom: $scope.applyDefault("marginbottom",(($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
+      left: _applyDefault("marginleft", "10px"),
+      right: _applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "50px"),
+      top: _applyDefault("margintop", "10px"),
+      bottom: _applyDefault("marginbottom",(($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
     },
     series:    null,
     vAxes: {
@@ -323,14 +398,11 @@ module.controller("commonCtrl", function(
     },
     hAxis: {
       textPosition: $scope.hidden.xaxis ? "none" : "out"
-    }
+    },
+    isStacked: false
   };
   $scope.$watch("inputModel.renderType", function(newValue) {
-    if (newValue === "area") {
-      $scope.selectOptions.isStacked = true;
-    } else {
-      $scope.selectOptions.isStacked = false;
-    }
+    $scope.graphOptions.isStacked = (newValue == "area");
   });
 
   $scope.maxResult = MAX_RENDERED;
@@ -339,10 +411,10 @@ module.controller("commonCtrl", function(
     var selectResponse = convertSelectResponse(queryResult);
     if (selectResponse) {
       $scope.selectResult = selectResponse.dataTable;
-      $scope.selectOptions.series = selectResponse.seriesOptions;
+      $scope.graphOptions.series = selectResponse.seriesOptions;
     } else {
       $scope.selectResult = null;
-      $scope.selectOptions.series = null;
+      $scope.graphOptions.series = null;
     }
     $scope.totalResult = 0;
     $scope.profileResult = convertProfileResponse(queryResult);
@@ -358,9 +430,7 @@ module.controller("commonCtrl", function(
 module.controller("mainCtrl", function(
   _chartWaiting,
   $controller,
-  _google,
   _launchRequest,
-  _launchedQueries,
   $location,
   $scope
   ) {
@@ -423,17 +493,16 @@ module.controller("mainCtrl", function(
 
 module.controller("embedCtrl", function(
   _chartWaiting,
+  _applyDefault,
   $controller,
   _launchRequest,
-  _launchedQueries,
   $location,
-  _google,
   $scope
   ){
   $controller("commonCtrl", {$scope: $scope});
   $scope.queryResult =  null;
 
-  $scope.selectOptions.chartArea.top = $scope.applyDefault("margintop", $scope.hidden.explore ? "20px" : "40px");
+  $scope.graphOptions.chartArea.top = _applyDefault("margintop", $scope.hidden.explore ? "20px" : "40px");
 
   var queries = $location.search();
   // Store the $inputModel so that the view can change it through inputs.
@@ -566,9 +635,5 @@ function makeLabel(onlySingleSeries, serieslist, series) {
     return serieslist.name + " " + tagsets.join(" ");
   }
   return label;
-}
-
-function hasProfiling(data) {
-  return data && data.profile;
 }
 
