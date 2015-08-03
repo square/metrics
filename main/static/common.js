@@ -165,6 +165,27 @@ module.directive("googleChart", function(_chart, $timeout) {
         return copy;
       }
       function render(state) {
+        var statusData = {};
+        if (state.chartType == "line" || state.chartType == "area") {
+          if (!state.body) {
+            return;
+          }
+          var converted = convertSelectResponse(state.body);
+          state.option.series = converted.options;
+          state.data = converted.dataTable;
+          statusData = {
+            renderedCount: converted.renderedCount,
+            totalCount: converted.totalCount
+          };
+        } else if (state.chartType == "timeline") {
+          if (!state.profile) {
+            return;
+          }
+          var converted = convertProfileResponse(state.profile);
+          state.data = converted;
+          state.option = converted;
+        }
+
         if (chart !== null) {
           chart.clearChart();
           chart = null;
@@ -183,10 +204,10 @@ module.directive("googleChart", function(_chart, $timeout) {
           var option = state.option;
           if (data && option) {
             _chart.set(name + "/waiting", "waiting", true);
-            google.visualization.events.addListener(chart, "ready", function() { _chart.set(name + "/waiting", "waiting" , false); });
+            google.visualization.events.addListener(chart, "ready", function() { _chart.sets(name + "/waiting", {"waiting": false, "data": statusData}); });
             var elementStyle = window.getComputedStyle(chartElement);
-            var totalWidth = 800;//unitless(elementStyle.width) * 1;
-            var totalHeight = 300;//unitless(elementStyle.height) * 1;
+            var totalWidth = unitless(elementStyle.width) * 1;
+            var totalHeight = unitless(elementStyle.height) * 1;
             option = deepCopy(option);
             option.isStacked = state.chartType == "area";
             if (option && option.chartArea) {
@@ -379,8 +400,11 @@ function convertSelectResponse(object) {
 
   var seriesList = []; // The series to render (maximum of MAX_RENDERED of these)
   var optionList = []; // describes the per-series options (color, etc.)
+
+  var seriesTotal = 0;
   
   for (var i = 0; i < object.length; i++) {
+    seriesTotal += object[i].series.length;
     for (var j = 0; j < object[i].series.length; j++) {
       if (seriesList.length >= MAX_RENDERED) {
         break;
@@ -413,7 +437,9 @@ function convertSelectResponse(object) {
 
   return {
     dataTable: google.visualization.arrayToDataTable(tableArray),
-    options: optionList
+    options: optionList,
+    renderedCount: seriesList.length,
+    totalCount: seriesTotal
   };
 }
 

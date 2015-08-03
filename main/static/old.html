@@ -56,8 +56,8 @@
 
     <div ng-show = "mode == 'select'">
       <div class="col-xs-10">
-        Query took <b>{{ resultLatency / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned.
-        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b>
+        Query took <b>{{ resultLatency / 1000 | number }}</b> seconds. <b>{{ totalCount }}</b> series returned.
+        <b ng-show="renderedCount < totalCount">UI is only rendering {{ renderedCount }} results.</b>
       </div>
       <div class="col-xs-2">
         <a ng-href="{{ getEmbedLink() }}" class="btn btn-default" target="_blank">Embed Link</a>
@@ -69,16 +69,6 @@
       <google-chart
         class="metric-chart"
         chart-name="select"
-      >
-      </google-chart>
-    </div>
-    <div
-      ng-show="profileMode == 'rendering'"
-      class="col-xs-12">
-      <h1>Profiling Information</h1>
-      <google-chart
-        class="timeline-chart"
-        chart-name="profile"
       >
       </google-chart>
     </div>
@@ -97,6 +87,16 @@
           <div style="clear:both;"></div>
         </div>
       </div>
+    </div>
+    <div
+      ng-show="profileMode == 'rendering'"
+      class="col-xs-12">
+      <h1>Profiling Information</h1>
+      <google-chart
+        class="timeline-chart"
+        chart-name="profile"
+      >
+      </google-chart>
     </div>
   </div>
 </div>

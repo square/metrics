@@ -22,12 +22,10 @@ module.factory("_windowSize", function($window) {
 });
 
 module.directive("myAutocom", function($http) {
-  console.log("autocom directive");
   return {
     template: "",
     restrict: "A",
     link: function(scope, element) {
-      console.log("autocom");
       var input = element[0];
       var autocom = new Autocom(input);
       autocom.options = ["describe", "all", "metrics", "where", "now", "from", "to"];
@@ -67,10 +65,13 @@ module.controller("uiController", function(
   _receiveProfile,
   _chart,
   _launchRequest,
-  $scope,
-  $location
+  $controller,
+  $location,
+  $scope
 ) {
+  $controller("commonController", {$scope: $scope});
   //
+  $scope.queryHistory = [];
 
   function applyDefault(name, value) {
     if ($location.search()[name] !== undefined) {
@@ -85,7 +86,7 @@ module.controller("uiController", function(
     renderType: applyDefault("renderType", "line")
   };
 
-  var selectOptions = {
+  $scope.selectOptions = {
     legend:    {position: "bottom"},
     title:     applyDefault("title", ""),
     chartArea: {
@@ -114,33 +115,11 @@ module.controller("uiController", function(
     $location.search("renderType", $scope.inputModel.renderType);
   });
 
-  _receiveSuccess(function(name, body, latency) {
-    $scope.mode = name;
-    $scope.result = body;
-    $scope.resultLatency = latency;
-    if (name == "select") {
-      var converted = convertSelectResponse(body);
-      selectOptions.series = converted.options;
-      _chart.sets("select", {
-        data: converted.dataTable,
-        chartType: $scope.inputModel.renderType,
-        option: selectOptions
-      });
-    }
-    $scope.profileMode = "waiting";
-  });
-  _receiveFailure(function(message) {
-    $scope.mode = "error";
-    $scope.errorMessage = message;
-    $scope.profileMode = "waiting";
-  });
   _receiveProfile(function(profile) {
     $scope.profileMode = "rendering";
-    var converted = convertProfileResponse(profile);
     _chart.sets("profile", {
-      data: converted,
+      profile: profile,
       chartType: "timeline",
-      option: converted
     });
   });
 
@@ -168,62 +147,114 @@ module.controller("uiController", function(
     $location.search("profile", $scope.inputModel.profile.toString());
   };
 
+  $scope.historySelect = function(query) {
+    $scope.inputModel.query = query;
+    $scope.onSubmitQuery();
+  };
+
   $scope.onSubmitQuery();
 
   _chart.addListener("select/waiting", function(state) {
     $scope.selectRendered = !state.waiting;
+    console.log(state);
+    if (state.data) {
+      $scope.renderedCount = state.data.renderedCount;
+      $scope.totalCount = state.data.totalCount; 
+    }
   });
 
   $scope.getEmbedLink = function() {
     var url = $location.absUrl();
     var queryAt = url.indexOf("?");
     if (queryAt !== -1) {
-      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/embed" + url.substring(queryAt);
+      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/static/old_embed.html" + url.substring(queryAt);
     } else {
       return "";
     }
-  }
+  };
 });
 
-
-module.controller("mainCtrl", function(
-  _chartWaiting,
-  $controller,
-  _google,
+module.controller("embedController", function(
   _launchRequest,
-  _launchedQueries,
+  $controller,
   $location,
   $scope
   ) {
-  $controller("commonCtrl", {$scope: $scope});
-  $scope.queryHistory = [];
-  $scope.queryResult = "";
+  $controller("commonController", {$scope: $scope});
+  // Send the request for the query in the URL
+  $scope.inputModel = {
+    renderType: $location.search().renderType,
+    query: $location.search().query,
+  };
 
-  $scope.$on("$locationChangeSuccess", function() {
-    // this triggers at least once (in the beginning).
-    var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    $scope.inputModel.profile = queries["profile"] === "true";
-    // Add the query to the history, if it hasn't been seen before and it's non-empty
-    var trimmedQuery = $scope.inputModel.query.trim();
-    if (trimmedQuery !== "" && $scope.queryHistory.indexOf(trimmedQuery) === -1) {
-      $scope.queryHistory.push(trimmedQuery);
+  function applyDefault(name, value) {
+    if ($location.search()[name] !== undefined) {
+      return $location.search()[name];
     }
-    if (trimmedQuery) {
-      _launchRequest({
-        profile: $scope.inputModel.profile,
-        query:   $scope.inputModel.query
-      }).then(function(data) {
-        $scope.setQueryResult(data.payload);
-        $scope.elapsedMs = data.elapsedMs;
-        updateEmbed();
-      });
-    }
-  });
-
-  $scope.historySelect = function(query) {
-    $scope.inputModel.query = query;
+    return value;
   }
 
+  $scope.getUILink = function() {
+    var url = $location.absUrl();
+    var queryAt = url.indexOf("?");
+    if (queryAt !== -1) {
+      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/static/old.html" + url.substring(queryAt);
+    } else {
+      return "";
+    }
+  };
+
+  $scope.selectOptions = {
+    legend:    {position: "bottom"},
+    title:     applyDefault("title", ""),
+    chartArea: {
+      left: applyDefault("marginleft", "15px"),
+      right: applyDefault("marginright", "50px"),
+      top: applyDefault("margintop", "35px"),
+      bottom: applyDefault("marginbottom", "50px")
+    },
+    series:    null,
+    vAxes: {
+      0: {title: ""},
+      1: {title: ""}
+    },
+    vAxis: {
+      textPosition: "out",
+      format: "short"
+    },
+    hAxis: {
+      textPosition: "out"
+    },
+  };
+
+  _launchRequest({
+    profile: false,
+    query: $location.search().query
+  });
+});
+
+module.controller("commonController", function(
+  _receiveSuccess,
+  _receiveFailure,
+  _chart,
+  $scope
+  ) {
+  _receiveSuccess(function(name, body, latency) {
+    $scope.mode = name;
+    $scope.result = body;
+    $scope.resultLatency = latency;
+    if (name == "select") {
+      _chart.sets("select", {
+        body: body,
+        chartType: $scope.inputModel.renderType,
+        option: $scope.selectOptions
+      });
+    }
+    $scope.profileMode = "waiting";
+  });
+  _receiveFailure(function(message) {
+    $scope.mode = "error";
+    $scope.errorMessage = message;
+    $scope.profileMode = "waiting";
+  });
 });
