@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <title>Metrics Query Engine</title>
+  <base href="/">
+  <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/ecmascript" src="/static/autocom.js"></script>
+  <script type="text/ecmascript" src="/static/common.js"></script>
+  <script type="text/ecmascript" src="/static/old.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+
+</head>
+<div ng-app="main" class="container">
+  <div ng-controller="uiController" class="row">
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-2 control-label">Query</label>
+        <div class="col-sm-10">
+          <textarea my-autocom id="query-input" ng-model="inputModel.query" class="form-control queryinput"></textarea>
+          <div class="history-box">
+            <div ng-repeat="query in queryHistory track by $index" class="history-row" ng-click = "historySelect(query)">
+             {{ query }}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label">Render Options</label>
+        <div class="col-sm-2 radio">
+          <label>
+            <input type="radio" ng-model="inputModel.renderType" value="line"> Line
+          </label>
+          <label>
+            <input type="radio" ng-model="inputModel.renderType" value="area"> Area
+          </label>
+        </div>
+        <div class="col-sm-2 checkbox">
+          <label>
+            <input type="checkbox" ng-model="inputModel.profile">Profile
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-offset-2 col-sm-10">
+          <button ng-click="onSubmitQuery()" class="btn btn-default">Submit</button>
+        </div>
+      </div>
+    </form>
+    <div>
+      <div class="alert alert-info"   ng-show="mode == 'loading'">Waiting for response...</div>
+      <div class="alert alert-info"   ng-show="!selectRendered && mode == 'select'">Rendering chart...</div>
+      <div class="alert alert-danger" ng-show="mode == 'error'">{{errorMessage.trim()}}</div>
+    </div>
+
+    <div ng-show = "mode == 'select'">
+      <div class="col-xs-10">
+        Query took <b>{{ resultLatency / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned.
+        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b>
+      </div>
+      <div class="col-xs-2">
+        <a ng-href="{{ getEmbedLink() }}" class="btn btn-default" target="_blank">Embed Link</a>
+      </div>
+    </div>
+    <div
+      ng-show="mode == 'select'"
+      class="col-xs-12">
+      <google-chart
+        class="metric-chart"
+        chart-name="select"
+      >
+      </google-chart>
+    </div>
+    <div
+      ng-show="profileMode == 'rendering'"
+      class="col-xs-12">
+      <h1>Profiling Information</h1>
+      <google-chart
+        class="timeline-chart"
+        chart-name="profile"
+      >
+      </google-chart>
+    </div>
+    <div>
+      <div class="col-xs-12">
+        <div ng-show="mode == 'describe all' || mode == 'describe metrics'" class='describe-container'>
+        <table class="table table-striped">
+          <tr ng-repeat="row in result"><td>{{row}}</td></tr>
+        </table>
+      </div>
+        <div ng-show="mode == 'describe'" class='describe-container'>
+          <table ng-repeat="(key, list) in result" class="table table-striped table-column">
+            <tr><th>{{key}}</th></tr>
+            <tr ng-repeat="value in list track by $index"><td>{{value}}</td></tr>
+          </table>
+          <div style="clear:both;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

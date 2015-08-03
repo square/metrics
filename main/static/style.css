@@ -33,20 +33,21 @@ textarea.queryinput {
 
 .describe-container {
   white-space: nowrap;
-  overflow-x: auto;
+  overflow: auto;
   max-height: 500px;
 }
 
 ::-webkit-scrollbar {
-    -webkit-appearance: none;
-    background: #EEE;
-    width: 7px;
-    height: 7px;
+  border-radius: 4px;
+  -webkit-appearance: none;
+  background: #EEE;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    background-color: rgba(0,0,0,.5);
-    -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+  border-radius: 4px;
+  background-color: rgba(0,0,0,.5);
+  -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
 }
 
 .table-column {

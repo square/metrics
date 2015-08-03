@@ -85,6 +85,8 @@ module.factory("_state", function() {
         if (!data[name]) {
           data[name] = {};
           listeners[name] = [];
+        } else {
+          fun(data[name]);
         }
         listeners[name].push(fun);
       }
@@ -183,9 +185,10 @@ module.directive("googleChart", function(_chart, $timeout) {
             _chart.set(name + "/waiting", "waiting", true);
             google.visualization.events.addListener(chart, "ready", function() { _chart.set(name + "/waiting", "waiting" , false); });
             var elementStyle = window.getComputedStyle(chartElement);
-            var totalWidth = unitless(elementStyle.width) * 1;
-            var totalHeight = unitless(elementStyle.height) * 1;
+            var totalWidth = 800;//unitless(elementStyle.width) * 1;
+            var totalHeight = 300;//unitless(elementStyle.height) * 1;
             option = deepCopy(option);
+            option.isStacked = state.chartType == "area";
             if (option && option.chartArea) {
               var area = option.chartArea;
               var left = fixUnits(area.left, totalWidth);
@@ -284,6 +287,9 @@ module.factory("_receiveSuccess", function(_receiveListeners) {
   return function(fun) {
     _receiveListeners.push({
       receive: function(value) {
+        if (typeof fun != "function") {
+          throw {message: "expected function, got", object: fun};
+        }
         fun(value.result.name, value.result.body, value.latency);
       },
       filter: function(value) {
@@ -291,6 +297,22 @@ module.factory("_receiveSuccess", function(_receiveListeners) {
       }
     });
   };
+});
+
+module.factory("_receiveProfile", function(_receiveListeners) {
+  return function(fun) {
+    _receiveListeners.push({
+      receive: function(value) {
+        if (typeof fun != "function") {
+          throw {message: "expected function, got", object: fun};
+        }
+        fun(value.result.profile);
+      },
+      filter: function(value) {
+        return value.status == "down" && !!value.result.profile;
+      }
+    });
+  }
 });
 
 module.factory("_receiveFailure", function(_receiveListeners) {
@@ -420,3 +442,27 @@ function makeLabel(onlySingleSeries, serieslist, series) {
 function dateFromIndex(index, timerange) {
   return new Date(timerange.start + timerange.resolution * index);
 }
+
+function convertProfileResponse(profile) {
+  if (!profile) {
+    return null
+  }
+  var dataTable = new google.visualization.DataTable();
+  dataTable.addColumn({ type: 'string', id: 'Name' });
+  dataTable.addColumn({ type: 'number', id: 'Start' });
+  dataTable.addColumn({ type: 'number', id: 'End' });
+  var minValue = Number.POSITIVE_INFINITY;
+  for (var i = 0; i < profile.length; i++) {
+    minValue = Math.min(profile[i].start, minValue);
+    minValue = Math.min(profile[i].finish, minValue);
+  };
+  function normalize(value) {
+    return value - minValue;
+  };
+  for (var i = 0; i < profile.length; i++) {
+    var row = [ profile[i].name , normalize(profile[i].start), normalize(profile[i].finish) ];
+    dataTable.addRows([row]);
+  }
+  return dataTable;
+}
+

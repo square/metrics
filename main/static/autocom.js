@@ -80,6 +80,8 @@ Fields:
 	tooltipX: (default 0) the X offset for the tooltip (relative to the cursor)
 	tooltipY: (default 0) the Y offset for the tooltip (relative to the cursor)
 
+	hook: a callback which is called whenever an insertion is made
+
 Methods:
 
 	refresh(): redraw the tooltip (or hide it) taking into account any changes to focus or fields.
@@ -284,12 +286,15 @@ function generateTooltipContents(tooltip, words, index, selectedCallback) {
 }
 
 // Inserts `word` at the location specified by `at` inside of `input`.
-function insertWord(input, at, word, supressCallback) {
+function insertWord(input, at, word, supressCallback, hook) {
 	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
 	setTimeout(function() {
 		input.focus();
 		input.selectionStart = input.selectionEnd = at.from + word.length;
 		supressCallback();
+		if (hook) {
+			hook();
+		}
 	}, 1);
 }
 
@@ -325,7 +330,7 @@ function Autocom(input) {
 			if (e.keyCode == 9 || e.keyCode == 13) { // TAB or ENTER
 				// Tab
 				e.preventDefault();
-				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index], supressCallback);
+				insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index], supressCallback, self.hook);
 				tooltipSuppress = true;
 				refresh();
 				return;
@@ -363,7 +368,7 @@ function Autocom(input) {
 	input.addEventListener("keydown", keyPress, false);
 
 	function completeSelect(index) {
-		insertWord(input, tooltipState.at, tooltipState.words[index], supressCallback);
+		insertWord(input, tooltipState.at, tooltipState.words[index], supressCallback, self.hook);
 		refresh();
 	}
 	function renderTooltip() {
