@@ -167,13 +167,19 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 }
 
 type staticHandler struct {
-	Directory  string
-	StaticPath string
+	Web       string
+	Directory string
 }
 
 func (h staticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	res := path.Join(h.Directory, request.URL.Path[len(h.StaticPath):])
-	log.Infof("url.path=%s, resource=%s\n", request.URL.Path, res)
+	web := h.Web
+	reqPath := request.URL.Path
+	for len(web) > 0 && len(reqPath) > 0 && web[0] == reqPath[0] {
+		web = web[1:]
+		reqPath = reqPath[1:]
+	}
+	res := path.Join(h.Directory, reqPath)
+	log.Infof("url.path=%s, resource=%s\n", reqPath, res)
 	http.ServeFile(writer, request, res)
 }
 
@@ -188,11 +194,13 @@ func (h singleStaticHandler) ServeHTTP(writer http.ResponseWriter, request *http
 func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
-	httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	for web, file := range config.Routes {
+		// Attach each web:file pair to an appropriate handle
+		httpMux.Handle(web, staticHandler{web, file})
+	}
+	/*httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/ui", http.StatusTemporaryRedirect)
-	})
-	httpMux.Handle("/ui", singleStaticHandler{path.Join(config.StaticDir, "index.html")})
-	httpMux.Handle("/embed", singleStaticHandler{path.Join(config.StaticDir, "embed.html")})
+	})*/
 	httpMux.Handle("/query", queryHandler{
 		context: context,
 		hook:    hook,
@@ -201,7 +209,5 @@ func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.Serv
 		context: context,
 		hook:    hook,
 	})
-	staticPath := "/static/"
-	httpMux.Handle(staticPath, staticHandler{StaticPath: staticPath, Directory: config.StaticDir})
 	return httpMux
 }
