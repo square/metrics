@@ -39,15 +39,15 @@ var (
 )
 
 type UIConfig struct {
-	Port      int `yaml:"port"`
-	Timeout   int `yaml:"timeout"`
-	ui.Config `yaml:"config"`
+	Port    int       `yaml:"port"`
+	Timeout int       `yaml:"timeout"`
+	Config  ui.Config `yaml:"config"`
 }
 
 type Config struct {
 	Blueflood blueflood.Config `yaml:"blueflood"`
 	API       api.Config       `yaml:"api"` // TODO: Probably rethink how we name this
-	UIConfig  UIConfig         `yaml:"ui"`
+	UIConfig  `yaml:"ui"`
 }
 
 func LoadConfig() Config {

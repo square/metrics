@@ -19,7 +19,7 @@ import (
 )
 
 type Config struct {
-	StaticDir string `yaml:"static_dir"`
+	Routes map[string]string `yaml:"routes"`
 }
 
 type Hook struct {
