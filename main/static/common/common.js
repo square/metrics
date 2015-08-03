@@ -14,25 +14,11 @@
 "use strict"
 
 // This file contains minimal logic needed to make a UI for MQE.
-// It should be easy to extend.
+// You should be able to use some of its features in nearly any UI configuration.
 
 var module = angular.module("main",[]);
 // This loads the google packages needed for charting. 
 google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
-
-
-// The basic structure can be described in several parts.
-
-// There is a component which wraps up logic relating to Google Charts.
-// It talks to the rest of the code through the Chart singleton.
-// Each chart has a name, which is looked up in the Chart singleton to communicate.
-
-// To perform a query through the UI, inject the `sendRequest` function.
-// This function takes the query and other parameters (like profiling) as arguments.
-
-// To capture the result of the request, inject `addResultListener` and call it with your function.
-// The listening function will be called with the result when it is received.
-// To get the current status of the request, you can inject and examine the RequestStatus singleton.
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +28,13 @@ module.config(function($locationProvider) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// _state is for communicating between things
+// _state is for communicating between things.
+// calling _state() will return a state-object,
+// object.update(name, fun) will apply `fun` to the value associated with `name` in `object`.
+// object.replace(name, fun) will replace the value associated with `name` in `object` with `fun(oldValue)`.
+// object.set(name, key, value) is equivalent to object.update(name, function(x) { x[key] = value })
+// object.sets(name, map) will set each (key:value) pair in the map. It does this in a single operation, so listeners will not be invoked.
+// object.addListener(name, fun) will add a listener on the name that is called whenever the value is changed through on of the above methods.
 
 module.factory("_state", function() {
   return function() {
@@ -97,16 +89,20 @@ module.factory("_state", function() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// The chart singleton stores data about charts:
-// * options IN  (margins, things to hide, etc.)
-// * data    IN  (the values to draw)
-// * status  OUT (whether the chart has yet to draw, is rendering, or is rendered)
+// The _chart is a State singleton that stores data about charts:
+// _chart:
+//   data: the raw data (as is returned by _receiveSelect) to render a line or area chart
+//   option: the options to apply while rendering. The 'series' member does not need to be set- it's overrided.
+//   renderType: "line" or "area" or "timeline"
+//   profile: the raw profile object (as is returned by _receiveProfile) to render a profile timeline
+
+// To find whether the chart is rendered or not, add a listener to _chart.addListener( chartName + "/waiting", fun ).
 module.factory("_chart", function(_state) {
   return _state();
 });
 
 // The googleChart directive is used to create charts.
-// It has a mandatory 'name' attribute attached.
+// It has a mandatory 'chartName' attribute attached.
 module.directive("googleChart", function(_chart, $timeout) {
   return {
     restrict: "E",
@@ -166,6 +162,9 @@ module.directive("googleChart", function(_chart, $timeout) {
       }
       function render(state) {
         var statusData = {};
+        if (!state.chartType) {
+          return;
+        }
         if (state.chartType == "line" || state.chartType == "area") {
           if (!state.body) {
             return;

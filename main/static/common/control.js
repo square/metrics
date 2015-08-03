@@ -13,12 +13,17 @@
 // limitations under the License.
 "use strict";
 
-module.factory("_windowSize", function($window) {
-  return {
-    height:  $window.innerHeight,
-    width:   $window.innerWidth,
-    version: 0 // updated whenever width or height is updated, so this object can be watched.
+module.run(function($window, _chart) {
+  console.log("Run");
+  var lastSize = $window.innerWidth + "," + $window.innerHeight;
+  function renderChart() {
+    var newSize = $window.innerWidth + "," + $window.innerHeight;
+    if (newSize != lastSize) {
+      _chart.set("select", "version", null);
+      lastSize = newSize;
+    }
   }
+  setInterval(renderChart, 100);
 });
 
 module.directive("autocom", function($http) {
