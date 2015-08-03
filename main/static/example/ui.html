@@ -5,11 +5,11 @@
   <base href="/">
   <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-  <script type="text/ecmascript" src="/static/autocom.js"></script>
-  <script type="text/ecmascript" src="/static/common.js"></script>
-  <script type="text/ecmascript" src="/static/old.js"></script>
+  <script type="text/ecmascript" src="/common/autocom.js"></script>
+  <script type="text/ecmascript" src="/common/common.js"></script>
+  <script type="text/ecmascript" src="/common/control.js"></script>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/example/style.css">
 
 </head>
 <div ng-app="main" class="container">
@@ -18,7 +18,7 @@
       <div class="form-group">
         <label class="col-sm-2 control-label">Query</label>
         <div class="col-sm-10">
-          <textarea my-autocom id="query-input" ng-model="inputModel.query" class="form-control queryinput"></textarea>
+          <textarea autocom id="query-input" ng-model="inputModel.query" class="form-control queryinput"></textarea>
           <div class="history-box">
             <div ng-repeat="query in queryHistory track by $index" class="history-row" ng-click = "historySelect(query)">
              {{ query }}

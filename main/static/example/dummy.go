@@ -13,4 +13,4 @@
 // limitations under the License.
 
 // dummy package to ensure that this directory is included in godep.
-package static
+package example

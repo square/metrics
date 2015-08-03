@@ -21,7 +21,8 @@ module.factory("_windowSize", function($window) {
   }
 });
 
-module.directive("myAutocom", function($http) {
+module.directive("autocom", function($http) {
+  console.log("autocom");
   return {
     template: "",
     restrict: "A",
@@ -167,7 +168,7 @@ module.controller("uiController", function(
     var url = $location.absUrl();
     var queryAt = url.indexOf("?");
     if (queryAt !== -1) {
-      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/static/old_embed.html" + url.substring(queryAt);
+      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/example/embed.html" + url.substring(queryAt);
     } else {
       return "";
     }
@@ -198,7 +199,7 @@ module.controller("embedController", function(
     var url = $location.absUrl();
     var queryAt = url.indexOf("?");
     if (queryAt !== -1) {
-      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/static/old.html" + url.substring(queryAt);
+      return $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/example/ui.html" + url.substring(queryAt);
     } else {
       return "";
     }

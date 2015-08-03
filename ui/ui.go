@@ -23,7 +23,8 @@ import (
 
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/log"
-	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
+	_ "github.com/square/metrics/main/static/common"  // ensure that the static files are included.
+	_ "github.com/square/metrics/main/static/example" // ensure that the static files are included.
 	"github.com/square/metrics/query"
 )
 
