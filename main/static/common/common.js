@@ -28,6 +28,42 @@ module.config(function($locationProvider) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+module.factory("_stream", function() {
+  var streams = {};
+  function Stream() {
+    this.listeners = [];
+  }
+  Stream.prototype.listen = function(fun) {
+    this.listeners.push(fun);
+  };
+  Stream.prototype.broadcast = function(value) {
+    for (var i = 0; i < this.listeners.length; i++) {
+      this.listeners[i](value);
+    }
+  };
+  Stream.prototype.filter = function(fun) {
+    var s = new Stream();
+    this.listen(function(x) {
+      if (fun(x)) {
+        s.broadcast(x);
+      }
+    });
+    return s;
+  };
+  Stream.prototype.map = function(fun) {
+    var s = new Stream();
+    this.listen(function(x) {
+      s.broadcast(fun(x));
+    });
+    return s;
+  };
+  return function(name) {
+    return streams[name] = streams[name] || new Stream();
+  }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // _state is for communicating between things.
 // calling _state() will return a state-object,
 // object.update(name, fun) will apply `fun` to the value associated with `name` in `object`.
@@ -103,7 +139,7 @@ module.factory("_chart", function(_state) {
 
 // The googleChart directive is used to create charts.
 // It has a mandatory 'chartName' attribute attached.
-module.directive("googleChart", function(_chart, $timeout) {
+module.directive("googleChart", function(_chart, _stream, $timeout) {
   return {
     restrict: "E",
     template: "<div></div>",
@@ -113,6 +149,7 @@ module.directive("googleChart", function(_chart, $timeout) {
       var name;
       attrs.$observe("chartName", function(value) {
         name = value;
+        _stream("chart/" + name).listen(render);
         _chart.addListener(name, render);
       });
       var chart = null;
@@ -160,6 +197,9 @@ module.directive("googleChart", function(_chart, $timeout) {
         }
         return copy;
       }
+
+      
+
       function render(state) {
         var statusData = {};
         if (!state.chartType) {
@@ -202,8 +242,12 @@ module.directive("googleChart", function(_chart, $timeout) {
           var data = state.data;
           var option = state.option;
           if (data && option) {
+            _stream("chart/" + name + "/waiting").broadcast({waiting: true, data: null});
             _chart.set(name + "/waiting", "waiting", true);
-            google.visualization.events.addListener(chart, "ready", function() { _chart.sets(name + "/waiting", {"waiting": false, "data": statusData}); });
+            google.visualization.events.addListener(chart, "ready", function() {
+              _chart.sets(name + "/waiting", {"waiting": false, "data": statusData});
+              _stream("chart/" + name + "/waiting").broadcast({waiting: false, data: statusData});
+            });
             var elementStyle = window.getComputedStyle(chartElement);
             var totalWidth = unitless(elementStyle.width) * 1;
             var totalHeight = unitless(elementStyle.height) * 1;
