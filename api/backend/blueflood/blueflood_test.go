@@ -272,10 +272,10 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	}
 
 	// (X / 300) * 300 snaps it to a multiple of 300 (5 minutes).
-	now := (time.Now().Unix() / 300) * 300 * 1000
+	now := (getNow().Unix() / 300) * 300 * 1000
 	// rounded only to 30 seconds instead of 5m (300 seconds)
 	// and ROUND instead of TRUNCATE
-	now30 := ((time.Now().Unix() + 15) / 30) * 30 * 1000
+	now30 := ((getNow().Unix() + 15) / 30) * 30 * 1000
 
 	regularQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
