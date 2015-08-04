@@ -126,7 +126,7 @@ type sampler struct {
 }
 
 // The amount of time before other resolutions become available
-var AvailableOnlyFull = time.Hour * 4
+const availableOnlyFull = time.Hour * 4
 
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
@@ -175,15 +175,15 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	var fullResolutionParsedResult queryResponse
 	fullResolutionRequest.Timerange, err = api.NewSnappedTimerange(fullResolutionStart, fullResolutionEnd, 30000)
 	if err != nil {
-		fmt.Printf("<<error snapping timerange for 30s>>\n")
+		log.Errorf("Error building full-resolution timerange: %s", err.Error())
 	} else {
 		fullResolutionQueryUrl, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
 		if err != nil {
-			fmt.Printf("<<Error building 30s URL>>\n")
+			log.Errorf("Error building full-resolution URL: %s", err.Error())
 		} else {
 			fullResolutionParsedResult, err = b.fetch(fullResolutionRequest, fullResolutionQueryUrl)
 			if err != nil {
-				fmt.Printf("<<Error parsing 30s result>>\n")
+				log.Errorf("Error parsing full-resolution query response: %s", err.Error())
 			}
 		}
 	}
