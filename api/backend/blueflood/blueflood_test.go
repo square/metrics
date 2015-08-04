@@ -15,6 +15,8 @@
 package blueflood
 
 import (
+	"fmt"
+	"math"
 	"net/http"
 	"testing"
 	"time"
@@ -251,4 +253,269 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestFullResolutionDataFilling(t *testing.T) {
+	// The queries have to be relative to "now"
+	defaultClientConfig := Config{
+		"https://blueflood.url",
+		"square",
+		make(map[string]int64),
+		time.Millisecond,
+	}
+	// (X / 300) * 300 snaps it to a multiple of 300 (5 minutes).
+	now := (time.Now().Unix() / 300) * 300 * 1000
+	// rounded only to 30 seconds instead of 5m (300 seconds)
+	// and ROUND instead of TRUNCATE
+	now30 := ((time.Now().Unix() + 15) / 30) * 30 * 1000
+
+	regularQueryURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*6,  // 30 minutes ago
+	)
+	regularQueryRecentURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*3,  // 15 minutes ago
+	)
+	regularResponse := fmt.Sprintf(`{
+	  "unit": "unknown",
+	  "values": [
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 100
+	    },
+	    {
+	      "numPoints": 29,
+	      "timestamp": %d,
+	      "average": 142
+	    },
+	    {
+	      "numPoints": 27,
+	      "timestamp": %d,
+	      "average": 138
+	    },
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 182
+	    }
+	  ],
+	  "metadata": {
+	    "limit": null,
+	    "next_href": null,
+	    "count": 4,
+	    "marker": null
+	  }
+	}`,
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*9,  // 45 minutes ago
+		now-300*1000*8,  // 40 minutes ago
+		now-300*1000*7,  // 35 minutes ago
+	)
+
+	fullResolutionQueryURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=FULL&select=numPoints%%2Caverage&to=%d",
+		now-300*1000*10,        // 50 minutes ago
+		now-300*1000*4+30*1000, // 19.5 minutes ago
+	)
+	fullResolutionResponse := fmt.Sprintf(`{
+	  "unit": "unknown",
+	  "values": [
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 13
+	    },
+	    {
+	      "numPoints": 29,
+	      "timestamp": %d,
+	      "average": 16
+	    },
+	    {
+	      "numPoints": 27,
+	      "timestamp": %d,
+	      "average": 19
+	    },
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 27
+	    }
+	  ],
+	  "metadata": {
+	    "limit": null,
+	    "next_href": null,
+	    "count": 4,
+	    "marker": null
+	  }
+	}`,
+		now-300*1000*6,      // 30m ago
+		now-300*1000*5+17,   // 25m ago with random shuffling
+		now-300*1000*4+2821, // 20m ago with random shuffling
+		now-300*1000*3,      // 15m ago
+	)
+
+	fullResolutionForwardQueryURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=FULL&select=numPoints%%2Caverage&to=%d",
+		now30-300*1000*5,       // 25 minutes ago, but rounded to nearest 30s instead of 5m
+		now-300*1000*4+30*1000, // 19.5 minutes ago
+	)
+	fullResolutionForwardResponse := fmt.Sprintf(`{
+	  "unit": "unknown",
+	  "values": [
+	    {
+	      "numPoints": 29,
+	      "timestamp": %d,
+	      "average": 16
+	    },
+	    {
+	      "numPoints": 27,
+	      "timestamp": %d,
+	      "average": 19
+	    },
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 27
+	    }
+	  ],
+	  "metadata": {
+	    "limit": null,
+	    "next_href": null,
+	    "count": 4,
+	    "marker": null
+	  }
+	}`,
+		now-300*1000*5+17,   // 25m ago with random shuffling
+		now-300*1000*4+2821, // 20m ago with random shuffling
+		now-300*1000*3,      // 15m ago
+	)
+
+	fakeHttpClient := mocks.NewFakeHttpClient()
+	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
+	fakeHttpClient.SetResponse(regularQueryRecentURL, mocks.Response{regularResponse, 0, http.StatusOK})
+	fakeHttpClient.SetResponse(fullResolutionForwardQueryURL, mocks.Response{fullResolutionForwardResponse, 0, http.StatusOK})
+	fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
+
+	fakeApi := mocks.NewFakeApi()
+	fakeApi.AddPair(
+		api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		api.GraphiteMetric("some.key.value"),
+	)
+
+	b := NewBlueflood(defaultClientConfig).(*blueflood)
+	b.client = fakeHttpClient
+
+	queryTimerange, err := api.NewSnappedTimerange(
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*7,  // 35 minutes ago
+		300*1000,        // 5 minute resolution
+	)
+	if err != nil {
+		t.Fatalf("timerange error: %s", err.Error())
+	}
+
+	seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
+		Metric: api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		SampleMethod: api.SampleMean,
+		Timerange:    queryTimerange,
+		API:          fakeApi,
+		Cancellable:  api.NewCancellable(),
+	})
+	if err != nil {
+		t.Fatalf("Expected success, but got error: %s", err.Error())
+	}
+	expected := []float64{100, 142, 138, 182}
+	if len(seriesList.Values) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+	}
+	for i, expect := range expected {
+		if seriesList.Values[i] != expect {
+			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+		}
+	}
+	// Next: fetch closer to "now" which will pick up the full resolution data
+
+	queryTimerange, err = api.NewSnappedTimerange(
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*4,  // 20 minutes ago
+		300*1000,        // 5 minute resolution
+	)
+	if err != nil {
+		t.Fatalf("timerange error: %s", err.Error())
+	}
+
+	seriesList, err = b.FetchSingleSeries(api.FetchSeriesRequest{
+		Metric: api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		SampleMethod: api.SampleMean,
+		Timerange:    queryTimerange,
+		API:          fakeApi,
+		Cancellable:  api.NewCancellable(),
+	})
+	if err != nil {
+		t.Fatalf("Expected success, but got error: %s", err.Error())
+	}
+	expected = []float64{100, 142, 138, 182, 13, 16, 19}
+	if len(seriesList.Values) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+	}
+	for i, expect := range expected {
+		if seriesList.Values[i] != expect {
+			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+		}
+	}
+
+	// Lastly, change the "availableOnlyFull" value forward and repeat:
+	availableOnlyFull = 25 * time.Minute
+
+	queryTimerange, err = api.NewSnappedTimerange(
+		now-300*1000*10, // 50 minutes ago
+		now-300*1000*4,  // 20 minutes ago
+		300*1000,        // 5 minute resolution
+	)
+	if err != nil {
+		t.Fatalf("timerange error: %s", err.Error())
+	}
+
+	seriesList, err = b.FetchSingleSeries(api.FetchSeriesRequest{
+		Metric: api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		SampleMethod: api.SampleMean,
+		Timerange:    queryTimerange,
+		API:          fakeApi,
+		Cancellable:  api.NewCancellable(),
+	})
+	if err != nil {
+		t.Fatalf("Expected success, but got error: %s", err.Error())
+	}
+	expected = []float64{100, 142, 138, 182, math.NaN(), 16, 19}
+	if len(seriesList.Values) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+	}
+	for i, expect := range expected {
+		if math.IsNaN(expect) {
+			if !math.IsNaN(seriesList.Values[i]) {
+				t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+			}
+			continue
+		}
+		if seriesList.Values[i] != expect {
+			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+		}
+	}
+
 }

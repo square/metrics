@@ -126,7 +126,8 @@ type sampler struct {
 }
 
 // The amount of time before other resolutions become available
-const availableOnlyFull = time.Hour * 4
+// It's not "const" so that it can be mocked out for tests
+var availableOnlyFull = time.Hour * 4
 
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
@@ -154,7 +155,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 
 	// The "now" as an epoch in milliseconds
 	now := time.Now().Unix() * 1000
-	earliestTime := now - int64(AvailableOnlyFull/time.Millisecond)
+	earliestTime := now - int64(availableOnlyFull/time.Millisecond)
 	latestTime := now
 
 	fullResolutionStart := fullResolutionRequest.Timerange.Start()
@@ -237,7 +238,7 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
-			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			failure <- api.BackendError{request.Metric, api.FetchIOError, fmt.Sprintf("error while fetching - http connection [%s] error: %s", queryUrl.String(), err.Error())}
 			return
 		}
 		defer resp.Body.Close()
