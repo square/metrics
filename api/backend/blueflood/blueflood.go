@@ -125,6 +125,9 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
+// The amount of time before other resolutions become available
+var AvailableOnlyFull = time.Hour * 4
+
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
@@ -132,20 +135,61 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
-		request.Timerange.Start())
+		request.Timerange.Start(),
+	) // The query resolution will be downsampled automatically based on the timerange?
 
+	// <Sample the data>
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-
-	// Issue GET to fetch metrics
 	parsedResult, err := b.fetch(request, queryUrl)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
+	// </Sample the data>
 
-	values := processResult(parsedResult, request.Timerange, sampler, queryResolution)
+	// <Sample the full resolution data>
+	fullResolutionRequest := request
+
+	// The "now" as an epoch in milliseconds
+	now := time.Now().Unix() * 1000
+	earliestTime := now - int64(AvailableOnlyFull/time.Millisecond)
+	latestTime := now
+
+	fullResolutionStart := fullResolutionRequest.Timerange.Start()
+	if fullResolutionStart < earliestTime {
+		fullResolutionStart = earliestTime
+	}
+	if fullResolutionStart > latestTime {
+		fullResolutionStart = latestTime
+	}
+	fullResolutionEnd := fullResolutionRequest.Timerange.End()
+	if fullResolutionEnd < earliestTime {
+		fullResolutionEnd = earliestTime
+	}
+	if fullResolutionEnd > latestTime {
+		fullResolutionEnd = latestTime
+	}
+
+	var fullResolutionParsedResult queryResponse
+	fullResolutionRequest.Timerange, err = api.NewSnappedTimerange(fullResolutionStart, fullResolutionEnd, 30000)
+	if err != nil {
+		fmt.Printf("<<error snapping timerange for 30s>>\n")
+	} else {
+		fullResolutionQueryUrl, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
+		if err != nil {
+			fmt.Printf("<<Error building 30s URL>>\n")
+		} else {
+			fullResolutionParsedResult, err = b.fetch(fullResolutionRequest, fullResolutionQueryUrl)
+			if err != nil {
+				fmt.Printf("<<Error parsing 30s result>>\n")
+			}
+		}
+	}
+	// </Sample the full resolution data>
+
+	values := processResult(parsedResult, fullResolutionParsedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
@@ -158,9 +202,11 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 // ----------------
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
-func (b *blueflood) constructURL(request api.FetchSeriesRequest,
+func (b *blueflood) constructURL(
+	request api.FetchSeriesRequest,
 	sampler sampler,
-	queryResolution Resolution) (*url.URL, error) {
+	queryResolution Resolution,
+) (*url.URL, error) {
 	graphiteName, err := request.API.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
@@ -223,12 +269,20 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	}
 }
 
-func processResult(parsedResult queryResponse,
+func processResult(
+	parsedResult queryResponse,
+	fullResolutionParsedResult queryResponse,
 	timerange api.Timerange,
 	sampler sampler,
 	queryResolution Resolution) []float64 {
 	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
 	buckets := bucketsFromMetricPoints(parsedResult.Values, sampler.fieldSelector, timerange)
+
+	// Insert the full resolution data (if any is present) into the buckets.
+	// This shoud fill in missing data from before the main data is available.
+	for _, point := range fullResolutionParsedResult.Values {
+		addMetricPoint(point, sampler.fieldSelector, timerange, buckets)
+	}
 
 	// values will hold the final values to be returned as the series.
 	values := make([]float64, timerange.Slots())
@@ -271,10 +325,14 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
 		bucketSampler: func(bucket []float64) float64 {
 			value := 0.0
+			count := 0.0
 			for _, v := range bucket {
-				value += v
+				if !math.IsNaN(v) {
+					value += v
+					count++
+				}
 			}
-			return value / float64(len(bucket))
+			return value / count
 		},
 	},
 	api.SampleMin: {
@@ -283,6 +341,12 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 		bucketSampler: func(bucket []float64) float64 {
 			value := bucket[0]
 			for _, v := range bucket {
+				if math.IsNaN(v) {
+					continue
+				}
+				if math.IsNaN(value) {
+					value = v
+				}
 				value = math.Min(value, v)
 			}
 			return value
@@ -294,6 +358,12 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 		bucketSampler: func(bucket []float64) float64 {
 			value := bucket[0]
 			for _, v := range bucket {
+				if math.IsNaN(v) {
+					continue
+				}
+				if math.IsNaN(value) {
+					value = v
+				}
 				value = math.Max(value, v)
 			}
 			return value
