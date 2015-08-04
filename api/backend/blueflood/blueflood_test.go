@@ -263,6 +263,14 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		make(map[string]int64),
 		time.Millisecond,
 	}
+
+	rightNow := time.Now()
+	// Stop time from moving forward by replacing `getNow` with this:
+	// (which prevents hard-to-find timing bugs that would cause the test to be flaky)
+	getNow = func() time.Time {
+		return rightNow
+	}
+
 	// (X / 300) * 300 snaps it to a multiple of 300 (5 minutes).
 	now := (time.Now().Unix() / 300) * 300 * 1000
 	// rounded only to 30 seconds instead of 5m (300 seconds)

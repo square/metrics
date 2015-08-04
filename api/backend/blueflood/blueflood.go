@@ -29,6 +29,10 @@ import (
 	"github.com/square/metrics/log"
 )
 
+var getNow = func() time.Time {
+	return time.Now()
+}
+
 type httpClient interface {
 	// our own client to mock out the standard golang HTTP Client.
 	Get(url string) (resp *http.Response, err error)
@@ -154,7 +158,7 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	fullResolutionRequest := request
 
 	// The "now" as an epoch in milliseconds
-	now := time.Now().Unix() * 1000
+	now := getNow().Unix() * 1000
 	earliestTime := now - int64(availableOnlyFull/time.Millisecond)
 	latestTime := now
 
