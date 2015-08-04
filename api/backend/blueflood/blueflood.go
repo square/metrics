@@ -238,7 +238,7 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
-			failure <- api.BackendError{request.Metric, api.FetchIOError, fmt.Sprintf("error while fetching - http connection [%s] error: %s", queryUrl.String(), err.Error())}
+			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
 			return
 		}
 		defer resp.Body.Close()
