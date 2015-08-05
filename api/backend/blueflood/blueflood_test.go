@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ func Test_Blueflood(t *testing.T) {
 		"square",
 		make(map[string]int64),
 		time.Millisecond,
+		0,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
 	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
@@ -249,6 +251,152 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 				t.Fatalf("Expected %+v but got %+v", expected, result)
 				return
 			}
+		}
+	}
+}
+
+func TestFullResolutionDataFilling(t *testing.T) {
+	// The queries have to be relative to "now"
+	defaultClientConfig := Config{
+		"https://blueflood.url",
+		"square",
+		make(map[string]int64),
+		time.Millisecond,
+		14400,
+	}
+
+	baseTime := 1438734300000
+
+	regularQueryURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
+		baseTime-300*1000*10, // 50 minutes ago
+		baseTime-300*1000*3,  // 15 minutes ago
+	)
+
+	regularResponse := fmt.Sprintf(`{
+	  "unit": "unknown",
+	  "values": [
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 100
+	    },
+	    {
+	      "numPoints": 29,
+	      "timestamp": %d,
+	      "average": 142
+	    },
+	    {
+	      "numPoints": 27,
+	      "timestamp": %d,
+	      "average": 138
+	    },
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 182
+	    }
+	  ],
+	  "metadata": {
+	    "limit": null,
+	    "next_href": null,
+	    "count": 4,
+	    "marker": null
+	  }
+	}`,
+		baseTime-300*1000*10, // 50 minutes ago
+		baseTime-300*1000*9,  // 45 minutes ago
+		baseTime-300*1000*8,  // 40 minutes ago
+		baseTime-300*1000*7,  // 35 minutes ago
+	)
+
+	fullResolutionQueryURL := fmt.Sprintf(
+		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=FULL&select=numPoints%%2Caverage&to=%d",
+		baseTime-300*1000*10, // 50 minutes ago
+		baseTime-300*1000*3,  // 15 minutes ago
+	)
+	fullResolutionResponse := fmt.Sprintf(`{
+	  "unit": "unknown",
+	  "values": [
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 13
+	    },
+	    {
+	      "numPoints": 29,
+	      "timestamp": %d,
+	      "average": 16
+	    },
+	    {
+	      "numPoints": 27,
+	      "timestamp": %d,
+	      "average": 19
+	    },
+	    {
+	      "numPoints": 28,
+	      "timestamp": %d,
+	      "average": 27
+	    }
+	  ],
+	  "metadata": {
+	    "limit": null,
+	    "next_href": null,
+	    "count": 4,
+	    "marker": null
+	  }
+	}`,
+		baseTime-300*1000*6,      // 30m ago
+		baseTime-300*1000*5+17,   // 25m ago with random shuffling
+		baseTime-300*1000*4+2821, // 20m ago with random shuffling
+		baseTime-300*1000*3,      // 15m ago
+	)
+
+	fakeHttpClient := mocks.NewFakeHttpClient()
+	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
+	fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
+
+	fakeApi := mocks.NewFakeApi()
+	fakeApi.AddPair(
+		api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		api.GraphiteMetric("some.key.value"),
+	)
+
+	b := NewBlueflood(defaultClientConfig).(*blueflood)
+	b.client = fakeHttpClient
+
+	queryTimerange, err := api.NewSnappedTimerange(
+		int64(baseTime)-300*1000*10, // 50 minutes ago
+		int64(baseTime)-300*1000*4,  // 20 minutes ago
+		300*1000,                    // 5 minute resolution
+	)
+	if err != nil {
+		t.Fatalf("timerange error: %s", err.Error())
+	}
+
+	seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
+		Metric: api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		SampleMethod: api.SampleMean,
+		Timerange:    queryTimerange,
+		API:          fakeApi,
+		Cancellable:  api.NewCancellable(),
+	})
+	if err != nil {
+		t.Fatalf("Expected success, but got error: %s", err.Error())
+	}
+	expected := []float64{100, 142, 138, 182, 13, 16, 19}
+	if len(seriesList.Values) != len(expected) {
+		t.Fatalf("Expected %+v but got %+v", expected, seriesList)
+	}
+	for i, expect := range expected {
+		if seriesList.Values[i] != expect {
+			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
 		}
 	}
 }

@@ -35,10 +35,11 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl  string           `yaml:"base_url"`
-	TenantId string           `yaml:"tenant_id"`
-	Ttls     map[string]int64 `yaml:"ttls"` // Ttl in days
-	Timeout  time.Duration    `yaml:"timeout"`
+	BaseUrl               string           `yaml:"base_url"`
+	TenantId              string           `yaml:"tenant_id"`
+	Ttls                  map[string]int64 `yaml:"ttls"` // Ttl in days
+	Timeout               time.Duration    `yaml:"timeout"`
+	FullResolutionOverlap int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
 }
 
 func (c Config) getTTL(r Resolution) time.Duration {
@@ -132,20 +133,57 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
-		request.Timerange.Start())
+		request.Timerange.Start(),
+	)
 
+	// Sample the data at the given `queryResolution`
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-
-	// Issue GET to fetch metrics
 	parsedResult, err := b.fetch(request, queryUrl)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
 
-	values := processResult(parsedResult, request.Timerange, sampler, queryResolution)
+	// combinedResult contains the requested data, along with higher-resolution data intended to fill in gaps.
+	combinedResult := parsedResult.Values
+
+	// Sample the data at the FULL resolution.
+	// We clip the timerange so that it's only #{config.FullResolutionOverlap} seconds long.
+	// This limits the amount of data to be fetched.
+	fullResolutionParsedResult := func() []metricPoint {
+		// If an error occurs, we just return nothing. We don't return the error.
+		// This is so that errors while fetching the FULL-resolution data don't impact the requested data.
+		fullResolutionRequest := request // Copy the request
+		if request.Timerange.End()-request.Timerange.Start() > b.config.FullResolutionOverlap*1000 {
+			// Clip the timerange
+			newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
+			if err != nil {
+				log.Infof("FULL resolution data errored while building timerange: %s", err.Error())
+				return nil
+			}
+			fullResolutionRequest.Timerange = newTimerange
+		}
+		fullResolutionQueryURL, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
+		if err != nil {
+			log.Infof("FULL resolution data errored while building url: %s", err.Error())
+			return nil
+		}
+		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
+		if err != nil {
+			log.Infof("FULL resolution data errored while parsing result: %s", err.Error())
+			return nil
+		}
+		// The higher-resolution data will likely overlap with the requested data.
+		// This isn't a problem - the requested, higher-resolution data will be downsampled by this code.
+		// This downsampling should arrive at the same answer as Blueflood's built-in rollups.
+		return fullResolutionParsedResult.Values
+	}()
+
+	combinedResult = append(combinedResult, fullResolutionParsedResult...)
+
+	values := processResult(combinedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
@@ -158,9 +196,11 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 // ----------------
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
-func (b *blueflood) constructURL(request api.FetchSeriesRequest,
+func (b *blueflood) constructURL(
+	request api.FetchSeriesRequest,
 	sampler sampler,
-	queryResolution Resolution) (*url.URL, error) {
+	queryResolution Resolution,
+) (*url.URL, error) {
 	graphiteName, err := request.API.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
@@ -223,12 +263,13 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	}
 }
 
-func processResult(parsedResult queryResponse,
+func processResult(
+	points []metricPoint,
 	timerange api.Timerange,
 	sampler sampler,
 	queryResolution Resolution) []float64 {
-	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
-	buckets := bucketsFromMetricPoints(parsedResult.Values, sampler.fieldSelector, timerange)
+	// buckets are each filled with from the points stored in `points`, according to their timestamps.
+	buckets := bucketsFromMetricPoints(points, sampler.fieldSelector, timerange)
 
 	// values will hold the final values to be returned as the series.
 	values := make([]float64, timerange.Slots())
@@ -271,32 +312,50 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
 		bucketSampler: func(bucket []float64) float64 {
 			value := 0.0
+			count := 0
 			for _, v := range bucket {
-				value += v
+				if !math.IsNaN(v) {
+					value += v
+					count++
+				}
 			}
-			return value / float64(len(bucket))
+			return value / float64(count)
 		},
 	},
 	api.SampleMin: {
 		fieldName:     "min",
 		fieldSelector: func(point metricPoint) float64 { return point.Min },
 		bucketSampler: func(bucket []float64) float64 {
-			value := bucket[0]
+			smallest := math.NaN()
 			for _, v := range bucket {
-				value = math.Min(value, v)
+				if math.IsNaN(v) {
+					continue
+				}
+				if math.IsNaN(smallest) {
+					smallest = v
+				} else {
+					smallest = math.Min(smallest, v)
+				}
 			}
-			return value
+			return smallest
 		},
 	},
 	api.SampleMax: {
 		fieldName:     "max",
 		fieldSelector: func(point metricPoint) float64 { return point.Max },
 		bucketSampler: func(bucket []float64) float64 {
-			value := bucket[0]
+			largest := math.NaN()
 			for _, v := range bucket {
-				value = math.Max(value, v)
+				if math.IsNaN(v) {
+					continue
+				}
+				if math.IsNaN(largest) {
+					largest = v
+				} else {
+					largest = math.Max(largest, v)
+				}
 			}
-			return value
+			return largest
 		},
 	},
 }
