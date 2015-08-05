@@ -146,30 +146,42 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		return api.Timeseries{}, err
 	}
 
+	// combinedResult contains the requested data, along with higher-resolution data intended to fill in gaps.
 	combinedResult := parsedResult.Values
 
 	// Sample the data at the FULL resolution.
 	// We clip the timerange so that it's only #{config.FullResolutionOverlap} seconds long.
 	// This limits the amount of data to be fetched.
-
-	fullResolutionRequest := request
-	if (request.Timerange.End()-request.Timerange.Start())/1000 > b.config.FullResolutionOverlap {
-		// Clip the timerange
-		newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
-		if err == nil {
+	fullResolutionParsedResult := func() []metricPoint {
+		// If an error occurs, we just return nothing. We don't return the error.
+		// This is so that errors while fetching the FULL-resolution data don't impact the requested data.
+		fullResolutionRequest := request // Copy the request
+		if request.Timerange.End()-request.Timerange.Start() > b.config.FullResolutionOverlap*1000 {
+			// Clip the timerange
+			newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
+			if err != nil {
+				log.Debugf("FULL resolution data errored while building timerange: %s", err.Error())
+				return nil
+			}
 			fullResolutionRequest.Timerange = newTimerange
 		}
-	}
-	fullResolutionQueryURL, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
-	if err == nil {
-		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
-		if err == nil {
-			// The higher-resolution data will likely overlap with the requested data.
-			// This isn't a problem - the requested, higher-resolution data will be downsampled by this code.
-			// This downsampling should arrive at the same answer as Blueflood's built-in rollups.
-			combinedResult = append(parsedResult.Values, fullResolutionParsedResult.Values...)
+		fullResolutionQueryURL, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
+		if err != nil {
+			log.Debugf("FULL resolution data errored while building url: %s", err.Error())
+			return nil
 		}
-	}
+		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
+		if err != nil {
+			log.Debugf("FULL resolution data errored while parsing result: %s", err.Error())
+			return nil
+		}
+		// The higher-resolution data will likely overlap with the requested data.
+		// This isn't a problem - the requested, higher-resolution data will be downsampled by this code.
+		// This downsampling should arrive at the same answer as Blueflood's built-in rollups.
+		return fullResolutionParsedResult.Values
+	}()
+
+	combinedResult = append(combinedResult, fullResolutionParsedResult...)
 
 	values := processResult(combinedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
