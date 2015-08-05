@@ -272,7 +272,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		baseTime-300*1000*10, // 50 minutes ago
 		baseTime-300*1000*3,  // 15 minutes ago
 	)
-	fmt.Printf("expect regular [%s]\n", regularQueryURL)
+
 	regularResponse := fmt.Sprintf(`{
 	  "unit": "unknown",
 	  "values": [
@@ -315,7 +315,6 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		baseTime-300*1000*10, // 50 minutes ago
 		baseTime-300*1000*3,  // 15 minutes ago
 	)
-	fmt.Printf("expect full [%s]\n", fullResolutionQueryURL)
 	fullResolutionResponse := fmt.Sprintf(`{
 	  "unit": "unknown",
 	  "values": [
