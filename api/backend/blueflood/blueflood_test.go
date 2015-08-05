@@ -36,6 +36,7 @@ func Test_Blueflood(t *testing.T) {
 		"square",
 		make(map[string]int64),
 		time.Millisecond,
+		0,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
 	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
@@ -261,6 +262,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		"square",
 		make(map[string]int64),
 		time.Millisecond,
+		14400,
 	}
 
 	baseTime := 1438734300000

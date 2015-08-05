@@ -35,10 +35,11 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl  string           `yaml:"base_url"`
-	TenantId string           `yaml:"tenant_id"`
-	Ttls     map[string]int64 `yaml:"ttls"` // Ttl in days
-	Timeout  time.Duration    `yaml:"timeout"`
+	BaseUrl               string           `yaml:"base_url"`
+	TenantId              string           `yaml:"tenant_id"`
+	Ttls                  map[string]int64 `yaml:"ttls"` // Ttl in days
+	Timeout               time.Duration    `yaml:"timeout"`
+	FullResolutionOverlap int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
 }
 
 func (c Config) getTTL(r Resolution) time.Duration {
@@ -125,10 +126,6 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-// The amount of time before other resolutions become available
-// It's not "const" so that it can be mocked out for tests
-var availableOnlyFull = time.Hour * 4
-
 func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
@@ -152,11 +149,24 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	combinedResult := parsedResult.Values
 
 	// Sample the data at the FULL resolution.
-	// In order to do this, we use the same `request` object but hard-code the ResolutionFull parameter.
-	fullResolutionQueryURL, err := b.constructURL(request, sampler, ResolutionFull)
+	// We clip the timerange so that it's only #{config.FullResolutionOverlap} seconds long.
+	// This limits the amount of data to be fetched.
+
+	fullResolutionRequest := request
+	if (request.Timerange.End()-request.Timerange.Start())/1000 > b.config.FullResolutionOverlap {
+		// Clip the timerange
+		newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
+		if err == nil {
+			fullResolutionRequest.Timerange = newTimerange
+		}
+	}
+	fullResolutionQueryURL, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
 	if err == nil {
 		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
 		if err == nil {
+			// The higher-resolution data will likely overlap with the requested data.
+			// This isn't a problem - the requested, higher-resolution data will be downsampled by this code.
+			// This downsampling should arrive at the same answer as Blueflood's built-in rollups.
 			combinedResult = append(parsedResult.Values, fullResolutionParsedResult.Values...)
 		}
 	}
