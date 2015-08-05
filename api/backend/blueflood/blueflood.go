@@ -160,19 +160,19 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 			// Clip the timerange
 			newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
 			if err != nil {
-				log.Debugf("FULL resolution data errored while building timerange: %s", err.Error())
+				log.Infof("FULL resolution data errored while building timerange: %s", err.Error())
 				return nil
 			}
 			fullResolutionRequest.Timerange = newTimerange
 		}
 		fullResolutionQueryURL, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
 		if err != nil {
-			log.Debugf("FULL resolution data errored while building url: %s", err.Error())
+			log.Infof("FULL resolution data errored while building url: %s", err.Error())
 			return nil
 		}
 		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
 		if err != nil {
-			log.Debugf("FULL resolution data errored while parsing result: %s", err.Error())
+			log.Infof("FULL resolution data errored while parsing result: %s", err.Error())
 			return nil
 		}
 		// The higher-resolution data will likely overlap with the requested data.
