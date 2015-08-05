@@ -29,10 +29,6 @@ import (
 	"github.com/square/metrics/log"
 )
 
-var getNow = func() time.Time {
-	return time.Now()
-}
-
 type httpClient interface {
 	// our own client to mock out the standard golang HTTP Client.
 	Get(url string) (resp *http.Response, err error)
@@ -153,47 +149,19 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 		return api.Timeseries{}, err
 	}
 
+	combinedResult := parsedResult.Values
+
 	// Sample the data at the FULL resolution.
-	// In order to do this, we copy the request and modify its timerange.
-	fullResolutionRequest := request
-
-	now := getNow().Unix() * 1000 // in milliseconds
-
-	earliestTime := now - int64(availableOnlyFull/time.Millisecond) // the earliest time that should be queried for FULL resolution data
-	latestTime := now                                               // the latest time that should be queried for FULL resolution data
-
-	fullResolutionStart := fullResolutionRequest.Timerange.Start()
-	if fullResolutionStart < earliestTime {
-		fullResolutionStart = earliestTime
-	}
-	if fullResolutionStart > latestTime {
-		fullResolutionStart = latestTime
-	}
-	fullResolutionEnd := fullResolutionRequest.Timerange.End()
-	if fullResolutionEnd < earliestTime {
-		fullResolutionEnd = earliestTime
-	}
-	if fullResolutionEnd > latestTime {
-		fullResolutionEnd = latestTime
-	}
-
-	var fullResolutionParsedResult queryResponse
-	fullResolutionRequest.Timerange, err = api.NewSnappedTimerange(fullResolutionStart, fullResolutionEnd, 30000)
-	if err != nil {
-		log.Errorf("Error building full-resolution timerange: %s", err.Error())
-	} else {
-		fullResolutionQueryUrl, err := b.constructURL(fullResolutionRequest, sampler, ResolutionFull)
-		if err != nil {
-			log.Errorf("Error building full-resolution URL: %s", err.Error())
-		} else {
-			fullResolutionParsedResult, err = b.fetch(fullResolutionRequest, fullResolutionQueryUrl)
-			if err != nil {
-				log.Errorf("Error parsing full-resolution query response: %s", err.Error())
-			}
+	// In order to do this, we use the same `request` object but hard-code the ResolutionFull parameter.
+	fullResolutionQueryURL, err := b.constructURL(request, sampler, ResolutionFull)
+	if err == nil {
+		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
+		if err == nil {
+			combinedResult = append(parsedResult.Values, fullResolutionParsedResult.Values...)
 		}
 	}
 
-	values := processResult(parsedResult, fullResolutionParsedResult, request.Timerange, sampler, queryResolution)
+	values := processResult(combinedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
 	return api.Timeseries{
@@ -274,19 +242,12 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 }
 
 func processResult(
-	parsedResult queryResponse,
-	fullResolutionParsedResult queryResponse,
+	points []metricPoint,
 	timerange api.Timerange,
 	sampler sampler,
 	queryResolution Resolution) []float64 {
-	// buckets are each filled with from the points stored in result.Values, according to their timestamps.
-	buckets := bucketsFromMetricPoints(parsedResult.Values, sampler.fieldSelector, timerange)
-
-	// Insert the full resolution data (if any is present) into the buckets.
-	// This shoud fill in missing data from before the main data is available.
-	for _, point := range fullResolutionParsedResult.Values {
-		addMetricPoint(point, sampler.fieldSelector, timerange, buckets)
-	}
+	// buckets are each filled with from the points stored in `points`, according to their timestamps.
+	buckets := bucketsFromMetricPoints(points, sampler.fieldSelector, timerange)
 
 	// values will hold the final values to be returned as the series.
 	values := make([]float64, timerange.Slots())
