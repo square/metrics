@@ -372,6 +372,23 @@ module.controller("commonCtrl", function(
       textPosition: $scope.hidden.xaxis ? "none" : "out"
     }
   };
+  $scope.queryResultIsEmpty = function() {
+    var result = $scope.queryResult;
+    if (!result || result.name != "select") {
+      return false;
+    }
+    for (var i = 0; i < result.body.length; i++) {
+      if (result.body[i].series.length == 0) {
+        if (result.body.length == 1) {
+          $scope.queryEmptyMessage = "the query resulted in 0 series";
+        } else {
+          $scope.queryEmptyMessage = "expression " + (i+1) + " (of " + result.body.length + ") resulted in 0 series";
+        }
+        return true;
+      }
+    }
+    return false;
+  };
   $scope.$watch("inputModel.renderType", function(newValue) {
     if (newValue === "area") {
       $scope.selectOptions.isStacked = true;

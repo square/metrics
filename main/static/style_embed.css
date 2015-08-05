@@ -20,9 +20,27 @@ body {
 	overflow-y: hidden;
 }
 
-.alert-danger {
+.alert-danger-message {
+  position: absolute;
+
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
+
   white-space: pre;
   font-family: Consolas, monospace;
+  text-align: center;
+}
+
+.alert-danger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .metric-chart {
