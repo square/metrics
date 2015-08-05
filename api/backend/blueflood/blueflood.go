@@ -141,9 +141,9 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
 		request.Timerange.Start(),
-	) // The query resolution will be downsampled automatically based on the timerange?
+	)
 
-	// <Sample the data>
+	// Sample the data at the given `queryResolution`
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
 		return api.Timeseries{}, err
@@ -152,15 +152,15 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-	// </Sample the data>
 
-	// <Sample the full resolution data>
+	// Sample the data at the FULL resolution.
+	// In order to do this, we copy the request and modify its timerange.
 	fullResolutionRequest := request
 
-	// The "now" as an epoch in milliseconds
-	now := getNow().Unix() * 1000
-	earliestTime := now - int64(availableOnlyFull/time.Millisecond)
-	latestTime := now
+	now := getNow().Unix() * 1000 // in milliseconds
+
+	earliestTime := now - int64(availableOnlyFull/time.Millisecond) // the earliest time that should be queried for FULL resolution data
+	latestTime := now                                               // the latest time that should be queried for FULL resolution data
 
 	fullResolutionStart := fullResolutionRequest.Timerange.Start()
 	if fullResolutionStart < earliestTime {
@@ -192,7 +192,6 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 			}
 		}
 	}
-	// </Sample the full resolution data>
 
 	values := processResult(parsedResult, fullResolutionParsedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
