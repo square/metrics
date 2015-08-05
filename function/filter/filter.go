@@ -35,6 +35,9 @@ func (list filterList) Less(i, j int) bool {
 	if math.IsNaN(list.value[j]) && !math.IsNaN(list.value[i]) {
 		return true
 	}
+	if math.IsNaN(list.value[i]) && !math.IsNaN(list.value[j]) {
+		return false
+	}
 	if list.ascending {
 		return list.value[i] < list.value[j]
 	} else {

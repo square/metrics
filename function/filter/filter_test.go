@@ -74,16 +74,32 @@ func TestFilter(t *testing.T) {
 			count:   6,
 			expect:  []string{"A", "B", "C", "D"},
 		},
-
+		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   6,
+			expect:  []string{"A", "B", "C", "D"},
+		},
 		{
 			summary: aggregate.Sum,
 			lowest:  false,
 			count:   6,
 			expect:  []string{"A", "B", "C", "D"},
 		},
-
+		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   6,
+			expect:  []string{"A", "B", "C", "D"},
+		},
 		{
 			summary: aggregate.Sum,
+			lowest:  true,
+			count:   4,
+			expect:  []string{"A", "B", "C", "D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  true,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
@@ -95,7 +111,19 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"A", "B", "C"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   3,
+			expect:  []string{"A", "B", "C"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  true,
+			count:   2,
+			expect:  []string{"A", "B"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  true,
 			count:   2,
 			expect:  []string{"A", "B"},
@@ -107,7 +135,19 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"B"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   1,
+			expect:  []string{"B"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  false,
+			count:   4,
+			expect:  []string{"A", "B", "C", "D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  false,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
@@ -119,13 +159,31 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"A", "C", "D"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   3,
+			expect:  []string{"A", "C", "D"},
+		},
+		{
 			summary: aggregate.Sum,
 			lowest:  false,
 			count:   2,
 			expect:  []string{"C", "D"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   2,
+			expect:  []string{"C", "D"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  false,
+			count:   1,
+			expect:  []string{"D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  false,
 			count:   1,
 			expect:  []string{"D"},
