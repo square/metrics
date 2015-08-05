@@ -290,48 +290,50 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
 		bucketSampler: func(bucket []float64) float64 {
 			value := 0.0
-			count := 0.0
+			count := 0
 			for _, v := range bucket {
 				if !math.IsNaN(v) {
 					value += v
 					count++
 				}
 			}
-			return value / count
+			return value / float64(count)
 		},
 	},
 	api.SampleMin: {
 		fieldName:     "min",
 		fieldSelector: func(point metricPoint) float64 { return point.Min },
 		bucketSampler: func(bucket []float64) float64 {
-			value := bucket[0]
+			smallest := math.NaN()
 			for _, v := range bucket {
 				if math.IsNaN(v) {
 					continue
 				}
-				if math.IsNaN(value) {
-					value = v
+				if math.IsNaN(smallest) {
+					smallest = v
+				} else {
+					smallest = math.Min(smallest, v)
 				}
-				value = math.Min(value, v)
 			}
-			return value
+			return smallest
 		},
 	},
 	api.SampleMax: {
 		fieldName:     "max",
 		fieldSelector: func(point metricPoint) float64 { return point.Max },
 		bucketSampler: func(bucket []float64) float64 {
-			value := bucket[0]
+			largest := math.NaN()
 			for _, v := range bucket {
 				if math.IsNaN(v) {
 					continue
 				}
-				if math.IsNaN(value) {
-					value = v
+				if math.IsNaN(largest) {
+					largest = v
+				} else {
+					largest = math.Max(largest, v)
 				}
-				value = math.Max(value, v)
 			}
-			return value
+			return largest
 		},
 	},
 }
