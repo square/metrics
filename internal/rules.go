@@ -53,6 +53,21 @@ type RuleSet struct {
 	rules []Rule
 }
 
+func CompileGraphiteRule(pattern string) (Rule, error) {
+	graphitePatternTags := extractTags(pattern)
+	if graphitePatternTags == nil {
+		return Rule{}, newInvalidPattern(pattern)
+	}
+	regex := (&RawRule{}).toRegexp(pattern)
+	return Rule{
+		raw:                  RawRule{},
+		graphitePatternRegex: regex,
+		graphitePatternTags:  graphitePatternTags,
+		metricKeyTags:        []string{},
+		// metricKeyRegex: neglect this
+	}, nil
+}
+
 // Compile a given RawRule into a regex and exposed tagset.
 // error is an instance of RuleError.
 func Compile(rule RawRule) (Rule, error) {

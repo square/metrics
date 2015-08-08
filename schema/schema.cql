@@ -24,3 +24,10 @@ create table metric_name_set (
   metric_names set<varchar>,
   primary key (shard)
 );
+
+-- graphite_names
+create table graphite_names (
+  shard int,
+  graphite_name varchar,
+  primary key ((shard) graphite_name)
+);

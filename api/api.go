@@ -45,6 +45,13 @@ type API interface {
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
 	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
+
+	// Allow the API to store and retrieve graphite metrics:
+	// Add a Graphite metric to the complete list (as needed)
+	AddGraphiteMetric(metric GraphiteMetric) error
+
+	// Get all the Graphite metrics
+	GetAllGraphiteMetrics() ([]GraphiteMetric, error)
 }
 
 // Configuration is the struct that tells how to instantiate a new copy of an API.
@@ -55,8 +62,14 @@ type Config struct {
 	// Database configurations
 	// mostly cassandra configurations from
 	// https://github.com/gocql/gocql/blob/master/cluster.go
-	Hosts    []string `yaml:"hosts"`
-	Keyspace string   `yaml:"keyspace"`
+	Hosts    []string       `yaml:"hosts"`
+	Keyspace string         `yaml:"keyspace"`
+	Database DatabaseConfig `yaml:"database"`
+}
+
+// Configuration for the Database attached to the default API
+type DatabaseConfig struct {
+	GraphiteMetricTTL int `yaml:graphite_metric_ttl` // in seconds
 }
 
 // ProfilingAPI wraps an ordinary API and also records profiling metrics to a given Profiler object.
@@ -92,4 +105,15 @@ func (api ProfilingAPI) GetAllMetrics() ([]MetricKey, error) {
 func (api ProfilingAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
 	defer api.Profiler.Record("api.GetMetricsForTag")()
 	return api.API.GetMetricsForTag(tagKey, tagValue)
+}
+
+const SpecialGraphiteName = "$graphite"
+
+func (api ProfilingAPI) AddGraphiteMetric(metric GraphiteMetric) error {
+	defer api.Profiler.Record("api.AddGraphiteMetric")()
+	return api.API.AddGraphiteMetric(metric)
+}
+func (api ProfilingAPI) GetAllGraphiteMetrics() ([]GraphiteMetric, error) {
+	defer api.Profiler.Record("api.GetAllGraphiteMetrics")()
+	return api.API.GetAllGraphiteMetrics()
 }

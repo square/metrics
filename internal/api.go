@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -29,7 +30,7 @@ func NewAPI(config api.Config) (api.API, error) {
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
 	clusterConfig.Timeout = time.Second * 30
-	db, err := NewCassandraDatabase(clusterConfig)
+	db, err := NewCassandraDatabase(clusterConfig, config.Database)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +113,9 @@ func (a *defaultAPI) RemoveMetric(metric api.TaggedMetric) error {
 }
 
 func (a *defaultAPI) ToGraphiteName(metric api.TaggedMetric) (api.GraphiteMetric, error) {
+	if metric.MetricKey == api.SpecialGraphiteName {
+		return api.GraphiteMetric(metric.TagSet[api.SpecialGraphiteName]), nil
+	}
 	return a.ruleset.ToGraphiteName(metric)
 }
 
@@ -121,6 +125,19 @@ func (a *defaultAPI) ToTaggedName(metric api.GraphiteMetric) (api.TaggedMetric, 
 		return match, nil
 	}
 	return api.TaggedMetric{}, newNoMatch()
+}
+
+func (a *defaultAPI) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
+		return graphiteDB.AddGraphiteMetric(metric)
+	}
+	return fmt.Errorf("database does not support the AddGraphiteMetric operator")
+}
+func (a *defaultAPI) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	if graphiteDB, ok := a.db.(DatabaseGraphiteStore); ok {
+		return graphiteDB.GetAllGraphiteMetrics()
+	}
+	return nil, fmt.Errorf("database does not support the GetAllGraphiteMetrics operator")
 }
 
 // ensure interface

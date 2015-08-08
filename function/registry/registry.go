@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/aggregate"
 	"github.com/square/metrics/function/filter"
+	"github.com/square/metrics/function/graphite"
 	"github.com/square/metrics/function/join"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
@@ -76,6 +77,9 @@ func init() {
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
+
+	// Really weird ones
+	MustRegister(graphiteSelect)
 }
 
 // StandardRegistry of a functions available in MQE.
@@ -332,4 +336,66 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 			}, nil
 		},
 	}
+}
+
+var graphiteSelect = function.MetricFunction{
+	Name:         "graphite",
+	MinArguments: 1,
+	MaxArguments: 1,
+	Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
+		graphiteQuery, err := args[0].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		graphitePattern, err := graphiteQuery.ToString()
+		if err != nil {
+			return nil, err
+		}
+		metrics, err := graphite.GetGraphiteMetrics(graphitePattern, context.API)
+		if err != nil {
+			return nil, err
+		}
+		if len(metrics) == 0 {
+			return nil, fmt.Errorf("there are no graphite metrics matching your pattern", graphiteQuery)
+		}
+		// filter the metrics according to our predicate (if present)
+		if context.Predicate != nil {
+			filtered := []api.TaggedMetric{}
+			for _, metric := range metrics {
+				metric.MetricKey = api.SpecialGraphiteName
+				if context.Predicate.Apply(metric.TagSet) {
+					filtered = append(filtered, metric)
+				}
+			}
+			if len(filtered) == 0 {
+				return nil, fmt.Errorf("some graphite metrics exist that match your pattern, but none of these pass your predicate")
+			}
+			metrics = filtered
+		}
+		ok := context.FetchLimit.Consume(len(metrics))
+		if !ok {
+			return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
+				context.FetchLimit.Current(),
+				context.FetchLimit.Limit())
+		}
+		serieslist, err := context.MultiBackend.FetchMultipleSeries(
+			api.FetchMultipleRequest{
+				metrics,
+				context.SampleMethod,
+				context.Timerange,
+				context.API,
+				context.Cancellable,
+				context.Profiler,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, series := range serieslist.Series {
+			// remove the intermediate "$graphite" tag from each series
+			delete(series.TagSet, api.SpecialGraphiteName)
+		}
+		serieslist.Name = api.SpecialGraphiteName
+		return serieslist, nil
+	},
 }

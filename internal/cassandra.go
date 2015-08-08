@@ -41,6 +41,13 @@ type Database interface {
 	RemoveFromTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
 }
 
+type DatabaseGraphiteStore interface {
+	// Add a Graphite name to the database
+	AddGraphiteMetric(graphiteName api.GraphiteMetric) error
+	// Get all the Graphite names stored in the database
+	GetAllGraphiteMetrics() ([]api.GraphiteMetric, error)
+}
+
 type tagIndexCacheKey struct {
 	key    string
 	value  string
@@ -48,25 +55,31 @@ type tagIndexCacheKey struct {
 }
 
 type defaultDatabase struct {
-	session         *gocql.Session
-	allMetricsCache map[api.MetricKey]bool
-	allMetricsMutex *sync.Mutex
-	tagIndexCache   map[tagIndexCacheKey]bool
-	tagIndexMutex   *sync.Mutex
+	session           *gocql.Session
+	allMetricsCache   map[api.MetricKey]bool
+	allMetricsMutex   *sync.Mutex
+	tagIndexCache     map[tagIndexCacheKey]bool
+	tagIndexMutex     *sync.Mutex
+	graphiteMetricTTL int
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
-func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) {
+func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig, databaseConfig api.DatabaseConfig) (Database, error) {
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err
 	}
+	graphiteMetricTTL := databaseConfig.GraphiteMetricTTL
+	if graphiteMetricTTL == 0 {
+		graphiteMetricTTL = 90000 // slightly more than 24 hours as a default
+	}
 	return &defaultDatabase{
-		session:         session,
-		allMetricsCache: make(map[api.MetricKey]bool),
-		allMetricsMutex: &sync.Mutex{},
-		tagIndexCache:   make(map[tagIndexCacheKey]bool),
-		tagIndexMutex:   &sync.Mutex{},
+		session:           session,
+		allMetricsCache:   make(map[api.MetricKey]bool),
+		allMetricsMutex:   &sync.Mutex{},
+		tagIndexCache:     make(map[tagIndexCacheKey]bool),
+		tagIndexMutex:     &sync.Mutex{},
+		graphiteMetricTTL: graphiteMetricTTL,
 	}, nil
 }
 
@@ -196,4 +209,27 @@ func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, me
 		tagKey,
 		tagValue,
 	).Exec()
+}
+
+func (db *defaultDatabase) AddGraphiteMetric(metric api.GraphiteMetric) error {
+	return db.session.Query(
+		"INSERT INTO graphite_names (shard, graphite_name) VALUES (?, ?) USING TTL ?",
+		0,
+		metric,
+		db.graphiteMetricTTL,
+	).Exec()
+}
+func (db *defaultDatabase) GetAllGraphiteMetrics() ([]api.GraphiteMetric, error) {
+	iter := db.session.Query(
+		"SELECT graphite_name FROM graphite_names",
+	).Iter()
+	list := []api.GraphiteMetric{}
+	var item api.GraphiteMetric
+	for iter.Scan(&item) {
+		list = append(list, item)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
