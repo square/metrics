@@ -586,7 +586,90 @@ func TestNaming(t *testing.T) {
 			continue
 		}
 	}
+}
 
+func TestQuery(t *testing.T) {
+	fakeApi := mocks.NewFakeApi()
+	fakeBackend := backend.NewSequentialMultiBackend(fakeApiBackend{})
+	tests := []struct {
+		query    string
+		expected string
+	}{
+		{
+			query:    "select series_1 from 0 to 0",
+			expected: "series_1",
+		},
+		{
+			query:    "select series_1 + 17 from 0 to 0",
+			expected: "(series_1 + 17)",
+		},
+		{
+			query:    "select series_1 + 2342.32 from 0 to 0",
+			expected: "(series_1 + 2342.32)",
+		},
+		{
+			query:    "select series_1*17 from 0 to 0",
+			expected: "(series_1 * 17)",
+		},
+		{
+			query:    "select aggregate.sum(series_1) from 0 to 0",
+			expected: "aggregate.sum(series_1)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 group by dc) from 0 to 0",
+			expected: "aggregate.sum(series_1 group by dc)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 group by dc,env) from 0 to 0",
+			expected: "aggregate.sum(series_1 group by dc, env)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 collapse by dc) from 0 to 0",
+			expected: "aggregate.sum(series_1 collapse by dc)",
+		},
+		{
+			query:    "select aggregate.sum(series_1 collapse by dc,env) from 0 to 0",
+			expected: "aggregate.sum(series_1 collapse by dc, env)",
+		},
+		{
+			query:    "select transform.alias(aggregate.sum(series_1 group by dc,env), 'hello') from 0 to 0",
+			expected: "transform.alias(aggregate.sum(series_1 group by dc, env), \"hello\")",
+		},
+		{
+			query:    "select transform.moving_average(series_2, 2h) from 0 to 0",
+			expected: "transform.moving_average(series_2, 2h)",
+		},
+		{
+			query:    "select filter.lowest_max(series_2, 6) from 0 to 0",
+			expected: "filter.lowest_max(series_2, 6)",
+		},
+	}
+	for _, test := range tests {
+		command, err := Parse(test.query)
+		if err != nil {
+			t.Fatalf("Unexpected error while parsing")
+			return
+		}
+		if command.Name() != "select" {
+			t.Errorf("Expected select command but got %s", command.Name())
+			continue
+		}
+		rawResult, err := command.Execute(ExecutionContext{Backend: fakeBackend, API: fakeApi, FetchLimit: 1000, Timeout: 0})
+		if err != nil {
+			t.Errorf("Unexpected error while execution: %s", err.Error())
+			continue
+		}
+		seriesListList, ok := rawResult.([]api.SeriesList)
+		if !ok || len(seriesListList) != 1 {
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
+			continue
+		}
+		actual := seriesListList[0].Query
+		if actual != test.expected {
+			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
+			continue
+		}
+	}
 }
 
 func TestTag(t *testing.T) {

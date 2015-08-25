@@ -46,6 +46,7 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []funct
 		Series:    make([]api.Timeseries, len(list.Series)),
 		Timerange: list.Timerange,
 		Name:      list.Name,
+		Query:     list.Query,
 	}
 	var err error
 	for i, series := range list.Series {

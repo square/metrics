@@ -71,6 +71,7 @@ func Test_groupBy(t *testing.T) {
 		},
 		Timerange: api.Timerange{},
 		Name:      "",
+		Query:     "",
 	}
 
 	var aggregateTestCases = []struct {
@@ -332,6 +333,7 @@ func Test_AggregateBy(t *testing.T) {
 		},
 		timerange,
 		"Test.List",
+		"",
 	}
 
 	var aggregatedTests = []struct {

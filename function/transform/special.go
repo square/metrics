@@ -17,6 +17,7 @@ package transform
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -45,7 +46,8 @@ var Timeshift = function.MetricFunction{
 
 		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
+			seriesValue.Query = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
+			seriesValue.Name = seriesValue.Query
 			return seriesValue, nil
 		}
 		return result, nil
@@ -123,7 +125,8 @@ var MovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
+		list.Query = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
+		list.Name = list.Query
 		return list, nil
 	},
 }
@@ -150,6 +153,7 @@ var Alias = function.MetricFunction{
 			return nil, err
 		}
 		list.Name = name
+		list.Query = fmt.Sprintf("transform.alias(%s, %s)", value.GetName(), strconv.Quote(name))
 		return list, nil
 	},
 }
