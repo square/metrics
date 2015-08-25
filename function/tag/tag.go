@@ -41,6 +41,7 @@ func DropTag(list api.SeriesList, tag string) api.SeriesList {
 		series,
 		list.Timerange,
 		list.Name,
+		list.Query,
 	}
 }
 
@@ -65,6 +66,7 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 		series,
 		list.Timerange,
 		list.Name,
+		list.Query,
 	}
 }
 

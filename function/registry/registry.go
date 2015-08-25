@@ -162,7 +162,8 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
 			result := filter.FilterBy(list, count, summary, ascending)
-			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			result.Query = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			result.Name = result.Query
 			return result, nil
 		},
 	}
@@ -206,7 +207,8 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 				return nil, err
 			}
 			result := filter.FilterRecentBy(list, count, summary, ascending, duration)
-			result.Name = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			result.Query = fmt.Sprintf("%s(%s, %d)", name, value.GetName(), count)
+			result.Name = result.Query
 			return result, nil
 		},
 	}
@@ -235,14 +237,15 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 				groupNames[i] += group
 			}
 			if len(groups.List) == 0 {
-				result.Name = fmt.Sprintf("%s(%s)", name, value.GetName())
+				result.Query = fmt.Sprintf("%s(%s)", name, value.GetName())
 			} else {
 				verbName := "group"
 				if groups.Collapses {
 					verbName = "collapse"
 				}
-				result.Name = fmt.Sprintf("%s(%s %s by %s)", name, value.GetName(), verbName, strings.Join(groupNames, ", "))
+				result.Query = fmt.Sprintf("%s(%s %s by %s)", name, value.GetName(), verbName, strings.Join(groupNames, ", "))
 			}
+			result.Name = result.Query
 			return result, nil
 		},
 	}
@@ -279,10 +282,11 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 				parameterNames[i] = param.GetName()
 			}
 			if len(parameters) != 0 {
-				result.Name = fmt.Sprintf("%s(%s, %s)", name, listValue.GetName(), strings.Join(parameterNames, ", "))
+				result.Query = fmt.Sprintf("%s(%s, %s)", name, listValue.GetName(), strings.Join(parameterNames, ", "))
 			} else {
-				result.Name = fmt.Sprintf("%s(%s)", name, listValue.GetName())
+				result.Query = fmt.Sprintf("%s(%s)", name, listValue.GetName())
 			}
+			result.Name = result.Query
 			return result, nil
 		},
 	}
@@ -325,10 +329,12 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 				result[i] = api.Timeseries{array, row.TagSet}
 			}
 
+			query := fmt.Sprintf("(%s %s %s)", leftValue.GetName(), op, rightValue.GetName())
 			return api.SeriesList{
 				Series:    result,
 				Timerange: context.Timerange,
-				Name:      fmt.Sprintf("(%s %s %s)", leftValue.GetName(), op, rightValue.GetName()),
+				Name:      query,
+				Query:     query,
 			}, nil
 		},
 	}

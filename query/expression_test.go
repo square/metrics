@@ -121,6 +121,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
+				"",
 			},
 			api.SeriesList{
 				[]api.Timeseries{
@@ -130,6 +131,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 					},
 				},
 				api.Timerange{},
+				"",
 				"",
 			},
 			func(left, right float64) float64 { return left + right },
@@ -147,6 +149,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
+				"",
 			},
 			api.SeriesList{
 				[]api.Timeseries{
@@ -155,6 +158,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 					},
 				},
 				api.Timerange{},
+				"",
 				"",
 			},
 			func(left, right float64) float64 { return left - right },
@@ -190,6 +194,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
+				"",
 			},
 			api.SeriesList{
 				[]api.Timeseries{
@@ -207,6 +212,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 					},
 				},
 				api.Timerange{},
+				"",
 				"",
 			},
 			func(left, right float64) float64 { return left + right },
@@ -242,6 +248,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
+				"",
 			},
 			api.SeriesList{
 				[]api.Timeseries{
@@ -259,6 +266,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 					},
 				},
 				api.Timerange{},
+				"",
 				"",
 			},
 			func(left, right float64) float64 { return left * right },
@@ -294,6 +302,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 				api.Timerange{},
 				"",
+				"",
 			},
 			api.SeriesList{
 				[]api.Timeseries{
@@ -311,6 +320,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 					},
 				},
 				api.Timerange{},
+				"",
 				"",
 			},
 			func(left, right float64) float64 { return left - right },

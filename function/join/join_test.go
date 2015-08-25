@@ -36,12 +36,12 @@ var (
 
 	voidSeries = api.Timeseries{[]float64{0, 0, 0}, map[string]string{}}
 
-	emptyList = api.SeriesList{[]api.Timeseries{}, api.Timerange{}, ""}
-	basicList = api.SeriesList{[]api.Timeseries{seriesA1, seriesA2, seriesB3, seriesB4, seriesC5}, api.Timerange{}, ""}
-	dcList    = api.SeriesList{[]api.Timeseries{seriesDC_A, seriesDC_B, seriesDC_C}, api.Timerange{}, ""}
-	envList   = api.SeriesList{[]api.Timeseries{seriesENV_PROD, seriesENV_STAGE}, api.Timerange{}, ""}
+	emptyList = api.SeriesList{[]api.Timeseries{}, api.Timerange{}, "", ""}
+	basicList = api.SeriesList{[]api.Timeseries{seriesA1, seriesA2, seriesB3, seriesB4, seriesC5}, api.Timerange{}, "", ""}
+	dcList    = api.SeriesList{[]api.Timeseries{seriesDC_A, seriesDC_B, seriesDC_C}, api.Timerange{}, "", ""}
+	envList   = api.SeriesList{[]api.Timeseries{seriesENV_PROD, seriesENV_STAGE}, api.Timerange{}, "", ""}
 
-	voidList = api.SeriesList{[]api.Timeseries{voidSeries}, api.Timerange{}, ""}
+	voidList = api.SeriesList{[]api.Timeseries{voidSeries}, api.Timerange{}, "", ""}
 )
 
 var testCases = []struct {
