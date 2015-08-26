@@ -17,7 +17,6 @@ package internal
 import (
 	"fmt"
 	"sort"
-	"sync"
 	"testing"
 
 	"github.com/gocql/gocql"
@@ -41,11 +40,7 @@ func newDatabase(t *testing.T) *defaultDatabase {
 		}
 	}
 	return &defaultDatabase{
-		session:         session,
-		allMetricsCache: make(map[api.MetricKey]bool),
-		allMetricsMutex: &sync.Mutex{},
-		tagIndexCache:   make(map[tagIndexCacheKey]bool),
-		tagIndexMutex:   &sync.Mutex{},
+		session: session,
 	}
 }
 

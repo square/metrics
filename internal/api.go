@@ -87,6 +87,12 @@ func (a *defaultAPI) AddMetric(metric api.TaggedMetric) error {
 	return nil
 }
 
+func (a *defaultAPI) AddMetrics(metrics []api.TaggedMetric) error {
+	log.Infof("Using the bulk metrics\n")
+	a.db.AddMetricNames(metrics)
+	return nil
+}
+
 func (a *defaultAPI) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
 	return a.db.GetTagSet(metricKey)
 }
