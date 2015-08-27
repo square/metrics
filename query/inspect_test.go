@@ -31,6 +31,11 @@ func (a fakeAPI) AddMetric(metric api.TaggedMetric) error {
 	return nil
 }
 
+func (a fakeAPI) AddMetrics(metrics []api.TaggedMetric) error {
+	// NOTHING
+	return nil
+}
+
 func (a fakeAPI) RemoveMetric(metric api.TaggedMetric) error {
 	// NOTHING
 	return nil
