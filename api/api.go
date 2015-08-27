@@ -24,7 +24,8 @@ import "github.com/square/metrics/inspect"
 type API interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric) error
-  AddMetrics(metric []TaggedMetric) error
+	// Bulk metrics addition
+	AddMetrics(metric []TaggedMetric) error
 
 	// RemoveMetric removes the metric from the system.
 	RemoveMetric(metric TaggedMetric) error
@@ -71,8 +72,8 @@ func (api ProfilingAPI) AddMetric(metric TaggedMetric) error {
 	return api.API.AddMetric(metric)
 }
 func (api ProfilingAPI) AddMetrics(metrics []TaggedMetric) error {
-  defer api.Profiler.Record("api.AddMetrics")()
-  return api.API.AddMetrics(metrics)
+	defer api.Profiler.Record("api.AddMetrics")()
+	return api.API.AddMetrics(metrics)
 }
 func (api ProfilingAPI) RemoveMetric(metric TaggedMetric) error {
 	defer api.Profiler.Record("api.RemoveMetric")()

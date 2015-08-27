@@ -56,6 +56,10 @@ func (fa *FakeApi) AddMetric(metric api.TaggedMetric) error {
 	return nil
 }
 
+func (fa *FakeApi) AddMetrics(metric []api.TaggedMetric) error {
+	return nil
+}
+
 func (fa *FakeApi) RemoveMetric(metric api.TaggedMetric) error {
 	return nil
 }
