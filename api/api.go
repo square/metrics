@@ -18,6 +18,10 @@
 // for the terminology.
 package api
 
+/*
+DEPRECATED
+*/
+
 import "github.com/square/metrics/inspect"
 
 // API is the set of public methods exposed by the indexer library.

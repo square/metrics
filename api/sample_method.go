@@ -19,36 +19,32 @@
 
 package api
 
-import (
-	"math"
-	"testing"
+// SeriesType is a different aspect of data.
+// For example, Blueflood may stores (min / max / average / count) during rollups,
+// and these data are exposed via columns
+type SeriesType string
 
-	"github.com/square/metrics/assert"
+// SampleMethod determines how the given time series should be sampled.
+type SampleMethod int
+
+const (
+	// SamplingMax chooses the maximum value.
+	SampleMax SampleMethod = iota + 1
+	// SamplingMin chooses the minimum value.
+	SampleMin
+	// SamplingMean chooses the average value.
+	SampleMean
 )
 
-func max(array []float64) float64 {
-	max := array[0]
-	for _, v := range array {
-		max = math.Max(max, v)
+func (sm SampleMethod) String() string {
+	switch sm {
+	case SampleMax:
+		return "SampleMax"
+	case SampleMin:
+		return "SampleMin"
+	case SampleMean:
+		return "SampleMean"
 	}
-	return max
-}
 
-func TestTimeseries_Downsample(t *testing.T) {
-	a := assert.New(t)
-	for _, suite := range []struct {
-		input      []float64
-		inputRange Timerange
-		newRange   Timerange
-		sampler    func([]float64) float64
-		expected   []float64
-	}{
-		{[]float64{1, 2, 3, 4, 5}, Timerange{0, 4, 1}, Timerange{0, 4, 2}, max, []float64{2, 4, 5}},
-	} {
-		tagset := ParseTagSet("key=value")
-		ts := Timeseries{suite.input, tagset}
-		sampled, err := ts.Downsample(suite.inputRange, suite.newRange, suite.sampler)
-		a.CheckError(err)
-		a.Eq(sampled.Values, suite.expected)
-	}
+	return "unknown"
 }

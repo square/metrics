@@ -14,26 +14,21 @@
 
 package api
 
-/*
-DEPRECATED
-*/
+// MetricKey is the logical name of a given metric.
+// MetricKey should not contain any variable component in it.
+type MetricKey string
 
-import (
-	"strings"
-)
+// MetricKeys is an interface implementing sort.Interface to allow it to be sorted.
+type MetricKeys []MetricKey
 
-func escapeString(input string) string {
-	// must be first
-	input = strings.Replace(input, `\`, `\\`, -1)
-	input = strings.Replace(input, `,`, `\,`, -1)
-	input = strings.Replace(input, `=`, `\=`, -1)
-	return input
+func (keys MetricKeys) Len() int {
+	return len(keys)
 }
 
-func unescapeString(input string) string {
-	input = strings.Replace(input, `\,`, `,`, -1)
-	input = strings.Replace(input, `\=`, `=`, -1)
-	// must be last.
-	input = strings.Replace(input, `\\`, `\`, -1)
-	return input
+func (keys MetricKeys) Less(i, j int) bool {
+	return keys[i] < keys[j]
+}
+
+func (keys MetricKeys) Swap(i, j int) {
+	keys[i], keys[j] = keys[j], keys[i]
 }
