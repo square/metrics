@@ -18,6 +18,10 @@ func (b fakeBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.Time
 	return api.Timeseries{}, nil
 }
 
+func (b fakeBackend) DecideTimerange(start int64, end int64, resolution int64) (api.Timerange, error) {
+	return api.NewSnappedTimerange(start, end, resolution)
+}
+
 type Suite struct {
 	backend      fakeBackend
 	waitGroup    sync.WaitGroup

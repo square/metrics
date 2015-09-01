@@ -87,6 +87,10 @@ func (f fakeBackend) FetchSingleSeries(request api.FetchSeriesRequest) (api.Time
 	return api.Timeseries{}, nil
 }
 
+func (f fakeBackend) DecideTimerange(start int64, end int64, resolution int64) (api.Timerange, error) {
+	return api.NewSnappedTimerange(start, end, resolution)
+}
+
 func TestProfilerIntegration(t *testing.T) {
 	myAPI := fakeAPI{
 		tagSets: map[string][]api.TagSet{"A": []api.TagSet{

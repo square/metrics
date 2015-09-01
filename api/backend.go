@@ -88,6 +88,7 @@ func (r FetchMultipleRequest) ToSingle(metric TaggedMetric) FetchSeriesRequest {
 type Backend interface {
 	// FetchSingleSeries should return an instance of BackendError
 	FetchSingleSeries(request FetchSeriesRequest) (Timeseries, error)
+	DecideTimerange(start int64, end int64, userResolutionMillis int64) (Timerange, error)
 }
 
 type MultiBackend interface {
@@ -95,6 +96,7 @@ type MultiBackend interface {
 	// corresponding to the Timerange, down/upsampling if necessary using
 	// SampleMethod. It may fetch in series or parallel, etc.
 	FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error)
+	DecideTimerange(start int64, end int64, userResolutionMillis int64) (Timerange, error)
 }
 
 type BackendErrorCode int
@@ -146,6 +148,10 @@ func (b ProfilingBackend) FetchSingleSeries(request FetchSeriesRequest) (Timeser
 	return b.Backend.FetchSingleSeries(request)
 }
 
+func (b ProfilingBackend) DecideTimerange(start int64, end int64, userResolutionMillis int64) (Timerange, error) {
+	return b.Backend.DecideTimerange(start, end, userResolutionMillis)
+}
+
 // ProfilingMultiBackend wraps an ordinary multibackend so that whenever data is fetched, a profile is recorded for the fetches' durations.
 type ProfilingMultiBackend struct {
 	MultiBackend MultiBackend
@@ -154,4 +160,8 @@ type ProfilingMultiBackend struct {
 func (b ProfilingMultiBackend) FetchMultipleSeries(request FetchMultipleRequest) (SeriesList, error) {
 	defer request.Profiler.Record("fetchMultipleSeries")()
 	return b.MultiBackend.FetchMultipleSeries(request)
+}
+
+func (b ProfilingMultiBackend) DecideTimerange(start int64, end int64, userResolutionMillis int64) (Timerange, error) {
+	return b.MultiBackend.DecideTimerange(start, end, userResolutionMillis)
 }

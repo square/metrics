@@ -66,7 +66,6 @@ func main() {
 		API:        apiInstance,
 		Backend:    backend,
 		FetchLimit: 1000,
-		SlotLimit:  5000,
 		Registry:   registry.Default(),
 	})
 }
