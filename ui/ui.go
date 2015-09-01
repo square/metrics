@@ -68,7 +68,7 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 func bodyResponse(writer http.ResponseWriter, response response) {
 	commonResponse(writer)
 	response.Success = true
-	encoded, err := json.MarshalIndent(response, "", "  ")
+	encoded, err := json.Marshal(response)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write(failedMessage)
