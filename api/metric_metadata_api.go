@@ -31,7 +31,7 @@ type MetricMetadataConfig struct {
 }
 
 type MetricMetadataAPI interface {
-	NewMetricMetadataAPI(config MetricMetadataConfig) error
+	// NewMetricMetadataAPI(config MetricMetadataConfig) error
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric) error
 	// Bulk metrics addition

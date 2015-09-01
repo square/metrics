@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package cassandra
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ import (
 	"github.com/square/metrics/assert"
 )
 
-func newDatabase(t *testing.T) *defaultDatabase {
+func newDatabase(t *testing.T) *cassandraDatabase {
 	cluster := gocql.NewCluster("localhost")
 	cluster.Keyspace = "metrics_indexer_test"
 	session, err := cluster.CreateSession()
@@ -39,12 +39,12 @@ func newDatabase(t *testing.T) *defaultDatabase {
 			return nil
 		}
 	}
-	return &defaultDatabase{
+	return &cassandraDatabase{
 		session: session,
 	}
 }
 
-func cleanDatabase(t *testing.T, db *defaultDatabase) {
+func cleanDatabase(t *testing.T, db *cassandraDatabase) {
 	db.session.Close()
 }
 

@@ -18,6 +18,18 @@ import (
 	"fmt"
 )
 
+type NoSuchMetricError struct {
+	name string
+}
+
+func NewNoSuchMetricError(name string) NoSuchMetricError {
+	return NoSuchMetricError{name}
+}
+
+func (m NoSuchMetricError) Error() string {
+	return fmt.Sprintf("No such metric with name `%s`", m.name)
+}
+
 type TimeseriesStorageErrorCode int
 
 const (
