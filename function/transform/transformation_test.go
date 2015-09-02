@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func TestTransformTimeseries(t *testing.T) {

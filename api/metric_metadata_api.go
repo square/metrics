@@ -19,8 +19,12 @@
 
 package api
 
+import "github.com/square/metrics/inspect"
+
 type MetricMetadataConfig struct {
 	// Location of conversion rules. All *.yaml files in here will be loaded.
+	//TODO(cchandler): Move this into the util package along with
+	//other rules + graphite stuff.
 	ConversionRulesPath string `yaml:"conversion_rules_path"`
 
 	// Database configurations
@@ -31,7 +35,6 @@ type MetricMetadataConfig struct {
 }
 
 type MetricMetadataAPI interface {
-	// NewMetricMetadataAPI(config MetricMetadataConfig) error
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric) error
 	// Bulk metrics addition
@@ -45,4 +48,34 @@ type MetricMetadataAPI interface {
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
 	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
+}
+
+type ProfilingMetricMetadataAPI struct {
+	Profiler       *inspect.Profiler
+	MetricMetadata MetricMetadataAPI
+}
+
+func (api ProfilingMetricMetadataAPI) AddMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.AddMetric")()
+	return api.MetricMetadata.AddMetric(metric)
+}
+func (api ProfilingMetricMetadataAPI) AddMetrics(metrics []TaggedMetric) error {
+	defer api.Profiler.Record("api.AddMetrics")()
+	return api.MetricMetadata.AddMetrics(metrics)
+}
+func (api ProfilingMetricMetadataAPI) RemoveMetric(metric TaggedMetric) error {
+	defer api.Profiler.Record("api.RemoveMetric")()
+	return api.MetricMetadata.RemoveMetric(metric)
+}
+func (api ProfilingMetricMetadataAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
+	defer api.Profiler.Record("api.GetAllTags")()
+	return api.MetricMetadata.GetAllTags(metricKey)
+}
+func (api ProfilingMetricMetadataAPI) GetAllMetrics() ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetAllMetrics")()
+	return api.MetricMetadata.GetAllMetrics()
+}
+func (api ProfilingMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
+	defer api.Profiler.Record("api.GetMetricsForTag")()
+	return api.MetricMetadata.GetMetricsForTag(tagKey, tagValue)
 }

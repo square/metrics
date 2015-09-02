@@ -21,7 +21,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func newDatabase(t *testing.T) *cassandraDatabase {

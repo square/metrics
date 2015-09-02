@@ -14,37 +14,89 @@
 
 package api
 
+import (
+	"fmt"
+
+	"github.com/square/metrics/inspect"
+)
+
 type TimeseriesStorageAPI interface {
 	// FetchSingleSeries should return an instance of BackendError
-	FetchSingleSeries(request FetchTimeseriesRequest) (Timeseries, error)
-	FetchMultipleSeries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
+	// FetchMultipleSeries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+}
+
+type ParallelTimeseriesStorageAPI interface {
+	// FetchSingleSeries should return an instance of BackendError
+	// FetchSingleSeries(request FetchTimeseriesRequest) (Timeseries, error)
+	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
 
 type FetchTimeseriesRequest struct {
-	Metric       TaggedMetric // metric to fetch.
-	SampleMethod SampleMethod // up/downsampling behavior.
-	Timerange    Timerange    // time range to fetch data from.
-	API          API          // an API instance.
-	Cancellable  Cancellable
-	// Profiler     *inspect.Profiler
+	Metric         TaggedMetric // metric to fetch.
+	SampleMethod   SampleMethod // up/downsampling behavior.
+	Timerange      Timerange    // time range to fetch data from.
+	MetricMetadata MetricMetadataAPI
+	Cancellable    Cancellable
+	Profiler       *inspect.Profiler
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics      []TaggedMetric
-	SampleMethod SampleMethod
-	Timerange    Timerange
-	API          API
-	Cancellable  Cancellable
-	// Profiler     *inspect.Profiler
+	Metrics        []TaggedMetric
+	SampleMethod   SampleMethod
+	Timerange      Timerange
+	MetricMetadata MetricMetadataAPI
+	Cancellable    Cancellable
+	Profiler       *inspect.Profiler
 }
 
-// func (r FetchMultipleTimeseriesRequest) ToSingle(metric TaggedMetric) FetchSeriesRequest {
-// 	return FetchTimeseriesRequest{
-// 		Metric:       metric,
-// 		API:          r.API,
-// 		Cancellable:  r.Cancellable,
-// 		SampleMethod: r.SampleMethod,
-// 		Timerange:    r.Timerange,
-// 		Profiler:     r.Profiler,
-// 	}
-// }
+type TimeseriesStorageErrorCode int
+
+const (
+	FetchTimeoutError  TimeseriesStorageErrorCode = iota + 1 // error while fetching - timeout.
+	FetchIOError                                             // error while fetching - general IO.
+	InvalidSeriesError                                       // the given series is not well-defined.
+	LimitError                                               // the fetch limit is reached.
+	Unsupported                                              // the given fetch operation is unsupported by the backend.
+)
+
+type TimeseriesStorageError struct {
+	Metric  TaggedMetric
+	Code    TimeseriesStorageErrorCode
+	Message string
+}
+
+func (err TimeseriesStorageError) Error() string {
+	message := "[%s] unknown error"
+	switch err.Code {
+	case FetchTimeoutError:
+		message = "[%s] timeout"
+	case InvalidSeriesError:
+		message = "[%s] invalid series"
+	case LimitError:
+		message = "[%s] limit reached"
+	case Unsupported:
+		message = "[%s] unsupported operation"
+	}
+	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey))
+	if err.Message != "" {
+		formatted = formatted + " - " + err.Message
+	}
+	return formatted
+}
+
+func (err TimeseriesStorageError) TokenName() string {
+	return string(err.Metric.MetricKey)
+}
+
+//TODO(cchandler): This doesn't make sense. Let's remove this and have a multi request decompose.
+func (r FetchMultipleTimeseriesRequest) ToSingle(metric TaggedMetric) FetchTimeseriesRequest {
+	return FetchTimeseriesRequest{
+		Metric:         metric,
+		MetricMetadata: r.MetricMetadata,
+		Cancellable:    r.Cancellable,
+		SampleMethod:   r.SampleMethod,
+		Timerange:      r.Timerange,
+		Profiler:       r.Profiler,
+	}
+}

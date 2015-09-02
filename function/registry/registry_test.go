@@ -18,8 +18,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 var dummyCompute = func(function.EvaluationContext, []function.Expression, function.Groups) (function.Value, error) {

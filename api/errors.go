@@ -30,45 +30,6 @@ func (m NoSuchMetricError) Error() string {
 	return fmt.Sprintf("No such metric with name `%s`", m.name)
 }
 
-type TimeseriesStorageErrorCode int
-
-const (
-	FetchTimeoutError  TimeseriesStorageErrorCode = iota + 1 // error while fetching - timeout.
-	FetchIOError                                             // error while fetching - general IO.
-	InvalidSeriesError                                       // the given series is not well-defined.
-	LimitError                                               // the fetch limit is reached.
-	Unsupported                                              // the given fetch operation is unsupported by the backend.
-)
-
-type TimeseriesStorageError struct {
-	Metric  TaggedMetric
-	Code    TimeseriesStorageErrorCode
-	Message string
-}
-
-func (err TimeseriesStorageError) Error() string {
-	message := "[%s] unknown error"
-	switch err.Code {
-	case FetchTimeoutError:
-		message = "[%s] timeout"
-	case InvalidSeriesError:
-		message = "[%s] invalid series"
-	case LimitError:
-		message = "[%s] limit reached"
-	case Unsupported:
-		message = "[%s] unsupported operation"
-	}
-	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey))
-	if err.Message != "" {
-		formatted = formatted + " - " + err.Message
-	}
-	return formatted
-}
-
-func (err TimeseriesStorageError) TokenName() string {
-	return string(err.Metric.MetricKey)
-}
-
 type ConversionError struct {
 	From  string // the original data type
 	To    string // the type that attempted to convert to

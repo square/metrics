@@ -27,6 +27,3 @@ type TaggedMetric struct {
 	MetricKey MetricKey
 	TagSet    TagSet
 }
-
-// GraphiteMetric is a flat, dot-separated identifier to a series of metric.
-type GraphiteMetric string

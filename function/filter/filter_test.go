@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/assert"
 	"github.com/square/metrics/function/aggregate"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func TestFilter(t *testing.T) {

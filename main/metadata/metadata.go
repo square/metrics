@@ -37,7 +37,7 @@ func main() {
 
 	// Hosts    []string `yaml:"hosts"`
 	// Keyspace string   `yaml:"keyspace"`
-	config := api.MetricMetadataConfig{Hosts: []string{"aws1.medium-trigger.universe.square"}, Keyspace: "metrics_indexer"}
+	config := cassandra.CassandraMetricMetadataConfig{Hosts: []string{"aws1.medium-trigger.universe.square"}, Keyspace: "metrics_indexer"}
 	var metadataApi api.MetricMetadataAPI
 	metadataApi, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {

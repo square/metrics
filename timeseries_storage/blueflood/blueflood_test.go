@@ -21,8 +21,9 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/assert"
-	"github.com/square/metrics/mocks"
+	"github.com/square/metrics/testing_support/assert"
+	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/util"
 )
 
 func Test_Blueflood(t *testing.T) {
@@ -31,19 +32,30 @@ func Test_Blueflood(t *testing.T) {
 		t.Fatalf("invalid testcase timerange")
 		return
 	}
+
+	graphite := mocks.FakeGraphiteConverter{
+		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
+			util.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+				MetricKey: api.MetricKey("some.key"),
+				TagSet:    api.ParseTagSet("tag=value"),
+			},
+		},
+	}
+
 	defaultClientConfig := Config{
-		"https://blueflood.url",
-		"square",
-		make(map[string]int64),
-		time.Millisecond,
-		0,
+		BaseUrl:                 "https://blueflood.url",
+		TenantId:                "square",
+		Ttls:                    make(map[string]int64),
+		Timeout:                 time.Millisecond,
+		FullResolutionOverlap:   0,
+		GraphiteMetricConverter: &graphite,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
 	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
 
 	for _, test := range []struct {
 		name               string
-		metricMap          map[api.GraphiteMetric]api.TaggedMetric
+		metricMap          map[util.GraphiteMetric]api.TaggedMetric
 		queryMetric        api.TaggedMetric
 		sampleMethod       api.SampleMethod
 		timerange          api.Timerange
@@ -52,17 +64,17 @@ func Test_Blueflood(t *testing.T) {
 		queryResponse      string
 		queryResponseCode  int
 		queryDelay         time.Duration
-		expectedErrorCode  api.BackendErrorCode
+		expectedErrorCode  api.TimeseriesStorageErrorCode
 		expectedSeriesList api.Timeseries
 	}{
 		{
 			name: "Success case",
-			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-				api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-					MetricKey: api.MetricKey("some.key"),
-					TagSet:    api.ParseTagSet("tag=value"),
-				},
-			},
+			// metricMap: map[util.GraphiteMetric]api.TaggedMetric{
+			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+			// 		MetricKey: api.MetricKey("some.key"),
+			// 		TagSet:    api.ParseTagSet("tag=value"),
+			// 	},
+			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -99,12 +111,12 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - invalid JSON",
-			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-				api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-					MetricKey: api.MetricKey("some.key"),
-					TagSet:    api.ParseTagSet("tag=value"),
-				},
-			},
+			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
+			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+			// 		MetricKey: api.MetricKey("some.key"),
+			// 		TagSet:    api.ParseTagSet("tag=value"),
+			// 	},
+			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -118,12 +130,12 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - HTTP error",
-			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-				api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-					MetricKey: api.MetricKey("some.key"),
-					TagSet:    api.ParseTagSet("tag=value"),
-				},
-			},
+			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
+			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+			// 		MetricKey: api.MetricKey("some.key"),
+			// 		TagSet:    api.ParseTagSet("tag=value"),
+			// 	},
+			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -138,12 +150,12 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - timeout",
-			metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-				api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-					MetricKey: api.MetricKey("some.key"),
-					TagSet:    api.ParseTagSet("tag=value"),
-				},
-			},
+			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
+			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+			// 		MetricKey: api.MetricKey("some.key"),
+			// 		TagSet:    api.ParseTagSet("tag=value"),
+			// 	},
+			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -159,9 +171,9 @@ func Test_Blueflood(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%s", test.name)
 
-		fakeApi := mocks.NewFakeApi()
+		fakeApi := mocks.NewFakeMetricMetadataAPI()
 		for k, v := range test.metricMap {
-			fakeApi.AddPair(v, k)
+			fakeApi.AddPair(v, k, &graphite)
 		}
 
 		fakeHttpClient := mocks.NewFakeHttpClient()
@@ -171,15 +183,15 @@ func Test_Blueflood(t *testing.T) {
 		}
 		fakeHttpClient.SetResponse(test.queryUrl, mocks.Response{test.queryResponse, test.queryDelay, code})
 
-		b := NewBlueflood(test.clientConfig).(*blueflood)
+		b := NewBlueflood(test.clientConfig).(*Blueflood)
 		b.client = fakeHttpClient
 
-		seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
-			Metric:       test.queryMetric,
-			SampleMethod: test.sampleMethod,
-			Timerange:    test.timerange,
-			API:          fakeApi,
-			Cancellable:  api.NewCancellable(),
+		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
+			Metric:         test.queryMetric,
+			SampleMethod:   test.sampleMethod,
+			Timerange:      test.timerange,
+			MetricMetadata: &fakeApi,
+			Cancellable:    api.NewCancellable(),
 		})
 
 		if test.expectedErrorCode != 0 {
@@ -187,9 +199,9 @@ func Test_Blueflood(t *testing.T) {
 				a.Errorf("Expected error, but was successful.")
 				continue
 			}
-			berr, ok := err.(api.BackendError)
+			berr, ok := err.(api.TimeseriesStorageError)
 			if !ok {
-				a.Errorf("Failed to cast error to BackendError")
+				a.Errorf("Failed to cast error to TimeseriesStorageError")
 				continue
 			}
 			a.Eq(berr.Code, test.expectedErrorCode)
@@ -256,13 +268,35 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 }
 
 func TestFullResolutionDataFilling(t *testing.T) {
+
+	graphite := mocks.FakeGraphiteConverter{
+		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
+			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
+				MetricKey: api.MetricKey("some.key"),
+				TagSet:    api.ParseTagSet("tag=value"),
+			},
+		},
+	}
+
+	fakeApi := mocks.NewFakeMetricMetadataAPI()
+	fakeApi.AddPair(
+		api.TaggedMetric{
+			MetricKey: api.MetricKey("some.key"),
+			TagSet:    api.ParseTagSet("tag=value"),
+		},
+		util.GraphiteMetric("some.key.value"),
+		&graphite,
+	)
+
 	// The queries have to be relative to "now"
 	defaultClientConfig := Config{
-		"https://blueflood.url",
-		"square",
-		make(map[string]int64),
-		time.Millisecond,
-		14400,
+		BaseUrl:               "https://blueflood.url",
+		TenantId:              "square",
+		Ttls:                  make(map[string]int64),
+		Timeout:               time.Millisecond,
+		FullResolutionOverlap: 14400,
+		// fakeApi,
+		GraphiteMetricConverter: &graphite,
 	}
 
 	baseTime := 1438734300000
@@ -356,16 +390,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
 	fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
 
-	fakeApi := mocks.NewFakeApi()
-	fakeApi.AddPair(
-		api.TaggedMetric{
-			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
-		},
-		api.GraphiteMetric("some.key.value"),
-	)
-
-	b := NewBlueflood(defaultClientConfig).(*blueflood)
+	b := NewBlueflood(defaultClientConfig).(*Blueflood)
 	b.client = fakeHttpClient
 
 	queryTimerange, err := api.NewSnappedTimerange(
@@ -377,15 +402,15 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		t.Fatalf("timerange error: %s", err.Error())
 	}
 
-	seriesList, err := b.FetchSingleSeries(api.FetchSeriesRequest{
+	seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
 		},
-		SampleMethod: api.SampleMean,
-		Timerange:    queryTimerange,
-		API:          fakeApi,
-		Cancellable:  api.NewCancellable(),
+		SampleMethod:   api.SampleMean,
+		Timerange:      queryTimerange,
+		MetricMetadata: &fakeApi,
+		Cancellable:    api.NewCancellable(),
 	})
 	if err != nil {
 		t.Fatalf("Expected success, but got error: %s", err.Error())

@@ -23,7 +23,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func max(array []float64) float64 {

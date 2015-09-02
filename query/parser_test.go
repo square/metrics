@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func Test_parseRelativeTime(t *testing.T) {

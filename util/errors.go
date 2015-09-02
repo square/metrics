@@ -1,4 +1,4 @@
-package internal
+package util
 
 // List of errors returnd by the application
 

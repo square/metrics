@@ -20,7 +20,7 @@ package query
 import (
 	"testing"
 
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 // these queries should successfully parse,

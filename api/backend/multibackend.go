@@ -18,52 +18,28 @@ import (
 	"github.com/square/metrics/api"
 )
 
-type sequentialMultiBackend struct {
-	Backend api.Backend
+type ParallelTimeseriesStorageWrapper struct {
+	limit                int
+	tickets              chan struct{}
+	TimeseriesStorageAPI api.TimeseriesStorageAPI
 }
 
-func NewSequentialMultiBackend(backend api.Backend) api.MultiBackend {
-	return &sequentialMultiBackend{Backend: backend}
-}
-
-func (m *sequentialMultiBackend) FetchMultipleSeries(request api.FetchMultipleRequest) (api.SeriesList, error) {
-	series := make([]api.Timeseries, len(request.Metrics))
-	var err error = nil
-	for i, metric := range request.Metrics {
-		series[i], err = m.Backend.FetchSingleSeries(request.ToSingle(metric))
-		if err != nil {
-			return api.SeriesList{}, err
-		}
-	}
-
-	return api.SeriesList{
-		Series:    series,
-		Timerange: request.Timerange,
-	}, nil
-}
-
-type parallelMultiBackend struct {
-	limit   int
-	tickets chan struct{}
-	Backend api.Backend
-}
-
-func NewParallelMultiBackend(backend api.Backend, limit int) api.MultiBackend {
+func NewParallelMultiBackend(backend api.TimeseriesStorageAPI, limit int) *ParallelTimeseriesStorageWrapper {
 	tickets := make(chan struct{}, limit)
 	for i := 0; i < limit; i++ {
 		tickets <- struct{}{}
 	}
-	return &parallelMultiBackend{
-		limit:   limit,
-		tickets: tickets,
-		Backend: backend,
+	return &ParallelTimeseriesStorageWrapper{
+		limit:                limit,
+		tickets:              tickets,
+		TimeseriesStorageAPI: backend,
 	}
 }
 
 // fetchLazy issues a goroutine to compute the timeseries once a fetchticket becomes available.
 // It returns a channel to wait for the response to finish (the error).
 // It stores the result of the function invokation in the series pointer it is given.
-func (m *parallelMultiBackend) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error) {
+func (m *ParallelTimeseriesStorageWrapper) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error) {
 	go func() {
 		select {
 		case ticket := <-m.tickets:
@@ -75,7 +51,7 @@ func (m *parallelMultiBackend) fetchLazy(cancellable api.Cancellable, result *ap
 			// Return the error (and sync up with the caller).
 			channel <- err
 		case <-cancellable.Done():
-			channel <- api.BackendError{
+			channel <- api.TimeseriesStorageError{
 				api.TaggedMetric{},
 				api.FetchTimeoutError,
 				"",
@@ -86,12 +62,13 @@ func (m *parallelMultiBackend) fetchLazy(cancellable api.Cancellable, result *ap
 
 // fetchManyLazy abstracts upon fetchLazy so that looping over the resulting channels is not needed.
 // It returns any overall error, as well as a slice of the resulting timeseries.
-func (m *parallelMultiBackend) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+func (m *ParallelTimeseriesStorageWrapper) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 	for i := range results {
 		m.fetchLazy(cancellable, &results[i], works[i], channel)
 	}
+
 	var err error = nil
 	for _ = range works {
 		select {
@@ -100,7 +77,7 @@ func (m *parallelMultiBackend) fetchManyLazy(cancellable api.Cancellable, works 
 				err = thisErr
 			}
 		case <-cancellable.Done():
-			return nil, api.BackendError{
+			return nil, api.TimeseriesStorageError{
 				api.TaggedMetric{},
 				api.FetchTimeoutError,
 				"",
@@ -113,7 +90,10 @@ func (m *parallelMultiBackend) fetchManyLazy(cancellable api.Cancellable, works 
 	return results, nil
 }
 
-func (m *parallelMultiBackend) FetchMultipleSeries(request api.FetchMultipleRequest) (api.SeriesList, error) {
+func (m *ParallelTimeseriesStorageWrapper) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	if request.Cancellable == nil {
+		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
+	}
 	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 	for i, metric := range request.Metrics {
 		// Since we want to create a closure, we want to close over this particular metric,
@@ -121,7 +101,7 @@ func (m *parallelMultiBackend) FetchMultipleSeries(request api.FetchMultipleRequ
 		// We accomplish this here:
 		metric := metric
 		works[i] = func() (api.Timeseries, error) {
-			return m.Backend.FetchSingleSeries(request.ToSingle(metric))
+			return m.TimeseriesStorageAPI.FetchSingleTimeseries(request.ToSingle(metric))
 		}
 	}
 
@@ -134,4 +114,13 @@ func (m *parallelMultiBackend) FetchMultipleSeries(request api.FetchMultipleRequ
 		Series:    resultSeries,
 		Timerange: request.Timerange,
 	}, nil
+}
+
+type ProfilingMultiTimeseriesStorageWrapper struct {
+	MultiBackend ParallelTimeseriesStorageWrapper
+}
+
+func (b ProfilingMultiTimeseriesStorageWrapper) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	defer request.Profiler.Record("fetchMultipleSeries")()
+	return b.MultiBackend.FetchMultipleTimeseries(request)
 }
