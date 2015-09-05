@@ -16,11 +16,15 @@ package blueflood
 
 import (
 	"fmt"
+	// standard_log "log"
 	"net/http"
+	// "os"
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
+	// "github.com/square/metrics/log"
+	// "github.com/square/metrics/log/standard"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
@@ -69,12 +73,6 @@ func Test_Blueflood(t *testing.T) {
 	}{
 		{
 			name: "Success case",
-			// metricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-			// 		MetricKey: api.MetricKey("some.key"),
-			// 		TagSet:    api.ParseTagSet("tag=value"),
-			// 	},
-			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -111,12 +109,6 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - invalid JSON",
-			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-			// 		MetricKey: api.MetricKey("some.key"),
-			// 		TagSet:    api.ParseTagSet("tag=value"),
-			// 	},
-			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -130,12 +122,6 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - HTTP error",
-			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-			// 		MetricKey: api.MetricKey("some.key"),
-			// 		TagSet:    api.ParseTagSet("tag=value"),
-			// 	},
-			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -150,12 +136,6 @@ func Test_Blueflood(t *testing.T) {
 		},
 		{
 			name: "Failure case - timeout",
-			// metricMap: map[api.GraphiteMetric]api.TaggedMetric{
-			// 	api.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
-			// 		MetricKey: api.MetricKey("some.key"),
-			// 		TagSet:    api.ParseTagSet("tag=value"),
-			// 	},
-			// },
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
@@ -268,6 +248,8 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 }
 
 func TestFullResolutionDataFilling(t *testing.T) {
+	// log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
+	// log.Infof("Using standard logger")
 
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
@@ -288,23 +270,32 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		&graphite,
 	)
 
+	now := time.Unix(1438734300000, 0)
+
+	baseTime := now.Unix() * 1000
+	timeSource := func() time.Time { return now }
+
+	queryTimerange, err := api.NewSnappedTimerange(
+		int64(baseTime)-300*1000*10, // 50 minutes ago
+		int64(baseTime)-300*1000*4,  // 20 minutes ago
+		300*1000,                    // 5 minute resolution
+	)
+
 	// The queries have to be relative to "now"
 	defaultClientConfig := Config{
-		BaseUrl:               "https://blueflood.url",
-		TenantId:              "square",
-		Ttls:                  make(map[string]int64),
-		Timeout:               time.Millisecond,
-		FullResolutionOverlap: 14400,
-		// fakeApi,
+		BaseUrl:                 "https://blueflood.url",
+		TenantId:                "square",
+		Ttls:                    make(map[string]int64),
+		Timeout:                 time.Millisecond,
+		FullResolutionOverlap:   14400,
 		GraphiteMetricConverter: &graphite,
+		TimeSource:              timeSource,
 	}
-
-	baseTime := 1438734300000
 
 	regularQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
-		baseTime-300*1000*10, // 50 minutes ago
-		baseTime-300*1000*3,  // 15 minutes ago
+		queryTimerange.Start(),
+		queryTimerange.End()+queryTimerange.ResolutionMillis(),
 	)
 
 	regularResponse := fmt.Sprintf(`{
@@ -346,8 +337,8 @@ func TestFullResolutionDataFilling(t *testing.T) {
 
 	fullResolutionQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=FULL&select=numPoints%%2Caverage&to=%d",
-		baseTime-300*1000*10, // 50 minutes ago
-		baseTime-300*1000*3,  // 15 minutes ago
+		queryTimerange.Start(),
+		queryTimerange.End()+queryTimerange.ResolutionMillis(),
 	)
 	fullResolutionResponse := fmt.Sprintf(`{
 	  "unit": "unknown",
@@ -389,15 +380,11 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	fakeHttpClient := mocks.NewFakeHttpClient()
 	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
 	fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
+	defaultClientConfig.HttpClient = fakeHttpClient
+	defaultClientConfig.TimeSource = timeSource
 
-	b := NewBlueflood(defaultClientConfig).(*Blueflood)
-	b.client = fakeHttpClient
+	b := NewBlueflood(defaultClientConfig)
 
-	queryTimerange, err := api.NewSnappedTimerange(
-		int64(baseTime)-300*1000*10, // 50 minutes ago
-		int64(baseTime)-300*1000*4,  // 20 minutes ago
-		300*1000,                    // 5 minute resolution
-	)
 	if err != nil {
 		t.Fatalf("timerange error: %s", err.Error())
 	}
@@ -423,5 +410,29 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		if seriesList.Values[i] != expect {
 			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
 		}
+	}
+}
+
+func TestBlueflood_UserSuppliedTTLs(t *testing.T) {
+	ttls := make(map[string]int64)
+	myRes := Resolution{"MIN7", time.Minute * 7}
+	ttlInDays := int64(5)
+	ttls["MIN7"] = ttlInDays // 7 minute resolution is available for 5 days
+	conf := Config{
+		Ttls: ttls,
+	}
+	result := conf.oldestViableDataForResolution(myRes)
+	if time.Duration(ttlInDays)*24*time.Hour != result {
+		t.Errorf("The custom TTL didn't make it back %v %v\n", myRes.duration, result)
+	}
+}
+
+func TestBlueflood_DefaultTTLs(t *testing.T) {
+	conf := Config{}
+	resolution := Resolution20Min
+	duration := conf.oldestViableDataForResolution(resolution)
+	// 20 minutes should be available for 60 days
+	if duration != 60*24*time.Hour {
+		t.Fail()
 	}
 }

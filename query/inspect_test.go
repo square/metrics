@@ -18,13 +18,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/square/metrics/api/backend"
+	// "github.com/square/metrics/api/backend"
 	"github.com/square/metrics/testing_support/mocks"
 )
 
 func TestProfilerIntegration(t *testing.T) {
 	t.Skip("This test is entirely broken. Postponing until proper cleanup can be done. Notes in-line")
 	myAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeTimeStorage := mocks.FakeTimeseriesStorageAPI{}
 	// 	myAPI := fakeAPI{
 	// 	tagSets: map[string][]api.TagSet{"A": []api.TagSet{
 	// 		{"x": "1", "y": "2"},
@@ -49,7 +50,7 @@ func TestProfilerIntegration(t *testing.T) {
 	// emptyGraphiteName := util.GraphiteMetric("")
 	// myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")}, emptyGraphiteName)
 
-	multiBackend := backend.NewParallelMultiBackend(FakeBackend{}, 1)
+	multiBackend := fakeTimeStorage
 
 	testCases := []struct {
 		query    string
@@ -130,10 +131,10 @@ func TestProfilerIntegration(t *testing.T) {
 		profilingCommand, profiler := NewProfilingCommand(cmd)
 
 		_, err = profilingCommand.Execute(ExecutionContext{
-			MultiBackend:      *multiBackend,
-			MetricMetadataAPI: &myAPI,
-			FetchLimit:        10000,
-			Timeout:           time.Second * 4,
+			TimeseriesStorageAPI: multiBackend,
+			MetricMetadataAPI:    &myAPI,
+			FetchLimit:           10000,
+			Timeout:              time.Second * 4,
 		})
 
 		if err != nil {

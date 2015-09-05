@@ -55,6 +55,8 @@ type ProfilingMetricMetadataAPI struct {
 	MetricMetadata MetricMetadataAPI
 }
 
+var _ MetricMetadataAPI = (*ProfilingMetricMetadataAPI)(nil)
+
 func (api ProfilingMetricMetadataAPI) AddMetric(metric TaggedMetric) error {
 	defer api.Profiler.Record("api.AddMetric")()
 	return api.MetricMetadata.AddMetric(metric)

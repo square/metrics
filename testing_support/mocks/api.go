@@ -134,3 +134,46 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 
 	return tm, nil
 }
+
+type FakeTimeseriesStorageAPI struct{}
+
+func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+	metricMap := map[api.MetricKey][]api.Timeseries{
+		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
+		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
+		"series_3": {{[]float64{1, 1, 1, 4, 4}, api.ParseTagSet("dc=west")}, {[]float64{5, 5, 5, 2, 2}, api.ParseTagSet("dc=east")}, {[]float64{3, 3, 3, 3, 3}, api.ParseTagSet("dc=north")}},
+	}
+	if string(request.Metric.MetricKey) == "series_timeout" {
+		<-make(chan struct{}) // block forever
+	}
+	list, ok := metricMap[request.Metric.MetricKey]
+	if !ok {
+		return api.Timeseries{}, errors.New("internal error")
+	}
+	for _, series := range list {
+		if request.Metric.TagSet.Serialize() == series.TagSet.Serialize() {
+			// Cut the values based on the Timerange.
+			values := make([]float64, request.Timerange.Slots())
+			for i := range values {
+				values[i] = series.Values[i+int(request.Timerange.Start())/30]
+			}
+			return api.Timeseries{values, series.TagSet}, nil
+		}
+	}
+	return api.Timeseries{}, errors.New("internal error")
+}
+
+func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	timeseries := make([]api.Timeseries, 0)
+	for _, metric := range request.Metrics {
+		series, err := f.FetchSingleTimeseries(request.ToSingle(metric))
+		if err != nil {
+			continue
+		}
+		timeseries = append(timeseries, series)
+	}
+	return api.SeriesList{
+		Series:    timeseries,
+		Timerange: request.Timerange,
+	}, nil
+}

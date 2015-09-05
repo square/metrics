@@ -35,6 +35,12 @@ type Blueflood struct {
 	config            Config
 	client            httpClient
 	graphiteConverter util.GraphiteConverter
+	timeSource        TimeSource
+}
+
+type BluefloodParallelRequest struct {
+	limit   int
+	tickets chan struct{}
 }
 
 var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
@@ -44,6 +50,12 @@ type httpClient interface {
 	Get(url string) (resp *http.Response, err error)
 }
 
+// type TimeSource interface {
+// 	func () (Time)
+// }
+
+type TimeSource func() time.Time
+
 type Config struct {
 	BaseUrl                 string           `yaml:"base_url"`
 	TenantId                string           `yaml:"tenant_id"`
@@ -51,35 +63,8 @@ type Config struct {
 	Timeout                 time.Duration    `yaml:"timeout"`
 	FullResolutionOverlap   int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
 	GraphiteMetricConverter util.GraphiteConverter
-}
-
-func (c Config) getTTL(r Resolution) time.Duration {
-	var ttl int64
-	if v, ok := c.Ttls[r.bluefloodEnum]; ok {
-		ttl = v
-	} else {
-		// Use blueflood defaults
-		switch r {
-		case ResolutionFull:
-			ttl = 1
-		case Resolution5Min:
-			ttl = 30
-		case Resolution20Min:
-			ttl = 60
-		case Resolution60Min:
-			ttl = 90
-		case Resolution240Min:
-			ttl = 180
-		case Resolution1440Min:
-			ttl = 365
-		default:
-			// Not a supported resolution by blueflood. No real way to recover if
-			// someone's trying to fetch ttl for an invalid resolution.
-			panic(fmt.Sprintf("invalid resolution `%s`", r))
-		}
-	}
-
-	return time.Duration(ttl) * 24 * time.Hour
+	HttpClient              httpClient
+	TimeSource              TimeSource
 }
 
 type queryResponse struct {
@@ -100,6 +85,10 @@ type Resolution struct {
 	duration      time.Duration
 }
 
+func (r Resolution) String() string {
+	return fmt.Sprintf("Name: %s Duration: %d", r.bluefloodEnum, r.duration/time.Minute)
+}
+
 var (
 	ResolutionFull    Resolution = Resolution{"FULL", time.Second * 30}
 	Resolution5Min               = Resolution{"MIN5", time.Minute * 5}
@@ -118,7 +107,26 @@ var Resolutions []Resolution = []Resolution{
 }
 
 func NewBlueflood(c Config) api.TimeseriesStorageAPI {
-	b := Blueflood{config: c, client: http.DefaultClient, graphiteConverter: c.GraphiteMetricConverter}
+	// limit := 5
+	// tickets := make(chan struct{}, limit)
+	// for i := 0; i < limit; i++ {
+	// 	tickets <- struct{}{}
+	// }
+
+	if c.HttpClient == nil {
+		c.HttpClient = http.DefaultClient
+	}
+	if c.TimeSource == nil {
+		c.TimeSource = time.Now
+	}
+
+	b := Blueflood{
+		config:            c,
+		client:            c.HttpClient,
+		graphiteConverter: c.GraphiteMetricConverter,
+		timeSource:        c.TimeSource,
+		// tickets:           tickets,
+	}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
 		b.config.Ttls[k] = v
@@ -132,6 +140,90 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
+func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
+	go func() {
+		select {
+		case ticket := <-ctx.tickets:
+			series, err := work()
+			// Put the ticket back (regardless of whether caller drops)
+			ctx.tickets <- ticket
+			// Store the result
+			*result = series
+			// Return the error (and sync up with the caller).
+			channel <- err
+		case <-cancellable.Done():
+			channel <- api.TimeseriesStorageError{
+				api.TaggedMetric{},
+				api.FetchTimeoutError,
+				"",
+			}
+		}
+	}()
+}
+
+func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+	results := make([]api.Timeseries, len(works))
+	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
+
+	limit := 5
+	tickets := make(chan struct{}, limit)
+	for i := 0; i < limit; i++ {
+		tickets <- struct{}{}
+	}
+	ctx := BluefloodParallelRequest{
+		tickets: tickets,
+	}
+	for i := range results {
+		b.fetchLazy(cancellable, &results[i], works[i], channel, ctx)
+	}
+
+	var err error = nil
+	for _ = range works {
+		select {
+		case thisErr := <-channel:
+			if thisErr != nil {
+				err = thisErr
+			}
+		case <-cancellable.Done():
+			return nil, api.TimeseriesStorageError{
+				api.TaggedMetric{},
+				api.FetchTimeoutError,
+				"",
+			}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	if request.Cancellable == nil {
+		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
+	}
+	works := make([]func() (api.Timeseries, error), len(request.Metrics))
+	for i, metric := range request.Metrics {
+		// Since we want to create a closure, we want to close over this particular metric,
+		// rather than the variable itself (which is the same between iterations).
+		// We accomplish this here:
+		metric := metric
+		works[i] = func() (api.Timeseries, error) {
+			return b.FetchSingleTimeseries(request.ToSingle(metric))
+		}
+	}
+
+	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
+
+	return api.SeriesList{
+		Series:    resultSeries,
+		Timerange: request.Timerange,
+	}, nil
+}
+
 func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
@@ -141,6 +233,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 		request.Timerange.Resolution(),
 		request.Timerange.Start(),
 	)
+	log.Debugf("Blueflood resolution: %s\n", queryResolution.String())
 
 	// Sample the data at the given `queryResolution`
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
@@ -207,7 +300,6 @@ func (b *Blueflood) constructURL(
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
-	// graphiteName, err := request.API.ToGraphiteName(request.Metric)
 	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
@@ -369,23 +461,69 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
 // between them.
+//
 func (c Config) bluefloodResolution(
 	desiredResolution time.Duration,
 	startMs int64) Resolution {
-	now := time.Now().Unix() * 1000
+	log.Debugf("Desired resolution in minutes: %d\n", desiredResolution/time.Minute)
+	now := c.TimeSource().Unix() * 1000 //Milliseconds
 	// Choose the appropriate resolution based on TTL, fetching the highest resolution data we can
+	//
+	age := time.Duration(now-startMs) * time.Millisecond //Age in milliseconds
+	log.Debugf("The age in minutes of the start time %d\n", age/time.Minute)
+
 	for _, current := range Resolutions {
-		age := time.Duration(now-startMs) * time.Millisecond
-		maxAge := c.getTTL(current)
-		log.Debugf("Desired (s): %d\n", desiredResolution/time.Second)
-		log.Debugf("Current (s): %d\n", current.duration/time.Second)
-		log.Debugf("age (s): %d\n", age/time.Second)
-		log.Debugf("ttl (s): %d\n", maxAge/time.Second)
+		maxAge := c.oldestViableDataForResolution(current)
+		// log.Debugf("Oldest age? %+v\n", maxAge)
+
+		log.Debugf("Considering resolution %v\n", current)
+		log.Debugf("Oldest conceivable data is %v\n", maxAge)
+		log.Debugf("Is the desired resolution less than or equal to the current? %b\n", desiredResolution <= current.duration)
+		log.Debugf("Is the start time within the TTL window? %b\n", age < maxAge)
+
+		// If the desired resolution is less than or equal to the
+		// current resolution and is the distance from now to the oldest
+		// viable data still available?
 		if desiredResolution <= current.duration &&
-			age < c.getTTL(current) {
+			age < maxAge {
+			log.Debugf("Choosing resolution: %v\n", current)
 			return current
 		}
 	}
-	// return the coarsest resolution.
+	// If none of the above matched, we choose the coarsest
 	return Resolutions[len(Resolutions)-1]
+}
+
+// Given a particular resolution, what's the duration of the oldest
+// data that could still be available. For instance, if the resolution
+// is Resolution20Min and the ttl is 60, then the data is available for
+// 60 days.
+func (c Config) oldestViableDataForResolution(r Resolution) time.Duration {
+	var ttl int64
+	if v, ok := c.Ttls[r.bluefloodEnum]; ok {
+		ttl = v
+	} else {
+		// log.Debugf("Using blueflood default TTLs\n")
+		// Use blueflood defaults
+		switch r {
+		case ResolutionFull:
+			ttl = 1
+		case Resolution5Min:
+			ttl = 30
+		case Resolution20Min:
+			ttl = 60
+		case Resolution60Min:
+			ttl = 90
+		case Resolution240Min:
+			ttl = 180
+		case Resolution1440Min:
+			ttl = 365
+		default:
+			// Not a supported resolution by blueflood. No real way to recover if
+			// someone's trying to fetch ttl for an invalid resolution.
+			panic(fmt.Sprintf("invalid resolution `%s`", r))
+		}
+	}
+
+	return time.Duration(ttl) * 24 * time.Hour
 }
