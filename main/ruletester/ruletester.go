@@ -28,8 +28,9 @@ import (
 	"sync"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/internal"
 	"github.com/square/metrics/main/common"
+	"github.com/square/metrics/metric_metadata/cassandra"
+	"github.com/square/metrics/util"
 )
 
 var (
@@ -62,16 +63,28 @@ func main() {
 
 	config := common.LoadConfig()
 
-	ruleset, err := internal.LoadRules(config.API.ConversionRulesPath)
+	// graphiteConfig := util.GraphiteConverterConfig{ConversionRulesPath: config.MetricMetadataAPI.ConversionRulesPath}
+	//TODO(cchandler): Make a constructor for a graphite converter so we don't
+	//have to stich everything together outside of the package.
+
+	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+
 	if err != nil {
 		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
+	_ = util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+
 	metricFile, err := os.Open(*metricsFile)
 	if err != nil {
 		common.ExitWithMessage("No metric file.")
 	}
 	scanner := bufio.NewScanner(metricFile)
-	apiInstance := common.NewAPI(config.API)
+	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
+		Hosts:    config.MetricMetadataConfig.Hosts,
+		Keyspace: config.MetricMetadataConfig.Keyspace,
+	}
+	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
+
 	var output *os.File
 	if *unmatchedFile != "" {
 		output, err = os.Create(*unmatchedFile)
@@ -83,7 +96,7 @@ func main() {
 	report(stat)
 }
 
-func run(ruleset internal.RuleSet, scanner *bufio.Scanner, apiInstance api.API, unmatched *os.File) Statistics {
+func run(ruleset util.RuleSet, scanner *bufio.Scanner, apiInstance api.MetricMetadataAPI, unmatched *os.File) Statistics {
 	var wg sync.WaitGroup
 	stat := Statistics{
 		perMetric: make(map[api.MetricKey]PerMetricStatistics),

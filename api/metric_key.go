@@ -12,18 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api holds common data types and public interface exposed by the indexer library.
-// Refer to the doc
-// https://docs.google.com/a/squareup.com/document/d/1k0Wgi2wnJPQoyDyReb9dyIqRrD8-v0u8hz37S282ii4/edit
-// for the terminology.
-
 package api
 
-// list of data types throughout the code.
+// MetricKey is the logical name of a given metric.
+// MetricKey should not contain any variable component in it.
+type MetricKey string
 
-// TaggedMetric is composition of a MetricKey and a TagSet.
-// TaggedMetric should uniquely identify a single series of metric.
-type TaggedMetric struct {
-	MetricKey MetricKey
-	TagSet    TagSet
+// MetricKeys is an interface implementing sort.Interface to allow it to be sorted.
+type MetricKeys []MetricKey
+
+func (keys MetricKeys) Len() int {
+	return len(keys)
+}
+
+func (keys MetricKeys) Less(i, j int) bool {
+	return keys[i] < keys[j]
+}
+
+func (keys MetricKeys) Swap(i, j int) {
+	keys[i], keys[j] = keys[j], keys[i]
 }

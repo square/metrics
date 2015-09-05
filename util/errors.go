@@ -1,4 +1,4 @@
-package internal
+package util
 
 // List of errors returnd by the application
 
@@ -120,18 +120,6 @@ func newNoMatch() ConversionError {
 		NoMatch,
 		"No match",
 	}
-}
-
-type noSuchMetricError struct {
-	name string
-}
-
-func newNoSuchMetricError(name string) noSuchMetricError {
-	return noSuchMetricError{name}
-}
-
-func (m noSuchMetricError) Error() string {
-	return fmt.Sprintf("No such metric with name `%s`", m.name)
 }
 
 // ensure interface

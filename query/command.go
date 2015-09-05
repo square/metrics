@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
@@ -28,13 +29,13 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	Backend    api.MultiBackend  // the backend
-	API        api.API           // the api
-	FetchLimit int               // the maximum number of fetches
-	Timeout    time.Duration     // optional
-	Profiler   *inspect.Profiler // optional
-	Registry   function.Registry // optional
-	SlotLimit  int               // optional (0 => default 1000)
+	MultiBackend      backend.ParallelTimeseriesStorageWrapper // the backend
+	MetricMetadataAPI api.MetricMetadataAPI                    // the api
+	FetchLimit        int                                      // the maximum number of fetches
+	Timeout           time.Duration                            // optional
+	Profiler          *inspect.Profiler                        // optional
+	Registry          function.Registry                        // optional
+	SlotLimit         int                                      // optional (0 => default 1000)
 }
 
 // Command is the final result of the parsing.
@@ -73,7 +74,7 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
-	tagsets, _ := context.API.GetAllTags(cmd.metricName)
+	tagsets, _ := context.MetricMetadataAPI.GetAllTags(cmd.metricName)
 	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
 	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
 	for _, tagset := range tagsets {
@@ -106,7 +107,7 @@ func (cmd *DescribeCommand) Name() string {
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
-	result, err := context.API.GetAllMetrics()
+	result, err := context.MetricMetadataAPI.GetAllMetrics()
 	if err == nil {
 		filtered := make([]api.MetricKey, 0, len(result))
 		for _, row := range result {
@@ -126,7 +127,7 @@ func (cmd *DescribeAllCommand) Name() string {
 
 // Execute asks for all metrics with the given name.
 func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
-	return context.API.GetMetricsForTag(cmd.tagKey, cmd.tagValue)
+	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue)
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
@@ -163,15 +164,15 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
-		API:          context.API,
-		FetchLimit:   function.NewFetchCounter(context.FetchLimit),
-		MultiBackend: context.Backend,
-		Predicate:    cmd.predicate,
-		SampleMethod: cmd.context.SampleMethod,
-		Timerange:    timerange,
-		Cancellable:  cancellable,
-		Profiler:     context.Profiler,
-		Registry:     r,
+		MetricMetadataAPI: context.MetricMetadataAPI,
+		FetchLimit:        function.NewFetchCounter(context.FetchLimit),
+		MultiBackend:      context.MultiBackend,
+		Predicate:         cmd.predicate,
+		SampleMethod:      cmd.context.SampleMethod,
+		Timerange:         timerange,
+		Cancellable:       cancellable,
+		Profiler:          context.Profiler,
+		Registry:          r,
 	}
 	if hasTimeout {
 		timeout := time.After(context.Timeout)
@@ -234,9 +235,9 @@ func (cmd ProfilingCommand) Name() string {
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
-	context.API = api.ProfilingAPI{
-		Profiler: cmd.Profiler,
-		API:      context.API,
+	context.MetricMetadataAPI = api.ProfilingMetricMetadataAPI{
+		Profiler:       cmd.Profiler,
+		MetricMetadata: context.MetricMetadataAPI,
 	}
 	context.Profiler = cmd.Profiler
 	return cmd.Command.Execute(context)

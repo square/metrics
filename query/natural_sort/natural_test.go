@@ -18,7 +18,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func TestNaturalSort(t *testing.T) {

@@ -22,11 +22,11 @@ import (
 	"os"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/api/backend/blueflood"
-	"github.com/square/metrics/internal"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/log/glog"
 	"github.com/square/metrics/log/standard"
+	"github.com/square/metrics/metric_metadata/cassandra"
+	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
 	"gopkg.in/yaml.v2"
 )
@@ -45,9 +45,9 @@ type UIConfig struct {
 }
 
 type Config struct {
-	Blueflood blueflood.Config `yaml:"blueflood"`
-	API       api.Config       `yaml:"api"` // TODO: Probably rethink how we name this
-	UIConfig  UIConfig         `yaml:"ui"`
+	Blueflood            blueflood.Config         `yaml:"blueflood"`
+	MetricMetadataConfig api.MetricMetadataConfig `yaml:"api"` // TODO: Probably rethink how we name this
+	UIConfig             UIConfig                 `yaml:"ui"`
 }
 
 func LoadConfig() Config {
@@ -85,8 +85,8 @@ func ExitWithMessage(message string) {
 }
 
 // NewAPI creates a new instance of the API.
-func NewAPI(config api.Config) api.API {
-	apiInstance, err := internal.NewAPI(config)
+func NewMetricMetadataAPI(config cassandra.CassandraMetricMetadataConfig) api.MetricMetadataAPI {
+	apiInstance, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))
 	}

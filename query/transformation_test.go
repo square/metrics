@@ -25,12 +25,12 @@ import (
 	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/mocks"
+	"github.com/square/metrics/testing_support/mocks"
 )
 
 type movingAverageBackend struct{}
 
-func (b movingAverageBackend) FetchSingleSeries(r api.FetchSeriesRequest) (api.Timeseries, error) {
+func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	t := r.Timerange
 	values := []float64{9, 2, 1, 6, 4, 5}
 	startIndex := t.Start()/100 - 10
@@ -42,8 +42,8 @@ func (b movingAverageBackend) FetchSingleSeries(r api.FetchSeriesRequest) (api.T
 }
 
 func TestMovingAverage(t *testing.T) {
-	fakeAPI := mocks.NewFakeApi()
-	fakeAPI.AddPair(api.TaggedMetric{"series", api.NewTagSet()}, "series")
+	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()}, "series")
 
 	fakeBackend := movingAverageBackend{}
 	timerange, err := api.NewTimerange(1200, 1500, 100)
@@ -60,14 +60,16 @@ func TestMovingAverage(t *testing.T) {
 		},
 	}
 
+	backend := backend.NewParallelMultiBackend(fakeBackend, 1)
 	result, err := evaluateToSeriesList(expression,
 		function.EvaluationContext{
-			API:          fakeAPI,
-			MultiBackend: backend.NewSequentialMultiBackend(fakeBackend),
-			Timerange:    timerange,
-			SampleMethod: api.SampleMean,
-			FetchLimit:   function.NewFetchCounter(1000),
-			Registry:     registry.Default(),
+			MetricMetadataAPI: &fakeAPI,
+			MultiBackend:      *backend,
+			Timerange:         timerange,
+			SampleMethod:      api.SampleMean,
+			FetchLimit:        function.NewFetchCounter(1000),
+			Registry:          registry.Default(),
+			Cancellable:       api.NewCancellable(),
 		})
 	if err != nil {
 		t.Errorf(err.Error())

@@ -22,13 +22,16 @@ import (
 
 	"github.com/square/metrics/log"
 
-	"github.com/square/metrics/api"
+	// "github.com/square/metrics/api"
 	"github.com/square/metrics/api/backend"
-	"github.com/square/metrics/api/backend/blueflood"
+	"github.com/square/metrics/metric_metadata/cassandra"
+	"github.com/square/metrics/timeseries_storage/blueflood"
+	// "github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/ui"
+	"github.com/square/metrics/util"
 )
 
 func startServer(config common.UIConfig, context query.ExecutionContext) {
@@ -53,20 +56,28 @@ func main() {
 
 	config := common.LoadConfig()
 
-	apiInstance := common.NewAPI(config.API)
+	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
+		Hosts:    config.MetricMetadataConfig.Hosts,
+		Keyspace: config.MetricMetadataConfig.Keyspace,
+	}
+	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
 
-	blueflood := api.ProfilingBackend{
-		Backend: blueflood.NewBlueflood(config.Blueflood),
+	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+	if err != nil {
+		//Blah
 	}
-	backend := api.ProfilingMultiBackend{
-		MultiBackend: backend.NewParallelMultiBackend(blueflood, 20),
-	}
+	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+	config.Blueflood.GraphiteMetricConverter = &graphite
+
+	blueflood := blueflood.NewBlueflood(config.Blueflood)
+
+	backend := backend.NewParallelMultiBackend(blueflood, 20)
 
 	startServer(config.UIConfig, query.ExecutionContext{
-		API:        apiInstance,
-		Backend:    backend,
-		FetchLimit: 1000,
-		SlotLimit:  5000,
-		Registry:   registry.Default(),
+		MetricMetadataAPI: apiInstance,
+		MultiBackend:      *backend,
+		FetchLimit:        1000,
+		SlotLimit:         5000,
+		Registry:          registry.Default(),
 	})
 }

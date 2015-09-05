@@ -27,7 +27,17 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/util"
 )
+
+//Implements TimeseriesStorageAPI
+type Blueflood struct {
+	config            Config
+	client            httpClient
+	graphiteConverter util.GraphiteConverter
+}
+
+var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
 
 type httpClient interface {
 	// our own client to mock out the standard golang HTTP Client.
@@ -35,11 +45,12 @@ type httpClient interface {
 }
 
 type Config struct {
-	BaseUrl               string           `yaml:"base_url"`
-	TenantId              string           `yaml:"tenant_id"`
-	Ttls                  map[string]int64 `yaml:"ttls"` // Ttl in days
-	Timeout               time.Duration    `yaml:"timeout"`
-	FullResolutionOverlap int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
+	BaseUrl                 string           `yaml:"base_url"`
+	TenantId                string           `yaml:"tenant_id"`
+	Ttls                    map[string]int64 `yaml:"ttls"` // Ttl in days
+	Timeout                 time.Duration    `yaml:"timeout"`
+	FullResolutionOverlap   int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
+	GraphiteMetricConverter util.GraphiteConverter
 }
 
 func (c Config) getTTL(r Resolution) time.Duration {
@@ -69,11 +80,6 @@ func (c Config) getTTL(r Resolution) time.Duration {
 	}
 
 	return time.Duration(ttl) * 24 * time.Hour
-}
-
-type blueflood struct {
-	config Config
-	client httpClient
 }
 
 type queryResponse struct {
@@ -111,8 +117,8 @@ var Resolutions []Resolution = []Resolution{
 	Resolution1440Min,
 }
 
-func NewBlueflood(c Config) api.Backend {
-	b := blueflood{config: c, client: http.DefaultClient}
+func NewBlueflood(c Config) api.TimeseriesStorageAPI {
+	b := Blueflood{config: c, client: http.DefaultClient, graphiteConverter: c.GraphiteMetricConverter}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
 		b.config.Ttls[k] = v
@@ -126,7 +132,7 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Timeseries, error) {
+func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
@@ -196,19 +202,20 @@ func (b *blueflood) FetchSingleSeries(request api.FetchSeriesRequest) (api.Times
 // ----------------
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
-func (b *blueflood) constructURL(
-	request api.FetchSeriesRequest,
+func (b *Blueflood) constructURL(
+	request api.FetchTimeseriesRequest,
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
-	graphiteName, err := request.API.ToGraphiteName(request.Metric)
+	// graphiteName, err := request.API.ToGraphiteName(request.Metric)
+	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
 	if err != nil {
-		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
+		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
 	}
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, graphiteName))
 	if err != nil {
-		return nil, api.BackendError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
+		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
 	}
 
 	params := url.Values{}
@@ -222,8 +229,8 @@ func (b *blueflood) constructURL(
 	return result, nil
 }
 
-// fetches from the backend. on error, it returns an instance of api.BackendError
-func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (queryResponse, error) {
+// fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
+func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, error) {
 	log.Debugf("Blueflood fetch: %s", queryUrl.String())
 	success := make(chan queryResponse)
 	failure := make(chan error)
@@ -231,14 +238,14 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
-			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
 			return
 		}
 		defer resp.Body.Close()
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - reading"}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - reading"}
 			return
 		}
 
@@ -248,7 +255,7 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 		err = json.Unmarshal(body, &parsedJson)
 		// Construct a Timeseries from the result:
 		if err != nil {
-			failure <- api.BackendError{request.Metric, api.FetchIOError, "error while fetching - json decoding"}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding"}
 			return
 		}
 		success <- parsedJson
@@ -259,7 +266,7 @@ func (b *blueflood) fetch(request api.FetchSeriesRequest, queryUrl *url.URL) (qu
 	case err := <-failure:
 		return queryResponse{}, err
 	case <-timeout:
-		return queryResponse{}, api.BackendError{request.Metric, api.FetchTimeoutError, ""}
+		return queryResponse{}, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
 	}
 }
 

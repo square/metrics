@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package util
 
 import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func checkRuleErrorCode(a assert.Assert, err error, expected RuleErrorCode) {

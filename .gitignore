@@ -1,3 +1,6 @@
 main/query/query
 main/ruletester/ruletester
 main/ui/ui
+main/metadata/metadata
+main/**/conversion_rules
+main/**/*.yaml

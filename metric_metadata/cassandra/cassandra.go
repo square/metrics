@@ -12,57 +12,102 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package internal holds classes used in internal implementation of metric-indexer
-package internal
+package cassandra
 
 import (
+	"time"
+
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
 )
 
-// Database represents internal connection to Cassandra.
-type Database interface {
-	// Insertion Methods
-	// -----------------
-	AddMetricName(metricKey api.MetricKey, metric api.TagSet) error
-	AddMetricNames(metrics []api.TaggedMetric) error
-	AddToTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
-
-	// Query methods
-	// -------------
-	GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error)
-	GetMetricKeys(tagKey, tagValue string) ([]api.MetricKey, error)
-	GetAllMetrics() ([]api.MetricKey, error)
-
-	// Deletion Method
-	// ---------------
-	RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error
-	RemoveFromTagIndex(tagKey, tagValue string, metricKey api.MetricKey) error
+type CassandraMetricMetadataAPI struct {
+	db cassandraDatabase
 }
 
-type tagIndexCacheKey struct {
-	key    string
-	value  string
-	metric api.MetricKey
+var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
+
+type CassandraMetricMetadataConfig struct {
+	Hosts    []string `yaml:"hosts"`
+	Keyspace string   `yaml:"keyspace"`
 }
 
-type defaultDatabase struct {
+// NewAPI creates a new instance of API from the given configuration.
+func NewCassandraMetricMetadataAPI(config CassandraMetricMetadataConfig) (api.MetricMetadataAPI, error) {
+	clusterConfig := gocql.NewCluster()
+	clusterConfig.Hosts = config.Hosts
+	clusterConfig.Keyspace = config.Keyspace
+	clusterConfig.Timeout = time.Second * 30
+	db, err := NewCassandraDatabase(clusterConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &CassandraMetricMetadataAPI{
+		db: db,
+	}, nil
+}
+
+func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric) error {
+	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
+		return err
+	}
+	for tagKey, tagValue := range metric.TagSet {
+		if err := a.db.AddToTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric) error {
+	a.db.AddMetricNames(metrics)
+	return nil
+}
+
+func (a *CassandraMetricMetadataAPI) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
+	return a.db.GetTagSet(metricKey)
+}
+
+func (a *CassandraMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {
+	return a.db.GetMetricKeys(tagKey, tagValue)
+}
+
+func (a *CassandraMetricMetadataAPI) GetAllMetrics() ([]api.MetricKey, error) {
+	return a.db.GetAllMetrics()
+}
+
+func (a *CassandraMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric) error {
+	if err := a.db.RemoveMetricName(metric.MetricKey, metric.TagSet); err != nil {
+		return err
+	}
+	for tagKey, tagValue := range metric.TagSet {
+		if err := a.db.RemoveFromTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensure interface
+var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
+
+type cassandraDatabase struct {
 	session *gocql.Session
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
-func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (Database, error) {
+func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (cassandraDatabase, error) {
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
-		return nil, err
+		return cassandraDatabase{}, err
 	}
-	return &defaultDatabase{
+	return cassandraDatabase{
 		session: session,
 	}, nil
 }
 
 // AddMetricName inserts to metric to Cassandra.
-func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
+func (db *cassandraDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
 
 	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
 		return err
@@ -74,7 +119,7 @@ func (db *defaultDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.Tag
 
 }
 
-func (db *defaultDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
+func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	queryInsert := "INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)"
 	queryUpdate := "UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?"
 
@@ -117,7 +162,7 @@ func (db *defaultDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	return nil
 }
 
-func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+func (db *cassandraDatabase) AddToTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
 	err := db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys + ? WHERE tag_key = ? AND tag_value = ?",
 		[]string{string(metricKey)},
@@ -127,7 +172,7 @@ func (db *defaultDatabase) AddToTagIndex(tagKey string, tagValue string, metricK
 	return err
 }
 
-func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error) {
+func (db *cassandraDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, error) {
 	var tags []api.TagSet
 	rawTag := ""
 	iterator := db.session.Query(
@@ -145,12 +190,12 @@ func (db *defaultDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, err
 	}
 	if len(tags) == 0 {
 		//
-		return nil, newNoSuchMetricError(string(metricKey))
+		return nil, api.NewNoSuchMetricError(string(metricKey))
 	}
 	return tags, nil
 }
 
-func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error) {
+func (db *cassandraDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.MetricKey, error) {
 	var keys []api.MetricKey
 	err := db.session.Query(
 		"SELECT metric_keys FROM tag_index WHERE tag_key = ? AND tag_value = ?",
@@ -166,7 +211,7 @@ func (db *defaultDatabase) GetMetricKeys(tagKey string, tagValue string) ([]api.
 	return keys, nil
 }
 
-func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
+func (db *cassandraDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	var keys []api.MetricKey
 	err := db.session.Query("SELECT metric_names FROM metric_name_set WHERE shard = ?", 0).Scan(&keys)
 	if err != nil {
@@ -175,7 +220,7 @@ func (db *defaultDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	return keys, nil
 }
 
-func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
+func (db *cassandraDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
 	return db.session.Query(
 		"DELETE FROM metric_names WHERE metric_key = ? AND tag_set = ?",
 		metricKey,
@@ -183,7 +228,7 @@ func (db *defaultDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.
 	).Exec()
 }
 
-func (db *defaultDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
+func (db *cassandraDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
 	return db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys - ? WHERE tag_key = ? AND tag_value = ?",
 		[]string{string(metricKey)},

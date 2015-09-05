@@ -1,10 +1,12 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 current_dir=$(cd "$(dirname "$0")" && pwd)
 
 pushd "$current_dir"
-for f in *.go
+for f in `find * -type d -maxdepth 0`
 do
-  go build "$current_dir/$f"
+  pushd $f
+  go build
+  popd
 done
 popd

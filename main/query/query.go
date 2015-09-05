@@ -21,9 +21,11 @@ import (
 
 	"github.com/peterh/liner"
 	"github.com/square/metrics/api/backend"
-	"github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/main/common"
+	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query"
+	"github.com/square/metrics/timeseries_storage/blueflood"
+	"github.com/square/metrics/util"
 )
 
 func main() {
@@ -32,8 +34,21 @@ func main() {
 
 	config := common.LoadConfig()
 
-	apiInstance := common.NewAPI(config.API)
-	myBackend := blueflood.NewBlueflood(config.Blueflood)
+	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
+		Hosts:    config.MetricMetadataConfig.Hosts,
+		Keyspace: config.MetricMetadataConfig.Keyspace,
+	}
+	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
+
+	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+	if err != nil {
+		//Blah
+	}
+	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+	config.Blueflood.GraphiteMetricConverter = &graphite
+
+	blueflood := blueflood.NewBlueflood(config.Blueflood)
+	backend := backend.NewParallelMultiBackend(blueflood, 20)
 
 	l := liner.NewLiner()
 	defer l.Close()
@@ -58,7 +73,7 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(query.ExecutionContext{Backend: backend.NewSequentialMultiBackend(myBackend), API: apiInstance, FetchLimit: 1000})
+		result, err := cmd.Execute(query.ExecutionContext{MultiBackend: *backend, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

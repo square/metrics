@@ -3,7 +3,7 @@ package function
 import (
 	"testing"
 
-	"github.com/square/metrics/assert"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 func Test_FetchCounter(t *testing.T) {

@@ -14,6 +14,10 @@
 
 package api
 
+/*
+DEPRECATED
+*/
+
 import (
 	"strings"
 )

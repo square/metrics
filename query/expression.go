@@ -49,7 +49,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	metricTagSets, err := context.API.GetAllTags(api.MetricKey(expr.metricName))
+	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName))
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +68,12 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	serieslist, err := context.MultiBackend.FetchMultipleSeries(
-		api.FetchMultipleRequest{
+	serieslist, err := context.MultiBackend.FetchMultipleTimeseries(
+		api.FetchMultipleTimeseriesRequest{
 			metrics,
 			context.SampleMethod,
 			context.Timerange,
-			context.API,
+			context.MetricMetadataAPI,
 			context.Cancellable,
 			context.Profiler,
 		},
