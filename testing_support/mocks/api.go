@@ -165,13 +165,16 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 
 func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	timeseries := make([]api.Timeseries, 0)
-	for _, metric := range request.Metrics {
-		series, err := f.FetchSingleTimeseries(request.ToSingle(metric))
+
+	singleRequests := request.ToSingle()
+	for _, singleRequest := range singleRequests {
+		series, err := f.FetchSingleTimeseries(singleRequest)
 		if err != nil {
 			continue
 		}
 		timeseries = append(timeseries, series)
 	}
+
 	return api.SeriesList{
 		Series:    timeseries,
 		Timerange: request.Timerange,

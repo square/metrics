@@ -42,8 +42,9 @@ func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest
 
 func (b movingAverageBackend) FetchMultipleTimeseries(r api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	timeseries := make([]api.Timeseries, 0)
-	for _, metric := range r.Metrics {
-		series, _ := b.FetchSingleTimeseries(r.ToSingle(metric))
+	singleRequests := r.ToSingle()
+	for _, request := range singleRequests {
+		series, _ := b.FetchSingleTimeseries(request)
 		timeseries = append(timeseries, series)
 	}
 	return api.SeriesList{

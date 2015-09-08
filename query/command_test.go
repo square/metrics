@@ -16,12 +16,10 @@
 package query
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
-	// "github.com/square/metrics/api/backend"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
@@ -29,49 +27,6 @@ import (
 )
 
 var emptyGraphiteName = util.GraphiteMetric("")
-
-type fakeTimeseriesStorageAPI struct{}
-
-func (f fakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	metricMap := map[api.MetricKey][]api.Timeseries{
-		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
-		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
-		"series_3": {{[]float64{1, 1, 1, 4, 4}, api.ParseTagSet("dc=west")}, {[]float64{5, 5, 5, 2, 2}, api.ParseTagSet("dc=east")}, {[]float64{3, 3, 3, 3, 3}, api.ParseTagSet("dc=north")}},
-	}
-	if string(request.Metric.MetricKey) == "series_timeout" {
-		<-make(chan struct{}) // block forever
-	}
-	list, ok := metricMap[request.Metric.MetricKey]
-	if !ok {
-		return api.Timeseries{}, errors.New("internal error")
-	}
-	for _, series := range list {
-		if request.Metric.TagSet.Serialize() == series.TagSet.Serialize() {
-			// Cut the values based on the Timerange.
-			values := make([]float64, request.Timerange.Slots())
-			for i := range values {
-				values[i] = series.Values[i+int(request.Timerange.Start())/30]
-			}
-			return api.Timeseries{values, series.TagSet}, nil
-		}
-	}
-	return api.Timeseries{}, errors.New("internal error")
-}
-
-func (f fakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
-	timeseries := make([]api.Timeseries, 0)
-	for _, metric := range request.Metrics {
-		series, err := f.FetchSingleTimeseries(request.ToSingle(metric))
-		if err != nil {
-			continue
-		}
-		timeseries = append(timeseries, series)
-	}
-	return api.SeriesList{
-		Series:    timeseries,
-		Timerange: request.Timerange,
-	}, nil
-}
 
 func TestCommand_Describe(t *testing.T) {
 	fakeApi := mocks.NewFakeMetricMetadataAPI()
@@ -104,7 +59,7 @@ func TestCommand_Describe(t *testing.T) {
 		}
 
 		a.EqString(command.Name(), "describe")
-		fakeTimeseriesStorage := fakeTimeseriesStorageAPI{}
+		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeTimeseriesStorage, MetricMetadataAPI: test.metricmetadata, FetchLimit: 1000, Timeout: 0})
 		a.CheckError(err)
 		a.Eq(rawResult, test.expected)
@@ -135,7 +90,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 		}
 
 		a.EqString(command.Name(), "describe all")
-		fakeMulti := fakeTimeseriesStorageAPI{}
+		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeMulti, MetricMetadataAPI: test.metricmetadata, FetchLimit: 1000, Timeout: 0})
 		a.CheckError(err)
 		a.Eq(rawResult, test.expected)
@@ -152,7 +107,7 @@ func TestCommand_Select(t *testing.T) {
 	fakeApi.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=east")}, emptyGraphiteName)
 	fakeApi.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")}, emptyGraphiteName)
 	fakeApi.AddPairWithoutGraphite(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")}, emptyGraphiteName)
-	var fakeBackend fakeTimeseriesStorageAPI
+	var fakeBackend mocks.FakeTimeseriesStorageAPI
 	testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
 		t.Errorf("Invalid test timerange")
@@ -529,7 +484,7 @@ func TestCommand_Select(t *testing.T) {
 
 func TestNaming(t *testing.T) {
 	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeBackend := fakeTimeseriesStorageAPI{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
 		expected string
@@ -613,7 +568,7 @@ func TestNaming(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeBackend := fakeTimeseriesStorageAPI{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
 		expected string
@@ -697,7 +652,7 @@ func TestQuery(t *testing.T) {
 
 func TestTag(t *testing.T) {
 	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeBackend := fakeTimeseriesStorageAPI{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
 		expected api.SeriesList

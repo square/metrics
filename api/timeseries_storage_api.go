@@ -99,14 +99,19 @@ func (err TimeseriesStorageError) TokenName() string {
 	return string(err.Metric.MetricKey)
 }
 
-//TODO(cchandler): This doesn't make sense. Let's remove this and have a multi request decompose.
-func (r FetchMultipleTimeseriesRequest) ToSingle(metric TaggedMetric) FetchTimeseriesRequest {
-	return FetchTimeseriesRequest{
-		Metric:         metric,
-		MetricMetadata: r.MetricMetadata,
-		Cancellable:    r.Cancellable,
-		SampleMethod:   r.SampleMethod,
-		Timerange:      r.Timerange,
-		Profiler:       r.Profiler,
+//For now these decompose very simply into single fetch requests.
+func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
+	fetchSingleRequests := make([]FetchTimeseriesRequest, 0)
+	for _, metric := range r.Metrics {
+		request := FetchTimeseriesRequest{
+			Metric:         metric,
+			MetricMetadata: r.MetricMetadata,
+			Cancellable:    r.Cancellable,
+			SampleMethod:   r.SampleMethod,
+			Timerange:      r.Timerange,
+			Profiler:       r.Profiler,
+		}
+		fetchSingleRequests = append(fetchSingleRequests, request)
 	}
+	return fetchSingleRequests
 }

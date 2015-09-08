@@ -50,10 +50,6 @@ type httpClient interface {
 	Get(url string) (resp *http.Response, err error)
 }
 
-// type TimeSource interface {
-// 	func () (Time)
-// }
-
 type TimeSource func() time.Time
 
 type Config struct {
@@ -203,13 +199,11 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
 	}
 	works := make([]func() (api.Timeseries, error), len(request.Metrics))
-	for i, metric := range request.Metrics {
-		// Since we want to create a closure, we want to close over this particular metric,
-		// rather than the variable itself (which is the same between iterations).
-		// We accomplish this here:
-		metric := metric
+
+	singleRequests := request.ToSingle()
+	for i, singleRequest := range singleRequests {
 		works[i] = func() (api.Timeseries, error) {
-			return b.FetchSingleTimeseries(request.ToSingle(metric))
+			return b.FetchSingleTimeseries(singleRequest)
 		}
 	}
 
