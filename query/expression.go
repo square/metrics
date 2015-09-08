@@ -68,7 +68,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	serieslist, err := context.MultiBackend.FetchMultipleTimeseries(
+	serieslist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		api.FetchMultipleTimeseriesRequest{
 			metrics,
 			context.SampleMethod,

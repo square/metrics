@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
@@ -29,13 +28,13 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	MultiBackend      backend.ParallelTimeseriesStorageWrapper // the backend
-	MetricMetadataAPI api.MetricMetadataAPI                    // the api
-	FetchLimit        int                                      // the maximum number of fetches
-	Timeout           time.Duration                            // optional
-	Profiler          *inspect.Profiler                        // optional
-	Registry          function.Registry                        // optional
-	SlotLimit         int                                      // optional (0 => default 1000)
+	TimeseriesStorageAPI api.TimeseriesStorageAPI // the backend
+	MetricMetadataAPI    api.MetricMetadataAPI    // the api
+	FetchLimit           int                      // the maximum number of fetches
+	Timeout              time.Duration            // optional
+	Profiler             *inspect.Profiler        // optional
+	Registry             function.Registry        // optional
+	SlotLimit            int                      // optional (0 => default 1000)
 }
 
 // Command is the final result of the parsing.
@@ -164,15 +163,15 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
-		MetricMetadataAPI: context.MetricMetadataAPI,
-		FetchLimit:        function.NewFetchCounter(context.FetchLimit),
-		MultiBackend:      context.MultiBackend,
-		Predicate:         cmd.predicate,
-		SampleMethod:      cmd.context.SampleMethod,
-		Timerange:         timerange,
-		Cancellable:       cancellable,
-		Profiler:          context.Profiler,
-		Registry:          r,
+		MetricMetadataAPI:    context.MetricMetadataAPI,
+		FetchLimit:           function.NewFetchCounter(context.FetchLimit),
+		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
+		Predicate:            cmd.predicate,
+		SampleMethod:         cmd.context.SampleMethod,
+		Timerange:            timerange,
+		Cancellable:          cancellable,
+		Profiler:             context.Profiler,
+		Registry:             r,
 	}
 	if hasTimeout {
 		timeout := time.After(context.Timeout)

@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/peterh/liner"
-	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query"
@@ -48,7 +47,6 @@ func main() {
 	config.Blueflood.GraphiteMetricConverter = &graphite
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
-	backend := backend.NewParallelMultiBackend(blueflood, 20)
 
 	l := liner.NewLiner()
 	defer l.Close()
@@ -73,7 +71,7 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(query.ExecutionContext{MultiBackend: *backend, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
+		result, err := cmd.Execute(query.ExecutionContext{TimeseriesStorageAPI: blueflood, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

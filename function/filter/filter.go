@@ -86,6 +86,10 @@ func FilterRecentBy(list api.SeriesList, count int, summary func([]float64) floa
 	}
 	array := newFilterList(len(list.Series), lowest)
 
+	if list.Timerange.Resolution() == 0 {
+		panic("FilterRecentBy received a api.SeriesList without a Resolution.")
+	}
+
 	// The number of elements to include
 	elements := int(duration / list.Timerange.Resolution())
 	if elements < 1 {

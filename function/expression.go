@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/api/backend"
 	"github.com/square/metrics/inspect"
 )
 
@@ -17,15 +16,15 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	MultiBackend      backend.ParallelTimeseriesStorageWrapper // Backend to fetch data from
-	MetricMetadataAPI api.MetricMetadataAPI                    // Api to obtain metadata from
-	Timerange         api.Timerange                            // Timerange to fetch data from
-	SampleMethod      api.SampleMethod                         // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate         api.Predicate                            // Predicate to apply to TagSets prior to fetching
-	FetchLimit        FetchCounter                             // A limit on the number of fetches which may be performed
-	Cancellable       api.Cancellable
-	Profiler          *inspect.Profiler
-	Registry          Registry
+	TimeseriesStorageAPI api.TimeseriesStorageAPI // Backend to fetch data from
+	MetricMetadataAPI    api.MetricMetadataAPI    // Api to obtain metadata from
+	Timerange            api.Timerange            // Timerange to fetch data from
+	SampleMethod         api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
+	Predicate            api.Predicate            // Predicate to apply to TagSets prior to fetching
+	FetchLimit           FetchCounter             // A limit on the number of fetches which may be performed
+	Cancellable          api.Cancellable
+	Profiler             *inspect.Profiler
+	Registry             Registry
 }
 
 type Registry interface {

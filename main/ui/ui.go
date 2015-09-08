@@ -22,14 +22,11 @@ import (
 
 	"github.com/square/metrics/log"
 
-	// "github.com/square/metrics/api"
-	"github.com/square/metrics/api/backend"
-	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/timeseries_storage/blueflood"
-	// "github.com/square/metrics/api/backend/blueflood"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
+	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query"
+	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
 	"github.com/square/metrics/util"
 )
@@ -71,13 +68,11 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	backend := backend.NewParallelMultiBackend(blueflood, 20)
-
 	startServer(config.UIConfig, query.ExecutionContext{
-		MetricMetadataAPI: apiInstance,
-		MultiBackend:      *backend,
-		FetchLimit:        1000,
-		SlotLimit:         5000,
-		Registry:          registry.Default(),
+		MetricMetadataAPI:    apiInstance,
+		TimeseriesStorageAPI: blueflood,
+		FetchLimit:           1000,
+		SlotLimit:            5000,
+		Registry:             registry.Default(),
 	})
 }

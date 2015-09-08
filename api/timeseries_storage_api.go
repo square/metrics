@@ -21,15 +21,25 @@ import (
 )
 
 type TimeseriesStorageAPI interface {
-	// FetchSingleSeries should return an instance of BackendError
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
-	// FetchMultipleSeries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
 
-type ParallelTimeseriesStorageAPI interface {
-	// FetchSingleSeries should return an instance of BackendError
-	// FetchSingleSeries(request FetchTimeseriesRequest) (Timeseries, error)
-	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+type ProfilingTimeseriesStorageAPI struct {
+	Profiler             *inspect.Profiler
+	TimeseriesStorageAPI TimeseriesStorageAPI
+}
+
+var _ TimeseriesStorageAPI = (*ProfilingTimeseriesStorageAPI)(nil)
+
+func (a ProfilingTimeseriesStorageAPI) FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error) {
+	defer a.Profiler.Record("timeseriesStorage.FetchSingleTimeseries")()
+	return a.TimeseriesStorageAPI.FetchSingleTimeseries(request)
+}
+
+func (a ProfilingTimeseriesStorageAPI) FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error) {
+	defer a.Profiler.Record("timeseriesStorage.FetchMultipleTimeseries")()
+	return a.TimeseriesStorageAPI.FetchMultipleTimeseries(request)
 }
 
 type FetchTimeseriesRequest struct {
@@ -89,14 +99,19 @@ func (err TimeseriesStorageError) TokenName() string {
 	return string(err.Metric.MetricKey)
 }
 
-//TODO(cchandler): This doesn't make sense. Let's remove this and have a multi request decompose.
-func (r FetchMultipleTimeseriesRequest) ToSingle(metric TaggedMetric) FetchTimeseriesRequest {
-	return FetchTimeseriesRequest{
-		Metric:         metric,
-		MetricMetadata: r.MetricMetadata,
-		Cancellable:    r.Cancellable,
-		SampleMethod:   r.SampleMethod,
-		Timerange:      r.Timerange,
-		Profiler:       r.Profiler,
+//For now these decompose very simply into single fetch requests.
+func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
+	fetchSingleRequests := make([]FetchTimeseriesRequest, 0)
+	for _, metric := range r.Metrics {
+		request := FetchTimeseriesRequest{
+			Metric:         metric,
+			MetricMetadata: r.MetricMetadata,
+			Cancellable:    r.Cancellable,
+			SampleMethod:   r.SampleMethod,
+			Timerange:      r.Timerange,
+			Profiler:       r.Profiler,
+		}
+		fetchSingleRequests = append(fetchSingleRequests, request)
 	}
+	return fetchSingleRequests
 }
