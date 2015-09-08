@@ -30,7 +30,6 @@ import (
 	"github.com/square/metrics/util"
 )
 
-//Implements TimeseriesStorageAPI
 type Blueflood struct {
 	config            Config
 	client            httpClient
@@ -38,12 +37,13 @@ type Blueflood struct {
 	timeSource        TimeSource
 }
 
+//Implements TimeseriesStorageAPI
+var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
+
 type BluefloodParallelRequest struct {
 	limit   int
 	tickets chan struct{}
 }
-
-var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
 
 type httpClient interface {
 	// our own client to mock out the standard golang HTTP Client.
@@ -61,6 +61,7 @@ type Config struct {
 	GraphiteMetricConverter util.GraphiteConverter
 	HttpClient              httpClient
 	TimeSource              TimeSource
+	MaxSimultaneousRequests int `yaml:"simultaneous_requests"`
 }
 
 type queryResponse struct {
@@ -103,17 +104,14 @@ var Resolutions []Resolution = []Resolution{
 }
 
 func NewBlueflood(c Config) api.TimeseriesStorageAPI {
-	// limit := 5
-	// tickets := make(chan struct{}, limit)
-	// for i := 0; i < limit; i++ {
-	// 	tickets <- struct{}{}
-	// }
-
 	if c.HttpClient == nil {
 		c.HttpClient = http.DefaultClient
 	}
 	if c.TimeSource == nil {
 		c.TimeSource = time.Now
+	}
+	if c.MaxSimultaneousRequests == 0 {
+		c.MaxSimultaneousRequests = 5
 	}
 
 	b := Blueflood{
@@ -121,7 +119,6 @@ func NewBlueflood(c Config) api.TimeseriesStorageAPI {
 		client:            c.HttpClient,
 		graphiteConverter: c.GraphiteMetricConverter,
 		timeSource:        c.TimeSource,
-		// tickets:           tickets,
 	}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
@@ -161,7 +158,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 	results := make([]api.Timeseries, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 
-	limit := 5
+	limit := b.config.MaxSimultaneousRequests
 	tickets := make(chan struct{}, limit)
 	for i := 0; i < limit; i++ {
 		tickets <- struct{}{}

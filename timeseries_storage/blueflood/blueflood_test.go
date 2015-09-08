@@ -16,15 +16,11 @@ package blueflood
 
 import (
 	"fmt"
-	// standard_log "log"
 	"net/http"
-	// "os"
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
-	// "github.com/square/metrics/log"
-	// "github.com/square/metrics/log/standard"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
@@ -248,9 +244,6 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 }
 
 func TestFullResolutionDataFilling(t *testing.T) {
-	// log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
-	// log.Infof("Using standard logger")
-
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
 			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
