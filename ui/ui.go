@@ -65,10 +65,23 @@ func errorResponse(writer http.ResponseWriter, code int, err error) {
 	writer.Write(encoded)
 }
 
-func bodyResponse(writer http.ResponseWriter, response response) {
+func bodyResponse(writer http.ResponseWriter, request *http.Request, response response) {
+	// Make sure the query params have been parsed
+	err := request.ParseForm()
+	if err != nil {
+		errorResponse(writer, http.StatusBadRequest, err)
+		return
+	}
+	pretty := parseBool(request.Form.Get("pretty"), false)
+
 	commonResponse(writer)
 	response.Success = true
-	encoded, err := json.MarshalIndent(response, "", "  ")
+	var encoded []byte
+	if pretty {
+		encoded, err = json.MarshalIndent(response, "", "  ")
+	} else {
+		encoded, err = json.Marshal(response)
+	}
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write(failedMessage)
@@ -123,13 +136,13 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
-	} else {
-		body["metrics"] = metrics
 	}
+
+	body["metrics"] = metrics
 	response := response{
 		Body: body,
 	}
-	bodyResponse(writer, response)
+	bodyResponse(writer, request, response)
 }
 
 func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -160,7 +173,7 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	if parsedForm.profile {
 		response.Profile = convertProfile(profiler)
 	}
-	bodyResponse(writer, response)
+	bodyResponse(writer, request, response)
 	if q.hook.OnQuery != nil {
 		q.hook.OnQuery <- profiler
 	}
