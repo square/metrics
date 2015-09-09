@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	// YamlFile is the location of the rule YAML file.
+	// ConfigFile is the location of the rule YAML file.
 	ConfigFile = flag.String("config-file", "", "Location of YAML config file")
 	Verbose    = flag.Bool("verbose", false, "Set to true to enable logging")
 	Logger     = flag.String("logger", "glog", "Selects the logger to use")
@@ -84,7 +84,7 @@ func ExitWithMessage(message string) {
 	os.Exit(1)
 }
 
-// NewAPI creates a new instance of the API.
+// NewMetricMetadataAPI creates a new instance of the API.
 func NewMetricMetadataAPI(config cassandra.CassandraMetricMetadataConfig) api.MetricMetadataAPI {
 	apiInstance, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {

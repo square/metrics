@@ -32,7 +32,7 @@ type CassandraMetricMetadataConfig struct {
 	Keyspace string   `yaml:"keyspace"`
 }
 
-// NewAPI creates a new instance of API from the given configuration.
+// NewCassandraMetricMetadataAPI creates a new instance of API from the given configuration.
 func NewCassandraMetricMetadataAPI(config CassandraMetricMetadataConfig) (api.MetricMetadataAPI, error) {
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Hosts = config.Hosts

@@ -19,7 +19,7 @@ import (
 	"unicode"
 )
 
-// naturalStringLess returns true when `a` is less than `b`:
+// Less returns true when `a` is less than `b`:
 // "apples" < "Apples" < "cats1" < "cats2" < "cats10" < "cats20" < "cats100" < "dogs"
 func Less(strA string, strB string) bool {
 	runesA, runesB := []rune(strA), []rune(strB)

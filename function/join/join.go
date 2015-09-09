@@ -51,7 +51,7 @@ func extendRow(row JoinRow, series api.Timeseries) (JoinRow, bool) {
 	return result, true
 }
 
-// join generates a cartesian product of the given series lists, and then returns rows where the tags are matching.
+// Join generates a cartesian product of the given series lists, and then returns rows where the tags are matching.
 func Join(lists []api.SeriesList) JoinResult {
 	// place an empty row inside the results list first
 	// this row will be used to build up all others

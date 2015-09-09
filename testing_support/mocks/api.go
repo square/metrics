@@ -85,7 +85,7 @@ func (fa *FakeMetricMetadataAPI) GetAllMetrics() ([]api.MetricKey, error) {
 	return array, nil
 }
 
-// Adds a metric to the Key/Value set list.
+// AddMetricsForTag adds a metric to the Key/Value set list.
 func (fa *FakeMetricMetadataAPI) AddMetricsForTag(key string, value string, metric string) {
 	pair := struct {
 		key   string
@@ -123,13 +123,13 @@ func (fa *FakeGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (util.G
 			return k, nil
 		}
 	}
-	return "", errors.New(fmt.Sprintf("No mapping for tagged metric %+v to tagged metric", metric))
+	return "", fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
 }
 
 func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.TaggedMetric, error) {
 	tm, exists := fa.MetricMap[metric]
 	if !exists {
-		return api.TaggedMetric{}, errors.New(fmt.Sprintf("No mapping for graphite metric %+s to graphite metric", string(metric)))
+		return api.TaggedMetric{}, fmt.Errorf("No mapping for graphite metric %+s to graphite metric", string(metric))
 	}
 
 	return tm, nil

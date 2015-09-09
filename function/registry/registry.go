@@ -113,10 +113,10 @@ func (r StandardRegistry) Register(fun function.MetricFunction) error {
 		return fmt.Errorf("function %s has already been registered", fun.Name)
 	}
 	if fun.Compute == nil {
-		return fmt.Errorf("function %s has no Compute() field.", fun.Name)
+		return fmt.Errorf("function %s has no Compute() field", fun.Name)
 	}
 	if fun.Name == "" {
-		return fmt.Errorf("empty function name.")
+		return fmt.Errorf("empty function name")
 	}
 	r.mapping[fun.Name] = fun
 	return nil

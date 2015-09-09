@@ -99,7 +99,8 @@ func (err TimeseriesStorageError) TokenName() string {
 	return string(err.Metric.MetricKey)
 }
 
-//For now these decompose very simply into single fetch requests.
+// ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single
+// fetch requests (for now).
 func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 	fetchSingleRequests := make([]FetchTimeseriesRequest, 0)
 	for _, metric := range r.Metrics {

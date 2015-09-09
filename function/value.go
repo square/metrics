@@ -23,7 +23,7 @@ import (
 	"github.com/square/metrics/api"
 )
 
-// A value is the result of evaluating an expression.
+// Value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
 type Value interface {
 	ToSeriesList(api.Timerange) (api.SeriesList, error)
@@ -33,7 +33,7 @@ type Value interface {
 	GetName() string
 }
 
-// A stringValue holds a string
+// A StringValue holds a string
 type StringValue string
 
 func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
@@ -56,7 +56,7 @@ func (value StringValue) GetName() string {
 	return string(value)
 }
 
-// A scalarValue holds a float and can be converted to a serieslist
+// A ScalarValue holds a float and can be converted to a serieslist
 type ScalarValue float64
 
 func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {

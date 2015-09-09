@@ -34,7 +34,7 @@ type Timeseries struct {
 	TagSet TagSet
 }
 
-// This function exists to manually encode floats.
+// MarshalJSON exists to manually encode floats.
 func (ts Timeseries) MarshalJSON() ([]byte, error) {
 	var buffer bytes.Buffer
 	var scratch [64]byte

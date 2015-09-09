@@ -60,7 +60,6 @@ func (p *Profiler) All() []Profile {
 	return p.profiles
 }
 
-// All retrieves all the profiling information collected by the profiler.
 func (p *Profiler) Flush() []Profile {
 	if p == nil {
 		return []Profile{}
@@ -72,7 +71,7 @@ func (p *Profiler) Flush() []Profile {
 	return result
 }
 
-// A profile is a single data point collected by the profiler.
+// A Profile is a single data point collected by the profiler.
 type Profile struct {
 	name       string    // name identifies the measured quantity ("fetchSingle() or api.GetAllMetrics()")
 	startTime  time.Time // the start time of the task

@@ -38,14 +38,14 @@ func main() {
 	// Hosts    []string `yaml:"hosts"`
 	// Keyspace string   `yaml:"keyspace"`
 	config := cassandra.CassandraMetricMetadataConfig{Hosts: []string{"aws1.medium-trigger.universe.square"}, Keyspace: "metrics_indexer"}
-	var metadataApi api.MetricMetadataAPI
-	metadataApi, err := cassandra.NewCassandraMetricMetadataAPI(config)
+	var metadataAPI api.MetricMetadataAPI
+	metadataAPI, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("Success\n")
-	stuff, err := metadataApi.GetAllTags("jvm.thread-states")
+	stuff, err := metadataAPI.GetAllTags("jvm.thread-states")
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err)
 		os.Exit(1)

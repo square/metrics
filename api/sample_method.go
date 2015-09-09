@@ -23,11 +23,11 @@ type SeriesType string
 type SampleMethod int
 
 const (
-	// SamplingMax chooses the maximum value.
+	// SampleMax chooses the maximum value.
 	SampleMax SampleMethod = iota + 1
-	// SamplingMin chooses the minimum value.
+	// SampleMin chooses the minimum value.
 	SampleMin
-	// SamplingMean chooses the average value.
+	// SampleMean chooses the average value.
 	SampleMean
 )
 
