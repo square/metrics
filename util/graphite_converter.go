@@ -36,8 +36,14 @@ type GraphiteConverterConfig struct {
 	ConversionRulesPath string `yaml:"conversion_rules_path"`
 }
 
+var _ GraphiteConverter = (*RuleBasedGraphiteConverter)(nil)
+
 type RuleBasedGraphiteConverter struct {
 	Ruleset RuleSet
+}
+
+func (g *RuleBasedGraphiteConverter) EnableStats() {
+	g.Ruleset.EnableStats()
 }
 
 func (g *RuleBasedGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (GraphiteMetric, error) {
@@ -54,7 +60,7 @@ func (g *RuleBasedGraphiteConverter) ToTaggedName(metric GraphiteMetric) (api.Ta
 
 func LoadRules(conversionRulesPath string) (RuleSet, error) {
 	ruleSet := RuleSet{
-		rules: []Rule{},
+		Rules: []Rule{},
 	}
 
 	filenames, err := filepath.Glob(filepath.Join(conversionRulesPath, "*.yaml"))
@@ -82,7 +88,7 @@ func LoadRules(conversionRulesPath string) (RuleSet, error) {
 			return RuleSet{}, err
 		}
 
-		ruleSet.rules = append(ruleSet.rules, rs.rules...)
+		ruleSet.Rules = append(ruleSet.Rules, rs.Rules...)
 	}
 
 	return ruleSet, nil
@@ -96,5 +102,3 @@ type GraphiteConverter interface {
 	// using the configured rules. May error out.
 	ToTaggedName(metric GraphiteMetric) (api.TaggedMetric, error)
 }
-
-var _ GraphiteConverter = (*RuleBasedGraphiteConverter)(nil)
