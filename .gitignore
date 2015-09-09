@@ -4,3 +4,4 @@ main/ui/ui
 main/metadata/metadata
 main/**/conversion_rules
 main/**/*.yaml
+main/ruletester/report

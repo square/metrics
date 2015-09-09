@@ -154,8 +154,11 @@ type ChunkResult struct {
 }
 
 func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) {
+	graphiteConverter.EnableStats()
+
 	workQueue := make(chan []string, len(metrics)/25+1)
 	resultQueue := make(chan ChunkResult, len(metrics))
+	unmatchedQueue := make(chan string, len(metrics))
 	var wg sync.WaitGroup
 
 	i := 0
@@ -194,6 +197,7 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 							}
 							chunk_result.matched++
 						} else {
+							unmatchedQueue <- metric
 							chunk_result.unmatched++
 						}
 					}
@@ -211,6 +215,7 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	}
 	wg.Wait()
 	close(resultQueue)
+	close(unmatchedQueue)
 
 	fmt.Printf("\n")
 	fmt.Printf("Processing results!")
@@ -232,6 +237,20 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 			}
 		}
 	}()
+	wg.Add(1)
+	unmatchedResults := []string{}
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case unmatched, more := <-unmatchedQueue:
+				unmatchedResults = append(unmatchedResults, unmatched)
+				if !more {
+					return
+				}
+			}
+		}
+	}()
 
 	wg.Wait()
 	fmt.Printf("\n")
@@ -239,10 +258,38 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	fmt.Printf("Unmatched: %d\n", totalResults.unmatched)
 	fmt.Printf("Reverse convert failed: %d\n", totalResults.reverse_convert_failed)
 
+	GenerateReport(unmatchedResults, graphiteConverter)
 }
 
-func ProcessWork(workQueue chan []string) {
+func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphiteConverter) {
+	err := os.RemoveAll("report")
+	if err != nil {
+		panic("Can't delete the report directory")
+	}
+	if err := os.Mkdir("report", 0744); err != nil {
+		panic("Can't create report directory")
+	}
 
+	f, err := os.Create("report/unmatched.txt")
+	defer f.Close()
+
+	for _, metric := range unmatched {
+		f.WriteString(fmt.Sprintf("%s\n", metric))
+	}
+
+	for i, rule := range graphiteConverter.Ruleset.Rules {
+		f, err := os.Create(fmt.Sprintf("report/%d.txt", i))
+		defer f.Close()
+		if err != nil {
+			panic("Unable to create report file!")
+		}
+		f.WriteString(fmt.Sprintf("Rule: %s\n", rule.MetricKeyRegex))
+
+		for _, match := range rule.Statistics.SuccessfulMatches {
+			f.WriteString(fmt.Sprintf("%s\n", match))
+		}
+
+	}
 }
 
 // func run(ruleset util.RuleSet, scanner *bufio.Scanner, apiInstance api.MetricMetadataAPI, unmatched *os.File) Statistics {
