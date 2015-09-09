@@ -110,7 +110,7 @@ func snap(n, boundary int64) int64 {
 // Round() will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Snap() Timerange {
 	if tr.resolution == 0 {
-		panic("AAH")
+		panic("Unable to snap with resolution of 0")
 		return tr
 	}
 	tr.start = snap(tr.start, tr.resolution)
