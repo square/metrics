@@ -16,7 +16,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 )
@@ -46,6 +45,7 @@ func (tr Timerange) End() int64 {
 	return tr.end
 }
 
+// MarshalJSON marshals the Timerange into a byte error
 func (tr Timerange) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Start      int64 `json:"start"`
@@ -54,12 +54,12 @@ func (tr Timerange) MarshalJSON() ([]byte, error) {
 	}{tr.start, tr.end, tr.resolution})
 }
 
-// ResolutionMillis() returns the .resolution field
+// ResolutionMillis returns the .resolution field
 func (tr Timerange) ResolutionMillis() int64 {
 	return tr.resolution
 }
 
-// Resolution() returns the resolution in time.Duration.
+// Resolution returns the resolution in time.Duration.
 func (tr Timerange) Resolution() time.Duration {
 	return time.Duration(tr.resolution) * time.Millisecond
 }
@@ -71,23 +71,24 @@ func NewTimerange(start, end, resolution int64) (Timerange, error) {
 	}
 
 	if start%resolution != 0 {
-		return Timerange{}, errors.New(fmt.Sprintf("start %% resolution (mod) must be 0 (start=%d, resolution=%d)", start, resolution))
+		return Timerange{}, fmt.Errorf("start %% resolution (mod) must be 0 (start=%d, resolution=%d)", start, resolution)
 	}
 	if end%resolution != 0 {
-		return Timerange{}, errors.New(fmt.Sprintf("end %% resolution (mod) must be 0 (end=%d, resolution=%d)", end, resolution))
+		return Timerange{}, fmt.Errorf("end %% resolution (mod) must be 0 (end=%d, resolution=%d)", end, resolution)
 	}
 	if start > end {
-		return Timerange{}, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+		return Timerange{}, fmt.Errorf("start must be <= end (start=%d, end=%d)", start, end)
 	}
 	return Timerange{start: start, end: end, resolution: resolution}, nil
 }
 
+// NewSnappedTimerange creates a new timerange and properly snaps it
 func NewSnappedTimerange(start, end, resolution int64) (Timerange, error) {
 	if resolution <= 0 {
 		return Timerange{}, fmt.Errorf("invalid resolution %d", resolution)
 	}
 	if start > end {
-		return Timerange{}, errors.New(fmt.Sprintf("start must be <= end (start=%d, end=%d)", start, end))
+		return Timerange{}, fmt.Errorf("start must be <= end (start=%d, end=%d)", start, end)
 	}
 	return Timerange{start: start, end: end, resolution: resolution}.Snap(), nil
 }
@@ -107,18 +108,17 @@ func snap(n, boundary int64) int64 {
 	return (n + boundary/2) / boundary * boundary
 }
 
-// Round() will fix some invalid timeranges by rounding their starts and ends.
+// Snap will fix some invalid timeranges by rounding their starts and ends.
 func (tr Timerange) Snap() Timerange {
 	if tr.resolution == 0 {
-		panic("AAH")
-		return tr
+		panic("Unable to snap with resolution of 0")
 	}
 	tr.start = snap(tr.start, tr.resolution)
 	tr.end = snap(tr.end, tr.resolution)
 	return tr
 }
 
-// Later() returns a timerange which is forward in time by the amount given
+// Shift returns a timerange which is shifted in time by the amount given
 func (tr Timerange) Shift(shift time.Duration) Timerange {
 	tr.start += int64(shift / time.Millisecond)
 	tr.end += int64(shift / time.Millisecond)

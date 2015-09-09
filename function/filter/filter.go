@@ -55,7 +55,7 @@ func newFilterList(size int, ascending bool) filterList {
 	}
 }
 
-// FilteryBy reduces the number of things in the series `list` to at most the given `count`.
+// FilterBy reduces the number of things in the series `list` to at most the given `count`.
 // They're chosen by sorting by `summary` in `ascending` or descending order.
 func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool) api.SeriesList {
 	if len(list.Series) < count {

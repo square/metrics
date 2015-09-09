@@ -112,7 +112,7 @@ func (assert Assert) EqFloat(actual, expected, epsilon float64) {
 	}
 }
 
-// EqFloat fails the test if two floats aren't equal. NaNs are considered equal.
+// EqApproximate fails the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqApproximate(actual, expected, epsilon float64) {
 	delta := actual - expected
 	if !(-epsilon < delta && delta < epsilon) {

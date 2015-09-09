@@ -62,7 +62,7 @@ func (f MetricFunction) Evaluate(context EvaluationContext,
 	return f.Compute(context, arguments, Groups{groupBy, collapses})
 }
 
-// fetchCounter is used to count the number of fetches remaining in a thread-safe manner.
+// FetchCounter is used to count the number of fetches remaining in a thread-safe manner.
 type FetchCounter struct {
 	count *int32
 	limit int
@@ -76,7 +76,7 @@ func NewFetchCounter(n int) FetchCounter {
 	}
 }
 
-// limit returns the max # of fetches allowed by this counter.
+// Limit returns the max # of fetches allowed by this counter.
 func (c FetchCounter) Limit() int {
 	return c.limit
 }

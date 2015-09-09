@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package query contains all the logic to parse
+// Package transform contains all the logic to parse
 // and execute queries against the underlying metric system.
 package transform
 
@@ -40,7 +40,7 @@ func transformTimeseries(series api.Timeseries, transform transform, parameters 
 	}, nil
 }
 
-// applyTransform applies the given transform to the entire list of series.
+// ApplyTransform applies the given transform to the entire list of series.
 func ApplyTransform(list api.SeriesList, transform transform, parameters []function.Value) (api.SeriesList, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(list.Series)),
@@ -58,7 +58,7 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []funct
 	return result, nil
 }
 
-// transformDerivative estimates the "change per second" between the two samples (scaled consecutive difference)
+// Derivative estimates the "change per second" between the two samples (scaled consecutive difference)
 func Derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values))
 	for i := range values {

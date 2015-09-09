@@ -83,7 +83,7 @@ func Test_ScalarExpression(t *testing.T) {
 
 		a.EqInt(len(result.Series), len(test.expectedSeries))
 
-		for i := 0; i < len(result.Series); i += 1 {
+		for i := 0; i < len(result.Series); i++ {
 			a.Eq(result.Series[i].Values, test.expectedSeries[i].Values)
 		}
 	}

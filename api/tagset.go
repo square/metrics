@@ -29,13 +29,13 @@ func NewTagSet() TagSet {
 }
 
 // Equals check whether two tags are equal.
-func (left TagSet) Equals(right TagSet) bool {
-	if len(left) != len(right) {
+func (tagSet TagSet) Equals(otherTagSet TagSet) bool {
+	if len(tagSet) != len(otherTagSet) {
 		return false
 	}
-	for k := range left {
-		_, ok := right[k]
-		if !ok || left[k] != right[k] {
+	for k := range tagSet {
+		_, ok := otherTagSet[k]
+		if !ok || tagSet[k] != otherTagSet[k] {
 			return false
 		}
 	}
@@ -55,7 +55,6 @@ func (tagSet TagSet) Merge(other TagSet) TagSet {
 	return result
 }
 
-//TODO(cchandler): What is this? Should it be moved or deleted?
 // ParseTagSet parses a given string to a tagset, nil
 // if parsing failed.
 func ParseTagSet(raw string) TagSet {

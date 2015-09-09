@@ -46,7 +46,7 @@ func (c *FakeHttpClient) SetResponse(url string, r Response) {
 func (c *FakeHttpClient) Get(url string) (*http.Response, error) {
 	r, exists := c.responses[url]
 	if !exists {
-		return nil, errors.New(fmt.Sprintf("Get() received unexpected url %s, mappings: %+v", url, c.responses))
+		return nil, fmt.Errorf("Get() received unexpected url %s, mappings: %+v", url, c.responses)
 	}
 
 	if r.Delay > 0 {
