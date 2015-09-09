@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/square/metrics/api"
 	"gopkg.in/yaml.v2"
@@ -42,15 +43,24 @@ type RawRules struct {
 type Rule struct {
 	raw                  RawRule
 	graphitePatternRegex *regexp.Regexp
-	metricKeyRegex       *regexp.Regexp
+	MetricKeyRegex       *regexp.Regexp
 	graphitePatternTags  []string // tags extracted from the raw graphite string, in the order of appearance.
 	metricKeyTags        []string // tags extracted from MetricKey, in the order of appearance.
+	Statistics           RuleStatistics
+}
+
+type RuleStatistics struct {
+	mutex             *sync.Mutex
+	statisticsEnabled bool
+	Matches           int
+	SuccessfulMatches []string
 }
 
 // RuleSet is a sanitized version of RawRules.
 // Rules are matched sequentially until a correct one is matched.
 type RuleSet struct {
-	rules []Rule
+	Rules             []Rule
+	statisticsEnabled bool
 }
 
 // Compile a given RawRule into a regex and exposed tagset.
@@ -87,17 +97,36 @@ func Compile(rule RawRule) (Rule, error) {
 	if metricKeyRegex.NumSubexp() != len(metricKeyTags) {
 		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
+
+	stats := RuleStatistics{}
+	stats.mutex = &sync.Mutex{}
+
 	return Rule{
 		raw:                  rule,
 		graphitePatternRegex: regex,
-		metricKeyRegex:       metricKeyRegex,
+		MetricKeyRegex:       metricKeyRegex,
 		graphitePatternTags:  graphitePatternTags,
 		metricKeyTags:        metricKeyTags,
+		Statistics:           stats,
 	}, nil
 }
 
+func (rule *Rule) AddMatch(matchedResult string) {
+	rule.Statistics.AddMatch(matchedResult)
+}
+
+func (ruleStat *RuleStatistics) AddMatch(matchedResult string) {
+	if !ruleStat.statisticsEnabled {
+		return
+	}
+	ruleStat.mutex.Lock()
+	defer ruleStat.mutex.Unlock()
+	ruleStat.Matches++
+	ruleStat.SuccessfulMatches = append(ruleStat.SuccessfulMatches, matchedResult)
+}
+
 // MatchRule sees if a given graphite string matches the rule, and if so, returns the generated tag.
-func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
+func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	tagSet := extractTagValues(rule.graphitePatternRegex, rule.graphitePatternTags, input)
 	if tagSet == nil {
 		return api.TaggedMetric{}, false
@@ -118,6 +147,8 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 			delete(tagSet, metricKeyTag)
 		}
 	}
+	rule.AddMatch(input)
+
 	return api.TaggedMetric{
 		api.MetricKey(interpolatedKey),
 		tagSet,
@@ -126,7 +157,7 @@ func (rule Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 
 // ToGraphiteName transforms the given tagged metric back to its graphite metric.
 func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, error) {
-	extractedTagSet := extractTagValues(rule.metricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
+	extractedTagSet := extractTagValues(rule.MetricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
 	if extractedTagSet == nil {
 		// no match found. not a correct rule to interpolate.
 		return "", newCannotInterpolate(taggedMetric)
@@ -144,14 +175,36 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, 
 
 // MatchRule sees if a given graphite string matches
 // any of the specified rules.
-func (ruleSet RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
-	for _, rule := range ruleSet.rules {
-		value, matched := rule.MatchRule(input)
+func (ruleSet *RuleSet) MatchRule(input string) (api.TaggedMetric, bool) {
+	for i := 0; i < len(ruleSet.Rules); i++ {
+		value, matched := ruleSet.Rules[i].MatchRule(input)
 		if matched {
 			return value, matched
 		}
 	}
 	return api.TaggedMetric{}, false
+}
+
+func (rule *Rule) EnableStats() {
+	rule.Statistics.statisticsEnabled = true
+}
+
+func (rule *Rule) DisableStats() {
+	rule.Statistics.statisticsEnabled = false
+}
+
+func (ruleSet *RuleSet) EnableStats() {
+	for i := 0; i < len(ruleSet.Rules); i++ {
+		ruleSet.Rules[i].EnableStats()
+	}
+	ruleSet.statisticsEnabled = true
+}
+
+func (ruleSet *RuleSet) DisableStats() {
+	for i := 0; i < len(ruleSet.Rules); i++ {
+		ruleSet.Rules[i].DisableStats()
+	}
+	ruleSet.statisticsEnabled = false
 }
 
 // GraphitePatternTags return a list of tags available in the original metric.
@@ -162,7 +215,7 @@ func (rule Rule) GraphitePatternTags() []string {
 // ToGraphiteName transforms the given tagged metric back to its graphite name,
 // checking against all the rules.
 func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, error) {
-	for _, rule := range ruleSet.rules {
+	for _, rule := range ruleSet.Rules {
 		reversed, err := rule.ToGraphiteName(taggedMetric)
 		if err == nil {
 			return reversed, nil
@@ -281,7 +334,10 @@ func LoadYAML(input []byte) (RuleSet, error) {
 		}
 		rules[index] = rule
 	}
-	return RuleSet{rules}, nil
+	return RuleSet{
+		Rules:             rules,
+		statisticsEnabled: false,
+	}, nil
 }
 
 // check if setA is subset of setB.
