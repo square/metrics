@@ -51,8 +51,8 @@ func TestTransformTimeseries(t *testing.T) {
 				useParam bool
 			}{
 				{
-					fun:      Derivative,
-					expected: []float64{0.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
+					fun:      derivative,
+					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
 					useParam: false,
 				},
 				{
@@ -68,6 +68,11 @@ func TestTransformTimeseries(t *testing.T) {
 				{
 					fun:      NaNKeepLast,
 					expected: []float64{0, 1, 2, 3, 4, 5},
+					useParam: false,
+				},
+				{
+					fun:      rate,
+					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
 					useParam: false,
 				},
 			},
@@ -145,12 +150,21 @@ func TestApplyTransform(t *testing.T) {
 		expected  map[string][]float64
 	}{
 		{
-			transform: Derivative,
+			transform: Cumulative,
 			parameter: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
-				"B": {0, 0, -1.0 / 30, 0, 2.0 / 30, 0},
-				"C": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, -1.0 / 30, -1.0 / 30},
+				"A": {0, 1, 3, 6, 10, 15},
+				"B": {0, 2, 3, 4, 7, 10},
+				"C": {0, 1, 3, 6, 8, 9},
+			},
+		},
+		{
+			transform: derivative,
+			parameter: []function.Value{},
+			expected: map[string][]float64{
+				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
+				"B": {0, -1.0 / 30, 0, 2.0 / 30, 0},
+				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, -1.0 / 30, -1.0 / 30},
 			},
 		},
 		{
@@ -158,17 +172,17 @@ func TestApplyTransform(t *testing.T) {
 			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
-				"B": {2 * 30, 4 * 30, 5 * 30, 6 * 30, 9 * 30, 12 * 30},
+				"B": {0, 2 * 30, 3 * 30, 4 * 30, 7 * 30, 10 * 30},
 				"C": {0, 1 * 30, 3 * 30, 6 * 30, 8 * 30, 9 * 30},
 			},
 		},
 		{
-			transform: Cumulative,
+			transform: rate,
 			parameter: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1, 3, 6, 10, 15},
-				"B": {2, 4, 5, 6, 9, 12},
-				"C": {0, 1, 3, 6, 8, 9},
+				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
+				"B": {0, 1.0 / 30, 0, 2.0 / 30, 0},
+				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, 2.0 / 30, 1.0 / 30},
 			},
 		},
 	}
@@ -363,12 +377,12 @@ func TestApplyTransformNaN(t *testing.T) {
 		expected   map[string][]float64
 	}{
 		{
-			transform:  Derivative,
+			transform:  derivative,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
-				"B": {0, nan, nan, nan, nan, 0.0},
-				"C": {0, 1.0 / 30, 1.0 / 30, nan, nan, -1.0 / 30},
+				"A": {1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
+				"B": {nan, nan, nan, nan, 0.0},
+				"C": {1.0 / 30, 1.0 / 30, nan, nan, -1.0 / 30},
 			},
 		},
 		{
@@ -376,17 +390,17 @@ func TestApplyTransformNaN(t *testing.T) {
 			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
-				"B": {2 * 30, 2 * 30, 2 * 30, 2 * 30, 5 * 30, 8 * 30},
+				"B": {0, 0, 0, 0, 3 * 30, 6 * 30},
 				"C": {0, 1 * 30, 3 * 30, 3 * 30, 5 * 30, 6 * 30},
 			},
 		},
 		{
-			transform:  Rate,
+			transform:  rate,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
-				"B": {0, nan, nan, nan, nan, 0},
-				"C": {0, 1 / 30.0, 1 / 30.0, nan, nan, 0},
+				"A": {1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
+				"B": {nan, nan, nan, nan, 0},
+				"C": {1 / 30.0, 1 / 30.0, nan, nan, 1 / 30.0},
 			},
 		},
 		{
@@ -394,7 +408,7 @@ func TestApplyTransformNaN(t *testing.T) {
 			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 4, 8, 13},
-				"B": {2, 2, 2, 2, 5, 8},
+				"B": {0, 0, 0, 0, 3, 6},
 				"C": {0, 1, 3, 3, 5, 6},
 			},
 		},

@@ -58,48 +58,21 @@ func ApplyTransform(list api.SeriesList, transform transform, parameters []funct
 	return result, nil
 }
 
-// Derivative estimates the "change per second" between the two samples (scaled consecutive difference)
-func Derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	result := make([]float64, len(values))
-	for i := range values {
-		if i == 0 {
-			// The first element has 0
-			result[i] = 0
-			continue
-		}
-		// Otherwise, it's the scaled difference
-		result[i] = (values[i] - values[i-1]) / scale
-	}
-	return result, nil
-}
-
 // Integral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
 func Integral(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
+		// Skip the 0th element since thats not technically part of our timerange
+		if i == 0 {
+			continue
+		}
+
 		if !math.IsNaN(values[i]) {
 			integral += values[i]
 		}
 		result[i] = integral * scale
-	}
-	return result, nil
-}
-
-// Rate functions exactly like transformDerivative but bounds the result to be positive.
-// That is, it returns consecutive differences which are at least 0.
-func Rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
-	result := make([]float64, len(values))
-	for i := range values {
-		if i == 0 {
-			result[i] = 0
-			continue
-		}
-		result[i] = (values[i] - values[i-1]) / scale
-		if result[i] < 0 {
-			result[i] = 0
-		}
 	}
 	return result, nil
 }
@@ -109,6 +82,11 @@ func Cumulative(values []float64, parameters []function.Value, scale float64) ([
 	result := make([]float64, len(values))
 	sum := 0.0
 	for i := range values {
+		// Skip the 0th element since thats not technically part of our timerange
+		if i == 0 {
+			continue
+		}
+
 		if !math.IsNaN(values[i]) {
 			sum += values[i]
 		}
