@@ -162,10 +162,10 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	var wg sync.WaitGroup
 
 	i := 0
-	for i = 0; i < len(metrics); i = i + 25 {
+	for i = 0; i+25 < len(metrics); i = i + 25 {
 		workQueue <- metrics[i : i+25]
 	}
-	if i <= len(metrics) {
+	if i < len(metrics) {
 		workQueue <- metrics[i:]
 	}
 
