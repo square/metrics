@@ -21,6 +21,7 @@ import (
 )
 
 type TimeseriesStorageAPI interface {
+	AdjustTimerange(requested Timerange, slotLimit int) Timerange
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
@@ -31,6 +32,11 @@ type ProfilingTimeseriesStorageAPI struct {
 }
 
 var _ TimeseriesStorageAPI = (*ProfilingTimeseriesStorageAPI)(nil)
+
+func (a ProfilingTimeseriesStorageAPI) AdjustTimerange(requested Timerange, slotLimit int) Timerange {
+	defer a.Profiler.Record("timeseriesStorage.AdjustTimerange")()
+	return a.TimeseriesStorageAPI.AdjustTimerange(requested, slotLimit)
+}
 
 func (a ProfilingTimeseriesStorageAPI) FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error) {
 	defer a.Profiler.Record("timeseriesStorage.FetchSingleTimeseries")()

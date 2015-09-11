@@ -137,6 +137,10 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 
 type FakeTimeseriesStorageAPI struct{}
 
+func (f FakeTimeseriesStorageAPI) AdjustTimerange(requested api.Timerange, slotLimit int) api.Timerange {
+	return requested
+}
+
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
