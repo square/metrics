@@ -454,6 +454,11 @@ func TestBlueflood_AdjustTimerange(t *testing.T) {
 	}{
 		{
 			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 5000,
+			expected:  makeTimerange(start, start+4*hour, 30*second),
+		},
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
 			slotLimit: 50,
 			expected:  makeTimerange(start, start+4*hour, 5*minute),
 		},
@@ -482,21 +487,26 @@ func TestBlueflood_AdjustTimerange(t *testing.T) {
 			slotLimit: 200,
 			expected:  makeTimerange(start, start+70*day, day),
 		},
+		{
+			input:     makeTimerange(start-25*day, start, 30*second),
+			slotLimit: 200,
+			expected:  makeTimerange(start-25*day, start, day),
+		},
 	}
 
 	b := &Blueflood{
 		config: Config{
 			Ttls: map[string]int64{
 				"FULL":    1,
-				"5MIN":    30,
-				"20MIN":   60,
-				"60MIN":   90,
-				"240MIN":  180,
-				"1440MIN": 365,
+				"MIN5":    30,
+				"MIN20":   60,
+				"MIN60":   90,
+				"MIN240":  20,
+				"MIN1440": 365,
 			},
 		},
 		timeSource: func() time.Time {
-			return time.Unix((start+day)/1000, 0)
+			return time.Unix(start/1000, 0)
 		},
 	}
 
