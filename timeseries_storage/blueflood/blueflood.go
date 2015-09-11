@@ -462,7 +462,7 @@ func (b *Blueflood) AdjustTimerange(requested api.Timerange, slotLimit int) api.
 		resolutionMillis := resolution.duration.Nanoseconds() / 1000000
 		slots := durationMillis / resolutionMillis
 		if slots <= int64(slotLimit) {
-			timerange, err := api.NewTimerange(start, end, resolutionMillis)
+			timerange, err := api.NewSnappedTimerange(start, end, resolutionMillis)
 			if err != nil {
 				// Since I'm unable to construct a new timerange, use the one I was given.
 				return requested

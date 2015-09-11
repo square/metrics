@@ -429,3 +429,63 @@ func TestBlueflood_DefaultTTLs(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestBlueflood_AdjustTimerange(t *testing.T) {
+	makeTimerange := func(start, end, resolution int64) api.Timerange {
+		timerange, err := api.NewSnappedTimerange(start, end, resolution)
+		if err != nil {
+			t.Fatalf("error creating testcase timerange: %s", err.Error())
+		}
+		return timerange
+	}
+
+	// The millisecond epoch for Sep 1, 2001.
+	start := int64(999316800000)
+
+	second := int64(1000)
+	minute := 60 * second
+	hour := 60 * minute
+	day := 24 * hour
+
+	tests := []struct {
+		input     api.Timerange
+		slotLimit int
+		expected  api.Timerange
+	}{
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 50,
+			expected:  makeTimerange(start, start+4*hour, 5*minute),
+		},
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 470,
+			expected:  makeTimerange(start, start+4*hour, 5*minute),
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 500,
+			expected:  makeTimerange(start, start+40*hour, 5*minute),
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 4700,
+			expected:  makeTimerange(start, start+40*hour, 5*minute),
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 110,
+			expected:  makeTimerange(start, start+40*hour, 1*hour),
+		},
+		{
+			input:     makeTimerange(start, start+70*day, 30*second),
+			slotLimit: 200,
+			expected:  makeTimerange(start, start+70*day, day),
+		},
+	}
+	for i, test := range tests {
+		if result := (&Blueflood{}).AdjustTimerange(test.input, test.slotLimit); result != test.expected {
+			t.Errorf("Testcase %d failed: expected %+v but got %+v; slot limit %d (expected slots %d, resulted %d)", i, test.expected, result, test.slotLimit, test.expected.Slots(), result.Slots())
+		}
+	}
+}
