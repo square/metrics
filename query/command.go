@@ -144,6 +144,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if slotLimit == 0 {
 		slotLimit = defaultLimit // the default limit
 	}
+	// Update the timerange by applying the insights of the storage API:
+	timerange = context.TimeseriesStorageAPI.AdjustTimerange(timerange, slotLimit)
 	if timerange.Slots() > slotLimit {
 		return nil, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
