@@ -483,8 +483,25 @@ func TestBlueflood_AdjustTimerange(t *testing.T) {
 			expected:  makeTimerange(start, start+70*day, day),
 		},
 	}
+
+	b := &Blueflood{
+		config: Config{
+			Ttls: map[string]int64{
+				"FULL":    1,
+				"5MIN":    30,
+				"20MIN":   60,
+				"60MIN":   90,
+				"240MIN":  180,
+				"1440MIN": 365,
+			},
+		},
+		timeSource: func() time.Time {
+			return time.Unix((start+day)/1000, 0)
+		},
+	}
+
 	for i, test := range tests {
-		if result := (&Blueflood{}).AdjustTimerange(test.input, test.slotLimit); result != test.expected {
+		if result := b.AdjustTimerange(test.input, test.slotLimit); result != test.expected {
 			t.Errorf("Testcase %d failed: expected %+v but got %+v; slot limit %d (expected slots %d, resulted %d)", i, test.expected, result, test.slotLimit, test.expected.Slots(), result.Slots())
 		}
 	}

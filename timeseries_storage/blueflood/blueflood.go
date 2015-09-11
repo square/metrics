@@ -460,11 +460,12 @@ func (b *Blueflood) AdjustTimerange(requested api.Timerange, slotLimit int) api.
 	start := requested.Start()
 	end := requested.End()
 	durationMillis := end - start
-	timerangeMaxAge := b.timeSource().Sub(request.StartTime())
+
+	requiredAge := b.timeSource().Sub(requested.StartTime())
 
 	for _, resolution := range Resolutions {
-		oldestAge := b.config.oldestViableDataForResolution(resolution)
-		if oldestAge < timerangeMaxAge {
+		survivesFor := b.config.oldestViableDataForResolution(resolution)
+		if survivesFor < requiredAge {
 			// The data probably won't be around for the earliest part of the timerange,
 			// so don't use this resolution
 			continue
