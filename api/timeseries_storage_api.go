@@ -48,7 +48,6 @@ type FetchTimeseriesRequest struct {
 	Timerange      Timerange    // time range to fetch data from.
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
-	Profiler       *inspect.Profiler
 }
 
 type FetchMultipleTimeseriesRequest struct {
@@ -57,7 +56,6 @@ type FetchMultipleTimeseriesRequest struct {
 	Timerange      Timerange
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
-	Profiler       *inspect.Profiler
 }
 
 type TimeseriesStorageErrorCode int
@@ -110,7 +108,6 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 			Cancellable:    r.Cancellable,
 			SampleMethod:   r.SampleMethod,
 			Timerange:      r.Timerange,
-			Profiler:       r.Profiler,
 		}
 		fetchSingleRequests = append(fetchSingleRequests, request)
 	}
