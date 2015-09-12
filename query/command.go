@@ -34,6 +34,7 @@ type ExecutionContext struct {
 	Timeout              time.Duration            // optional
 	Registry             function.Registry        // optional
 	SlotLimit            int                      // optional (0 => default 1000)
+	Profiler             *inspect.Profiler        // optional
 }
 
 // Command is the final result of the parsing.
@@ -170,7 +171,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		Timerange:            timerange,
 		Cancellable:          cancellable,
 		Registry:             r,
+		Profiler:             context.Profiler,
 	}
+
 	if hasTimeout {
 		timeout := time.After(context.Timeout)
 		results := make(chan interface{})
@@ -232,13 +235,6 @@ func (cmd ProfilingCommand) Name() string {
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
-	context.MetricMetadataAPI = api.ProfilingMetricMetadataAPI{
-		Profiler:       cmd.Profiler,
-		MetricMetadata: context.MetricMetadataAPI,
-	}
-	context.TimeseriesStorageAPI = api.ProfilingTimeseriesStorageAPI{
-		Profiler:             cmd.Profiler,
-		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
-	}
+	context.Profiler = inspect.New()
 	return cmd.Command.Execute(context)
 }

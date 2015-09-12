@@ -25,29 +25,13 @@ type TimeseriesStorageAPI interface {
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
 
-type ProfilingTimeseriesStorageAPI struct {
-	Profiler             *inspect.Profiler
-	TimeseriesStorageAPI TimeseriesStorageAPI
-}
-
-var _ TimeseriesStorageAPI = (*ProfilingTimeseriesStorageAPI)(nil)
-
-func (a ProfilingTimeseriesStorageAPI) FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error) {
-	defer a.Profiler.Record("timeseriesStorage.FetchSingleTimeseries")()
-	return a.TimeseriesStorageAPI.FetchSingleTimeseries(request)
-}
-
-func (a ProfilingTimeseriesStorageAPI) FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error) {
-	defer a.Profiler.Record("timeseriesStorage.FetchMultipleTimeseries")()
-	return a.TimeseriesStorageAPI.FetchMultipleTimeseries(request)
-}
-
 type FetchTimeseriesRequest struct {
 	Metric         TaggedMetric // metric to fetch.
 	SampleMethod   SampleMethod // up/downsampling behavior.
 	Timerange      Timerange    // time range to fetch data from.
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
+	Profiler       *inspect.Profiler
 }
 
 type FetchMultipleTimeseriesRequest struct {
@@ -56,6 +40,7 @@ type FetchMultipleTimeseriesRequest struct {
 	Timerange      Timerange
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
+	Profiler       *inspect.Profiler
 }
 
 type TimeseriesStorageErrorCode int
@@ -108,6 +93,7 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 			Cancellable:    r.Cancellable,
 			SampleMethod:   r.SampleMethod,
 			Timerange:      r.Timerange,
+			Profiler:       r.Profiler,
 		}
 		fetchSingleRequests = append(fetchSingleRequests, request)
 	}

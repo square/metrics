@@ -75,6 +75,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 			context.Timerange,
 			context.MetricMetadataAPI,
 			context.Cancellable,
+			context.Profiler,
 		},
 	)
 
