@@ -210,6 +210,9 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			newContext := context
 			timerange := context.Timerange
 			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+			if err != nil {
+				return nil, err
+			}
 
 			// The new context has a timerange which is extended beyond the query's.
 			listValue, err := arguments[0].Evaluate(newContext)
