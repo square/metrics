@@ -132,7 +132,7 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	// 2. functions
 	// 3. identifiers
 	body["functions"] = h.context.Registry.All()
-	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics()
+	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics(nil) // no profiling used
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return

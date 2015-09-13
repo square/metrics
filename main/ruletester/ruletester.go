@@ -139,7 +139,7 @@ func run(ruleset util.RuleSet, scanner *bufio.Scanner, apiInstance api.MetricMet
 					perMetric := stat.perMetric[converted.MetricKey]
 					perMetric.matched++
 					if *insertToDatabase {
-						apiInstance.AddMetric(converted)
+						apiInstance.AddMetric(converted, nil)
 					}
 					if *reverse {
 						reversed, err := ruleset.ToGraphiteName(converted)

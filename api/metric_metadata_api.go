@@ -19,6 +19,8 @@
 
 package api
 
+import "github.com/square/metrics/inspect"
+
 type MetricMetadataConfig struct {
 	// Location of conversion rules. All *.yaml files in here will be loaded.
 	//TODO(cchandler): Move this into the util package along with
@@ -34,16 +36,16 @@ type MetricMetadataConfig struct {
 
 type MetricMetadataAPI interface {
 	// AddMetric adds the metric to the system.
-	AddMetric(metric TaggedMetric) error
+	AddMetric(metric TaggedMetric, profiler *inspect.Profiler) error
 	// Bulk metrics addition
-	AddMetrics(metric []TaggedMetric) error
+	AddMetrics(metric []TaggedMetric, profiler *inspect.Profiler) error
 	// RemoveMetric removes the metric from the system.
-	RemoveMetric(metric TaggedMetric) error
+	RemoveMetric(metric TaggedMetric, profiler *inspect.Profiler) error
 	// For a given MetricKey, retrieve all the tagsets associated with it.
-	GetAllTags(metricKey MetricKey) ([]TagSet, error)
+	GetAllTags(metricKey MetricKey, profiler *inspect.Profiler) ([]TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.
-	GetAllMetrics() ([]MetricKey, error)
+	GetAllMetrics(profiler *inspect.Profiler) ([]MetricKey, error)
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
-	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
+	GetMetricsForTag(tagKey, tagValue string, profiler *inspect.Profiler) ([]MetricKey, error)
 }

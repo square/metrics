@@ -19,6 +19,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/inspect"
 )
 
 type CassandraMetricMetadataAPI struct {
@@ -47,7 +48,8 @@ func NewCassandraMetricMetadataAPI(config CassandraMetricMetadataConfig) (api.Me
 	}, nil
 }
 
-func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric) error {
+func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric, profiler *inspect.Profiler) error {
+	defer profiler.Record("Cassandra AddMetric")()
 	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
 	}
@@ -59,24 +61,29 @@ func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric) error {
 	return nil
 }
 
-func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric) error {
+func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, profiler *inspect.Profiler) error {
+	defer profiler.Record("Cassandra AddMetrics")()
 	a.db.AddMetricNames(metrics)
 	return nil
 }
 
-func (a *CassandraMetricMetadataAPI) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
+func (a *CassandraMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, profiler *inspect.Profiler) ([]api.TagSet, error) {
+	defer profiler.Record("Cassandra GetAllTags")()
 	return a.db.GetTagSet(metricKey)
 }
 
-func (a *CassandraMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {
+func (a *CassandraMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, profiler *inspect.Profiler) ([]api.MetricKey, error) {
+	defer profiler.Record("Cassandra GetMetricsForTag")()
 	return a.db.GetMetricKeys(tagKey, tagValue)
 }
 
-func (a *CassandraMetricMetadataAPI) GetAllMetrics() ([]api.MetricKey, error) {
+func (a *CassandraMetricMetadataAPI) GetAllMetrics(profiler *inspect.Profiler) ([]api.MetricKey, error) {
+	defer profiler.Record("Cassandra GetAllMetrics")()
 	return a.db.GetAllMetrics()
 }
 
-func (a *CassandraMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric) error {
+func (a *CassandraMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, profiler *inspect.Profiler) error {
+	defer profiler.Record("Cassandra RemoveMetric")()
 	if err := a.db.RemoveMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
 	}
