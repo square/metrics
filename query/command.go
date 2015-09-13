@@ -235,6 +235,6 @@ func (cmd ProfilingCommand) Name() string {
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
-	context.Profiler = inspect.New()
+	context.Profiler = cmd.Profiler
 	return cmd.Command.Execute(context)
 }

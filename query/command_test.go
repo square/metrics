@@ -40,16 +40,16 @@ func TestCommand_Describe(t *testing.T) {
 		metricmetadata api.MetricMetadataAPI
 		expected       map[string][]string
 	}{
-		{"describe series_0", &fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
-		{"describe`series_0`", &fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
-		{"describe series_0 where dc='west'", &fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
-		{"describe`series_0`where(dc='west')", &fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
-		{"describe series_0 where dc='west' or env = 'production'", &fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
-		{"describe series_0 where`dc`='west'or`env`='production'", &fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
-		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", &fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
-		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", &fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
-		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", &fakeAPI, map[string][]string{}},
-		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", &fakeAPI, map[string][]string{}},
+		{"describe series_0", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
+		{"describe`series_0`", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
+		{"describe series_0 where dc='west'", fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe`series_0`where(dc='west')", fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where dc='west' or env = 'production'", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
+		{"describe series_0 where`dc`='west'or`env`='production'", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c"}}},
+		{"describe series_0 where dc='west' or env = 'production' and doesnotexist = ''", fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where env = 'production' and doesnotexist = '' or dc = 'west'", fakeAPI, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}}},
+		{"describe series_0 where (dc='west' or env = 'production') and doesnotexist = ''", fakeAPI, map[string][]string{}},
+		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeAPI, map[string][]string{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)
@@ -78,9 +78,9 @@ func TestCommand_DescribeAll(t *testing.T) {
 		metricmetadata api.MetricMetadataAPI
 		expected       []api.MetricKey
 	}{
-		{"describe all", &fakeAPI, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
-		{"describe all match '_0'", &fakeAPI, []api.MetricKey{"series_0"}},
-		{"describe all match '_5'", &fakeAPI, []api.MetricKey{}},
+		{"describe all", fakeAPI, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
+		{"describe all match '_0'", fakeAPI, []api.MetricKey{"series_0"}},
+		{"describe all match '_5'", fakeAPI, []api.MetricKey{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)
@@ -420,7 +420,7 @@ func TestCommand_Select(t *testing.T) {
 		a.EqString(command.Name(), "select")
 		rawResult, err := command.Execute(ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
-			MetricMetadataAPI:    &fakeAPI,
+			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
 			Timeout:              10 * time.Millisecond,
 		})
@@ -456,7 +456,7 @@ func TestCommand_Select(t *testing.T) {
 	}
 	context := ExecutionContext{
 		TimeseriesStorageAPI: fakeBackend,
-		MetricMetadataAPI:    &fakeAPI,
+		MetricMetadataAPI:    fakeAPI,
 		FetchLimit:           3,
 		Timeout:              0,
 	}
@@ -548,7 +548,7 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: &fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
@@ -632,7 +632,7 @@ func TestQuery(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: &fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
@@ -728,7 +728,7 @@ func TestTag(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: &fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue

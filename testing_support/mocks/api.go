@@ -34,8 +34,8 @@ type FakeMetricMetadataAPI struct {
 
 var _ api.MetricMetadataAPI = (*FakeMetricMetadataAPI)(nil)
 
-func NewFakeMetricMetadataAPI() FakeMetricMetadataAPI {
-	return FakeMetricMetadataAPI{
+func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
+	return &FakeMetricMetadataAPI{
 		metricTagSets: make(map[api.MetricKey][]api.TagSet),
 		metricsForTags: make(map[struct {
 			key   string
@@ -145,7 +145,7 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 type FakeTimeseriesStorageAPI struct{}
 
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	defer request.Profiler.Record("FakeTimeseriesStorageAPI FetchSingleTimeseries")()
+	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
 		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
@@ -172,7 +172,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 }
 
 func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
-	defer request.Profiler.Record("FakeTimeseriesStorageAPI FetchMultipleTimeseries")()
+	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
 	timeseries := make([]api.Timeseries, 0)
 
 	singleRequests := request.ToSingle()
