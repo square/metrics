@@ -147,9 +147,9 @@ func Test_Blueflood(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%s", test.name)
 
-		fakeApi := mocks.NewFakeMetricMetadataAPI()
+		fakeAPI := mocks.NewFakeMetricMetadataAPI()
 		for k, v := range test.metricMap {
-			fakeApi.AddPair(v, k, &graphite)
+			fakeAPI.AddPair(v, k, &graphite)
 		}
 
 		fakeHttpClient := mocks.NewFakeHttpClient()
@@ -166,7 +166,7 @@ func Test_Blueflood(t *testing.T) {
 			Metric:         test.queryMetric,
 			SampleMethod:   test.sampleMethod,
 			Timerange:      test.timerange,
-			MetricMetadata: &fakeApi,
+			MetricMetadata: fakeAPI,
 			Cancellable:    api.NewCancellable(),
 		})
 
@@ -253,8 +253,8 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		},
 	}
 
-	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeApi.AddPair(
+	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPair(
 		api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
@@ -389,7 +389,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		},
 		SampleMethod:   api.SampleMean,
 		Timerange:      queryTimerange,
-		MetricMetadata: &fakeApi,
+		MetricMetadata: fakeAPI,
 		Cancellable:    api.NewCancellable(),
 	})
 	if err != nil {

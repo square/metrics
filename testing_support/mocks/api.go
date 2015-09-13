@@ -33,8 +33,8 @@ type FakeMetricMetadataAPI struct {
 
 var _ api.MetricMetadataAPI = (*FakeMetricMetadataAPI)(nil)
 
-func NewFakeMetricMetadataAPI() FakeMetricMetadataAPI {
-	return FakeMetricMetadataAPI{
+func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
+	return &FakeMetricMetadataAPI{
 		metricTagSets: make(map[api.MetricKey][]api.TagSet),
 		metricsForTags: make(map[struct {
 			key   string

@@ -18,12 +18,12 @@ import (
 	"testing"
 	"time"
 
-	// "github.com/square/metrics/api/backend"
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/util"
 )
 
 func TestProfilerIntegration(t *testing.T) {
-	t.Skip("This test is entirely broken. Postponing until proper cleanup can be done. Notes in-line")
 	myAPI := mocks.NewFakeMetricMetadataAPI()
 	fakeTimeStorage := mocks.FakeTimeseriesStorageAPI{}
 	// 	myAPI := fakeAPI{
@@ -47,10 +47,20 @@ func TestProfilerIntegration(t *testing.T) {
 	// 	},
 	// }
 
-	// emptyGraphiteName := util.GraphiteMetric("")
-	// myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")}, emptyGraphiteName)
+	emptyGraphiteName := util.GraphiteMetric("")
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=2,y=2")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=3,y=1")}, emptyGraphiteName)
 
-	multiBackend := fakeTimeStorage
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=foo")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=bar")}, emptyGraphiteName)
+
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=1")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=2")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=3")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=4")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=5")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=6")}, emptyGraphiteName)
 
 	testCases := []struct {
 		query    string
@@ -66,37 +76,33 @@ func TestProfilerIntegration(t *testing.T) {
 		{
 			query: "select A from 0 to 0",
 			expected: map[string]int{
-				"select.Execute":      1,
-				"fetchMultipleSeries": 1,
-				"api.GetAllTags":      1,
-				"fetchSingleSeries":   3,
+				"select.Execute":                            1,
+				"timeseriesStorage.FetchMultipleTimeseries": 1,
+				"api.GetAllTags":                            1,
 			},
 		},
 		{
 			query: "select A+A from 0 to 0",
 			expected: map[string]int{
-				"select.Execute":      1,
-				"fetchMultipleSeries": 2,
-				"api.GetAllTags":      2,
-				"fetchSingleSeries":   6,
+				"select.Execute":                            1,
+				"timeseriesStorage.FetchMultipleTimeseries": 2,
+				"api.GetAllTags":                            2,
 			},
 		},
 		{
 			query: "select A+2 from 0 to 0",
 			expected: map[string]int{
-				"select.Execute":      1,
-				"fetchMultipleSeries": 1,
-				"api.GetAllTags":      1,
-				"fetchSingleSeries":   3,
+				"select.Execute":                            1,
+				"timeseriesStorage.FetchMultipleTimeseries": 1,
+				"api.GetAllTags":                            1,
 			},
 		},
 		{
 			query: "select A where y = '2' from 0 to 0",
 			expected: map[string]int{
-				"select.Execute":      1,
-				"fetchMultipleSeries": 1,
-				"api.GetAllTags":      1,
-				"fetchSingleSeries":   2,
+				"select.Execute":                            1,
+				"timeseriesStorage.FetchMultipleTimeseries": 1,
+				"api.GetAllTags":                            1,
 			},
 		},
 		{
@@ -131,8 +137,8 @@ func TestProfilerIntegration(t *testing.T) {
 		profilingCommand, profiler := NewProfilingCommand(cmd)
 
 		_, err = profilingCommand.Execute(ExecutionContext{
-			TimeseriesStorageAPI: multiBackend,
-			MetricMetadataAPI:    &myAPI,
+			TimeseriesStorageAPI: fakeTimeStorage,
+			MetricMetadataAPI:    myAPI,
 			FetchLimit:           10000,
 			Timeout:              time.Second * 4,
 		})
@@ -146,16 +152,15 @@ func TestProfilerIntegration(t *testing.T) {
 			counts[node.Name()]++
 		}
 
-		//TODO(cchandler): This added expectation demonstrates that this test has always
-		//been broken. We'll have to clean this up later when we can address the time series
-		//storage API.
-		if len(test.expected) != len(list) {
-			t.Errorf("The number of calls doesn't match the expected amount: %+v %+v", test.expected, list)
+		if len(test.expected) != len(counts) {
+			t.Errorf("The number of calls doesn't match the expected amount.")
+			t.Errorf("Expected %+v, but got %+v", test.expected, counts)
 		}
 
-		for name, count := range counts {
-			if test.expected[name] != count {
-				t.Errorf("Expected %+v but got %+v (from %+v)", test.expected, counts, list)
+		for name, count := range test.expected {
+			if counts[name] != count {
+				t.Errorf("Expected `%s` to have %d occurrences, but had %d\n", name, count, counts[name])
+				t.Errorf("Expected: %+v\nBut got: %+v\n", test.expected, counts)
 				break
 			}
 		}
