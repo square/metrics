@@ -192,6 +192,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 }
 
 func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
 	if request.Cancellable == nil {
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
 	}
@@ -216,6 +217,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 }
 
 func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+	defer request.Profiler.Record("Blueflood FetchSingleTimeseries")()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
