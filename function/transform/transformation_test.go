@@ -455,3 +455,99 @@ func TestApplyTransformNaN(t *testing.T) {
 		}
 	}
 }
+
+// Test that the transforms of the following work as expected:
+// - transform.derivative | transform.integral
+func TestTransformIdentity(t *testing.T) {
+	testCases := []struct {
+		values []float64
+		scale  float64
+		tests  []struct {
+			expected   []float64
+			transforms []transform
+		}
+	}{
+		{
+			values: []float64{0, 1, 2, 3, 4, 5},
+			scale:  30,
+			tests: []struct {
+				expected   []float64
+				transforms []transform
+			}{
+				{
+					expected: []float64{0, 1, 2, 3, 4},
+					transforms: []transform{
+						derivative,
+						Integral,
+					},
+				},
+				{
+					expected: []float64{0, 1, 2, 3, 4},
+					transforms: []transform{
+						rate,
+						Integral,
+					},
+				},
+			},
+		},
+		{
+			values: []float64{12, 15, 20, 3, 18, 30},
+			scale:  30,
+			tests: []struct {
+				expected   []float64
+				transforms []transform
+			}{
+				{
+					expected: []float64{0, 5, -12, 3, 15},
+					transforms: []transform{
+						derivative,
+						Integral,
+					},
+				},
+				{
+					// While this is odd, think about it this way:
+					// We saw 5 increments (15 - 20), then we saw thirty total increments
+					// (3, 18, 30) over the rest of the time period
+					expected: []float64{0, 5, 8, 23, 35},
+					transforms: []transform{
+						rate,
+						Integral,
+					},
+				},
+			},
+		},
+	}
+	epsilon := 1e-10
+	var err error
+	for _, test := range testCases {
+		series := api.Timeseries{
+			Values: test.values,
+			TagSet: api.TagSet{},
+		}
+		for _, transform := range test.tests {
+			result := series
+			for _, fun := range transform.transforms {
+				result, err = transformTimeseries(result, fun, []function.Value{}, test.scale)
+				if err != nil {
+					t.Error(err)
+					break
+				}
+			}
+			if err != nil {
+				continue
+			}
+
+			if len(result.Values) != len(transform.expected) {
+				t.Errorf("Expected result to have length %d but has length %d", len(transform.expected), len(result.Values))
+				continue
+			}
+			// Now check that the values are approximately equal
+			for i := range result.Values {
+				if math.Abs(result.Values[i]-transform.expected[i]) > epsilon {
+					t.Errorf("Expected %+v but got %+v", transform.expected, result.Values)
+					break
+				}
+			}
+		}
+	}
+}
