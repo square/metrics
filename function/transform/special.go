@@ -174,9 +174,11 @@ func derivative(values []float64, parameters []function.Value, scale float64) ([
 	return result, nil
 }
 
-// Rate is special because it needs to get one extra data point to the left
-// This transform functions exactly like Derivative but bounds the result to be positive.
-// That is, it returns consecutive differences which are at least 0.
+// Rate is special because it needs to get one extra data point to the left.
+// This transform functions mostly like Derivative but bounds the result to be positive.
+// Specifically this function is designed for strictly increasing counters that
+// only decrease when reset to zero. That is, thie function returns consecutive
+// differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
 func rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
