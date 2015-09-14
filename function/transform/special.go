@@ -191,6 +191,8 @@ func rate(values []float64, parameters []function.Value, scale float64) ([]float
 		result[i-1] = (values[i] - values[i-1]) / scale
 		if result[i-1] < 0 {
 			// values[i] is our best approximatation of the delta between i-1 and i
+			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
+			// the counter has reset, and we know *at least* v[i] increments have happened
 			result[i-1] = math.Max(values[i], 0) / scale
 		}
 	}
