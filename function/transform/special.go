@@ -241,7 +241,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			// Validate our series are the correct length
 			for i := range result.Series {
 				if len(result.Series[i].Values) != len(list.Series[i].Values)-1 {
-					return nil, fmt.Errorf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values))
+					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
 				}
 			}
 
