@@ -32,7 +32,6 @@ type ExecutionContext struct {
 	MetricMetadataAPI    api.MetricMetadataAPI    // the api
 	FetchLimit           int                      // the maximum number of fetches
 	Timeout              time.Duration            // optional
-	Profiler             *inspect.Profiler        // optional
 	Registry             function.Registry        // optional
 	SlotLimit            int                      // optional (0 => default 1000)
 }
@@ -170,7 +169,6 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		SampleMethod:         cmd.context.SampleMethod,
 		Timerange:            timerange,
 		Cancellable:          cancellable,
-		Profiler:             context.Profiler,
 		Registry:             r,
 	}
 	if hasTimeout {
@@ -238,6 +236,9 @@ func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, erro
 		Profiler:       cmd.Profiler,
 		MetricMetadata: context.MetricMetadataAPI,
 	}
-	context.Profiler = cmd.Profiler
+	context.TimeseriesStorageAPI = api.ProfilingTimeseriesStorageAPI{
+		Profiler:             cmd.Profiler,
+		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
+	}
 	return cmd.Command.Execute(context)
 }

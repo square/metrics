@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
 )
 
 // EvaluationContext is the central piece of logic, providing
@@ -23,7 +22,6 @@ type EvaluationContext struct {
 	Predicate            api.Predicate            // Predicate to apply to TagSets prior to fetching
 	FetchLimit           FetchCounter             // A limit on the number of fetches which may be performed
 	Cancellable          api.Cancellable
-	Profiler             *inspect.Profiler
 	Registry             Registry
 }
 
