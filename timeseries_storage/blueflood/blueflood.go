@@ -451,7 +451,7 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 }
 
 // Blueflood will use the finest-grained resolution which doesn't exceed the slot limit.
-// Thus, if you request too many points, it will automatically downsample the data.
+// Thus, if you request too many points, it will automatically reduce the resolution.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, slotLimit int) time.Duration {
 	// In some cases, coarser-resolution data may have a shorter TTL.
 	// To accomodate these cases, it must be verified that the requested timerange will
