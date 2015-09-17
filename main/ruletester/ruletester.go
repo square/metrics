@@ -68,8 +68,12 @@ func ReadMetricsFile(file string) ([]string, error) {
 
 	result := make(map[string]int)
 	r, err := zlib.NewReader(bytes.NewBuffer(data))
+	if err != nil {
+		panic("Problem with zlib compressed data")
+	}
 	b := new(bytes.Buffer)
 	io.Copy(b, r)
+	r.Close()
 	d := gob.NewDecoder(b)
 
 	err = d.Decode(&result)
@@ -78,7 +82,7 @@ func ReadMetricsFile(file string) ([]string, error) {
 	}
 
 	strings := []string{}
-	for k, _ := range result {
+	for k := range result {
 		strings = append(strings, k)
 	}
 	return strings, nil
@@ -126,9 +130,9 @@ func main() {
 	// fmt.Printf("Unmatched: %d\n", unmatched)
 	// fmt.Printf("Reverse convert failed: %d\n", reverse_convert_failed)
 
-	if err != nil {
-		common.ExitWithMessage("No metric file.")
-	}
+	// if err != nil {
+	// 	common.ExitWithMessage("No metric file.")
+	// }
 	// scanner := bufio.NewScanner(metricFile)
 	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
 		Hosts:    config.MetricMetadataConfig.Hosts,
@@ -177,38 +181,29 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 		go func() {
 			counter := 0
 			defer wg.Done()
-			for {
-				select {
-				case metrics, more := <-workQueue:
-					counter++
-					if counter%100 == 0 && counter != 0 {
-						fmt.Printf(".")
-					}
-					chunk_result := ChunkResult{}
-					for _, metric := range metrics {
-						graphiteMetric := util.GraphiteMetric(metric)
-						taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
-						if err != nil {
-							_, err := graphiteConverter.ToGraphiteName(taggedMetric)
-							if err != nil {
-								chunk_result.reverse_convert_failed++
-							} else {
-
-							}
-							chunk_result.matched++
-						} else {
-							unmatchedQueue <- metric
-							chunk_result.unmatched++
-						}
-					}
-					resultQueue <- chunk_result
-
-					if !more {
-						return
-					}
-				default:
-					fmt.Printf("Nothing more!\n")
+			for metrics := range workQueue {
+				counter++
+				if counter%100 == 0 && counter != 0 {
+					fmt.Printf(".")
 				}
+				chunk_result := ChunkResult{}
+				for _, metric := range metrics {
+					graphiteMetric := util.GraphiteMetric(metric)
+					taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
+					if err != nil {
+						_, err := graphiteConverter.ToGraphiteName(taggedMetric)
+						if err != nil {
+							chunk_result.reverse_convert_failed++
+						} else {
+
+						}
+						chunk_result.matched++
+					} else {
+						unmatchedQueue <- metric
+						chunk_result.unmatched++
+					}
+				}
+				resultQueue <- chunk_result
 			}
 
 		}()
