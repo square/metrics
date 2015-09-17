@@ -43,9 +43,7 @@ func init() {
 	MustRegister(NewAggregate("aggregate.total", aggregate.Total))
 	MustRegister(NewAggregate("aggregate.count", aggregate.Count))
 	// Transformations
-	MustRegister(NewTransform("transform.derivative", 0, transform.Derivative))
 	MustRegister(NewTransform("transform.integral", 0, transform.Integral))
-	MustRegister(NewTransform("transform.rate", 0, transform.Rate))
 	MustRegister(NewTransform("transform.cumulative", 0, transform.Cumulative))
 	MustRegister(NewTransform("transform.nan_fill", 1, transform.Default))
 	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
@@ -70,9 +68,11 @@ func init() {
 	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
 
 	// Weird ones
-	MustRegister(transform.Timeshift)
 	MustRegister(transform.Alias)
+	MustRegister(transform.Derivative)
 	MustRegister(transform.MovingAverage)
+	MustRegister(transform.Rate)
+	MustRegister(transform.Timeshift)
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)

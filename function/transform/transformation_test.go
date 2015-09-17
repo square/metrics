@@ -51,8 +51,8 @@ func TestTransformTimeseries(t *testing.T) {
 				useParam bool
 			}{
 				{
-					fun:      Derivative,
-					expected: []float64{0.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
+					fun:      derivative,
+					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
 					useParam: false,
 				},
 				{
@@ -68,6 +68,11 @@ func TestTransformTimeseries(t *testing.T) {
 				{
 					fun:      NaNKeepLast,
 					expected: []float64{0, 1, 2, 3, 4, 5},
+					useParam: false,
+				},
+				{
+					fun:      rate,
+					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
 					useParam: false,
 				},
 			},
@@ -145,12 +150,21 @@ func TestApplyTransform(t *testing.T) {
 		expected  map[string][]float64
 	}{
 		{
-			transform: Derivative,
+			transform: Cumulative,
 			parameter: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
-				"B": {0, 0, -1.0 / 30, 0, 2.0 / 30, 0},
-				"C": {0, 1.0 / 30, 1.0 / 30, 1.0 / 30, -1.0 / 30, -1.0 / 30},
+				"A": {0, 1, 3, 6, 10, 15},
+				"B": {0, 2, 3, 4, 7, 10},
+				"C": {0, 1, 3, 6, 8, 9},
+			},
+		},
+		{
+			transform: derivative,
+			parameter: []function.Value{},
+			expected: map[string][]float64{
+				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
+				"B": {0, -1.0 / 30, 0, 2.0 / 30, 0},
+				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, -1.0 / 30, -1.0 / 30},
 			},
 		},
 		{
@@ -158,17 +172,17 @@ func TestApplyTransform(t *testing.T) {
 			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
-				"B": {2 * 30, 4 * 30, 5 * 30, 6 * 30, 9 * 30, 12 * 30},
+				"B": {0, 2 * 30, 3 * 30, 4 * 30, 7 * 30, 10 * 30},
 				"C": {0, 1 * 30, 3 * 30, 6 * 30, 8 * 30, 9 * 30},
 			},
 		},
 		{
-			transform: Cumulative,
+			transform: rate,
 			parameter: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1, 3, 6, 10, 15},
-				"B": {2, 4, 5, 6, 9, 12},
-				"C": {0, 1, 3, 6, 8, 9},
+				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
+				"B": {0, 1.0 / 30, 0, 2.0 / 30, 0},
+				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, 2.0 / 30, 1.0 / 30},
 			},
 		},
 	}
@@ -363,12 +377,12 @@ func TestApplyTransformNaN(t *testing.T) {
 		expected   map[string][]float64
 	}{
 		{
-			transform:  Derivative,
+			transform:  derivative,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
-				"B": {0, nan, nan, nan, nan, 0.0},
-				"C": {0, 1.0 / 30, 1.0 / 30, nan, nan, -1.0 / 30},
+				"A": {1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
+				"B": {nan, nan, nan, nan, 0.0},
+				"C": {1.0 / 30, 1.0 / 30, nan, nan, -1.0 / 30},
 			},
 		},
 		{
@@ -376,17 +390,17 @@ func TestApplyTransformNaN(t *testing.T) {
 			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
-				"B": {2 * 30, 2 * 30, 2 * 30, 2 * 30, 5 * 30, 8 * 30},
+				"B": {0, 0, 0, 0, 3 * 30, 6 * 30},
 				"C": {0, 1 * 30, 3 * 30, 3 * 30, 5 * 30, 6 * 30},
 			},
 		},
 		{
-			transform:  Rate,
+			transform:  rate,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
-				"B": {0, nan, nan, nan, nan, 0},
-				"C": {0, 1 / 30.0, 1 / 30.0, nan, nan, 0},
+				"A": {1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
+				"B": {nan, nan, nan, nan, 0},
+				"C": {1 / 30.0, 1 / 30.0, nan, nan, 1 / 30.0},
 			},
 		},
 		{
@@ -394,7 +408,7 @@ func TestApplyTransformNaN(t *testing.T) {
 			parameters: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 4, 8, 13},
-				"B": {2, 2, 2, 2, 5, 8},
+				"B": {0, 0, 0, 0, 3, 6},
 				"C": {0, 1, 3, 3, 5, 6},
 			},
 		},
@@ -435,6 +449,102 @@ func TestApplyTransformNaN(t *testing.T) {
 				e := expected[i]
 				if (math.IsNaN(e) != math.IsNaN(v)) || (!math.IsNaN(e) && math.Abs(v-e) > 1e-7) {
 					t.Errorf("(actual) %+v != %+v (expected)", values, expected)
+					break
+				}
+			}
+		}
+	}
+}
+
+// Test that the transforms of the following work as expected:
+// - transform.derivative | transform.integral
+func TestTransformIdentity(t *testing.T) {
+	testCases := []struct {
+		values []float64
+		scale  float64
+		tests  []struct {
+			expected   []float64
+			transforms []transform
+		}
+	}{
+		{
+			values: []float64{0, 1, 2, 3, 4, 5},
+			scale:  30,
+			tests: []struct {
+				expected   []float64
+				transforms []transform
+			}{
+				{
+					expected: []float64{0, 1, 2, 3, 4},
+					transforms: []transform{
+						derivative,
+						Integral,
+					},
+				},
+				{
+					expected: []float64{0, 1, 2, 3, 4},
+					transforms: []transform{
+						rate,
+						Integral,
+					},
+				},
+			},
+		},
+		{
+			values: []float64{12, 15, 20, 3, 18, 30},
+			scale:  30,
+			tests: []struct {
+				expected   []float64
+				transforms []transform
+			}{
+				{
+					expected: []float64{0, 5, -12, 3, 15},
+					transforms: []transform{
+						derivative,
+						Integral,
+					},
+				},
+				{
+					// While this is odd, think about it this way:
+					// We saw 5 increments (15 - 20), then we saw thirty total increments
+					// (3, 18, 30) over the rest of the time period
+					expected: []float64{0, 5, 8, 23, 35},
+					transforms: []transform{
+						rate,
+						Integral,
+					},
+				},
+			},
+		},
+	}
+	epsilon := 1e-10
+	var err error
+	for _, test := range testCases {
+		series := api.Timeseries{
+			Values: test.values,
+			TagSet: api.TagSet{},
+		}
+		for _, transform := range test.tests {
+			result := series
+			for _, fun := range transform.transforms {
+				result, err = transformTimeseries(result, fun, []function.Value{}, test.scale)
+				if err != nil {
+					t.Error(err)
+					break
+				}
+			}
+			if err != nil {
+				continue
+			}
+
+			if len(result.Values) != len(transform.expected) {
+				t.Errorf("Expected result to have length %d but has length %d", len(transform.expected), len(result.Values))
+				continue
+			}
+			// Now check that the values are approximately equal
+			for i := range result.Values {
+				if math.Abs(result.Values[i]-transform.expected[i]) > epsilon {
+					t.Errorf("Expected %+v but got %+v", transform.expected, result.Values)
 					break
 				}
 			}
