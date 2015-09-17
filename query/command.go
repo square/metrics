@@ -145,11 +145,17 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		slotLimit = defaultLimit // the default limit
 	}
 	// Update the timerange by applying the insights of the storage API:
-	timerange = context.TimeseriesStorageAPI.AdjustTimerange(timerange, slotLimit)
-	if timerange.Slots() > slotLimit {
+	chosenResolution := context.TimeseriesStorageAPI.ChooseResolution(timerange, slotLimit)
+
+	chosenTimerange, err := api.NewSnappedTimerange(timerange.Start(), timerange.End(), int64(chosenResolution/time.Millisecond))
+	if err != nil {
+		return nil, err
+	}
+
+	if chosenTimerange.Slots() > slotLimit {
 		return nil, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
-			timerange.Slots(), slotLimit)
+			chosenTimerange.Slots(), slotLimit)
 	}
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable
@@ -170,7 +176,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
 		Predicate:            cmd.predicate,
 		SampleMethod:         cmd.context.SampleMethod,
-		Timerange:            timerange,
+		Timerange:            chosenTimerange,
 		Cancellable:          cancellable,
 		Profiler:             context.Profiler,
 		Registry:             r,

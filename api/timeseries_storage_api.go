@@ -16,12 +16,13 @@ package api
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/square/metrics/inspect"
 )
 
 type TimeseriesStorageAPI interface {
-	AdjustTimerange(requested Timerange, slotLimit int) Timerange
+	ChooseResolution(requested Timerange, slotLimit int) time.Duration
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
@@ -33,9 +34,9 @@ type ProfilingTimeseriesStorageAPI struct {
 
 var _ TimeseriesStorageAPI = (*ProfilingTimeseriesStorageAPI)(nil)
 
-func (a ProfilingTimeseriesStorageAPI) AdjustTimerange(requested Timerange, slotLimit int) Timerange {
-	defer a.Profiler.Record("timeseriesStorage.AdjustTimerange")()
-	return a.TimeseriesStorageAPI.AdjustTimerange(requested, slotLimit)
+func (a ProfilingTimeseriesStorageAPI) ChooseResolution(requested Timerange, slotLimit int) time.Duration {
+	defer a.Profiler.Record("timeseriesStorage.ChooseResolution")()
+	return a.TimeseriesStorageAPI.ChooseResolution(requested, slotLimit)
 }
 
 func (a ProfilingTimeseriesStorageAPI) FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error) {

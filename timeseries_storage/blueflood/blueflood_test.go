@@ -430,7 +430,7 @@ func TestBlueflood_DefaultTTLs(t *testing.T) {
 	}
 }
 
-func TestBlueflood_AdjustTimerange(t *testing.T) {
+func TestBlueflood_ChooseResolution(t *testing.T) {
 	makeTimerange := func(start, end, resolution int64) api.Timerange {
 		timerange, err := api.NewSnappedTimerange(start, end, resolution)
 		if err != nil {
@@ -450,47 +450,47 @@ func TestBlueflood_AdjustTimerange(t *testing.T) {
 	tests := []struct {
 		input     api.Timerange
 		slotLimit int
-		expected  api.Timerange
+		expected  time.Duration
 	}{
 		{
 			input:     makeTimerange(start, start+4*hour, 30*second),
 			slotLimit: 5000,
-			expected:  makeTimerange(start, start+4*hour, 30*second),
+			expected:  30 * time.Second,
 		},
 		{
 			input:     makeTimerange(start, start+4*hour, 30*second),
 			slotLimit: 50,
-			expected:  makeTimerange(start, start+4*hour, 5*minute),
+			expected:  5 * time.Minute,
 		},
 		{
 			input:     makeTimerange(start, start+4*hour, 30*second),
 			slotLimit: 470,
-			expected:  makeTimerange(start, start+4*hour, 5*minute),
+			expected:  5 * time.Minute,
 		},
 		{
 			input:     makeTimerange(start, start+40*hour, 30*second),
 			slotLimit: 500,
-			expected:  makeTimerange(start, start+40*hour, 5*minute),
+			expected:  5 * time.Minute,
 		},
 		{
 			input:     makeTimerange(start, start+40*hour, 30*second),
 			slotLimit: 4700,
-			expected:  makeTimerange(start, start+40*hour, 5*minute),
+			expected:  5 * time.Minute,
 		},
 		{
 			input:     makeTimerange(start, start+40*hour, 30*second),
 			slotLimit: 110,
-			expected:  makeTimerange(start, start+40*hour, 1*hour),
+			expected:  1 * time.Hour,
 		},
 		{
 			input:     makeTimerange(start, start+70*day, 30*second),
 			slotLimit: 200,
-			expected:  makeTimerange(start, start+70*day, day),
+			expected:  24 * time.Hour,
 		},
 		{
 			input:     makeTimerange(start-25*day, start, 30*second),
 			slotLimit: 200,
-			expected:  makeTimerange(start-25*day, start, day),
+			expected:  24 * time.Hour,
 		},
 	}
 
@@ -511,8 +511,15 @@ func TestBlueflood_AdjustTimerange(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if result := b.AdjustTimerange(test.input, test.slotLimit); result != test.expected {
-			t.Errorf("Testcase %d failed: expected %+v but got %+v; slot limit %d (expected slots %d, resulted %d)", i, test.expected, result, test.slotLimit, test.expected.Slots(), result.Slots())
+		// TODO: add sanity checks
+		result := b.ChooseResolution(test.input, test.slotLimit)
+		// This is mostly a sanity check:
+		_, err := api.NewSnappedTimerange(test.input.Start(), test.input.End(), int64(result/time.Millisecond))
+		if err != nil {
+			t.Errorf("Test %+v:\nEncountered error when building timerange: %s", test, err.Error())
+		}
+		if result != test.expected {
+			t.Errorf("Testcase %d failed: expected %+v but got %+v; slot limit %d", i, test.expected, result, test.slotLimit)
 		}
 	}
 }

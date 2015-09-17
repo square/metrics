@@ -452,7 +452,7 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 
 // Blueflood will use the finest-grained resolution which doesn't exceed the slot limit.
 // Thus, if you request too many points, it will automatically downsample the data.
-func (b *Blueflood) AdjustTimerange(requested api.Timerange, slotLimit int) api.Timerange {
+func (b *Blueflood) ChooseResolution(requested api.Timerange, slotLimit int) time.Duration {
 	// In some cases, coarser-resolution data may have a shorter TTL.
 	// To accomodate these cases, it must be verified that the requested timerange will
 	// actually be present for the chosen resolution.
@@ -477,15 +477,11 @@ func (b *Blueflood) AdjustTimerange(requested api.Timerange, slotLimit int) api.
 		}
 		slots := durationMillis / resolutionMillis
 		if slots <= int64(slotLimit) {
-			timerange, err := api.NewSnappedTimerange(start, end, resolutionMillis)
-			if err != nil {
-				// Since I'm unable to construct a new timerange, use the one I was given.
-				return requested
-			}
-			return timerange
+			return time.Duration(resolutionMillis) * time.Millisecond
 		}
 	}
-	return requested
+	// Leave it alone, since a better one can't be found
+	return requested.Resolution()
 }
 
 // Blueflood keys the resolution param to a java enum, so we have to convert
