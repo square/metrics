@@ -33,8 +33,8 @@ type FakeMetricMetadataAPI struct {
 
 var _ api.MetricMetadataAPI = (*FakeMetricMetadataAPI)(nil)
 
-func NewFakeMetricMetadataAPI() FakeMetricMetadataAPI {
-	return FakeMetricMetadataAPI{
+func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
+	return &FakeMetricMetadataAPI{
 		metricTagSets: make(map[api.MetricKey][]api.TagSet),
 		metricsForTags: make(map[struct {
 			key   string
@@ -61,23 +61,28 @@ func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric, gm 
 	}
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric) error {
+func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock AddMetric")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric) error {
+func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock AddMetrics")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric) error {
+func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock RemoveMetric")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
+func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+	defer context.Profiler.Record("Mock GetAllTags")()
 	return fa.metricTagSets[metricKey], nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllMetrics() ([]api.MetricKey, error) {
+func (fa *FakeMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+	defer context.Profiler.Record("Mock GetAllMetrics")()
 	array := []api.MetricKey{}
 	for key := range fa.metricTagSets {
 		array = append(array, key)
@@ -95,7 +100,8 @@ func (fa *FakeMetricMetadataAPI) AddMetricsForTag(key string, value string, metr
 	fa.metricsForTags[pair] = append(fa.metricsForTags[pair], api.MetricKey(metric))
 }
 
-func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string) ([]api.MetricKey, error) {
+func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+	defer context.Profiler.Record("Mock GetMetricsForTag")()
 	list := []api.MetricKey{}
 MetricLoop:
 	for metric, tagsets := range fa.metricTagSets {
@@ -138,6 +144,7 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 type FakeTimeseriesStorageAPI struct{}
 
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
 		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
@@ -164,6 +171,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 }
 
 func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
 	timeseries := make([]api.Timeseries, 0)
 
 	singleRequests := request.ToSingle()

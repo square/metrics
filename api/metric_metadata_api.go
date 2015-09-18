@@ -21,6 +21,10 @@ package api
 
 import "github.com/square/metrics/inspect"
 
+type MetricMetadataAPIContext struct {
+	Profiler *inspect.Profiler
+}
+
 type MetricMetadataConfig struct {
 	// Location of conversion rules. All *.yaml files in here will be loaded.
 	//TODO(cchandler): Move this into the util package along with
@@ -36,48 +40,16 @@ type MetricMetadataConfig struct {
 
 type MetricMetadataAPI interface {
 	// AddMetric adds the metric to the system.
-	AddMetric(metric TaggedMetric) error
+	AddMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
 	// Bulk metrics addition
-	AddMetrics(metric []TaggedMetric) error
+	AddMetrics(metric []TaggedMetric, context MetricMetadataAPIContext) error
 	// RemoveMetric removes the metric from the system.
-	RemoveMetric(metric TaggedMetric) error
+	RemoveMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
 	// For a given MetricKey, retrieve all the tagsets associated with it.
-	GetAllTags(metricKey MetricKey) ([]TagSet, error)
+	GetAllTags(metricKey MetricKey, context MetricMetadataAPIContext) ([]TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.
-	GetAllMetrics() ([]MetricKey, error)
+	GetAllMetrics(context MetricMetadataAPIContext) ([]MetricKey, error)
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
-	GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error)
-}
-
-type ProfilingMetricMetadataAPI struct {
-	Profiler       *inspect.Profiler
-	MetricMetadata MetricMetadataAPI
-}
-
-var _ MetricMetadataAPI = (*ProfilingMetricMetadataAPI)(nil)
-
-func (api ProfilingMetricMetadataAPI) AddMetric(metric TaggedMetric) error {
-	defer api.Profiler.Record("api.AddMetric")()
-	return api.MetricMetadata.AddMetric(metric)
-}
-func (api ProfilingMetricMetadataAPI) AddMetrics(metrics []TaggedMetric) error {
-	defer api.Profiler.Record("api.AddMetrics")()
-	return api.MetricMetadata.AddMetrics(metrics)
-}
-func (api ProfilingMetricMetadataAPI) RemoveMetric(metric TaggedMetric) error {
-	defer api.Profiler.Record("api.RemoveMetric")()
-	return api.MetricMetadata.RemoveMetric(metric)
-}
-func (api ProfilingMetricMetadataAPI) GetAllTags(metricKey MetricKey) ([]TagSet, error) {
-	defer api.Profiler.Record("api.GetAllTags")()
-	return api.MetricMetadata.GetAllTags(metricKey)
-}
-func (api ProfilingMetricMetadataAPI) GetAllMetrics() ([]MetricKey, error) {
-	defer api.Profiler.Record("api.GetAllMetrics")()
-	return api.MetricMetadata.GetAllMetrics()
-}
-func (api ProfilingMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string) ([]MetricKey, error) {
-	defer api.Profiler.Record("api.GetMetricsForTag")()
-	return api.MetricMetadata.GetMetricsForTag(tagKey, tagValue)
+	GetMetricsForTag(tagKey, tagValue string, context MetricMetadataAPIContext) ([]MetricKey, error)
 }
