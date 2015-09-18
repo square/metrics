@@ -35,6 +35,7 @@ type CassandraMetricMetadataConfig struct {
 // NewCassandraMetricMetadataAPI creates a new instance of API from the given configuration.
 func NewCassandraMetricMetadataAPI(config CassandraMetricMetadataConfig) (api.MetricMetadataAPI, error) {
 	clusterConfig := gocql.NewCluster()
+	clusterConfig.Consistency = gocql.One
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
 	clusterConfig.Timeout = time.Second * 30
