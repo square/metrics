@@ -157,3 +157,97 @@ var Alias = function.MetricFunction{
 		return list, nil
 	},
 }
+
+// Derivative is special because it needs to get one extra data point to the left
+// This transform estimates the "change per second" between the two samples (scaled consecutive difference)
+var Derivative = newDerivativeBasedTransform("derivative", derivative)
+
+func derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	result := make([]float64, len(values)-1)
+	for i := range values {
+		if i == 0 {
+			continue
+		}
+		// Scaled difference
+		result[i-1] = (values[i] - values[i-1]) / scale
+	}
+	return result, nil
+}
+
+// Rate is special because it needs to get one extra data point to the left.
+// This transform functions mostly like Derivative but bounds the result to be positive.
+// Specifically this function is designed for strictly increasing counters that
+// only decrease when reset to zero. That is, thie function returns consecutive
+// differences which are at least 0, or math.Max of the newly reported value and 0
+var Rate = newDerivativeBasedTransform("rate", rate)
+
+func rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+	result := make([]float64, len(values)-1)
+	for i := range values {
+		if i == 0 {
+			continue
+		}
+		// Scaled difference
+		result[i-1] = (values[i] - values[i-1]) / scale
+		if result[i-1] < 0 {
+			// values[i] is our best approximatation of the delta between i-1 and i
+			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
+			// the counter has reset, and we know *at least* v[i] increments have happened
+			result[i-1] = math.Max(values[i], 0) / scale
+		}
+	}
+	return result, nil
+}
+
+// newDerivativeBasedTransform returns a function.MetricFunction that performs
+// a delta between two data points. The transform parameter is a function of type
+// transform is expected to return an array of values whose length is 1 less
+// than the given series
+func newDerivativeBasedTransform(name string, transformer transform) function.MetricFunction {
+	return function.MetricFunction{
+		Name:         "transform." + name,
+		MinArguments: 1,
+		MaxArguments: 1,
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+			var err error
+			// Calcuate the new timerange to include one extra point to the left
+			newContext := context
+			timerange := context.Timerange
+			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+			if err != nil {
+				return nil, err
+			}
+
+			// The new context has a timerange which is extended beyond the query's.
+			listValue, err := arguments[0].Evaluate(newContext)
+			if err != nil {
+				return nil, err
+			}
+
+			// This value must be a SeriesList.
+			list, err := listValue.ToSeriesList(newContext.Timerange)
+			if err != nil {
+				return nil, err
+			}
+
+			// Reset the timerange
+			list.Timerange = context.Timerange
+
+			result, err := ApplyTransform(list, transformer, []function.Value{})
+			if err != nil {
+				return nil, err
+			}
+
+			// Validate our series are the correct length
+			for i := range result.Series {
+				if len(result.Series[i].Values) != len(list.Series[i].Values)-1 {
+					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
+				}
+			}
+
+			result.Query = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
+			result.Name = result.Query
+			return result, nil
+		},
+	}
+}

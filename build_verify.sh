@@ -34,5 +34,3 @@ if [ $fails ]
 then
 	exit -1
 fi
-
-

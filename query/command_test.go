@@ -422,7 +422,7 @@ func TestCommand_Select(t *testing.T) {
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
-			Timeout:              10 * time.Millisecond,
+			Timeout:              100 * time.Millisecond,
 		})
 		if err != nil {
 			if !test.expectError {

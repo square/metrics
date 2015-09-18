@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
@@ -27,6 +28,7 @@ import (
 func newDatabase(t *testing.T) *cassandraDatabase {
 	cluster := gocql.NewCluster("localhost")
 	cluster.Keyspace = "metrics_indexer_test"
+	cluster.Timeout = time.Duration(10000 * time.Millisecond)
 	session, err := cluster.CreateSession()
 	if err != nil {
 		t.Errorf("Cannot connect to Cassandra")

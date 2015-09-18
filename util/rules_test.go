@@ -154,9 +154,9 @@ rules:
   `
 	ruleSet, err := LoadYAML([]byte(rawYAML))
 	a.CheckError(err)
-	a.EqInt(len(ruleSet.rules), 1)
-	a.EqString(string(ruleSet.rules[0].raw.MetricKeyPattern), "abc")
-	a.Eq(ruleSet.rules[0].graphitePatternTags, []string{"tag"})
+	a.EqInt(len(ruleSet.Rules), 1)
+	a.EqString(string(ruleSet.Rules[0].raw.MetricKeyPattern), "abc")
+	a.Eq(ruleSet.Rules[0].graphitePatternTags, []string{"tag"})
 }
 
 func TestLoadYAML_Invalid(t *testing.T) {
@@ -170,7 +170,7 @@ rules
   `
 	ruleSet, err := LoadYAML([]byte(rawYAML))
 	checkRuleErrorCode(a, err, InvalidYaml)
-	a.EqInt(len(ruleSet.rules), 0)
+	a.EqInt(len(ruleSet.Rules), 0)
 }
 
 func TestToGraphiteName(t *testing.T) {
