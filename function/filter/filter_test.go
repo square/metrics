@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -55,10 +56,16 @@ func TestFilter(t *testing.T) {
 				"name": "D",
 			},
 		},
+		"NaN": {
+			Values: []float64{math.NaN(), math.NaN(), math.NaN(), math.NaN(), math.NaN()},
+			TagSet: api.TagSet{
+				"name": "NaN",
+			},
+		},
 	}
 
 	list := api.SeriesList{
-		Series:    []api.Timeseries{series["A"], series["B"], series["C"], series["D"]},
+		Series:    []api.Timeseries{series["NaN"], series["A"], series["B"], series["NaN"], series["C"], series["D"], series["NaN"]},
 		Timerange: timerange,
 		Name:      "test_series",
 	}
@@ -72,18 +79,34 @@ func TestFilter(t *testing.T) {
 			summary: aggregate.Sum,
 			lowest:  true,
 			count:   6,
-			expect:  []string{"A", "B", "C", "D"},
+			expect:  []string{"B", "A", "C", "D", "NaN", "NaN"},
 		},
-
+		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   6,
+			expect:  []string{"B", "A", "C", "D", "NaN", "NaN"},
+		},
 		{
 			summary: aggregate.Sum,
 			lowest:  false,
 			count:   6,
-			expect:  []string{"A", "B", "C", "D"},
+			expect:  []string{"A", "B", "C", "D", "NaN", "NaN"},
 		},
-
+		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   6,
+			expect:  []string{"A", "B", "C", "D", "NaN", "NaN"},
+		},
 		{
 			summary: aggregate.Sum,
+			lowest:  true,
+			count:   4,
+			expect:  []string{"A", "B", "C", "D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  true,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
@@ -95,7 +118,19 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"A", "B", "C"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   3,
+			expect:  []string{"A", "B", "C"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  true,
+			count:   2,
+			expect:  []string{"A", "B"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  true,
 			count:   2,
 			expect:  []string{"A", "B"},
@@ -107,7 +142,19 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"B"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  true,
+			count:   1,
+			expect:  []string{"B"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  false,
+			count:   4,
+			expect:  []string{"A", "B", "C", "D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  false,
 			count:   4,
 			expect:  []string{"A", "B", "C", "D"},
@@ -119,13 +166,31 @@ func TestFilter(t *testing.T) {
 			expect:  []string{"A", "C", "D"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   3,
+			expect:  []string{"A", "C", "D"},
+		},
+		{
 			summary: aggregate.Sum,
 			lowest:  false,
 			count:   2,
 			expect:  []string{"C", "D"},
 		},
 		{
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   2,
+			expect:  []string{"C", "D"},
+		},
+		{
 			summary: aggregate.Sum,
+			lowest:  false,
+			count:   1,
+			expect:  []string{"D"},
+		},
+		{
+			summary: aggregate.Mean,
 			lowest:  false,
 			count:   1,
 			expect:  []string{"D"},
@@ -170,15 +235,15 @@ func TestFilter(t *testing.T) {
 			}
 			a.EqFloatArray(original.Values, s.Values, 1e-7)
 		}
-		names := map[string]bool{}
+		names := map[string]int{}
 		for _, name := range test.expect {
-			names[name] = true
+			names[name]++
 		}
 		for _, s := range filtered.Series {
-			if !names[s.TagSet["name"]] {
+			if names[s.TagSet["name"]] == 0 {
 				t.Fatalf("TagSets %+v aren't expected; %+v are", filtered.Series, test.expect)
 			}
-			names[s.TagSet["name"]] = false // Use up the name so that a seocnd Series can't also use it.
+			names[s.TagSet["name"]]-- // Use up the name so that a seocnd Series can't also use it.
 		}
 	}
 }
