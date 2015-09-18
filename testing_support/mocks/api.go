@@ -20,7 +20,6 @@ import (
 	"reflect"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/util"
 )
 
@@ -62,28 +61,28 @@ func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric, gm 
 	}
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, profiler *inspect.Profiler) error {
-	defer profiler.Record("Mock AddMetric")()
+func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock AddMetric")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, profiler *inspect.Profiler) error {
-	defer profiler.Record("Mock AddMetrics")()
+func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock AddMetrics")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, profiler *inspect.Profiler) error {
-	defer profiler.Record("Mock RemoveMetric")()
+func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Mock RemoveMetric")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, profiler *inspect.Profiler) ([]api.TagSet, error) {
-	defer profiler.Record("Mock GetAllTags")()
+func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+	defer context.Profiler.Record("Mock GetAllTags")()
 	return fa.metricTagSets[metricKey], nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllMetrics(profiler *inspect.Profiler) ([]api.MetricKey, error) {
-	defer profiler.Record("Mock GetAllMetrics")()
+func (fa *FakeMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+	defer context.Profiler.Record("Mock GetAllMetrics")()
 	array := []api.MetricKey{}
 	for key := range fa.metricTagSets {
 		array = append(array, key)
@@ -101,8 +100,8 @@ func (fa *FakeMetricMetadataAPI) AddMetricsForTag(key string, value string, metr
 	fa.metricsForTags[pair] = append(fa.metricsForTags[pair], api.MetricKey(metric))
 }
 
-func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, profiler *inspect.Profiler) ([]api.MetricKey, error) {
-	defer profiler.Record("Mock GetMetricsForTag")()
+func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+	defer context.Profiler.Record("Mock GetMetricsForTag")()
 	list := []api.MetricKey{}
 MetricLoop:
 	for metric, tagsets := range fa.metricTagSets {

@@ -73,7 +73,9 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
-	tagsets, _ := context.MetricMetadataAPI.GetAllTags(cmd.metricName, context.Profiler)
+	tagsets, _ := context.MetricMetadataAPI.GetAllTags(cmd.metricName, api.MetricMetadataAPIContext{
+		Profiler: context.Profiler,
+	})
 	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
 	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
 	for _, tagset := range tagsets {
@@ -106,7 +108,9 @@ func (cmd *DescribeCommand) Name() string {
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
-	result, err := context.MetricMetadataAPI.GetAllMetrics(context.Profiler)
+	result, err := context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{
+		Profiler: context.Profiler,
+	})
 	if err == nil {
 		filtered := make([]api.MetricKey, 0, len(result))
 		for _, row := range result {
@@ -126,7 +130,9 @@ func (cmd *DescribeAllCommand) Name() string {
 
 // Execute asks for all metrics with the given name.
 func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
-	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, context.Profiler)
+	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
+		Profiler: context.Profiler,
+	})
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
