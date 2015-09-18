@@ -166,7 +166,7 @@ func Test_Blueflood(t *testing.T) {
 			Metric:         test.queryMetric,
 			SampleMethod:   test.sampleMethod,
 			Timerange:      test.timerange,
-			MetricMetadata: &fakeApi,
+			MetricMetadata: fakeApi,
 			Cancellable:    api.NewCancellable(),
 		})
 
@@ -389,7 +389,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		},
 		SampleMethod:   api.SampleMean,
 		Timerange:      queryTimerange,
-		MetricMetadata: &fakeApi,
+		MetricMetadata: fakeApi,
 		Cancellable:    api.NewCancellable(),
 	})
 	if err != nil {

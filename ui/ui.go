@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/log"
 	_ "github.com/square/metrics/main/static" // ensure that the static files are included.
@@ -132,7 +133,7 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	// 2. functions
 	// 3. identifiers
 	body["functions"] = h.context.Registry.All()
-	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics()
+	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{}) // no profiling used
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return

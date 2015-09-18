@@ -45,7 +45,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Success\n")
-	stuff, err := metadataAPI.GetAllTags("jvm.thread-states")
+	stuff, err := metadataAPI.GetAllTags("jvm.thread-states", api.MetricMetadataAPIContext{})
 	if err != nil {
 		fmt.Printf("ERROR %s\n", err)
 		os.Exit(1)
