@@ -452,14 +452,11 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 
 // Blueflood will use the finest-grained resolution which doesn't exceed the slot limit.
 // Thus, if you request too many points, it will automatically reduce the resolution.
-func (b *Blueflood) ChooseResolution(requested api.Timerange, slotLimit int) time.Duration {
+func (b *Blueflood) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
 	// In some cases, coarser-resolution data may have a shorter TTL.
 	// To accomodate these cases, it must be verified that the requested timerange will
 	// actually be present for the chosen resolution.
 	// TODO: figure out how to make this work with moving averages and timeshifts
-	start := requested.Start()
-	end := requested.End()
-	durationMillis := end - start
 
 	requiredAge := b.timeSource().Sub(requested.StartTime())
 
@@ -470,14 +467,13 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, slotLimit int) tim
 			// so don't use this resolution
 			continue
 		}
-		resolutionMillis := resolution.duration.Nanoseconds() / 1000000
-		if resolutionMillis < requested.ResolutionMillis() {
+		if resolution.duration < requested.Resolution() {
 			// Skip this timerange, it is finer than the one requested.
 			continue
 		}
-		slots := durationMillis / resolutionMillis
-		if slots <= int64(slotLimit) {
-			return time.Duration(resolutionMillis) * time.Millisecond
+		// Check that the timerange is large enough
+		if resolution.duration >= smallestResolution {
+			return resolution.duration
 		}
 	}
 	// Leave it alone, since a better one can't be found

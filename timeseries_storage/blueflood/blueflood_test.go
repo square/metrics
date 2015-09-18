@@ -511,8 +511,8 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		// TODO: add sanity checks
-		result := b.ChooseResolution(test.input, test.slotLimit)
+		smallestResolution := test.input.Duration() / time.Duration(test.slotLimit-2)
+		result := b.ChooseResolution(test.input, smallestResolution)
 		// This is mostly a sanity check:
 		_, err := api.NewSnappedTimerange(test.input.Start(), test.input.End(), int64(result/time.Millisecond))
 		if err != nil {

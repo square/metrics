@@ -59,6 +59,10 @@ func (tr Timerange) EndTime() time.Time {
 	return time.Unix(seconds, nanoseconds)
 }
 
+func (tr Timerange) Duration() time.Duration {
+	return tr.EndTime().Sub(tr.StartTime())
+}
+
 // MarshalJSON marshals the Timerange into a byte error
 func (tr Timerange) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {

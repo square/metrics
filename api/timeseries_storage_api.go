@@ -22,7 +22,7 @@ import (
 )
 
 type TimeseriesStorageAPI interface {
-	ChooseResolution(requested Timerange, slotLimit int) time.Duration
+	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }
@@ -34,9 +34,9 @@ type ProfilingTimeseriesStorageAPI struct {
 
 var _ TimeseriesStorageAPI = (*ProfilingTimeseriesStorageAPI)(nil)
 
-func (a ProfilingTimeseriesStorageAPI) ChooseResolution(requested Timerange, slotLimit int) time.Duration {
+func (a ProfilingTimeseriesStorageAPI) ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration {
 	defer a.Profiler.Record("timeseriesStorage.ChooseResolution")()
-	return a.TimeseriesStorageAPI.ChooseResolution(requested, slotLimit)
+	return a.TimeseriesStorageAPI.ChooseResolution(requested, smallestResolution)
 }
 
 func (a ProfilingTimeseriesStorageAPI) FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error) {
