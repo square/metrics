@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"sync"
 
 	"github.com/square/metrics/api"
@@ -34,9 +35,8 @@ import (
 )
 
 var (
-	metricsFile   = flag.String("metrics-file", "", "Location of zlib compressed gob string file.")
-	unmatchedFile = flag.String("unmatched-file", "", "location of metrics list to output unmatched transformations.")
-	reverse       = flag.Bool("reverse", false, "If true, then attempt the reverse-rule lookup also.")
+	metricsFile = flag.String("metrics-file", "", "Location of zlib compressed gob string file.")
+	rulePath    = flag.String("rule-path", "", "Path to directory containing conversion rules.")
 )
 
 // Statistics represents the aggregated result of rules
@@ -84,21 +84,22 @@ func ReadMetricsFile(file string) ([]string, error) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 	common.SetupLogger()
 
 	if *metricsFile == "" {
-		common.ExitWithMessage("No metric file.")
-		fmt.Printf("You must specify a metrics file.\n")
-		os.Exit(1)
+		common.ExitWithMessage("No metric file specified. Use '-metrics-file'")
 	}
 
-	config := common.LoadConfig()
+	if *rulePath == "" {
+		common.ExitWithMessage("No rule path specified. Use '-rule-path'")
+	}
 
 	//TODO(cchandler): Make a constructor for a graphite converter so we don't
 	//have to stich everything together outside of the package.
 
-	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+	ruleset, err := util.LoadRules(*rulePath)
 	if err != nil {
 		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
@@ -170,6 +171,7 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	var wgClassifyAppend sync.WaitGroup
 
 	for status := range classifiedMetricResults {
+		status := status
 		// These goroutines move things from the `classifiedMetricResults` map (ConversionStatus => chan string)
 		// into the `classifiedMetrics` map (ConversionStatus => []string)
 		wgClassifyAppend.Add(1)
