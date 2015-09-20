@@ -30,7 +30,6 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/util"
 )
 
@@ -96,7 +95,6 @@ func main() {
 
 	config := common.LoadConfig()
 
-	// graphiteConfig := util.GraphiteConverterConfig{ConversionRulesPath: config.MetricMetadataAPI.ConversionRulesPath}
 	//TODO(cchandler): Make a constructor for a graphite converter so we don't
 	//have to stich everything together outside of the package.
 
@@ -113,37 +111,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	DoAnalysis(metrics, graphiteConverter)
+	classifiedMetrics := DoAnalysis(metrics, graphiteConverter)
+	fmt.Printf("Generating report files...\n")
+	GenerateReport(classifiedMetrics[Unmatched], graphiteConverter)
 
 	fmt.Printf("Total metric count %d\n", len(metrics))
-
-	// matched := 0
-	// unmatched := 0
-	// reverse_convert_failed := 0
-
-	// fmt.Printf("Matched: %d\n", matched)
-	// fmt.Printf("Unmatched: %d\n", unmatched)
-	// fmt.Printf("Reverse convert failed: %d\n", reverse_convert_failed)
-
-	// if err != nil {
-	// 	common.ExitWithMessage("No metric file.")
-	// }
-	// scanner := bufio.NewScanner(metricFile)
-	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
-		Hosts:    config.MetricMetadataConfig.Hosts,
-		Keyspace: config.MetricMetadataConfig.Keyspace,
-	}
-	_ = common.NewMetricMetadataAPI(cassandraConfig)
-
-	// var output *os.File
-	// if *unmatchedFile != "" {
-	// 	output, err = os.Create(*unmatchedFile)
-	// 	if err != nil {
-	// 		common.ExitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
-	// 	}
-	// }
-	// stat := run(ruleset, scanner, apiInstance, output)
-	// report(stat)
 }
 
 type ConversionStatus int
@@ -171,7 +143,7 @@ func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConve
 	return Matched
 }
 
-func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) {
+func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) map[ConversionStatus][]string {
 	graphiteConverter.EnableStats()
 
 	goroutineCount := 10
@@ -198,6 +170,8 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	var wgClassifyAppend sync.WaitGroup
 
 	for status := range classifiedMetricResults {
+		// These goroutines move things from the `classifiedMetricResults` map (ConversionStatus => chan string)
+		// into the `classifiedMetrics` map (ConversionStatus => []string)
 		wgClassifyAppend.Add(1)
 		go func() {
 			for metric := range classifiedMetricResults[status] {
@@ -247,8 +221,7 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	for _, metric := range classifiedMetrics[ReverseChanged] {
 		fmt.Printf("\t%s\n", metric)
 	}
-
-	GenerateReport(classifiedMetrics[Unmatched], graphiteConverter)
+	return classifiedMetrics
 }
 
 func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphiteConverter) {
@@ -261,6 +234,9 @@ func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphite
 	}
 
 	f, err := os.Create("report/unmatched.txt")
+	if err != nil {
+		panic("Can't create report/unmatched.txt")
+	}
 	defer f.Close()
 
 	for _, metric := range unmatched {
