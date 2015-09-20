@@ -24,7 +24,6 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -64,22 +63,21 @@ func ReadMetricsFile(file string) ([]string, error) {
 		return nil, err
 	}
 
-	result := make(map[string]int)
+	// Read the data with a zlib reader
 	r, err := zlib.NewReader(bytes.NewBuffer(data))
+	defer r.Close()
 	if err != nil {
-		panic("Problem with zlib compressed data")
+		return nil, fmt.Errorf("Problem with zlib compressed data: %s", err.Error())
 	}
-	b := new(bytes.Buffer)
-	io.Copy(b, r)
-	r.Close()
-	d := gob.NewDecoder(b)
 
-	err = d.Decode(&result)
+	// Store the result of the decode in this map:
+	result := map[string]int{}
+	err = gob.NewDecoder(r).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 
-	strings := []string{}
+	strings := make([]string, 0, len(result))
 	for k := range result {
 		strings = append(strings, k)
 	}
@@ -103,13 +101,12 @@ func main() {
 	//have to stich everything together outside of the package.
 
 	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
-
 	if err != nil {
 		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
+
 	graphiteConverter := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
-	// metricFile, err := os.Open(*metricsFile)
 	metrics, err := ReadMetricsFile(*metricsFile)
 	if err != nil {
 		fmt.Printf("Fatal error reading metrics file %s\n", err)
@@ -149,96 +146,109 @@ func main() {
 	// report(stat)
 }
 
-type ChunkResult struct {
-	matched                int
-	unmatched              int
-	reverse_convert_failed int
+type ConversionStatus int
+
+const (
+	Matched ConversionStatus = iota
+	Unmatched
+	ReverseFailed
+	ReverseChanged
+)
+
+func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConverter) ConversionStatus {
+	graphiteMetric := util.GraphiteMetric(metric)
+	taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
+	if err != nil {
+		return Unmatched
+	}
+	reversedMetric, err := graphiteConverter.ToGraphiteName(taggedMetric)
+	if err != nil {
+		return ReverseFailed
+	}
+	if reversedMetric != graphiteMetric {
+		return ReverseChanged
+	}
+	return Matched
 }
 
 func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) {
 	graphiteConverter.EnableStats()
 
-	workQueue := make(chan []string, len(metrics)/25+1)
-	resultQueue := make(chan ChunkResult, len(metrics))
-	unmatchedQueue := make(chan string, len(metrics))
-	var wg sync.WaitGroup
+	goroutineCount := 10
 
-	i := 0
-	for i = 0; i+25 < len(metrics); i = i + 25 {
-		workQueue <- metrics[i : i+25]
+	workQueue := make(chan string, goroutineCount)
+
+	go func() {
+		// Add the metrics to the work queue
+		for _, metric := range metrics {
+			workQueue <- metric
+		}
+		close(workQueue)
+	}()
+
+	classifiedMetricResults := map[ConversionStatus]chan string{
+		Matched:        make(chan string),
+		Unmatched:      make(chan string),
+		ReverseFailed:  make(chan string),
+		ReverseChanged: make(chan string),
 	}
-	if i < len(metrics) {
-		workQueue <- metrics[i:]
-	}
 
-	close(workQueue)
+	classifiedMetrics := map[ConversionStatus][]string{}
 
-	fmt.Printf("Starting work...\n")
-	for j := 0; j < 10; j++ {
-		wg.Add(1)
+	var wgClassifyAppend sync.WaitGroup
+
+	for status := range classifiedMetricResults {
+		wgClassifyAppend.Add(1)
 		go func() {
-			counter := 0
-			defer wg.Done()
-			for metrics := range workQueue {
-				counter++
-				if counter%100 == 0 && counter != 0 {
-					fmt.Printf(".")
-				}
-				chunk_result := ChunkResult{}
-				for _, metric := range metrics {
-					graphiteMetric := util.GraphiteMetric(metric)
-					taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
-					if err != nil {
-						_, err := graphiteConverter.ToGraphiteName(taggedMetric)
-						if err != nil {
-							chunk_result.reverse_convert_failed++
-						} else {
-
-						}
-						chunk_result.matched++
-					} else {
-						unmatchedQueue <- metric
-						chunk_result.unmatched++
-					}
-				}
-				resultQueue <- chunk_result
+			for metric := range classifiedMetricResults[status] {
+				classifiedMetrics[status] = append(classifiedMetrics[status], metric)
 			}
-
+			wgClassifyAppend.Done()
 		}()
 	}
-	wg.Wait()
-	close(resultQueue)
-	close(unmatchedQueue)
+
+	var wgWorkQueue sync.WaitGroup
+
+	fmt.Printf("Starting work...\n")
+	for i := 0; i < goroutineCount; i++ {
+		// Launch 10 goroutines to process the work queue
+		wgWorkQueue.Add(1)
+		go func() {
+			counter := 0
+			defer wgWorkQueue.Done()
+			for metric := range workQueue {
+				counter++
+				if counter%1000 == 0 && counter != 0 {
+					fmt.Printf(".")
+				}
+				// Classify the metric, then send it to the corresponding channel.
+				classifiedMetricResults[ClassifyMetric(metric, graphiteConverter)] <- metric
+			}
+		}()
+	}
+	wgWorkQueue.Wait()
+
+	for _, channel := range classifiedMetricResults {
+		close(channel)
+	}
+	// Wait for the results to be moved from the channels into the slices.
+	wgClassifyAppend.Wait()
 
 	fmt.Printf("\n")
-	fmt.Printf("Processing results!")
-	totalResults := ChunkResult{}
-	//Merge chunks
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for result := range resultQueue {
-			totalResults.matched += result.matched
-			totalResults.unmatched += result.unmatched
-			totalResults.reverse_convert_failed += result.reverse_convert_failed
-		}
-	}()
-	wg.Add(1)
-	unmatchedResults := []string{}
-	go func() {
-		defer wg.Done()
-		for unmatched := range unmatchedQueue {
-			unmatchedResults = append(unmatchedResults, unmatched)
-		}
-	}()
+	fmt.Printf("Matched: %d\n", len(classifiedMetrics[Matched]))
+	fmt.Printf("Unmatched: %d\n", len(classifiedMetrics[Unmatched]))
+	fmt.Printf("Reverse convert failed: %d\n", len(classifiedMetrics[ReverseFailed]))
+	// Since these indicate broken rules, printing out the particular metrics is very helpful.
+	for _, metric := range classifiedMetrics[ReverseFailed] {
+		fmt.Printf("\t%s\n", metric)
+	}
+	fmt.Printf("Reverse convert changed metric: %d\n", len(classifiedMetrics[ReverseChanged]))
+	// Since these indicate broken rules, printing out the particular metrics is very helpful.
+	for _, metric := range classifiedMetrics[ReverseChanged] {
+		fmt.Printf("\t%s\n", metric)
+	}
 
-	wg.Wait()
-	fmt.Printf("\n")
-	fmt.Printf("Matched: %d\n", totalResults.matched)
-	fmt.Printf("Unmatched: %d\n", totalResults.unmatched)
-	fmt.Printf("Reverse convert failed: %d\n", totalResults.reverse_convert_failed)
-
-	GenerateReport(unmatchedResults, graphiteConverter)
+	GenerateReport(classifiedMetrics[Unmatched], graphiteConverter)
 }
 
 func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphiteConverter) {
