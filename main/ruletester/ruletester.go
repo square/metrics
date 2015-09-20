@@ -147,9 +147,7 @@ func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConve
 func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) map[ConversionStatus][]string {
 	graphiteConverter.EnableStats()
 
-	goroutineCount := 10
-
-	workQueue := make(chan string, goroutineCount)
+	workQueue := make(chan string, 100)
 
 	go func() {
 		// Add the metrics to the work queue
@@ -160,10 +158,10 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	}()
 
 	classifiedMetricResults := map[ConversionStatus]chan string{
-		Matched:        make(chan string),
-		Unmatched:      make(chan string),
-		ReverseFailed:  make(chan string),
-		ReverseChanged: make(chan string),
+		Matched:        make(chan string, 100),
+		Unmatched:      make(chan string, 100),
+		ReverseFailed:  make(chan string, 100),
+		ReverseChanged: make(chan string, 100),
 	}
 
 	classifiedMetrics := map[ConversionStatus][]string{}
@@ -186,8 +184,10 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	var wgWorkQueue sync.WaitGroup
 
 	fmt.Printf("Starting work...\n")
-	for i := 0; i < goroutineCount; i++ {
-		// Launch 10 goroutines to process the work queue
+	for i := 0; i < runtime.NumCPU(); i++ {
+		// Launch 1 goroutine per CPU to process the work queue
+		// This task is CPU-bound, so adding more goroutines beyond this probably won't help.
+		// Benchmarking seems to confirm this suspicion- although even NumCPU() seems high
 		wgWorkQueue.Add(1)
 		go func() {
 			counter := 0
