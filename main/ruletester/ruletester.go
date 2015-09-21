@@ -76,7 +76,7 @@ func ReadMetricsFile(file string) ([]string, error) {
 		return nil, err
 	}
 
-	strings := make([]string, 0, len(result))
+	strings := []string{}
 	for k := range result {
 		strings = append(strings, k)
 	}
@@ -84,7 +84,9 @@ func ReadMetricsFile(file string) ([]string, error) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	if os.Getenv("GOMAXPROCS") == "" {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
 	flag.Parse()
 	common.SetupLogger()
 
