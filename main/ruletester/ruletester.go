@@ -24,23 +24,19 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	// "runtime"
-	// "sort"
+	"runtime"
 	"sync"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/util"
 )
 
 var (
-	metricsFile   = flag.String("metrics-file", "", "Location of zlib compressed gob string file.")
-	unmatchedFile = flag.String("unmatched-file", "", "location of metrics list to output unmatched transformations.")
-	reverse       = flag.Bool("reverse", false, "If true, then attempt the reverse-rule lookup also.")
+	metricsFile = flag.String("metrics-file", "", "Location of zlib compressed gob string file.")
+	rulePath    = flag.String("rule-path", "", "Path to directory containing conversion rules.")
 )
 
 // Statistics represents the aggregated result of rules
@@ -66,17 +62,16 @@ func ReadMetricsFile(file string) ([]string, error) {
 		return nil, err
 	}
 
-	result := make(map[string]int)
+	// Read the data with a zlib reader
 	r, err := zlib.NewReader(bytes.NewBuffer(data))
+	defer r.Close()
 	if err != nil {
-		panic("Problem with zlib compressed data")
+		return nil, fmt.Errorf("Problem with zlib compressed data: %s", err.Error())
 	}
-	b := new(bytes.Buffer)
-	io.Copy(b, r)
-	r.Close()
-	d := gob.NewDecoder(b)
 
-	err = d.Decode(&result)
+	// Store the result of the decode in this map:
+	result := map[string]int{}
+	err = gob.NewDecoder(r).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -89,171 +84,148 @@ func ReadMetricsFile(file string) ([]string, error) {
 }
 
 func main() {
+	if os.Getenv("GOMAXPROCS") == "" {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
 	flag.Parse()
 	common.SetupLogger()
 
 	if *metricsFile == "" {
-		common.ExitWithMessage("No metric file.")
-		fmt.Printf("You must specify a metrics file.\n")
-		os.Exit(1)
+		common.ExitWithMessage("No metric file specified. Use '-metrics-file'")
 	}
 
-	config := common.LoadConfig()
+	if *rulePath == "" {
+		common.ExitWithMessage("No rule path specified. Use '-rule-path'")
+	}
 
-	// graphiteConfig := util.GraphiteConverterConfig{ConversionRulesPath: config.MetricMetadataAPI.ConversionRulesPath}
 	//TODO(cchandler): Make a constructor for a graphite converter so we don't
 	//have to stich everything together outside of the package.
 
-	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
-
+	ruleset, err := util.LoadRules(*rulePath)
 	if err != nil {
 		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
+
 	graphiteConverter := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
-	// metricFile, err := os.Open(*metricsFile)
 	metrics, err := ReadMetricsFile(*metricsFile)
 	if err != nil {
 		fmt.Printf("Fatal error reading metrics file %s\n", err)
 		os.Exit(1)
 	}
 
-	DoAnalysis(metrics, graphiteConverter)
+	classifiedMetrics := DoAnalysis(metrics, graphiteConverter)
+	fmt.Printf("Generating report files...\n")
+	GenerateReport(classifiedMetrics[Unmatched], graphiteConverter)
 
 	fmt.Printf("Total metric count %d\n", len(metrics))
+}
 
-	// matched := 0
-	// unmatched := 0
-	// reverse_convert_failed := 0
+type ConversionStatus int
 
-	// fmt.Printf("Matched: %d\n", matched)
-	// fmt.Printf("Unmatched: %d\n", unmatched)
-	// fmt.Printf("Reverse convert failed: %d\n", reverse_convert_failed)
+const (
+	Matched ConversionStatus = iota
+	Unmatched
+	ReverseFailed
+	ReverseChanged
+)
 
-	// if err != nil {
-	// 	common.ExitWithMessage("No metric file.")
-	// }
-	// scanner := bufio.NewScanner(metricFile)
-	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
-		Hosts:    config.MetricMetadataConfig.Hosts,
-		Keyspace: config.MetricMetadataConfig.Keyspace,
+func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConverter) ConversionStatus {
+	graphiteMetric := util.GraphiteMetric(metric)
+	taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
+	if err != nil {
+		return Unmatched
 	}
-	_ = common.NewMetricMetadataAPI(cassandraConfig)
-
-	// var output *os.File
-	// if *unmatchedFile != "" {
-	// 	output, err = os.Create(*unmatchedFile)
-	// 	if err != nil {
-	// 		common.ExitWithMessage(fmt.Sprintf("Error creating the output file: %s", err.Error()))
-	// 	}
-	// }
-	// stat := run(ruleset, scanner, apiInstance, output)
-	// report(stat)
+	reversedMetric, err := graphiteConverter.ToGraphiteName(taggedMetric)
+	if err != nil {
+		return ReverseFailed
+	}
+	if reversedMetric != graphiteMetric {
+		return ReverseChanged
+	}
+	return Matched
 }
 
-type ChunkResult struct {
-	matched                int
-	unmatched              int
-	reverse_convert_failed int
-}
-
-func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) {
+func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) map[ConversionStatus][]string {
 	graphiteConverter.EnableStats()
 
-	workQueue := make(chan []string, len(metrics)/25+1)
-	resultQueue := make(chan ChunkResult, len(metrics))
-	unmatchedQueue := make(chan string, len(metrics))
-	var wg sync.WaitGroup
+	workQueue := make(chan string, 100)
 
-	i := 0
-	for i = 0; i+25 < len(metrics); i = i + 25 {
-		workQueue <- metrics[i : i+25]
+	go func() {
+		// Add the metrics to the work queue
+		for _, metric := range metrics {
+			workQueue <- metric
+		}
+		close(workQueue)
+	}()
+
+	classifiedMetricResults := map[ConversionStatus]chan string{
+		Matched:        make(chan string, 100),
+		Unmatched:      make(chan string, 100),
+		ReverseFailed:  make(chan string, 100),
+		ReverseChanged: make(chan string, 100),
 	}
-	if i < len(metrics) {
-		workQueue <- metrics[i:]
-	}
 
-	close(workQueue)
+	classifiedMetrics := map[ConversionStatus][]string{}
 
-	fmt.Printf("Starting work...\n")
-	for j := 0; j < 10; j++ {
-		wg.Add(1)
+	var wgClassifyAppend sync.WaitGroup
+
+	for status := range classifiedMetricResults {
+		status := status
+		// These goroutines move things from the `classifiedMetricResults` map (ConversionStatus => chan string)
+		// into the `classifiedMetrics` map (ConversionStatus => []string)
+		wgClassifyAppend.Add(1)
 		go func() {
-			counter := 0
-			defer wg.Done()
-			for metrics := range workQueue {
-				counter++
-				if counter%100 == 0 && counter != 0 {
-					fmt.Printf(".")
-				}
-				chunk_result := ChunkResult{}
-				for _, metric := range metrics {
-					graphiteMetric := util.GraphiteMetric(metric)
-					taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
-					if err != nil {
-						_, err := graphiteConverter.ToGraphiteName(taggedMetric)
-						if err != nil {
-							chunk_result.reverse_convert_failed++
-						} else {
-
-						}
-						chunk_result.matched++
-					} else {
-						unmatchedQueue <- metric
-						chunk_result.unmatched++
-					}
-				}
-				resultQueue <- chunk_result
+			for metric := range classifiedMetricResults[status] {
+				classifiedMetrics[status] = append(classifiedMetrics[status], metric)
 			}
-
+			wgClassifyAppend.Done()
 		}()
 	}
-	wg.Wait()
-	close(resultQueue)
-	close(unmatchedQueue)
+
+	var wgWorkQueue sync.WaitGroup
+
+	fmt.Printf("Starting work...\n")
+	for i := 0; i < runtime.NumCPU(); i++ {
+		// Launch 1 goroutine per CPU to process the work queue
+		// This task is CPU-bound, so adding more goroutines beyond this probably won't help.
+		// Benchmarking seems to confirm this suspicion- although even NumCPU() seems high
+		wgWorkQueue.Add(1)
+		go func() {
+			counter := 0
+			defer wgWorkQueue.Done()
+			for metric := range workQueue {
+				counter++
+				if counter%1000 == 0 && counter != 0 {
+					fmt.Printf(".")
+				}
+				// Classify the metric, then send it to the corresponding channel.
+				classifiedMetricResults[ClassifyMetric(metric, graphiteConverter)] <- metric
+			}
+		}()
+	}
+	wgWorkQueue.Wait()
+
+	for _, channel := range classifiedMetricResults {
+		close(channel)
+	}
+	// Wait for the results to be moved from the channels into the slices.
+	wgClassifyAppend.Wait()
 
 	fmt.Printf("\n")
-	fmt.Printf("Processing results!")
-	totalResults := ChunkResult{}
-	//Merge chunks
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case result, more := <-resultQueue:
-				totalResults.matched += result.matched
-				totalResults.unmatched += result.unmatched
-				totalResults.reverse_convert_failed += result.reverse_convert_failed
-
-				if !more {
-					return
-				}
-			}
-		}
-	}()
-	wg.Add(1)
-	unmatchedResults := []string{}
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case unmatched, more := <-unmatchedQueue:
-				unmatchedResults = append(unmatchedResults, unmatched)
-				if !more {
-					return
-				}
-			}
-		}
-	}()
-
-	wg.Wait()
-	fmt.Printf("\n")
-	fmt.Printf("Matched: %d\n", totalResults.matched)
-	fmt.Printf("Unmatched: %d\n", totalResults.unmatched)
-	fmt.Printf("Reverse convert failed: %d\n", totalResults.reverse_convert_failed)
-
-	GenerateReport(unmatchedResults, graphiteConverter)
+	fmt.Printf("Matched: %d\n", len(classifiedMetrics[Matched]))
+	fmt.Printf("Unmatched: %d\n", len(classifiedMetrics[Unmatched]))
+	fmt.Printf("Reverse convert failed: %d\n", len(classifiedMetrics[ReverseFailed]))
+	// Since these indicate broken rules, printing out the particular metrics is very helpful.
+	for _, metric := range classifiedMetrics[ReverseFailed] {
+		fmt.Printf("\t%s\n", metric)
+	}
+	fmt.Printf("Reverse convert changed metric: %d\n", len(classifiedMetrics[ReverseChanged]))
+	// Since these indicate broken rules, printing out the particular metrics is very helpful.
+	for _, metric := range classifiedMetrics[ReverseChanged] {
+		fmt.Printf("\t%s\n", metric)
+	}
+	return classifiedMetrics
 }
 
 func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphiteConverter) {
@@ -266,6 +238,9 @@ func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphite
 	}
 
 	f, err := os.Create("report/unmatched.txt")
+	if err != nil {
+		panic("Can't create report/unmatched.txt")
+	}
 	defer f.Close()
 
 	for _, metric := range unmatched {
@@ -286,109 +261,3 @@ func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphite
 
 	}
 }
-
-// func run(ruleset util.RuleSet, scanner *bufio.Scanner, apiInstance api.MetricMetadataAPI, unmatched *os.File) Statistics {
-// 	var wg sync.WaitGroup
-// 	stat := Statistics{
-// 		perMetric: make(map[api.MetricKey]PerMetricStatistics),
-// 	}
-// 	type result struct {
-// 		input   string
-// 		result  api.TaggedMetric
-// 		success bool
-// 	}
-// 	inputBuffer := make(chan string, 10)
-// 	outputBuffer := make(chan result, 10)
-// 	done := make(chan struct{})
-// 	for id := 0; id < runtime.NumCPU(); id++ {
-// 		go func() {
-// 			for {
-// 				select {
-// 				case <-done:
-// 					return
-// 				case input := <-inputBuffer:
-// 					metric, matched := ruleset.MatchRule(input)
-// 					outputBuffer <- result{
-// 						input,
-// 						metric,
-// 						matched,
-// 					}
-// 				}
-// 			}
-// 		}()
-// 	}
-// 	go func() {
-// 		// aggregate function.
-// 		for {
-// 			select {
-// 			case <-done:
-// 				return
-// 			case output := <-outputBuffer:
-// 				converted, matched := output.result, output.success
-// 				if matched {
-// 					stat.matched++
-// 					perMetric := stat.perMetric[converted.MetricKey]
-// 					perMetric.matched++
-// 					if *insertToDatabase {
-// 						apiInstance.AddMetric(converted)
-// 					}
-// 					if *reverse {
-// 						reversed, err := ruleset.ToGraphiteName(converted)
-// 						if err != nil {
-// 							perMetric.reverseError++
-// 						} else if string(reversed) != output.input {
-// 							perMetric.reverseIncorrect++
-// 						} else {
-// 							perMetric.reverseSuccess++
-// 						}
-// 					}
-// 					stat.perMetric[converted.MetricKey] = perMetric
-// 				} else {
-// 					stat.unmatched++
-// 					if unmatched != nil {
-// 						unmatched.WriteString(output.input)
-// 						unmatched.WriteString("\n")
-// 					}
-// 				}
-// 				wg.Done()
-// 			}
-// 		}
-// 	}()
-
-// 	for scanner.Scan() {
-// 		wg.Add(1)
-// 		input := scanner.Text()
-// 		inputBuffer <- input
-// 	}
-// 	wg.Wait()
-// 	close(done) // broadcast to shutdown all goroutines.
-// 	return stat
-// }
-
-// func report(stat Statistics) {
-// 	total := stat.matched + stat.unmatched
-// 	fmt.Printf("Processed %d entries\n", total)
-// 	fmt.Printf("Matched:   %d\n", stat.matched)
-// 	fmt.Printf("Unmatched: %d\n", stat.unmatched)
-// 	fmt.Printf("Per-rule statistics\n")
-// 	rowformat := "%-60s %7d %7d %7d %7d\n"
-// 	headformat := "%-60s %7s %7s %7s %7s\n"
-// 	fmt.Printf(headformat, "name", "match", "rev-suc", "rev-err", "rev-fail")
-// 	sortedKeys := make([]string, len(stat.perMetric))
-// 	index := 0
-// 	for key := range stat.perMetric {
-// 		sortedKeys[index] = string(key)
-// 		index++
-// 	}
-// 	sort.Strings(sortedKeys)
-// 	for _, key := range sortedKeys {
-// 		perMetric := stat.perMetric[api.MetricKey(key)]
-// 		fmt.Printf(rowformat,
-// 			string(key),
-// 			perMetric.matched,
-// 			perMetric.reverseSuccess,
-// 			perMetric.reverseError,
-// 			perMetric.reverseIncorrect,
-// 		)
-// 	}
-// }

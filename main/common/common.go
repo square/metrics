@@ -52,7 +52,9 @@ type Config struct {
 
 func LoadConfig() Config {
 	var config Config
-
+	if *ConfigFile == "" {
+		ExitWithMessage("No config file was specified. Specify it with '-config-file'")
+	}
 	f, err := os.Open(*ConfigFile)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("unable to open config file `%s`", *ConfigFile))
@@ -80,7 +82,7 @@ func ExitWithRequired(flagName string) {
 
 // ExitWithMessage terminates the program with the provided message.
 func ExitWithMessage(message string) {
-	fmt.Fprint(os.Stderr, message)
+	fmt.Fprintf(os.Stderr, "%s\n", message)
 	os.Exit(1)
 }
 
