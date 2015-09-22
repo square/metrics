@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/log"
 	"gopkg.in/yaml.v2"
 )
 
@@ -127,6 +128,9 @@ func (ruleStat *RuleStatistics) AddMatch(matchedResult string) {
 
 // MatchRule sees if a given graphite string matches the rule, and if so, returns the generated tag.
 func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
+	if strings.Contains(input, "\x00") {
+		log.Errorf("MatchRule (graphite string => metric name) has been given bad metric: `%s`", input)
+	}
 	tagSet := extractTagValues(rule.graphitePatternRegex, rule.graphitePatternTags, input)
 	if tagSet == nil {
 		return api.TaggedMetric{}, false
@@ -148,7 +152,9 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		}
 	}
 	rule.AddMatch(input)
-
+	if strings.Contains(interpolatedKey, "\x00") {
+		log.Errorf("MatchRule (graphite string => metric name) is returning bad metric: `%s` from input `%s`", interpolatedKey, input)
+	}
 	return api.TaggedMetric{
 		api.MetricKey(interpolatedKey),
 		tagSet,
