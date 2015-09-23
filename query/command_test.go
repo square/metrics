@@ -21,6 +21,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
@@ -60,7 +61,13 @@ func TestCommand_Describe(t *testing.T) {
 
 		a.EqString(command.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeTimeseriesStorage, MetricMetadataAPI: test.metricmetadata, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{
+			TimeseriesStorageAPI:      fakeTimeseriesStorage,
+			MetricMetadataAPI:         test.metricmetadata,
+			FetchLimit:                1000,
+			Timeout:                   0,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+		})
 		a.CheckError(err)
 		a.Eq(rawResult, test.expected)
 	}
@@ -91,7 +98,13 @@ func TestCommand_DescribeAll(t *testing.T) {
 
 		a.EqString(command.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeMulti, MetricMetadataAPI: test.metricmetadata, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{
+			TimeseriesStorageAPI:      fakeMulti,
+			MetricMetadataAPI:         test.metricmetadata,
+			FetchLimit:                1000,
+			Timeout:                   0,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+		})
 		a.CheckError(err)
 		a.Eq(rawResult, test.expected)
 	}
@@ -419,10 +432,11 @@ func TestCommand_Select(t *testing.T) {
 		}
 		a.EqString(command.Name(), "select")
 		rawResult, err := command.Execute(ExecutionContext{
-			TimeseriesStorageAPI: fakeBackend,
-			MetricMetadataAPI:    fakeAPI,
-			FetchLimit:           1000,
-			Timeout:              100 * time.Millisecond,
+			TimeseriesStorageAPI:      fakeBackend,
+			MetricMetadataAPI:         fakeAPI,
+			FetchLimit:                1000,
+			Timeout:                   100 * time.Millisecond,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		if err != nil {
 			if !test.expectError {
@@ -455,10 +469,11 @@ func TestCommand_Select(t *testing.T) {
 		return
 	}
 	context := ExecutionContext{
-		TimeseriesStorageAPI: fakeBackend,
-		MetricMetadataAPI:    fakeAPI,
-		FetchLimit:           3,
-		Timeout:              0,
+		TimeseriesStorageAPI:      fakeBackend,
+		MetricMetadataAPI:         fakeAPI,
+		FetchLimit:                3,
+		Timeout:                   0,
+		OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 	}
 	_, err = command.Execute(context)
 	if err != nil {
@@ -548,7 +563,13 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{
+			TimeseriesStorageAPI:      fakeBackend,
+			MetricMetadataAPI:         fakeAPI,
+			FetchLimit:                1000,
+			Timeout:                   0,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
@@ -632,7 +653,13 @@ func TestQuery(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{
+			TimeseriesStorageAPI:      fakeBackend,
+			MetricMetadataAPI:         fakeAPI,
+			FetchLimit:                1000,
+			Timeout:                   0,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
@@ -728,7 +755,13 @@ func TestTag(t *testing.T) {
 			t.Errorf("Expected select command but got %s", command.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{TimeseriesStorageAPI: fakeBackend, MetricMetadataAPI: fakeAPI, FetchLimit: 1000, Timeout: 0})
+		rawResult, err := command.Execute(ExecutionContext{
+			TimeseriesStorageAPI:      fakeBackend,
+			MetricMetadataAPI:         fakeAPI,
+			FetchLimit:                1000,
+			Timeout:                   0,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue

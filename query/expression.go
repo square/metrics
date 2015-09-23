@@ -49,9 +49,16 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
-		Profiler: context.Profiler,
-	})
+	updateFunction := func() ([]api.TagSet, error) {
+		metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
+			Profiler: context.Profiler,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return metricTagSets, nil
+	}
+	metricTagSets, err := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(api.MetricKey(expr.metricName), updateFunction)
 	if err != nil {
 		return nil, err
 	}
