@@ -16,11 +16,13 @@ package api
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/square/metrics/inspect"
 )
 
 type TimeseriesStorageAPI interface {
+	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
 }

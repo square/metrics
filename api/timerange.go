@@ -40,9 +40,27 @@ func (tr Timerange) Start() int64 {
 	return tr.start
 }
 
+func (tr Timerange) StartTime() time.Time {
+	seconds := tr.Start() / 1000
+	milliseconds := tr.Start() % 1000
+	nanoseconds := milliseconds * 1000000
+	return time.Unix(seconds, nanoseconds)
+}
+
 // End returns the .end field
 func (tr Timerange) End() int64 {
 	return tr.end
+}
+
+func (tr Timerange) EndTime() time.Time {
+	seconds := tr.End() / 1000
+	milliseconds := tr.Start() % 1000
+	nanoseconds := milliseconds * 1000000
+	return time.Unix(seconds, nanoseconds)
+}
+
+func (tr Timerange) Duration() time.Duration {
+	return tr.EndTime().Sub(tr.StartTime())
 }
 
 // MarshalJSON marshals the Timerange into a byte error

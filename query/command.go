@@ -160,10 +160,27 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	if slotLimit == 0 {
 		slotLimit = defaultLimit // the default limit
 	}
-	if timerange.Slots() > slotLimit {
+
+	smallestResolution := timerange.Duration() / time.Duration(slotLimit-2)
+	// ((end + res/2) - (start - res/2)) / res + 1 <= slots // make adjustments for a snap that moves the endpoints
+	// (do some algebra)
+	// (end - start + res) + res <= slots * res
+	// end - start <= res * (slots - 2)
+	// so
+	// res >= (end - start) / (slots - 2)
+
+	// Update the timerange by applying the insights of the storage API:
+	chosenResolution := context.TimeseriesStorageAPI.ChooseResolution(timerange, smallestResolution)
+
+	chosenTimerange, err := api.NewSnappedTimerange(timerange.Start(), timerange.End(), int64(chosenResolution/time.Millisecond))
+	if err != nil {
+		return nil, err
+	}
+
+	if chosenTimerange.Slots() > slotLimit {
 		return nil, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
-			timerange.Slots(), slotLimit)
+			chosenTimerange.Slots(), slotLimit)
 	}
 	hasTimeout := context.Timeout != 0
 	var cancellable api.Cancellable

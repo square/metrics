@@ -429,3 +429,97 @@ func TestBlueflood_DefaultTTLs(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestBlueflood_ChooseResolution(t *testing.T) {
+	makeTimerange := func(start, end, resolution int64) api.Timerange {
+		timerange, err := api.NewSnappedTimerange(start, end, resolution)
+		if err != nil {
+			t.Fatalf("error creating testcase timerange: %s", err.Error())
+		}
+		return timerange
+	}
+
+	// The millisecond epoch for Sep 1, 2001.
+	start := int64(999316800000)
+
+	second := int64(1000)
+	minute := 60 * second
+	hour := 60 * minute
+	day := 24 * hour
+
+	tests := []struct {
+		input     api.Timerange
+		slotLimit int
+		expected  time.Duration
+	}{
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 5000,
+			expected:  30 * time.Second,
+		},
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 50,
+			expected:  5 * time.Minute,
+		},
+		{
+			input:     makeTimerange(start, start+4*hour, 30*second),
+			slotLimit: 470,
+			expected:  5 * time.Minute,
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 500,
+			expected:  5 * time.Minute,
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 4700,
+			expected:  5 * time.Minute,
+		},
+		{
+			input:     makeTimerange(start, start+40*hour, 30*second),
+			slotLimit: 110,
+			expected:  1 * time.Hour,
+		},
+		{
+			input:     makeTimerange(start, start+70*day, 30*second),
+			slotLimit: 200,
+			expected:  24 * time.Hour,
+		},
+		{
+			input:     makeTimerange(start-25*day, start, 30*second),
+			slotLimit: 200,
+			expected:  24 * time.Hour,
+		},
+	}
+
+	b := &Blueflood{
+		config: Config{
+			Ttls: map[string]int64{
+				"FULL":    1,
+				"MIN5":    30,
+				"MIN20":   60,
+				"MIN60":   90,
+				"MIN240":  20,
+				"MIN1440": 365,
+			},
+		},
+		timeSource: func() time.Time {
+			return time.Unix(start/1000, 0)
+		},
+	}
+
+	for i, test := range tests {
+		smallestResolution := test.input.Duration() / time.Duration(test.slotLimit-2)
+		result := b.ChooseResolution(test.input, smallestResolution)
+		// This is mostly a sanity check:
+		_, err := api.NewSnappedTimerange(test.input.Start(), test.input.End(), int64(result/time.Millisecond))
+		if err != nil {
+			t.Errorf("Test %+v:\nEncountered error when building timerange: %s", test, err.Error())
+		}
+		if result != test.expected {
+			t.Errorf("Testcase %d failed: expected %+v but got %+v; slot limit %d", i, test.expected, result, test.slotLimit)
+		}
+	}
+}

@@ -28,7 +28,7 @@ import (
 	"github.com/square/metrics/testing_support/mocks"
 )
 
-type movingAverageBackend struct{}
+type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
 
 func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	t := r.Timerange

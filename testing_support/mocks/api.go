@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/util"
@@ -142,6 +143,10 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 }
 
 type FakeTimeseriesStorageAPI struct{}
+
+func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
+	return requested.Resolution()
+}
 
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
