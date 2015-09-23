@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
 )
@@ -141,10 +142,11 @@ func TestProfilerIntegration(t *testing.T) {
 		profilingCommand, profiler := NewProfilingCommand(cmd)
 
 		_, err = profilingCommand.Execute(ExecutionContext{
-			TimeseriesStorageAPI: fakeTimeStorage,
-			MetricMetadataAPI:    myAPI,
-			FetchLimit:           10000,
-			Timeout:              time.Second * 4,
+			TimeseriesStorageAPI:      fakeTimeStorage,
+			MetricMetadataAPI:         myAPI,
+			FetchLimit:                10000,
+			Timeout:                   time.Second * 4,
+			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 
 		if err != nil {

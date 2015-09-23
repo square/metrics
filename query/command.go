@@ -23,18 +23,20 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/query/natural_sort"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	TimeseriesStorageAPI api.TimeseriesStorageAPI // the backend
-	MetricMetadataAPI    api.MetricMetadataAPI    // the api
-	FetchLimit           int                      // the maximum number of fetches
-	Timeout              time.Duration            // optional
-	Registry             function.Registry        // optional
-	SlotLimit            int                      // optional (0 => default 1000)
-	Profiler             *inspect.Profiler        // optional
+	TimeseriesStorageAPI      api.TimeseriesStorageAPI            // the backend
+	MetricMetadataAPI         api.MetricMetadataAPI               // the api
+	FetchLimit                int                                 // the maximum number of fetches
+	Timeout                   time.Duration                       // optional
+	Registry                  function.Registry                   // optional
+	SlotLimit                 int                                 // optional (0 => default 1000)
+	Profiler                  *inspect.Profiler                   // optional
+	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
 }
 
 // Command is the final result of the parsing.
@@ -73,9 +75,17 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
-	tagsets, _ := context.MetricMetadataAPI.GetAllTags(cmd.metricName, api.MetricMetadataAPIContext{
-		Profiler: context.Profiler,
-	})
+
+	// We generate a simple update function that closes around the profiler
+	// so if we do have a cache miss it's correctly reported on this request.
+	updateFunction := func() ([]api.TagSet, error) {
+		tagsets, err := context.MetricMetadataAPI.GetAllTags(cmd.metricName, api.MetricMetadataAPIContext{
+			Profiler: context.Profiler,
+		})
+		return tagsets, err
+	}
+	tagsets, _ := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(cmd.metricName, updateFunction)
+
 	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
 	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
 	for _, tagset := range tagsets {
@@ -169,15 +179,16 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
-		MetricMetadataAPI:    context.MetricMetadataAPI,
-		FetchLimit:           function.NewFetchCounter(context.FetchLimit),
-		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
-		Predicate:            cmd.predicate,
-		SampleMethod:         cmd.context.SampleMethod,
-		Timerange:            timerange,
-		Cancellable:          cancellable,
-		Registry:             r,
-		Profiler:             context.Profiler,
+		MetricMetadataAPI:         context.MetricMetadataAPI,
+		FetchLimit:                function.NewFetchCounter(context.FetchLimit),
+		TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
+		Predicate:                 cmd.predicate,
+		SampleMethod:              cmd.context.SampleMethod,
+		Timerange:                 timerange,
+		Cancellable:               cancellable,
+		Registry:                  r,
+		Profiler:                  context.Profiler,
+		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
 	if hasTimeout {
