@@ -199,7 +199,10 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
-	for i, singleRequest := range singleRequests {
+	for i := range singleRequests {
+		//Make sure we close around the specific individual request
+		//and not the ranged/copied request.
+		singleRequest := singleRequests[i]
 		works[i] = func() (api.Timeseries, error) {
 			return b.FetchSingleTimeseries(singleRequest)
 		}
