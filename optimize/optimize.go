@@ -45,6 +45,10 @@ func NewOptimizationConfiguration() *OptimizationConfiguration {
 // otherwise call the supplied update function and cache the result
 // transparently.
 func (optimize *OptimizationConfiguration) AllTagsCacheHitOrExecute(metric api.MetricKey, update func() ([]api.TagSet, error)) ([]api.TagSet, error) {
+	// Just in case we were never initialized.
+	if optimize == nil {
+		return update()
+	}
 	// If caching is disabled, always run the provided update function
 	if !optimize.EnableMetricMetadataCaching {
 		return update()
