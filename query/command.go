@@ -214,20 +214,24 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		timeout = time.After(context.Timeout)
 	}
 
-	results := make(chan interface{}, 1) // Capacity prevents the goroutines from starving in event of timeout
-	errors := make(chan error, 1)        // Capacity prevents the goroutines from starving in event of timeout
+	results := make(chan interface{}, 1)
+	errors := make(chan error, 1)
+	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
 	go func() {
+		// Evaluate the result, and send it along the goroutines.
 		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
 			errors <- err
-		} else {
-			results <- result
+			return
 		}
+		results <- result
 	}()
 	select {
 	case <-timeout:
 		return nil, function.NewLimitError("Timeout while executing the query.",
 			context.Timeout, context.Timeout)
+	case err := <-errors:
+		return nil, err
 	case result := <-results:
 		lists := make([]api.SeriesList, len(values))
 		for i := range values {
@@ -237,8 +241,6 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 			}
 		}
 		return lists, nil
-	case err := <-errors:
-		return nil, err
 	}
 }
 
