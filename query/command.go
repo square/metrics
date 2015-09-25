@@ -208,13 +208,13 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
-	timeout := <-chan time.Time(nil)
+	timeout := (<-chan time.Time)(nil)
 	if hasTimeout {
 		// A nil channel will just block forever
 		timeout = time.After(context.Timeout)
 	}
 
-	results := make(chan interface{}, 1)
+	results := make(chan []function.Value, 1)
 	errors := make(chan error, 1)
 	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
 	go func() {
@@ -233,9 +233,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	case err := <-errors:
 		return nil, err
 	case result := <-results:
-		lists := make([]api.SeriesList, len(values))
-		for i := range values {
-			lists[i], err = values[i].ToSeriesList(evaluationContext.Timerange)
+		lists := make([]api.SeriesList, len(result))
+		for i := range result {
+			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
 				return nil, err
 			}

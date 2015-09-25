@@ -21,7 +21,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/util"
 )
 
 func TestProfilerIntegration(t *testing.T) {
@@ -48,20 +47,19 @@ func TestProfilerIntegration(t *testing.T) {
 	// 	},
 	// }
 
-	emptyGraphiteName := util.GraphiteMetric("")
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=2,y=2")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=3,y=1")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=2,y=2")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=3,y=1")})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=foo")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=bar")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=foo")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=bar")})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=1")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=2")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=3")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=4")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=5")}, emptyGraphiteName)
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=6")}, emptyGraphiteName)
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=1")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=2")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=3")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=4")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=5")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=6")})
 
 	testCases := []struct {
 		query    string

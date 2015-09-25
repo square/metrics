@@ -55,7 +55,7 @@ func (b movingAverageBackend) FetchMultipleTimeseries(r api.FetchMultipleTimeser
 
 func TestMovingAverage(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()}, "series")
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()})
 
 	fakeBackend := movingAverageBackend{}
 	timerange, err := api.NewTimerange(1200, 1500, 100)
