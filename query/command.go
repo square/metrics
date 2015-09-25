@@ -208,7 +208,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
-	timeout := chan time.Time(nil)
+	timeout := <-chan time.Time(nil)
 	if hasTimeout {
 		// A nil channel will just block forever
 		timeout = time.After(context.Timeout)
