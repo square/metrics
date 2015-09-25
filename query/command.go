@@ -208,32 +208,27 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
+	timeout := chan time.Time(nil)
 	if hasTimeout {
-		timeout := time.After(context.Timeout)
-		results := make(chan interface{})
-		errors := make(chan error)
-		go func() {
-			result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
-			if err != nil {
-				errors <- err
-			} else {
-				results <- result
-			}
-		}()
-		select {
-		case <-timeout:
-			return nil, function.NewLimitError("Timeout while executing the query.",
-				context.Timeout, context.Timeout)
-		case result := <-results:
-			return result, nil
-		case err := <-errors:
-			return nil, err
-		}
-	} else {
-		values, err := function.EvaluateMany(evaluationContext, cmd.expressions)
+		// A nil channel will just block forever
+		timeout = time.After(context.Timeout)
+	}
+
+	results := make(chan interface{}, 1) // Capacity prevents the goroutines from starving in event of timeout
+	errors := make(chan error, 1)        // Capacity prevents the goroutines from starving in event of timeout
+	go func() {
+		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
-			return nil, err
+			errors <- err
+		} else {
+			results <- result
 		}
+	}()
+	select {
+	case <-timeout:
+		return nil, function.NewLimitError("Timeout while executing the query.",
+			context.Timeout, context.Timeout)
+	case result := <-results:
 		lists := make([]api.SeriesList, len(values))
 		for i := range values {
 			lists[i], err = values[i].ToSeriesList(evaluationContext.Timerange)
@@ -242,6 +237,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 			}
 		}
 		return lists, nil
+	case err := <-errors:
+		return nil, err
 	}
 }
 
