@@ -27,11 +27,12 @@ type Hook struct {
 }
 
 type response struct {
-	Success bool          `json:"success"`
-	Name    string        `json:"name,omitempty"`
-	Message string        `json:"message,omitempty"`
-	Body    interface{}   `json:"body,omitempty"`
-	Profile []profileJSON `json:"profile,omitempty"`
+	Success  bool          `json:"success"`
+	Name     string        `json:"name,omitempty"`
+	Message  string        `json:"message,omitempty"`
+	Body     interface{}   `json:"body,omitempty"`
+	Metadata interface{}   `json:"metadata,omitempty"`
+	Profile  []profileJSON `json:"profile,omitempty"`
 }
 
 type profileJSON struct {
