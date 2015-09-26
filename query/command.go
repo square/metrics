@@ -39,12 +39,17 @@ type ExecutionContext struct {
 	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
 }
 
+type CommandResult struct {
+	Data     interface{}
+	Metadata map[string]interface{}
+}
+
 // Command is the final result of the parsing.
 // A command contains all the information to execute the
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(ExecutionContext) (interface{}, error)
+	Execute(ExecutionContext) (CommandResult, error)
 	Name() string
 }
 
@@ -74,7 +79,7 @@ type SelectCommand struct {
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, error) {
 
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
@@ -109,7 +114,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, erro
 		natural_sort.Sort(list)
 		keyValueLists[key] = list
 	}
-	return keyValueLists, nil
+	return CommandResult{Data: keyValueLists}, nil
 }
 
 func (cmd *DescribeCommand) Name() string {
@@ -117,7 +122,7 @@ func (cmd *DescribeCommand) Name() string {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	result, err := context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
@@ -129,9 +134,9 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, e
 			}
 		}
 		sort.Sort(api.MetricKeys(filtered))
-		return filtered, nil
+		return CommandResult{Data: filtered}, nil
 	}
-	return nil, err
+	return CommandResult{}, err
 }
 
 func (cmd *DescribeAllCommand) Name() string {
@@ -139,10 +144,14 @@ func (cmd *DescribeAllCommand) Name() string {
 }
 
 // Execute asks for all metrics with the given name.
-func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
-	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
+func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
+	if err != nil {
+		return CommandResult{}, err
+	}
+	return CommandResult{Data: data}, nil
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
@@ -150,10 +159,10 @@ func (cmd *DescribeMetricsCommand) Name() string {
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
-		return nil, err
+		return CommandResult{}, err
 	}
 	slotLimit := context.SlotLimit
 	defaultLimit := 1000
@@ -174,11 +183,11 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 	chosenTimerange, err := api.NewSnappedTimerange(timerange.Start(), timerange.End(), int64(chosenResolution/time.Millisecond))
 	if err != nil {
-		return nil, err
+		return CommandResult{}, err
 	}
 
 	if chosenTimerange.Slots() > slotLimit {
-		return nil, function.NewLimitError(
+		return CommandResult{}, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
 			chosenTimerange.Slots(), slotLimit)
 	}
@@ -228,19 +237,19 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	}()
 	select {
 	case <-timeout:
-		return nil, function.NewLimitError("Timeout while executing the query.",
+		return CommandResult{}, function.NewLimitError("Timeout while executing the query.",
 			context.Timeout, context.Timeout)
 	case err := <-errors:
-		return nil, err
+		return CommandResult{}, err
 	case result := <-results:
 		lists := make([]api.SeriesList, len(result))
 		for i := range result {
 			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
-				return nil, err
+				return CommandResult{}, err
 			}
 		}
-		return lists, nil
+		return CommandResult{Data: lists}, nil
 	}
 }
 
@@ -266,7 +275,7 @@ func (cmd ProfilingCommand) Name() string {
 	return cmd.Command.Name()
 }
 
-func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
 	return cmd.Command.Execute(context)
