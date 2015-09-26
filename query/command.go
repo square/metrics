@@ -40,8 +40,8 @@ type ExecutionContext struct {
 }
 
 type CommandResult struct {
-	Body     interface{}            `json:"body,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Body     interface{}
+	Metadata map[string]interface{}
 }
 
 // Command is the final result of the parsing.
@@ -343,6 +343,9 @@ func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, er
 				Start:  profile.Start().UnixNano() / int64(time.Millisecond),
 				Finish: profile.Finish().UnixNano() / int64(time.Millisecond),
 			})
+		}
+		if result.Metadata == nil {
+			result.Metadata = map[string]interface{}{}
 		}
 		result.Metadata["profile"] = jsonProfiles
 	}

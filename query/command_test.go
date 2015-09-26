@@ -438,7 +438,7 @@ func TestCommand_Select(t *testing.T) {
 		})
 		if test.expectError {
 			if err == nil {
-				t.Errorf("Expected error on %s but got no error; got value: %+v", test.query, rawResult.Data)
+				t.Errorf("Expected error on %s but got no error; got value: %+v", test.query, rawResult.Body)
 			}
 		} else {
 			a.CheckError(err)
