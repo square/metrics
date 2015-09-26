@@ -68,7 +68,7 @@ func TestCommand_Describe(t *testing.T) {
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		a.CheckError(err)
-		a.Eq(rawResult.Data, test.expected)
+		a.Eq(rawResult.Body, test.expected)
 	}
 }
 
@@ -105,7 +105,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		a.CheckError(err)
-		a.Eq(rawResult.Data, test.expected)
+		a.Eq(rawResult.Body, test.expected)
 	}
 }
 
@@ -442,7 +442,7 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			a.CheckError(err)
-			actual := rawResult.Data.([]api.SeriesList)
+			actual := rawResult.Body.([]api.SeriesList)
 			a.EqInt(len(actual), len(expected))
 			if len(actual) == len(expected) {
 				for i := range actual {
@@ -573,9 +573,9 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.Body.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
 		actual := seriesListList[0].Name
@@ -668,9 +668,9 @@ func TestQuery(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.Body.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
 		actual := seriesListList[0].Query
@@ -775,9 +775,9 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.Body.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
 		list := seriesListList[0]

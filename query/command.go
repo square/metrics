@@ -40,8 +40,8 @@ type ExecutionContext struct {
 }
 
 type CommandResult struct {
-	Data     interface{}
-	Metadata map[string]interface{}
+	Body     interface{}            `json:"body,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Command is the final result of the parsing.
@@ -114,7 +114,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 		natural_sort.Sort(list)
 		keyValueLists[key] = list
 	}
-	return CommandResult{Data: keyValueLists}, nil
+	return CommandResult{Body: keyValueLists}, nil
 }
 
 func (cmd *DescribeCommand) Name() string {
@@ -135,7 +135,7 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult,
 		}
 		sort.Sort(api.MetricKeys(filtered))
 		return CommandResult{
-			Data: filtered,
+			Body: filtered,
 			Metadata: map[string]interface{}{
 				"count": len(filtered),
 			},
@@ -157,7 +157,7 @@ func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandRes
 		return CommandResult{}, err
 	}
 	return CommandResult{
-		Data: data,
+		Body: data,
 		Metadata: map[string]interface{}{
 			"count": len(data),
 		},
@@ -278,7 +278,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			description[key] = filtered
 		}
 		return CommandResult{
-			Data: lists,
+			Body: lists,
 			Metadata: map[string]interface{}{
 				"description": description,
 			},
