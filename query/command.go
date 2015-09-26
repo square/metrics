@@ -134,7 +134,12 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult,
 			}
 		}
 		sort.Sort(api.MetricKeys(filtered))
-		return CommandResult{Data: filtered}, nil
+		return CommandResult{
+			Data: filtered,
+			Metadata: map[string]interface{}{
+				"count": len(filtered),
+			},
+		}, nil
 	}
 	return CommandResult{}, err
 }
@@ -151,7 +156,12 @@ func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandRes
 	if err != nil {
 		return CommandResult{}, err
 	}
-	return CommandResult{Data: data}, nil
+	return CommandResult{
+		Data: data,
+		Metadata: map[string]interface{}{
+			"count": len(data),
+		},
+	}, nil
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
@@ -249,7 +259,30 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 				return CommandResult{}, err
 			}
 		}
-		return CommandResult{Data: lists}, nil
+		description := map[string][]string{}
+		for _, list := range lists {
+			for _, series := range list.Series {
+				for key, value := range series.TagSet {
+					description[key] = append(description[key], value)
+				}
+			}
+		}
+		for key, values := range description {
+			natural_sort.Sort(values)
+			filtered := []string{}
+			for i := range values {
+				if i == 0 || values[i-1] != values[i] {
+					filtered = append(filtered, values[i])
+				}
+			}
+			description[key] = filtered
+		}
+		return CommandResult{
+			Data: lists,
+			Metadata: map[string]interface{}{
+				"description": description,
+			},
+		}, nil
 	}
 }
 
@@ -275,8 +308,43 @@ func (cmd ProfilingCommand) Name() string {
 	return cmd.Command.Name()
 }
 
+type profileJSON struct {
+	Name   string `json:"name"`
+	Start  int64  `json:"start"`  // ms since Unix epoch
+	Finish int64  `json:"finish"` // ms since Unix epoch
+}
+
+func convertProfile(profiler *inspect.Profiler) []profileJSON {
+	profiles := profiler.All()
+	result := make([]profileJSON, len(profiles))
+	for i, p := range profiles {
+		result[i] = profileJSON{
+			Name:   p.Name(),
+			Start:  p.Start().UnixNano() / int64(time.Millisecond),
+			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
+		}
+	}
+	return result
+}
+
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
-	return cmd.Command.Execute(context)
+	result, err := cmd.Command.Execute(context)
+	if err != nil {
+		return CommandResult{}, err
+	}
+	profiles := cmd.Profiler.All()
+	if len(profiles) != 0 {
+		jsonProfiles := []profileJSON{}
+		for _, profile := range profiles {
+			jsonProfiles = append(jsonProfiles, profileJSON{
+				Name:   profile.Name(),
+				Start:  profile.Start().UnixNano() / int64(time.Millisecond),
+				Finish: profile.Finish().UnixNano() / int64(time.Millisecond),
+			})
+		}
+		result.Metadata["profile"] = jsonProfiles
+	}
+	return result, nil
 }
