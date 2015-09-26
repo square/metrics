@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/function"
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
@@ -31,10 +30,10 @@ var emptyGraphiteName = util.GraphiteMetric("")
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")}, emptyGraphiteName)
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")})
 
 	for _, test := range []struct {
 		query          string
@@ -69,16 +68,16 @@ func TestCommand_Describe(t *testing.T) {
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		a.CheckError(err)
-		a.Eq(rawResult.Data, test.expected)
+		a.Eq(rawResult, test.expected)
 	}
 }
 
 func TestCommand_DescribeAll(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("")}, emptyGraphiteName)
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("")})
 
 	for _, test := range []struct {
 		query          string
@@ -106,20 +105,19 @@ func TestCommand_DescribeAll(t *testing.T) {
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		a.CheckError(err)
-		a.Eq(rawResult.Data, test.expected)
+		a.Eq(rawResult, test.expected)
 	}
 }
 
 func TestCommand_Select(t *testing.T) {
-	epsilon := 1e-10
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=west")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=east")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")}, emptyGraphiteName)
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")}, emptyGraphiteName)
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=west")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=east")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")})
 	var fakeBackend mocks.FakeTimeseriesStorageAPI
 	testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
@@ -137,99 +135,99 @@ func TestCommand_Select(t *testing.T) {
 	for _, test := range []struct {
 		query       string
 		expectError bool
-		expected    api.SeriesList
+		expected    []api.SeriesList
 	}{
-		{"select does_not_exist from 0 to 120 resolution 30ms", true, api.SeriesList{}},
-		{"select series_1 from 0 to 120 resolution 30ms", false, api.SeriesList{
+		{"select does_not_exist from 0 to 120 resolution 30ms", true, []api.SeriesList{}},
+		{"select series_1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3, 4, 5},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
 			Name:      "series_1",
-		}},
-		{"select series_timeout from 0 to 120 resolution 30ms", true, api.SeriesList{}},
-		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_timeout from 0 to 120 resolution 30ms", true, []api.SeriesList{}},
+		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4, 5, 6},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
 			Name:      "",
-		}},
-		{"select series_1 * 2 from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_1 * 2 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 4, 6, 8, 10},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
 			Name:      "",
-		}},
-		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{3, 2, 3, 6, 5},
 				api.NewTagSet(),
 			}},
 			Timerange: testTimerange,
 			Name:      "series_2",
-		}},
-		{"select (1 + series_2) | aggregate.max from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select (1 + series_2) | aggregate.max from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{4, 3, 4, 7, 6},
 				api.NewTagSet(),
 			}},
 			Timerange: testTimerange,
 			Name:      "series_2",
-		}},
-		{"select series_1 from 0 to 60 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_1 from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{1, 2, 3},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
 			Name:      "series_1",
-		}},
-		{"select transform.timeshift(series_1,31ms) from 0 to 60 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select transform.timeshift(series_1,31ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
 			Name:      "series_1",
-		}},
-		{"select transform.timeshift(series_1,62ms) from 0 to 60 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select transform.timeshift(series_1,62ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{3, 4, 5},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
 			Name:      "series_1",
-		}},
-		{"select transform.timeshift(series_1,29ms) from 0 to 60 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select transform.timeshift(series_1,29ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
 			Name:      "series_1",
-		}},
-		{"select transform.timeshift(series_1,-31ms) from 60 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select transform.timeshift(series_1,-31ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: lateTimerange,
 			Name:      "series_1",
-		}},
-		{"select transform.timeshift(series_1,-29ms) from 60 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select transform.timeshift(series_1,-29ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				[]float64{2, 3, 4},
 				api.ParseTagSet("dc=west"),
 			}},
 			Timerange: lateTimerange,
 			Name:      "series_1",
-		}},
-		{"select series_3 from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{1, 1, 1, 4, 4},
@@ -244,8 +242,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=north"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(3, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{1, 1, 1, 4, 4},
@@ -260,8 +258,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=east"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(2, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{1, 1, 1, 4, 4},
@@ -272,16 +270,16 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=north"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(1, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{1, 1, 1, 4, 4},
 					api.ParseTagSet("dc=west"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(3, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
@@ -296,8 +294,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=west"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(4, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(4, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
@@ -312,8 +310,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=west"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{1, 1, 1, 4, 4},
@@ -328,8 +326,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=east"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
@@ -340,16 +338,16 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=north"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(1, 30ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
 					api.ParseTagSet("dc=east"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
@@ -364,8 +362,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=north"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
@@ -376,16 +374,16 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=west"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_highest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_highest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{5, 5, 5, 2, 2},
 					api.ParseTagSet("dc=east"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{3, 3, 3, 3, 3},
@@ -400,8 +398,8 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=east"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{3, 3, 3, 3, 3},
@@ -412,16 +410,16 @@ func TestCommand_Select(t *testing.T) {
 					api.ParseTagSet("dc=west"),
 				},
 			},
-		}},
-		{"select series_3 | filter.recent_lowest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, api.SeriesList{
+		}}},
+		{"select series_3 | filter.recent_lowest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					[]float64{3, 3, 3, 3, 3},
 					api.ParseTagSet("dc=north"),
 				},
 			},
-		}},
-		{"select series_1 from -1000d to now resolution 30s", true, api.SeriesList{}},
+		}}},
+		{"select series_1 from -1000d to now resolution 30s", true, []api.SeriesList{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
@@ -438,24 +436,20 @@ func TestCommand_Select(t *testing.T) {
 			Timeout:                   100 * time.Millisecond,
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
-		if err != nil {
-			if !test.expectError {
-				a.Errorf("Unexpected error while executing: %s", err.Error())
+		if test.expectError {
+			if err == nil {
+				t.Errorf("Expected error on %s but got no error; got value: %+v", test.query, rawResult)
 			}
 		} else {
-			casted := rawResult.Data.([]function.Value)
-			actual, _ := casted[0].ToSeriesList(api.Timerange{})
-			a.EqInt(len(actual.Series), len(expected.Series))
-			if len(actual.Series) == len(expected.Series) {
-				for i := 0; i < len(expected.Series); i++ {
-					a.Eq(actual.Series[i].TagSet, expected.Series[i].TagSet)
-					actualLength := len(actual.Series[i].Values)
-					expectedLength := len(actual.Series[i].Values)
-					a.Eq(actualLength, expectedLength)
-					if actualLength == expectedLength {
-						for j := 0; j < actualLength; j++ {
-							a.EqFloat(actual.Series[i].Values[j], expected.Series[i].Values[j], epsilon)
-						}
+			a.CheckError(err)
+			actual := rawResult.([]api.SeriesList)
+			a.EqInt(len(actual), len(expected))
+			if len(actual) == len(expected) {
+				for i := range actual {
+					a.EqInt(len(actual[i].Series), len(expected[i].Series))
+					for j := range actual[i].Series {
+						a.Eq(actual[i].Series[j].TagSet, expected[i].Series[j].TagSet)
+						a.EqFloatArray(actual[i].Series[j].Values, expected[i].Series[j].Values, 1e-4)
 					}
 				}
 			}
@@ -486,19 +480,24 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("expected failure with limit = 2")
 		return
 	}
-	command, err = Parse("select series2 from 0 to 120 resolution 30ms")
+	command, err = Parse("select series_2 from 0 to 120 resolution 30ms")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
 	_, err = command.Execute(context)
 	if err != nil {
-		t.Fatalf("expected success with limit = 2 but got %s", err.Error())
+		t.Fatalf("expected success with limit = 2 but got '%s'", err.Error())
 	}
 }
 
 func TestNaming(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
+
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
@@ -574,9 +573,9 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
 		actual := seriesListList[0].Name
@@ -589,6 +588,11 @@ func TestNaming(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
+
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
@@ -664,9 +668,9 @@ func TestQuery(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
 		actual := seriesListList[0].Query
@@ -679,6 +683,11 @@ func TestQuery(t *testing.T) {
 
 func TestTag(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
+
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query    string
@@ -766,9 +775,9 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Data.([]api.SeriesList)
+		seriesListList, ok := rawResult.([]api.SeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult.Data, rawResult.Data)
+			t.Errorf("expected query `%s` to produce []value; got %+v :: %T", test.query, rawResult, rawResult)
 			continue
 		}
 		list := seriesListList[0]

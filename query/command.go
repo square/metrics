@@ -39,17 +39,12 @@ type ExecutionContext struct {
 	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
 }
 
-type CommandResult struct {
-	Data     interface{}
-	Metadata map[string]interface{}
-}
-
 // Command is the final result of the parsing.
 // A command contains all the information to execute the
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(ExecutionContext) (CommandResult, error)
+	Execute(ExecutionContext) (interface{}, error)
 	Name() string
 }
 
@@ -79,7 +74,7 @@ type SelectCommand struct {
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, error) {
+func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
 
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
@@ -114,7 +109,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 		natural_sort.Sort(list)
 		keyValueLists[key] = list
 	}
-	return CommandResult{Data: keyValueLists}, nil
+	return keyValueLists, nil
 }
 
 func (cmd *DescribeCommand) Name() string {
@@ -122,7 +117,7 @@ func (cmd *DescribeCommand) Name() string {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult, error) {
+func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
 	result, err := context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
@@ -134,9 +129,9 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult,
 			}
 		}
 		sort.Sort(api.MetricKeys(filtered))
-		return CommandResult{Data: filtered}, nil
+		return filtered, nil
 	}
-	return CommandResult{}, err
+	return nil, err
 }
 
 func (cmd *DescribeAllCommand) Name() string {
@@ -144,14 +139,10 @@ func (cmd *DescribeAllCommand) Name() string {
 }
 
 // Execute asks for all metrics with the given name.
-func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	result, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
+func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
+	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
-	if err != nil {
-		return CommandResult{}, err
-	}
-	return CommandResult{Data: result}, err
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
@@ -159,10 +150,10 @@ func (cmd *DescribeMetricsCommand) Name() string {
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
+func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error) {
 	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
-		return CommandResult{}, err
+		return nil, err
 	}
 	slotLimit := context.SlotLimit
 	defaultLimit := 1000
@@ -183,11 +174,11 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 
 	chosenTimerange, err := api.NewSnappedTimerange(timerange.Start(), timerange.End(), int64(chosenResolution/time.Millisecond))
 	if err != nil {
-		return CommandResult{}, err
+		return nil, err
 	}
 
 	if chosenTimerange.Slots() > slotLimit {
-		return CommandResult{}, function.NewLimitError(
+		return nil, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
 			chosenTimerange.Slots(), slotLimit)
 	}
@@ -217,40 +208,39 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
+	timeout := (<-chan time.Time)(nil)
 	if hasTimeout {
-		timeout := time.After(context.Timeout)
-		results := make(chan interface{})
-		errors := make(chan error)
-		go func() {
-			result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
-			if err != nil {
-				errors <- err
-			} else {
-				results <- result
-			}
-		}()
-		select {
-		case <-timeout:
-			return CommandResult{}, function.NewLimitError("Timeout while executing the query.",
-				context.Timeout, context.Timeout)
-		case result := <-results:
-			return CommandResult{Data: result}, nil
-		case err := <-errors:
-			return CommandResult{}, err
-		}
-	} else {
-		values, err := function.EvaluateMany(evaluationContext, cmd.expressions)
+		// A nil channel will just block forever
+		timeout = time.After(context.Timeout)
+	}
+
+	results := make(chan []function.Value, 1)
+	errors := make(chan error, 1)
+	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
+	go func() {
+		// Evaluate the result, and send it along the goroutines.
+		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
-			return CommandResult{}, err
+			errors <- err
+			return
 		}
-		lists := make([]api.SeriesList, len(values))
-		for i := range values {
-			lists[i], err = values[i].ToSeriesList(evaluationContext.Timerange)
+		results <- result
+	}()
+	select {
+	case <-timeout:
+		return nil, function.NewLimitError("Timeout while executing the query.",
+			context.Timeout, context.Timeout)
+	case err := <-errors:
+		return nil, err
+	case result := <-results:
+		lists := make([]api.SeriesList, len(result))
+		for i := range result {
+			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
-				return CommandResult{}, err
+				return nil, err
 			}
 		}
-		return CommandResult{Data: lists}, nil
+		return lists, nil
 	}
 }
 
@@ -276,7 +266,7 @@ func (cmd ProfilingCommand) Name() string {
 	return cmd.Command.Name()
 }
 
-func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
+func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
 	return cmd.Command.Execute(context)

@@ -46,20 +46,11 @@ func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
 
 func (fa *FakeMetricMetadataAPI) AddPair(tm api.TaggedMetric, gm util.GraphiteMetric, converter *FakeGraphiteConverter) {
 	converter.MetricMap[gm] = tm
-
-	if metricTagSets, ok := fa.metricTagSets[tm.MetricKey]; !ok {
-		fa.metricTagSets[tm.MetricKey] = []api.TagSet{tm.TagSet}
-	} else {
-		fa.metricTagSets[tm.MetricKey] = append(metricTagSets, tm.TagSet)
-	}
+	fa.AddPairWithoutGraphite(tm)
 }
 
-func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric, gm util.GraphiteMetric) {
-	if metricTagSets, ok := fa.metricTagSets[tm.MetricKey]; !ok {
-		fa.metricTagSets[tm.MetricKey] = []api.TagSet{tm.TagSet}
-	} else {
-		fa.metricTagSets[tm.MetricKey] = append(metricTagSets, tm.TagSet)
-	}
+func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
+	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
 }
 
 func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
@@ -79,6 +70,10 @@ func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, context a
 
 func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Mock GetAllTags")()
+	if len(fa.metricTagSets[metricKey]) == 0 {
+		// This matches the behavior of the Cassandra API
+		return nil, fmt.Errorf("metric %s does not exist", metricKey)
+	}
 	return fa.metricTagSets[metricKey], nil
 }
 
