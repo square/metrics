@@ -77,6 +77,8 @@ func (optimize *OptimizationConfiguration) cacheUpdate(metric api.MetricKey, tag
 }
 
 func (optimize *OptimizationConfiguration) cacheGet(metric api.MetricKey) ([]api.TagSet, bool) {
+	optimize.mutex.Lock()
+	defer optimize.mutex.Unlock()
 	if val, ok := optimize.metricKeyToTagCache[metric]; ok {
 		if optimize.TimeSourceForNow().After(val.expiresAt) {
 			return nil, false
