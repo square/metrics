@@ -170,7 +170,7 @@ func (cmd *DescribeMetricsCommand) Name() string {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	timerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
+	userTimerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -180,7 +180,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		slotLimit = defaultLimit // the default limit
 	}
 
-	smallestResolution := timerange.Duration() / time.Duration(slotLimit-2)
+	smallestResolution := userTimerange.Duration() / time.Duration(slotLimit-2)
 	// ((end + res/2) - (start - res/2)) / res + 1 <= slots // make adjustments for a snap that moves the endpoints
 	// (do some algebra)
 	// (end - start + res) + res <= slots * res
@@ -189,9 +189,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	// res >= (end - start) / (slots - 2)
 
 	// Update the timerange by applying the insights of the storage API:
-	chosenResolution := context.TimeseriesStorageAPI.ChooseResolution(timerange, smallestResolution)
+	chosenResolution := context.TimeseriesStorageAPI.ChooseResolution(userTimerange, smallestResolution)
 
-	chosenTimerange, err := api.NewSnappedTimerange(timerange.Start(), timerange.End(), int64(chosenResolution/time.Millisecond))
+	chosenTimerange, err := api.NewSnappedTimerange(userTimerange.Start(), userTimerange.End(), int64(chosenResolution/time.Millisecond))
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -220,7 +220,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
 		Predicate:                 cmd.predicate,
 		SampleMethod:              cmd.context.SampleMethod,
-		Timerange:                 timerange,
+		Timerange:                 chosenTimerange,
 		Cancellable:               cancellable,
 		Registry:                  r,
 		Profiler:                  context.Profiler,

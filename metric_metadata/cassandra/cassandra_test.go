@@ -28,6 +28,7 @@ import (
 func newDatabase(t *testing.T) *cassandraDatabase {
 	cluster := gocql.NewCluster("localhost")
 	cluster.Keyspace = "metrics_indexer_test"
+	cluster.Consistency = gocql.One
 	cluster.Timeout = time.Duration(10000 * time.Millisecond)
 	session, err := cluster.CreateSession()
 	if err != nil {
