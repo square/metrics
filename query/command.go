@@ -208,35 +208,34 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		OptimizationConfiguration: context.OptimizationConfiguration,
 	}
 
+	timeout := (<-chan time.Time)(nil)
 	if hasTimeout {
-		timeout := time.After(context.Timeout)
-		results := make(chan interface{})
-		errors := make(chan error)
-		go func() {
-			result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
-			if err != nil {
-				errors <- err
-			} else {
-				results <- result
-			}
-		}()
-		select {
-		case <-timeout:
-			return nil, function.NewLimitError("Timeout while executing the query.",
-				context.Timeout, context.Timeout)
-		case result := <-results:
-			return result, nil
-		case err := <-errors:
-			return nil, err
-		}
-	} else {
-		values, err := function.EvaluateMany(evaluationContext, cmd.expressions)
+		// A nil channel will just block forever
+		timeout = time.After(context.Timeout)
+	}
+
+	results := make(chan []function.Value, 1)
+	errors := make(chan error, 1)
+	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
+	go func() {
+		// Evaluate the result, and send it along the goroutines.
+		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
-			return nil, err
+			errors <- err
+			return
 		}
-		lists := make([]api.SeriesList, len(values))
-		for i := range values {
-			lists[i], err = values[i].ToSeriesList(evaluationContext.Timerange)
+		results <- result
+	}()
+	select {
+	case <-timeout:
+		return nil, function.NewLimitError("Timeout while executing the query.",
+			context.Timeout, context.Timeout)
+	case err := <-errors:
+		return nil, err
+	case result := <-results:
+		lists := make([]api.SeriesList, len(result))
+		for i := range result {
+			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
 				return nil, err
 			}
