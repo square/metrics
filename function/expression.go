@@ -12,8 +12,8 @@ import (
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
 // metrics query.
-// * Contains Backend object, which can be used to fetch data
-// from the backend system.s
+// * Contains a TimeseriesStorageAPI object, which can be used to fetch data
+// from the backend systems.
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
@@ -27,6 +27,7 @@ type EvaluationContext struct {
 	Registry                  Registry
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
+	EvaluationNotes           []string //Debug + numerical notes that can be added during evaluation
 }
 
 type Registry interface {
@@ -47,6 +48,11 @@ type MetricFunction struct {
 	MaxArguments  int
 	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
 	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
+}
+
+func (e *EvaluationContext) AddNote(note string) {
+	fmt.Printf("Should have added a note\n")
+	e.EvaluationNotes = append(e.EvaluationNotes, note)
 }
 
 // Evaluate the given metric function.

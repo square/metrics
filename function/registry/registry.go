@@ -252,7 +252,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 }
 
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func NewTransform(name string, parameterCount int, transformer func([]float64, []function.Value, float64) ([]float64, error)) function.MetricFunction {
+func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, []float64, []function.Value, float64) ([]float64, error)) function.MetricFunction {
 	return function.MetricFunction{
 		Name:         name,
 		MinArguments: parameterCount + 1,
@@ -273,7 +273,7 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 					return nil, err
 				}
 			}
-			result, err := transform.ApplyTransform(list, transformer, parameters)
+			result, err := transform.ApplyTransform(context, list, transformer, parameters)
 			if err != nil {
 				return nil, err
 			}

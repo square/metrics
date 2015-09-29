@@ -206,6 +206,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 		Registry:                  r,
 		Profiler:                  context.Profiler,
 		OptimizationConfiguration: context.OptimizationConfiguration,
+		EvaluationNotes:           []string{},
 	}
 
 	timeout := (<-chan time.Time)(nil)

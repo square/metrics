@@ -162,7 +162,7 @@ var Alias = function.MetricFunction{
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
 var Derivative = newDerivativeBasedTransform("derivative", derivative)
 
-func derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func derivative(ctx function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -181,7 +181,7 @@ func derivative(values []float64, parameters []function.Value, scale float64) ([
 // differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
-func rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func rate(ctx function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -190,6 +190,7 @@ func rate(values []float64, parameters []function.Value, scale float64) ([]float
 		// Scaled difference
 		result[i-1] = (values[i] - values[i-1]) / scale
 		if result[i-1] < 0 {
+			ctx.AddNote(fmt.Sprintf("Rate: The counter reset between %d, %d", i, i-1))
 			// values[i] is our best approximatation of the delta between i-1 and i
 			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 			// the counter has reset, and we know *at least* v[i] increments have happened
@@ -233,7 +234,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			// Reset the timerange
 			list.Timerange = context.Timerange
 
-			result, err := ApplyTransform(list, transformer, []function.Value{})
+			result, err := ApplyTransform(context, list, transformer, []function.Value{})
 			if err != nil {
 				return nil, err
 			}
