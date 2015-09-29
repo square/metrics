@@ -27,7 +27,7 @@ var Timeshift = function.MetricFunction{
 	Name:         "transform.timeshift",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		value, err := arguments[1].Evaluate(context)
 		if err != nil {
 			return nil, err
@@ -58,7 +58,7 @@ var MovingAverage = function.MetricFunction{
 	Name:         "transform.moving_average",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
 		sizeValue, err := arguments[1].Evaluate(context)
@@ -135,7 +135,7 @@ var Alias = function.MetricFunction{
 	Name:         "transform.alias",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		value, err := arguments[0].Evaluate(context)
 		if err != nil {
 			return nil, err
@@ -162,7 +162,7 @@ var Alias = function.MetricFunction{
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
 var Derivative = newDerivativeBasedTransform("derivative", derivative)
 
-func derivative(ctx function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func derivative(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -181,7 +181,7 @@ func derivative(ctx function.EvaluationContext, values []float64, parameters []f
 // differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
-func rate(ctx function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func rate(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -209,7 +209,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		Name:         "transform." + name,
 		MinArguments: 1,
 		MaxArguments: 1,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			var err error
 			// Calcuate the new timerange to include one extra point to the left
 			newContext := context

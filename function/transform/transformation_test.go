@@ -90,7 +90,7 @@ func TestTransformTimeseries(t *testing.T) {
 				params = []function.Value{}
 			}
 			ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-			result, err := transformTimeseries(ctx, series, transform.fun, params, test.scale)
+			result, err := transformTimeseries(&ctx, series, transform.fun, params, test.scale)
 			if err != nil {
 				t.Error(err)
 				continue
@@ -189,7 +189,7 @@ func TestApplyTransform(t *testing.T) {
 	}
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameter)
+		result, err := ApplyTransform(&ctx, list, test.transform, test.parameter)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -261,7 +261,7 @@ func TestApplyNotes(t *testing.T) {
 
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		_, err := ApplyTransform(ctx, list, test.transform, test.parameter)
+		_, err := ApplyTransform(&ctx, list, test.transform, test.parameter)
 		fmt.Printf("%+v\n", ctx.EvaluationNotes)
 		if err != nil {
 			t.Error(err)
@@ -351,7 +351,7 @@ func TestApplyBound(t *testing.T) {
 	}
 	for _, test := range tests {
 		bounders := []struct {
-			bounder  func(ctx function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error)
+			bounder  func(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error)
 			params   []function.Value
 			expected map[string][]float64
 			name     string
@@ -363,7 +363,7 @@ func TestApplyBound(t *testing.T) {
 
 		for _, bounder := range bounders {
 			ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params)
+			bounded, err := ApplyTransform(&ctx, list, bounder.bounder, bounder.params)
 			if err != nil {
 				t.Errorf(err.Error())
 				continue
@@ -385,10 +385,10 @@ func TestApplyBound(t *testing.T) {
 		}
 	}
 	ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
+	if _, err = ApplyTransform(&ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
+	if _, err = ApplyTransform(&ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
 }
@@ -486,7 +486,7 @@ func TestApplyTransformNaN(t *testing.T) {
 	}
 	for _, test := range tests {
 		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameters)
+		result, err := ApplyTransform(&ctx, list, test.transform, test.parameters)
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
 			return
@@ -582,7 +582,7 @@ func TestTransformIdentity(t *testing.T) {
 			result := series
 			for _, fun := range transform.transforms {
 				ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-				result, err = transformTimeseries(ctx, result, fun, []function.Value{}, test.scale)
+				result, err = transformTimeseries(&ctx, result, fun, []function.Value{}, test.scale)
 				if err != nil {
 					t.Error(err)
 					break

@@ -47,7 +47,7 @@ type MetricFunction struct {
 	MinArguments  int
 	MaxArguments  int
 	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
-	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
+	Compute       func(*EvaluationContext, []Expression, Groups) (Value, error)
 }
 
 func (e *EvaluationContext) AddNote(note string) {
@@ -56,7 +56,7 @@ func (e *EvaluationContext) AddNote(note string) {
 }
 
 // Evaluate the given metric function.
-func (f MetricFunction) Evaluate(context EvaluationContext,
+func (f MetricFunction) Evaluate(context *EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
 	// preprocessing
 	length := len(arguments)
@@ -108,13 +108,13 @@ func (c FetchCounter) Consume(n int) bool {
 // Expressions correspond to the timerange in the current EvaluationContext.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (Value, error)
+	Evaluate(context *EvaluationContext) (Value, error)
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
 // If any evaluation errors, EvaluateMany will propagate that error. The resulting values
 // will be in the order corresponding to the provided expressions.
-func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value, error) {
+func EvaluateMany(context *EvaluationContext, expressions []Expression) ([]Value, error) {
 	type result struct {
 		index int
 		err   error
