@@ -282,6 +282,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			Body: lists,
 			Metadata: map[string]interface{}{
 				"description": description,
+				"notes":       evaluationContext.EvaluationNotes,
 			},
 		}, nil
 	}
