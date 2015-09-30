@@ -76,7 +76,7 @@ func main() {
 			fmt.Println("execution error:", err.Error())
 			continue
 		}
-		encoded, err := json.MarshalIndent(result, "", "  ")
+		encoded, err := json.MarshalIndent(result.Body, "", "  ")
 		if err != nil {
 			fmt.Println("encoding error:", err.Error())
 			return

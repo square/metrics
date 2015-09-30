@@ -168,8 +168,9 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	response := response{
-		Body: result,
-		Name: cmd.Name(),
+		Body:     result.Body,
+		Metadata: result.Metadata,
+		Name:     cmd.Name(),
 	}
 	if parsedForm.profile {
 		response.Profile = convertProfile(profiler)

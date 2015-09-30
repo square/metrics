@@ -39,12 +39,17 @@ type ExecutionContext struct {
 	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
 }
 
+type CommandResult struct {
+	Body     interface{}
+	Metadata map[string]interface{}
+}
+
 // Command is the final result of the parsing.
 // A command contains all the information to execute the
 // given query against the API.
 type Command interface {
 	// Execute the given command. Returns JSON-encodable result or an error.
-	Execute(ExecutionContext) (interface{}, error)
+	Execute(ExecutionContext) (CommandResult, error)
 	Name() string
 }
 
@@ -74,7 +79,7 @@ type SelectCommand struct {
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
-func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, error) {
 
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
@@ -109,7 +114,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (interface{}, erro
 		natural_sort.Sort(list)
 		keyValueLists[key] = list
 	}
-	return keyValueLists, nil
+	return CommandResult{Body: keyValueLists}, nil
 }
 
 func (cmd *DescribeCommand) Name() string {
@@ -117,7 +122,7 @@ func (cmd *DescribeCommand) Name() string {
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
-func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	result, err := context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
@@ -129,9 +134,14 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (interface{}, e
 			}
 		}
 		sort.Sort(api.MetricKeys(filtered))
-		return filtered, nil
+		return CommandResult{
+			Body: filtered,
+			Metadata: map[string]interface{}{
+				"count": len(filtered),
+			},
+		}, nil
 	}
-	return nil, err
+	return CommandResult{}, err
 }
 
 func (cmd *DescribeAllCommand) Name() string {
@@ -139,10 +149,19 @@ func (cmd *DescribeAllCommand) Name() string {
 }
 
 // Execute asks for all metrics with the given name.
-func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (interface{}, error) {
-	return context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
+func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
+	if err != nil {
+		return CommandResult{}, err
+	}
+	return CommandResult{
+		Body: data,
+		Metadata: map[string]interface{}{
+			"count": len(data),
+		},
+	}, nil
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
@@ -150,10 +169,10 @@ func (cmd *DescribeMetricsCommand) Name() string {
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
-func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error) {
+func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	userTimerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
 	if err != nil {
-		return nil, err
+		return CommandResult{}, err
 	}
 	slotLimit := context.SlotLimit
 	defaultLimit := 1000
@@ -174,11 +193,11 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 
 	chosenTimerange, err := api.NewSnappedTimerange(userTimerange.Start(), userTimerange.End(), int64(chosenResolution/time.Millisecond))
 	if err != nil {
-		return nil, err
+		return CommandResult{}, err
 	}
 
 	if chosenTimerange.Slots() > slotLimit {
-		return nil, function.NewLimitError(
+		return CommandResult{}, function.NewLimitError(
 			"Requested number of data points exceeds the configured limit",
 			chosenTimerange.Slots(), slotLimit)
 	}
@@ -229,19 +248,42 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	}()
 	select {
 	case <-timeout:
-		return nil, function.NewLimitError("Timeout while executing the query.",
+		return CommandResult{}, function.NewLimitError("Timeout while executing the query.",
 			context.Timeout, context.Timeout)
 	case err := <-errors:
-		return nil, err
+		return CommandResult{}, err
 	case result := <-results:
 		lists := make([]api.SeriesList, len(result))
 		for i := range result {
 			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
-				return nil, err
+				return CommandResult{}, err
 			}
 		}
-		return lists, nil
+		description := map[string][]string{}
+		for _, list := range lists {
+			for _, series := range list.Series {
+				for key, value := range series.TagSet {
+					description[key] = append(description[key], value)
+				}
+			}
+		}
+		for key, values := range description {
+			natural_sort.Sort(values)
+			filtered := []string{}
+			for i := range values {
+				if i == 0 || values[i-1] != values[i] {
+					filtered = append(filtered, values[i])
+				}
+			}
+			description[key] = filtered
+		}
+		return CommandResult{
+			Body: lists,
+			Metadata: map[string]interface{}{
+				"description": description,
+			},
+		}, nil
 	}
 }
 
@@ -267,8 +309,46 @@ func (cmd ProfilingCommand) Name() string {
 	return cmd.Command.Name()
 }
 
-func (cmd ProfilingCommand) Execute(context ExecutionContext) (interface{}, error) {
+type profileJSON struct {
+	Name   string `json:"name"`
+	Start  int64  `json:"start"`  // ms since Unix epoch
+	Finish int64  `json:"finish"` // ms since Unix epoch
+}
+
+func convertProfile(profiler *inspect.Profiler) []profileJSON {
+	profiles := profiler.All()
+	result := make([]profileJSON, len(profiles))
+	for i, p := range profiles {
+		result[i] = profileJSON{
+			Name:   p.Name(),
+			Start:  p.Start().UnixNano() / int64(time.Millisecond),
+			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
+		}
+	}
+	return result
+}
+
+func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
-	return cmd.Command.Execute(context)
+	result, err := cmd.Command.Execute(context)
+	if err != nil {
+		return CommandResult{}, err
+	}
+	profiles := cmd.Profiler.All()
+	if len(profiles) != 0 {
+		jsonProfiles := []profileJSON{}
+		for _, profile := range profiles {
+			jsonProfiles = append(jsonProfiles, profileJSON{
+				Name:   profile.Name(),
+				Start:  profile.Start().UnixNano() / int64(time.Millisecond),
+				Finish: profile.Finish().UnixNano() / int64(time.Millisecond),
+			})
+		}
+		if result.Metadata == nil {
+			result.Metadata = map[string]interface{}{}
+		}
+		result.Metadata["profile"] = jsonProfiles
+	}
+	return result, nil
 }
