@@ -74,7 +74,7 @@ func TestMovingAverage(t *testing.T) {
 
 	backend := fakeBackend
 	result, err := evaluateToSeriesList(expression,
-		function.EvaluationContext{
+		&function.EvaluationContext{
 			MetricMetadataAPI:         fakeAPI,
 			TimeseriesStorageAPI:      backend,
 			Timerange:                 timerange,
@@ -89,11 +89,12 @@ func TestMovingAverage(t *testing.T) {
 	}
 
 	expected := []float64{4, 3, 11.0 / 3, 5}
+
 	if len(result.Series) != 1 {
 		t.Fatalf("expected exactly 1 returned series")
 	}
 	if len(result.Series[0].Values) != len(expected) {
-		t.Fatalf("expected exactly %d values in returned series", len(expected))
+		t.Fatalf("expected exactly %d values in returned series, but got %d", len(expected), len(result.Series[0].Values))
 	}
 	const eps = 1e-7
 	for i := range expected {

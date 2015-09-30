@@ -25,34 +25,31 @@ import (
 )
 
 // A transform takes the list of values, other parameters, and the resolution (as a float64) of the query.
-type transform func(*function.EvaluationContext, []float64, []function.Value, float64) ([]float64, error)
-
-// transformTimeseries transforms an individual series (rather than an entire serieslist) taking the same parameters as a transform,
-// but with the serieslist standing in for the simplified []float64 argument.
-func transformTimeseries(ctx *function.EvaluationContext, series api.Timeseries, transformFunc transform, parameters []function.Value, scale float64) (api.Timeseries, error) {
-	values, err := transformFunc(ctx, series.Values, parameters, scale)
-	if err != nil {
-		return api.Timeseries{}, err
-	}
-	return api.Timeseries{
-		Values: values,
-		TagSet: series.TagSet,
-	}, nil
-}
+type transform func(*function.EvaluationContext, api.Timeseries, []function.Value, float64) ([]float64, error)
 
 // ApplyTransform applies the given transform to the entire list of series.
-func ApplyTransform(ctx *function.EvaluationContext, list api.SeriesList, transform transform, parameters []function.Value) (api.SeriesList, error) {
+func ApplyTransform(ctx *function.EvaluationContext, list api.SeriesList, transformFunc transform, parameters []function.Value) (api.SeriesList, error) {
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(list.Series)),
 		Timerange: list.Timerange,
 		Name:      list.Name,
 		Query:     list.Query,
 	}
+	var numResult []float64
 	var err error
 	for i, series := range list.Series {
-		result.Series[i], err = transformTimeseries(ctx, series, transform, parameters, float64(list.Timerange.ResolutionMillis())/1000)
+		//TODO(cchandler): Modify the last parameter of this type to be an actual Resolution
+		if (list.Timerange == api.Timerange{}) {
+			fmt.Printf("Current time range %+v\n", list.Timerange)
+			panic("The series list we have doesn't provide an indexed Timerange")
+		}
+		numResult, err = transformFunc(ctx, series, parameters, float64(list.Timerange.ResolutionMillis())/1000)
 		if err != nil {
 			return api.SeriesList{}, err
+		}
+		result.Series[i] = api.Timeseries{
+			Values: numResult,
+			TagSet: series.TagSet,
 		}
 	}
 	return result, nil
@@ -60,7 +57,8 @@ func ApplyTransform(ctx *function.EvaluationContext, list api.SeriesList, transf
 
 // Integral integrates a series whose values are "X per millisecond" to estimate "total X so far"
 // if the series represents "X in this sampling interval" instead, then you should use transformCumulative.
-func Integral(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Integral(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
@@ -78,7 +76,8 @@ func Integral(ctx *function.EvaluationContext, values []float64, parameters []fu
 }
 
 // Cumulative computes the cumulative sum of the given values.
-func Cumulative(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Cumulative(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	result := make([]float64, len(values))
 	sum := 0.0
 	for i := range values {
@@ -98,8 +97,9 @@ func Cumulative(ctx *function.EvaluationContext, values []float64, parameters []
 // MapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `MapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-func MapMaker(fun func(float64) float64) func(*function.EvaluationContext, []float64, []function.Value, float64) ([]float64, error) {
-	return func(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func MapMaker(fun func(float64) float64) func(*function.EvaluationContext, api.Timeseries, []function.Value, float64) ([]float64, error) {
+	return func(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+		values := series.Values
 		result := make([]float64, len(values))
 		for i := range values {
 			result[i] = fun(values[i])
@@ -109,7 +109,8 @@ func MapMaker(fun func(float64) float64) func(*function.EvaluationContext, []flo
 }
 
 // Default will replacing missing data (NaN) with the `default` value supplied as a parameter.
-func Default(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Default(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	defaultValue, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
@@ -126,7 +127,8 @@ func Default(ctx *function.EvaluationContext, values []float64, parameters []fun
 }
 
 // NaNKeepLast will replace missing NaN data with the data before it
-func NaNKeepLast(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func NaNKeepLast(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	result := make([]float64, len(values))
 	for i := range result {
 		result[i] = values[i]
@@ -152,7 +154,8 @@ func (b boundError) TokenName() string {
 }
 
 // Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
-func Bound(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func Bound(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	lowerBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
@@ -178,7 +181,8 @@ func Bound(ctx *function.EvaluationContext, values []float64, parameters []funct
 }
 
 // LowerBound replaces values that fall below the given bound with the lower bound.
-func LowerBound(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func LowerBound(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	lowerBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
@@ -194,7 +198,8 @@ func LowerBound(ctx *function.EvaluationContext, values []float64, parameters []
 }
 
 // UpperBound replaces values that fall below the given bound with the lower bound.
-func UpperBound(ctx *function.EvaluationContext, values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func UpperBound(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	upperBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err

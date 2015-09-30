@@ -220,7 +220,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (interface{}, error)
 	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
 	go func() {
 		// Evaluate the result, and send it along the goroutines.
-		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
+		result, err := function.EvaluateMany(&evaluationContext, cmd.expressions)
 		if err != nil {
 			errors <- err
 			return

@@ -22,7 +22,7 @@ import (
 	"github.com/square/metrics/testing_support/assert"
 )
 
-var dummyCompute = func(function.EvaluationContext, []function.Expression, function.Groups) (function.Value, error) {
+var dummyCompute = func(*function.EvaluationContext, []function.Expression, function.Groups) (function.Value, error) {
 	return nil, errors.New("Not implemented")
 }
 

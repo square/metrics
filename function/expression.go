@@ -51,7 +51,12 @@ type MetricFunction struct {
 }
 
 func (e *EvaluationContext) AddNote(note string) {
-	fmt.Printf("Should have added a note\n")
+	if e == nil {
+		return
+	}
+	if e.EvaluationNotes == nil {
+		e.EvaluationNotes = []string{}
+	}
 	e.EvaluationNotes = append(e.EvaluationNotes, note)
 }
 
