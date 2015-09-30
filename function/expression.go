@@ -12,8 +12,8 @@ import (
 // EvaluationContext is the central piece of logic, providing
 // helper funcions & varaibles to evaluate a given piece of
 // metrics query.
-// * Contains Backend object, which can be used to fetch data
-// from the backend system.s
+// * Contains a TimeseriesStorageAPI object, which can be used to fetch data
+// from the backend systems.
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
@@ -27,6 +27,8 @@ type EvaluationContext struct {
 	Registry                  Registry
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
+	EvaluationNotes           []string //Debug + numerical notes that can be added during evaluation
+	invalid                   bool     // Because these can be copied, it's best to mark a no-longer used context as dead
 }
 
 type Registry interface {
@@ -46,12 +48,52 @@ type MetricFunction struct {
 	MinArguments  int
 	MaxArguments  int
 	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
-	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
+	Compute       func(*EvaluationContext, []Expression, Groups) (Value, error)
+}
+
+func (e *EvaluationContext) Copy() EvaluationContext {
+	return EvaluationContext{
+		MetricMetadataAPI:         e.MetricMetadataAPI,
+		FetchLimit:                e.FetchLimit,
+		TimeseriesStorageAPI:      e.TimeseriesStorageAPI,
+		Predicate:                 e.Predicate,
+		SampleMethod:              e.SampleMethod,
+		Timerange:                 e.Timerange,
+		Cancellable:               e.Cancellable,
+		Registry:                  e.Registry,
+		Profiler:                  e.Profiler,
+		OptimizationConfiguration: e.OptimizationConfiguration,
+		EvaluationNotes:           []string{},
+		invalid:                   false,
+	}
+}
+
+func (e *EvaluationContext) AddNote(note string) {
+	if e.EvaluationNotes == nil {
+		e.EvaluationNotes = []string{}
+	}
+	e.EvaluationNotes = append(e.EvaluationNotes, note)
+}
+
+func (e *EvaluationContext) CopyNotesFrom(other *EvaluationContext) {
+	if e.EvaluationNotes == nil {
+		e.EvaluationNotes = []string{}
+	}
+	if len(other.EvaluationNotes) > 0 {
+		e.EvaluationNotes = append(e.EvaluationNotes, other.EvaluationNotes...)
+	}
+}
+
+func (e *EvaluationContext) Invalidate() {
+	e.invalid = true
 }
 
 // Evaluate the given metric function.
-func (f MetricFunction) Evaluate(context EvaluationContext,
+func (f MetricFunction) Evaluate(context *EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
+	if context.invalid {
+		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
+	}
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
@@ -102,13 +144,17 @@ func (c FetchCounter) Consume(n int) bool {
 // Expressions correspond to the timerange in the current EvaluationContext.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context EvaluationContext) (Value, error)
+	Evaluate(context *EvaluationContext) (Value, error)
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
 // If any evaluation errors, EvaluateMany will propagate that error. The resulting values
 // will be in the order corresponding to the provided expressions.
-func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value, error) {
+func EvaluateMany(context *EvaluationContext, expressions []Expression) ([]Value, error) {
+	if context.invalid {
+		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
+	}
+
 	type result struct {
 		index int
 		err   error

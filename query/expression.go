@@ -24,19 +24,19 @@ import (
 // Implementations
 // ===============
 
-func (expr durationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr durationExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return function.NewDurationValue(expr.name, expr.duration), nil
 }
 
-func (expr scalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr scalarExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.value), nil
 }
 
-func (expr stringExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr stringExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return function.StringValue(expr.value), nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr *metricFetchExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
 	if context.Predicate == nil && expr.predicate == nil {
@@ -98,7 +98,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	return serieslist, nil
 }
 
-func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr *functionExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	fun, ok := context.Registry.GetFunction(expr.functionName)
 	if !ok {
 		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}

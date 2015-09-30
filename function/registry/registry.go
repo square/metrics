@@ -138,7 +138,7 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 		Name:         name,
 		MinArguments: 2,
 		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -175,7 +175,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 		Name:         name,
 		MinArguments: 3,
 		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			value, err := arguments[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -221,7 +221,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 		MinArguments:  1,
 		MaxArguments:  1,
 		AllowsGroupBy: true,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			argument := args[0]
 			value, err := argument.Evaluate(context)
 			if err != nil {
@@ -252,12 +252,12 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 }
 
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func NewTransform(name string, parameterCount int, transformer func([]float64, []function.Value, float64) ([]float64, error)) function.MetricFunction {
+func NewTransform(name string, parameterCount int, transformer func(*function.EvaluationContext, api.Timeseries, []function.Value, float64) ([]float64, error)) function.MetricFunction {
 	return function.MetricFunction{
 		Name:         name,
 		MinArguments: parameterCount + 1,
 		MaxArguments: parameterCount + 1,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			listValue, err := args[0].Evaluate(context)
 			if err != nil {
 				return nil, err
@@ -273,7 +273,7 @@ func NewTransform(name string, parameterCount int, transformer func([]float64, [
 					return nil, err
 				}
 			}
-			result, err := transform.ApplyTransform(list, transformer, parameters)
+			result, err := transform.ApplyTransform(context, list, transformer, parameters)
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +299,7 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 		Name:         op,
 		MinArguments: 2,
 		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			evaluated, err := function.EvaluateMany(context, args)
 			if err != nil {
 				return nil, err

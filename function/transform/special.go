@@ -27,7 +27,7 @@ var Timeshift = function.MetricFunction{
 	Name:         "transform.timeshift",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		value, err := arguments[1].Evaluate(context)
 		if err != nil {
 			return nil, err
@@ -58,7 +58,7 @@ var MovingAverage = function.MetricFunction{
 	Name:         "transform.moving_average",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
 		sizeValue, err := arguments[1].Evaluate(context)
@@ -75,14 +75,14 @@ var MovingAverage = function.MetricFunction{
 			limit = 1
 		}
 
-		newContext := context
+		newContext := context.Copy()
 		timerange := context.Timerange
 		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
 		// The new context has a timerange which is extended beyond the query's.
-		listValue, err := arguments[0].Evaluate(newContext)
+		listValue, err := arguments[0].Evaluate(&newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -95,6 +95,8 @@ var MovingAverage = function.MetricFunction{
 
 		// The timerange must be reverted.
 		list.Timerange = context.Timerange
+		context.CopyNotesFrom(&newContext)
+		newContext.Invalidate() //Prevent this from leaking or getting used.
 
 		// Update each series in the list.
 		for index, series := range list.Series {
@@ -135,7 +137,7 @@ var Alias = function.MetricFunction{
 	Name:         "transform.alias",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		value, err := arguments[0].Evaluate(context)
 		if err != nil {
 			return nil, err
@@ -162,7 +164,8 @@ var Alias = function.MetricFunction{
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
 var Derivative = newDerivativeBasedTransform("derivative", derivative)
 
-func derivative(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func derivative(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -181,7 +184,8 @@ func derivative(values []float64, parameters []function.Value, scale float64) ([
 // differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
-func rate(values []float64, parameters []function.Value, scale float64) ([]float64, error) {
+func rate(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
 		if i == 0 {
@@ -190,6 +194,7 @@ func rate(values []float64, parameters []function.Value, scale float64) ([]float
 		// Scaled difference
 		result[i-1] = (values[i] - values[i-1]) / scale
 		if result[i-1] < 0 {
+			ctx.AddNote(fmt.Sprintf("Rate(%v): The underlying counter reset between %f, %f\n", series.TagSet, values[i-1], values[i]))
 			// values[i] is our best approximatation of the delta between i-1 and i
 			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 			// the counter has reset, and we know *at least* v[i] increments have happened
@@ -208,10 +213,10 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		Name:         "transform." + name,
 		MinArguments: 1,
 		MaxArguments: 1,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			var err error
 			// Calcuate the new timerange to include one extra point to the left
-			newContext := context
+			newContext := context.Copy()
 			timerange := context.Timerange
 			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 			if err != nil {
@@ -219,7 +224,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			}
 
 			// The new context has a timerange which is extended beyond the query's.
-			listValue, err := arguments[0].Evaluate(newContext)
+			listValue, err := arguments[0].Evaluate(&newContext)
 			if err != nil {
 				return nil, err
 			}
@@ -232,8 +237,12 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 
 			// Reset the timerange
 			list.Timerange = context.Timerange
+			context.CopyNotesFrom(&newContext)
+			newContext.Invalidate() // Prevent leaking this around.
 
-			result, err := ApplyTransform(list, transformer, []function.Value{})
+			//Apply the original context to the transform even though the list
+			//will include one additional data point.
+			result, err := ApplyTransform(context, list, transformer, []function.Value{})
 			if err != nil {
 				return nil, err
 			}
