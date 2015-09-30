@@ -28,6 +28,7 @@ type EvaluationContext struct {
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
 	EvaluationNotes           []string //Debug + numerical notes that can be added during evaluation
+	invalid                   bool     // Because these can be copied, it's best to mark a no-longer used context as dead
 }
 
 type Registry interface {
@@ -50,19 +51,49 @@ type MetricFunction struct {
 	Compute       func(*EvaluationContext, []Expression, Groups) (Value, error)
 }
 
-func (e *EvaluationContext) AddNote(note string) {
-	if e == nil {
-		return
+func (e *EvaluationContext) Copy() EvaluationContext {
+	return EvaluationContext{
+		MetricMetadataAPI:         e.MetricMetadataAPI,
+		FetchLimit:                e.FetchLimit,
+		TimeseriesStorageAPI:      e.TimeseriesStorageAPI,
+		Predicate:                 e.Predicate,
+		SampleMethod:              e.SampleMethod,
+		Timerange:                 e.Timerange,
+		Cancellable:               e.Cancellable,
+		Registry:                  e.Registry,
+		Profiler:                  e.Profiler,
+		OptimizationConfiguration: e.OptimizationConfiguration,
+		EvaluationNotes:           []string{},
+		invalid:                   false,
 	}
+}
+
+func (e *EvaluationContext) AddNote(note string) {
 	if e.EvaluationNotes == nil {
 		e.EvaluationNotes = []string{}
 	}
 	e.EvaluationNotes = append(e.EvaluationNotes, note)
 }
 
+func (e *EvaluationContext) CopyNotesFrom(other *EvaluationContext) {
+	if e.EvaluationNotes == nil {
+		e.EvaluationNotes = []string{}
+	}
+	if len(other.EvaluationNotes) > 0 {
+		e.EvaluationNotes = append(e.EvaluationNotes, other.EvaluationNotes...)
+	}
+}
+
+func (e *EvaluationContext) Invalidate() {
+	e.invalid = true
+}
+
 // Evaluate the given metric function.
 func (f MetricFunction) Evaluate(context *EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
+	if context.invalid {
+		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
+	}
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
@@ -120,6 +151,10 @@ type Expression interface {
 // If any evaluation errors, EvaluateMany will propagate that error. The resulting values
 // will be in the order corresponding to the provided expressions.
 func EvaluateMany(context *EvaluationContext, expressions []Expression) ([]Value, error) {
+	if context.invalid {
+		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
+	}
+
 	type result struct {
 		index int
 		err   error

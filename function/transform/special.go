@@ -75,23 +75,7 @@ var MovingAverage = function.MetricFunction{
 			limit = 1
 		}
 
-		//Creating a deep copy of the evaluation context.
-		//TODO(cchandler): Add a Copy() capability directly
-		//onto the EvaluationContext.
-		newContext := function.EvaluationContext{
-			MetricMetadataAPI:         context.MetricMetadataAPI,
-			FetchLimit:                context.FetchLimit,
-			TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
-			Predicate:                 context.Predicate,
-			SampleMethod:              context.SampleMethod,
-			Timerange:                 context.Timerange,
-			Cancellable:               context.Cancellable,
-			Registry:                  context.Registry,
-			Profiler:                  context.Profiler,
-			OptimizationConfiguration: context.OptimizationConfiguration,
-			EvaluationNotes:           []string{},
-		}
-
+		newContext := context.Copy()
 		timerange := context.Timerange
 		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 		if err != nil {
@@ -111,6 +95,8 @@ var MovingAverage = function.MetricFunction{
 
 		// The timerange must be reverted.
 		list.Timerange = context.Timerange
+		context.CopyNotesFrom(&newContext)
+		newContext.Invalidate() //Prevent this from leaking or getting used.
 
 		// Update each series in the list.
 		for index, series := range list.Series {
@@ -230,7 +216,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			var err error
 			// Calcuate the new timerange to include one extra point to the left
-			newContext := context
+			newContext := context.Copy()
 			timerange := context.Timerange
 			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 			if err != nil {
@@ -238,7 +224,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			}
 
 			// The new context has a timerange which is extended beyond the query's.
-			listValue, err := arguments[0].Evaluate(newContext)
+			listValue, err := arguments[0].Evaluate(&newContext)
 			if err != nil {
 				return nil, err
 			}
@@ -251,7 +237,11 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 
 			// Reset the timerange
 			list.Timerange = context.Timerange
+			context.CopyNotesFrom(&newContext)
+			newContext.Invalidate() // Prevent leaking this around.
 
+			//Apply the original context to the transform even though the list
+			//will include one additional data point.
 			result, err := ApplyTransform(context, list, transformer, []function.Value{})
 			if err != nil {
 				return nil, err
