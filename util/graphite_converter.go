@@ -20,6 +20,7 @@
 package util
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -74,18 +75,22 @@ func LoadRules(conversionRulesPath string) (RuleSet, error) {
 		log.Infof("Loading rules from %s", filename)
 		file, err := os.Open(filename)
 		if err != nil {
-			return RuleSet{}, err
+			return RuleSet{}, fmt.Errorf("error opening file %s: %s", filename, err.Error())
 		}
 		defer file.Close()
 
 		bytes, err := ioutil.ReadAll(file)
 		if err != nil {
-			return RuleSet{}, err
+			return RuleSet{}, fmt.Errorf("error reading file %s: %s", filename, err.Error())
 		}
 
 		rs, err := LoadYAML(bytes)
 		if err != nil {
-			return RuleSet{}, err
+			return RuleSet{}, fmt.Errorf("error loading YAML from file %s: %s", filename, err.Error())
+		}
+
+		for i := range rs.Rules {
+			rs.Rules[i].file = filename
 		}
 
 		ruleSet.Rules = append(ruleSet.Rules, rs.Rules...)

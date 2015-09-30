@@ -253,7 +253,7 @@ func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphite
 		if err != nil {
 			panic("Unable to create report file!")
 		}
-		f.WriteString(fmt.Sprintf("Rule: %s\n", rule.MetricKeyRegex))
+		f.WriteString(fmt.Sprintf("Rule: %s\n", rule.Description()))
 
 		for _, match := range rule.Statistics.SuccessfulMatches {
 			f.WriteString(fmt.Sprintf("%s\n", match))

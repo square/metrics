@@ -16,6 +16,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -48,6 +49,11 @@ type Rule struct {
 	graphitePatternTags  []string // tags extracted from the raw graphite string, in the order of appearance.
 	metricKeyTags        []string // tags extracted from MetricKey, in the order of appearance.
 	Statistics           RuleStatistics
+	file                 string // for diagnostic messages, the location of the rule's file
+}
+
+func (rule Rule) Description() string {
+	return fmt.Sprintf("%s\n\t=> %s\n\tfrom %s", rule.raw.Pattern, rule.raw.MetricKeyPattern, rule.file)
 }
 
 type RuleStatistics struct {
