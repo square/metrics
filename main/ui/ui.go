@@ -18,6 +18,10 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"runtime/pprof"
+	"syscall"
 	"time"
 
 	"github.com/square/metrics/log"
@@ -52,6 +56,16 @@ func main() {
 	flag.Parse()
 	common.SetupLogger()
 
+	//Adding a signal handler to dump goroutines
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGUSR2)
+
+	go func() {
+		for _ = range sigs {
+			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+		}
+	}()
+
 	config := common.LoadConfig()
 
 	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
@@ -75,7 +89,7 @@ func main() {
 	startServer(config.UIConfig, query.ExecutionContext{
 		MetricMetadataAPI:         apiInstance,
 		TimeseriesStorageAPI:      blueflood,
-		FetchLimit:                1000,
+		FetchLimit:                1500,
 		SlotLimit:                 5000,
 		Registry:                  registry.Default(),
 		OptimizationConfiguration: optimizer,

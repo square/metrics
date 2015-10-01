@@ -49,6 +49,19 @@ func (p *Profiler) Record(name string) func() {
 	}
 }
 
+func (p *Profiler) RecordWithDescription(name string, description string) func() {
+	if p == nil {
+		// If the profiler instance doesn't exist, then don't attempt to operate on it.
+		return func() {}
+	}
+	start := p.now()
+	return func() {
+		p.mutex.Lock()
+		defer p.mutex.Unlock()
+		p.profiles = append(p.profiles, Profile{name: name, description: description, startTime: start, finishTime: p.now()})
+	}
+}
+
 // All retrieves all the profiling information collected by the profiler.
 func (p *Profiler) All() []Profile {
 	if p == nil {
@@ -73,14 +86,19 @@ func (p *Profiler) Flush() []Profile {
 
 // A Profile is a single data point collected by the profiler.
 type Profile struct {
-	name       string    // name identifies the measured quantity ("fetchSingle() or api.GetAllMetrics()")
-	startTime  time.Time // the start time of the task
-	finishTime time.Time // the end time of the task
+	name        string // name identifies the measured quantity ("fetchSingle() or api.GetAllMetrics()")
+	description string
+	startTime   time.Time // the start time of the task
+	finishTime  time.Time // the end time of the task
 }
 
 // Name is the name of the profile.
 func (p Profile) Name() string {
 	return p.name
+}
+
+func (p Profile) Description() string {
+	return p.description
 }
 
 // Start is the start time of the profile.

@@ -537,7 +537,7 @@ function convertProfileResponse(object) {
   };
   for (var i = 0; i < object.profile.length; i++) {
     var profile = object.profile[i];
-    var row = [ profile.name , normalize(profile.start), normalize(profile.finish) ];
+    var row = [ profile.name + " - " + profile.description , normalize(profile.start), normalize(profile.finish) ];
     dataTable.addRows([row]);
   }
   return dataTable;
