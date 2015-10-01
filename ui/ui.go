@@ -118,9 +118,10 @@ func convertProfile(profiler *inspect.Profiler) []profileJSON {
 	result := make([]profileJSON, len(profiles))
 	for i, p := range profiles {
 		result[i] = profileJSON{
-			Name:   p.Name(),
-			Start:  p.Start().UnixNano() / int64(time.Millisecond),
-			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
+			Name:        p.Name(),
+			Description: p.Description(),
+			Start:       p.Start().UnixNano() / int64(time.Millisecond),
+			Finish:      p.Finish().UnixNano() / int64(time.Millisecond),
 		}
 	}
 	return result

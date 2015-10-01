@@ -19,6 +19,10 @@
 
 package api
 
+import (
+	"fmt"
+)
+
 // list of data types throughout the code.
 
 // TaggedMetric is composition of a MetricKey and a TagSet.
@@ -26,4 +30,8 @@ package api
 type TaggedMetric struct {
 	MetricKey MetricKey
 	TagSet    TagSet
+}
+
+func (t *TaggedMetric) String() string {
+	return fmt.Sprintf("%+v [%s]\n", t.MetricKey, t.TagSet.Serialize())
 }

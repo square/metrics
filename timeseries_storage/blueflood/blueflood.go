@@ -220,7 +220,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 }
 
 func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	defer request.Profiler.Record(fmt.Sprintf("Blueflood FetchSingleTimeseries (%s)", request.Metric))()
+	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())

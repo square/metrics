@@ -36,7 +36,8 @@ type response struct {
 }
 
 type profileJSON struct {
-	Name   string `json:"name"`
-	Start  int64  `json:"start"`  // ms since Unix epoch
-	Finish int64  `json:"finish"` // ms since Unix epoch
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Start       int64  `json:"start"`  // ms since Unix epoch
+	Finish      int64  `json:"finish"` // ms since Unix epoch
 }
