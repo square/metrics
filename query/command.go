@@ -37,7 +37,7 @@ type ExecutionContext struct {
 	SlotLimit                 int                                 // optional (0 => default 1000)
 	Profiler                  *inspect.Profiler                   // optional
 	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
-	UserSpecifiableConfig     function.UserSpecifiableConfig      // optional. User tunable parameters for execution.
+	UserSpecifiableConfig     api.UserSpecifiableConfig           // optional. User tunable parameters for execution.
 }
 
 type CommandResult struct {

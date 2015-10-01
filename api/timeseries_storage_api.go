@@ -28,22 +28,26 @@ type TimeseriesStorageAPI interface {
 }
 
 type FetchTimeseriesRequest struct {
-	Metric         TaggedMetric // metric to fetch.
-	SampleMethod   SampleMethod // up/downsampling behavior.
-	Timerange      Timerange    // time range to fetch data from.
-	MetricMetadata MetricMetadataAPI
-	Cancellable    Cancellable
-	Profiler       *inspect.Profiler
-	IncludeRawData bool
+	Metric                TaggedMetric // metric to fetch.
+	SampleMethod          SampleMethod // up/downsampling behavior.
+	Timerange             Timerange    // time range to fetch data from.
+	MetricMetadata        MetricMetadataAPI
+	Cancellable           Cancellable
+	Profiler              *inspect.Profiler
+	UserSpecifiableConfig UserSpecifiableConfig
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics        []TaggedMetric
-	SampleMethod   SampleMethod
-	Timerange      Timerange
-	MetricMetadata MetricMetadataAPI
-	Cancellable    Cancellable
-	Profiler       *inspect.Profiler
+	Metrics               []TaggedMetric
+	SampleMethod          SampleMethod
+	Timerange             Timerange
+	MetricMetadata        MetricMetadataAPI
+	Cancellable           Cancellable
+	Profiler              *inspect.Profiler
+	UserSpecifiableConfig UserSpecifiableConfig
+}
+
+type UserSpecifiableConfig struct {
 	IncludeRawData bool
 }
 
@@ -92,12 +96,13 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 	fetchSingleRequests := make([]FetchTimeseriesRequest, 0)
 	for _, metric := range r.Metrics {
 		request := FetchTimeseriesRequest{
-			Metric:         metric,
-			MetricMetadata: r.MetricMetadata,
-			Cancellable:    r.Cancellable,
-			SampleMethod:   r.SampleMethod,
-			Timerange:      r.Timerange,
-			Profiler:       r.Profiler,
+			Metric:                metric,
+			MetricMetadata:        r.MetricMetadata,
+			Cancellable:           r.Cancellable,
+			SampleMethod:          r.SampleMethod,
+			Timerange:             r.Timerange,
+			Profiler:              r.Profiler,
+			UserSpecifiableConfig: r.UserSpecifiableConfig,
 		}
 		fetchSingleRequests = append(fetchSingleRequests, request)
 	}

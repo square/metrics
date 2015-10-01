@@ -26,6 +26,7 @@ import (
 
 	"github.com/square/metrics/log"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/metric_metadata/cassandra"
@@ -86,6 +87,11 @@ func main() {
 	optimizer := optimize.NewOptimizationConfiguration()
 	optimizer.EnableMetricMetadataCaching = true
 
+	//Defaults
+	userConfig := api.UserSpecifiableConfig{
+		IncludeRawData: false,
+	}
+
 	startServer(config.UIConfig, query.ExecutionContext{
 		MetricMetadataAPI:         apiInstance,
 		TimeseriesStorageAPI:      blueflood,
@@ -93,5 +99,6 @@ func main() {
 		SlotLimit:                 5000,
 		Registry:                  registry.Default(),
 		OptimizationConfiguration: optimizer,
+		UserSpecifiableConfig:     userConfig,
 	})
 }
