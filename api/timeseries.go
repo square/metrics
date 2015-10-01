@@ -32,6 +32,7 @@ import (
 type Timeseries struct {
 	Values []float64
 	TagSet TagSet
+	Raw    []byte
 }
 
 // MarshalJSON exists to manually encode floats.

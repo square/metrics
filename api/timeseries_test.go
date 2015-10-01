@@ -46,7 +46,7 @@ func TestTimeseries_Downsample(t *testing.T) {
 		{[]float64{1, 2, 3, 4, 5}, Timerange{0, 4, 1}, Timerange{0, 4, 2}, max, []float64{2, 4, 5}},
 	} {
 		tagset := ParseTagSet("key=value")
-		ts := Timeseries{suite.input, tagset}
+		ts := Timeseries{Values: suite.input, TagSet: tagset}
 		sampled, err := ts.Downsample(suite.inputRange, suite.newRange, suite.sampler)
 		a.CheckError(err)
 		a.Eq(sampled.Values, suite.expected)

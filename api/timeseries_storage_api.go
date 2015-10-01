@@ -34,6 +34,7 @@ type FetchTimeseriesRequest struct {
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
 	Profiler       *inspect.Profiler
+	IncludeRawData bool
 }
 
 type FetchMultipleTimeseriesRequest struct {
@@ -43,6 +44,7 @@ type FetchMultipleTimeseriesRequest struct {
 	MetricMetadata MetricMetadataAPI
 	Cancellable    Cancellable
 	Profiler       *inspect.Profiler
+	IncludeRawData bool
 }
 
 type TimeseriesStorageErrorCode int

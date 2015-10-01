@@ -29,6 +29,11 @@ type EvaluationContext struct {
 	OptimizationConfiguration *optimize.OptimizationConfiguration
 	EvaluationNotes           []string //Debug + numerical notes that can be added during evaluation
 	invalid                   bool     // Because these can be copied, it's best to mark a no-longer used context as dead
+	UserSpecifiableConfig     UserSpecifiableConfig
+}
+
+type UserSpecifiableConfig struct {
+	IncludeRawData bool
 }
 
 type Registry interface {
@@ -65,6 +70,7 @@ func (e *EvaluationContext) Copy() EvaluationContext {
 		OptimizationConfiguration: e.OptimizationConfiguration,
 		EvaluationNotes:           []string{},
 		invalid:                   false,
+		UserSpecifiableConfig:     e.UserSpecifiableConfig,
 	}
 }
 

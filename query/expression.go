@@ -85,6 +85,7 @@ func (expr *metricFetchExpression) Evaluate(context *function.EvaluationContext)
 			context.MetricMetadataAPI,
 			context.Cancellable,
 			context.Profiler,
+			context.UserSpecifiableConfig.IncludeRawData,
 		},
 	)
 
