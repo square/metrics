@@ -21,20 +21,20 @@ import (
 )
 
 var (
-	seriesA1 = api.Timeseries{[]float64{1, 2, 3}, map[string]string{"dc": "A", "host": "#1"}}
-	seriesA2 = api.Timeseries{[]float64{4, 5, 6}, map[string]string{"dc": "A", "host": "#2"}}
-	seriesB3 = api.Timeseries{[]float64{0, 1, 1}, map[string]string{"dc": "B", "host": "#3"}}
-	seriesB4 = api.Timeseries{[]float64{1, 3, 2}, map[string]string{"dc": "B", "host": "#4"}}
-	seriesC5 = api.Timeseries{[]float64{2, 2, 3}, map[string]string{"dc": "C", "host": "#5"}}
+	seriesA1 = api.Timeseries{Values: []float64{1, 2, 3}, TagSet: map[string]string{"dc": "A", "host": "#1"}}
+	seriesA2 = api.Timeseries{Values: []float64{4, 5, 6}, TagSet: map[string]string{"dc": "A", "host": "#2"}}
+	seriesB3 = api.Timeseries{Values: []float64{0, 1, 1}, TagSet: map[string]string{"dc": "B", "host": "#3"}}
+	seriesB4 = api.Timeseries{Values: []float64{1, 3, 2}, TagSet: map[string]string{"dc": "B", "host": "#4"}}
+	seriesC5 = api.Timeseries{Values: []float64{2, 2, 3}, TagSet: map[string]string{"dc": "C", "host": "#5"}}
 
-	seriesDC_A = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "A"}}
-	seriesDC_B = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "B"}}
-	seriesDC_C = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"dc": "C"}}
+	seriesDC_A = api.Timeseries{Values: []float64{2, 0, 1}, TagSet: map[string]string{"dc": "A"}}
+	seriesDC_B = api.Timeseries{Values: []float64{2, 0, 1}, TagSet: map[string]string{"dc": "B"}}
+	seriesDC_C = api.Timeseries{Values: []float64{2, 0, 1}, TagSet: map[string]string{"dc": "C"}}
 
-	seriesENV_PROD  = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"env": "production"}}
-	seriesENV_STAGE = api.Timeseries{[]float64{2, 0, 1}, map[string]string{"env": "staging"}}
+	seriesENV_PROD  = api.Timeseries{Values: []float64{2, 0, 1}, TagSet: map[string]string{"env": "production"}}
+	seriesENV_STAGE = api.Timeseries{Values: []float64{2, 0, 1}, TagSet: map[string]string{"env": "staging"}}
 
-	voidSeries = api.Timeseries{[]float64{0, 0, 0}, map[string]string{}}
+	voidSeries = api.Timeseries{Values: []float64{0, 0, 0}, TagSet: map[string]string{}}
 
 	emptyList = api.SeriesList{[]api.Timeseries{}, api.Timerange{}, "", ""}
 	basicList = api.SeriesList{[]api.Timeseries{seriesA1, seriesA2, seriesB3, seriesB4, seriesC5}, api.Timerange{}, "", ""}

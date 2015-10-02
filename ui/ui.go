@@ -95,8 +95,9 @@ func bodyResponse(writer http.ResponseWriter, request *http.Request, response re
 // -----------------
 
 type queryForm struct {
-	input   string // query to execute.
-	profile bool   // if true, then profile information will be exposed to the user.
+	input      string // query to execute.
+	profile    bool   // if true, then profile information will be exposed to the user.
+	includeRaw bool
 }
 
 func parseBool(input string, defaultValue bool) bool {
@@ -110,6 +111,7 @@ func parseBool(input string, defaultValue bool) bool {
 func parseQueryForm(request *http.Request) (form queryForm) {
 	form.input = request.Form.Get("query")
 	form.profile = parseBool(request.Form.Get("profile"), false)
+	form.includeRaw = parseBool(request.Form.Get("raw"), false)
 	return
 }
 
@@ -163,7 +165,11 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	}
 
 	cmd, profiler := query.NewProfilingCommand(cmd)
-	result, err := cmd.Execute(q.context)
+	ctx := q.context
+	ctx.UserSpecifiableConfig = api.UserSpecifiableConfig{
+		IncludeRawData: parsedForm.includeRaw,
+	}
+	result, err := cmd.Execute(ctx)
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return

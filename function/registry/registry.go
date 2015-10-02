@@ -326,7 +326,7 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 				for j := 0; j < len(left.Values); j++ {
 					array[j] = operator(left.Values[j], right.Values[j])
 				}
-				result[i] = api.Timeseries{array, row.TagSet}
+				result[i] = api.Timeseries{Values: array, TagSet: row.TagSet}
 			}
 
 			query := fmt.Sprintf("(%s %s %s)", leftValue.GetName(), op, rightValue.GetName())

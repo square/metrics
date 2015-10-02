@@ -236,7 +236,10 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-	parsedResult, err := b.fetch(request, queryUrl)
+
+	rawResults := make([][]byte, 1)
+	parsedResult, rawResult, err := b.fetch(request, queryUrl)
+	rawResults[0] = rawResult
 	if err != nil {
 		return api.Timeseries{}, err
 	}
@@ -265,7 +268,8 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 			log.Infof("FULL resolution data errored while building url: %s", err.Error())
 			return nil
 		}
-		fullResolutionParsedResult, err := b.fetch(request, fullResolutionQueryURL)
+		fullResolutionParsedResult, rawResult, err := b.fetch(request, fullResolutionQueryURL)
+		rawResults = append(rawResults, rawResult)
 		if err != nil {
 			log.Infof("FULL resolution data errored while parsing result: %s", err.Error())
 			return nil
@@ -281,10 +285,19 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	values := processResult(combinedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
-	return api.Timeseries{
-		Values: values,
-		TagSet: request.Metric.TagSet,
-	}, nil
+	if request.UserSpecifiableConfig.IncludeRawData {
+		return api.Timeseries{
+			Values: values,
+			TagSet: request.Metric.TagSet,
+			Raw:    rawResults,
+		}, nil
+	} else {
+		return api.Timeseries{
+			Values: values,
+			TagSet: request.Metric.TagSet,
+		}, nil
+	}
+
 }
 
 // Helper functions
@@ -318,11 +331,12 @@ func (b *Blueflood) constructURL(
 }
 
 // fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
-func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, error) {
+func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, []byte, error) {
 	log.Debugf("Blueflood fetch: %s", queryUrl.String())
 	success := make(chan queryResponse)
 	failure := make(chan error)
 	timeout := time.After(b.config.Timeout)
+	var rawResponse []byte
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
@@ -332,6 +346,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 		defer resp.Body.Close()
 
 		body, err := ioutil.ReadAll(resp.Body)
+		rawResponse = body
 		if err != nil {
 			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - reading"}
 			return
@@ -350,11 +365,11 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 	}()
 	select {
 	case response := <-success:
-		return response, nil
+		return response, rawResponse, nil
 	case err := <-failure:
-		return queryResponse{}, err
+		return queryResponse{}, rawResponse, err
 	case <-timeout:
-		return queryResponse{}, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
+		return queryResponse{}, rawResponse, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
 	}
 }
 

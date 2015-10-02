@@ -146,9 +146,9 @@ func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smal
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
-		"series_1": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}},
-		"series_2": {{[]float64{1, 2, 3, 4, 5}, api.ParseTagSet("dc=west")}, {[]float64{3, 0, 3, 6, 2}, api.ParseTagSet("dc=east")}},
-		"series_3": {{[]float64{1, 1, 1, 4, 4}, api.ParseTagSet("dc=west")}, {[]float64{5, 5, 5, 2, 2}, api.ParseTagSet("dc=east")}, {[]float64{3, 3, 3, 3, 3}, api.ParseTagSet("dc=north")}},
+		"series_1": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}},
+		"series_2": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}, {Values: []float64{3, 0, 3, 6, 2}, TagSet: api.ParseTagSet("dc=east")}},
+		"series_3": {{Values: []float64{1, 1, 1, 4, 4}, TagSet: api.ParseTagSet("dc=west")}, {Values: []float64{5, 5, 5, 2, 2}, TagSet: api.ParseTagSet("dc=east")}, {Values: []float64{3, 3, 3, 3, 3}, TagSet: api.ParseTagSet("dc=north")}},
 	}
 	if string(request.Metric.MetricKey) == "series_timeout" {
 		<-make(chan struct{}) // block forever
@@ -164,7 +164,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 			for i := range values {
 				values[i] = series.Values[i+int(request.Timerange.Start())/30]
 			}
-			return api.Timeseries{values, series.TagSet}, nil
+			return api.Timeseries{Values: values, TagSet: series.TagSet}, nil
 		}
 	}
 	return api.Timeseries{}, errors.New("internal error")

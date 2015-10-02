@@ -37,6 +37,7 @@ type ExecutionContext struct {
 	SlotLimit                 int                                 // optional (0 => default 1000)
 	Profiler                  *inspect.Profiler                   // optional
 	OptimizationConfiguration *optimize.OptimizationConfiguration // optional
+	UserSpecifiableConfig     api.UserSpecifiableConfig           // optional. User tunable parameters for execution.
 }
 
 type CommandResult struct {
@@ -226,6 +227,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		Profiler:                  context.Profiler,
 		OptimizationConfiguration: context.OptimizationConfiguration,
 		EvaluationNotes:           []string{},
+		UserSpecifiableConfig:     context.UserSpecifiableConfig,
 	}
 
 	timeout := (<-chan time.Time)(nil)
