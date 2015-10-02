@@ -256,3 +256,36 @@ func Test_interpolateTags(t *testing.T) {
 	}
 
 }
+
+func TestDoesNotMatch(t *testing.T) {
+	rule, err := Compile(RawRule{
+		Pattern:          `%foo%.%animal%.%color%`,
+		MetricKeyPattern: `%foo%.%color%`,
+		DoesNotMatch: map[string]string{
+			`animal`: `stuffed|teddy`,
+			`color`:  `z{4}|qy+`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error %s", err.Error())
+	}
+	tests := []struct {
+		input   string
+		success bool
+	}{
+		{"bar.dog.green", true},
+		{"qux.cat.yellow", true},
+		{"foo.stuffed-tiger.blue", false},
+		{"foo.striped-tiger.blue", true},
+		{"foo.bar.zzzz", false},
+		{"foo.bar.zzz", true},
+		{"foo.bar.abcdqefgh", true},
+		{"foo.bar.abcdqyyyefgh", false},
+		{"foo.teddy-bear.qqyyzzzz", false},
+	}
+	for _, test := range tests {
+		if _, success := rule.MatchRule(test.input); success != test.success {
+			t.Errorf("Expected success=%t on input `%s`", test.success, test.input)
+		}
+	}
+}

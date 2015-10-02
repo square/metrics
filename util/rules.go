@@ -32,6 +32,7 @@ type RawRule struct {
 	Pattern          string            `yaml:"pattern"`
 	MetricKeyPattern string            `yaml:"metric_key"`
 	Regex            map[string]string `yaml:"regex,omitempty"`
+	DoesNotMatch     map[string]string `yaml:"does_not_match,omitempty"`
 }
 
 // RawRules is list of RawRule
@@ -45,6 +46,7 @@ type Rule struct {
 	raw                  RawRule
 	graphitePatternRegex *regexp.Regexp
 	MetricKeyRegex       *regexp.Regexp
+	doesNotMatch         map[string]*regexp.Regexp
 	graphitePatternTags  []string // tags extracted from the raw graphite string, in the order of appearance.
 	metricKeyTags        []string // tags extracted from MetricKey, in the order of appearance.
 	Statistics           RuleStatistics
@@ -99,6 +101,15 @@ func Compile(rule RawRule) (Rule, error) {
 		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 
+	doesNotMatch := map[string]*regexp.Regexp{}
+	for key, avoid := range rule.DoesNotMatch {
+		compiled, err := regexp.Compile(avoid)
+		if err != nil {
+			return Rule{}, newInvalidCustomRegex(avoid)
+		}
+		doesNotMatch[key] = compiled
+	}
+
 	stats := RuleStatistics{}
 	stats.mutex = &sync.Mutex{}
 
@@ -107,6 +118,7 @@ func Compile(rule RawRule) (Rule, error) {
 		graphitePatternRegex: regex,
 		MetricKeyRegex:       metricKeyRegex,
 		graphitePatternTags:  graphitePatternTags,
+		doesNotMatch:         doesNotMatch,
 		metricKeyTags:        metricKeyTags,
 		Statistics:           stats,
 	}, nil
@@ -134,6 +146,12 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	tagSet := extractTagValues(rule.graphitePatternRegex, rule.graphitePatternTags, input)
 	if tagSet == nil {
 		return api.TaggedMetric{}, false
+	}
+	for key, value := range tagSet {
+		// If the 'doesNotMatch' field has been set for this tag, but it matches- reject the conversion.
+		if rule.doesNotMatch[key] != nil && rule.doesNotMatch[key].MatchString(value) {
+			return api.TaggedMetric{}, false
+		}
 	}
 	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet, false)
 	if err != nil {
