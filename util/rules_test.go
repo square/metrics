@@ -257,11 +257,11 @@ func Test_interpolateTags(t *testing.T) {
 
 }
 
-func TestDoesNotMatch(t *testing.T) {
+func TestDoNotMatchRegex(t *testing.T) {
 	rule, err := Compile(RawRule{
 		Pattern:          `%foo%.%animal%.%color%`,
 		MetricKeyPattern: `%foo%.%color%`,
-		DoesNotMatch: map[string]string{
+		DoNotMatch: map[string]string{
 			`animal`: `stuffed|teddy`,
 			`color`:  `z{4}|qy+`,
 		},
