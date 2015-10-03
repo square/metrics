@@ -5,3 +5,4 @@ main/metadata/metadata
 main/**/conversion_rules
 main/**/*.yaml
 main/ruletester/report
+main/compressor/compressor
