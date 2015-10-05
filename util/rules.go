@@ -33,6 +33,7 @@ type RawRule struct {
 	Pattern          string            `yaml:"pattern"`
 	MetricKeyPattern string            `yaml:"metric_key"`
 	Regex            map[string]string `yaml:"regex,omitempty"`
+	DoNotMatch       map[string]string `yaml:"do_not_match,omitempty"`
 }
 
 // RawRules is list of RawRule
@@ -46,6 +47,7 @@ type Rule struct {
 	raw                  RawRule
 	graphitePatternRegex *regexp.Regexp
 	MetricKeyRegex       *regexp.Regexp
+	doNotMatch           map[string]*regexp.Regexp
 	graphitePatternTags  []string // tags extracted from the raw graphite string, in the order of appearance.
 	metricKeyTags        []string // tags extracted from MetricKey, in the order of appearance.
 	Statistics           RuleStatistics
@@ -105,6 +107,15 @@ func Compile(rule RawRule) (Rule, error) {
 		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 
+	doNotMatch := map[string]*regexp.Regexp{}
+	for key, avoid := range rule.DoNotMatch {
+		compiled, err := regexp.Compile(avoid)
+		if err != nil {
+			return Rule{}, newInvalidCustomRegex(avoid)
+		}
+		doNotMatch[key] = compiled
+	}
+
 	stats := RuleStatistics{}
 	stats.mutex = &sync.Mutex{}
 
@@ -113,6 +124,7 @@ func Compile(rule RawRule) (Rule, error) {
 		graphitePatternRegex: regex,
 		MetricKeyRegex:       metricKeyRegex,
 		graphitePatternTags:  graphitePatternTags,
+		doNotMatch:           doNotMatch,
 		metricKeyTags:        metricKeyTags,
 		Statistics:           stats,
 	}, nil
@@ -140,6 +152,12 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 	tagSet := extractTagValues(rule.graphitePatternRegex, rule.graphitePatternTags, input)
 	if tagSet == nil {
 		return api.TaggedMetric{}, false
+	}
+	for key, value := range tagSet {
+		// If the 'doNotMatch' field has been set for this tag, but it matches- reject the conversion.
+		if rule.doNotMatch[key] != nil && rule.doNotMatch[key].MatchString(value) {
+			return api.TaggedMetric{}, false
+		}
 	}
 	interpolatedKey, err := interpolateTags(rule.raw.MetricKeyPattern, tagSet, false)
 	if err != nil {
