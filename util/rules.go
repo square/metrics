@@ -196,14 +196,16 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, 
 	// This is necessary because tags embedded in the metric are not
 	// exported to the tagset.
 	mergedTagSet := taggedMetric.TagSet.Merge(extractedTagSet)
+
+	for key, regex := range rule.doNotMatch {
+		if value := mergedTagSet[key]; regex.MatchString(value) {
+			return "", newCannotInterpolate(fmt.Sprintf("Key `%s` must not match `%s` but is `%s`", key, regex.String(), value))
+		}
+	}
+
 	interpolated, err := interpolateTags(rule.raw.Pattern, mergedTagSet, true)
 	if err != nil {
 		return "", err
-	}
-	for key, regex := range rule.doNotMatch {
-		if value, ok := taggedMetric.TagSet[key]; !ok || regex.MatchString(value) {
-			return "", newCannotInterpolate("Cannot reverse if matching do-not-match")
-		}
 	}
 
 	return GraphiteMetric(interpolated), nil
