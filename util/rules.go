@@ -200,6 +200,12 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, 
 	if err != nil {
 		return "", err
 	}
+	for key, regex := range rule.doNotMatch {
+		if value, ok := taggedMetric.TagSet[key]; !ok || regex.MatchString(value) {
+			return "", newCannotInterpolate("Cannot reverse if matching do-not-match")
+		}
+	}
+
 	return GraphiteMetric(interpolated), nil
 }
 
