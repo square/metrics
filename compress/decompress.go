@@ -25,8 +25,8 @@ type DecompressionBuffer struct {
 	current          byte
 	currentByteIndex uint32
 
-	leadingZeroWindowLength uint64
-	lengthOfWindow          uint64
+	leadingZeroWindowLength uint32
+	lengthOfWindow          uint32
 	position                uint32
 	eof                     bool
 	expectedSize            int
@@ -53,7 +53,7 @@ func NewDecompressionBuffer(data []byte, expectedSize int) DecompressionBuffer {
 
 //The first entry in a new stream is always a completely
 //uncompressed 64 bit float.
-func (d *DecompressionBuffer) readFirst() float64 {
+func (d *DecompressionBuffer) readFloat() float64 {
 	b := d.data[0:8]
 	buf := bytes.NewReader(b)
 	var result float64
@@ -70,12 +70,12 @@ func (d *DecompressionBuffer) hasMore() bool {
 	return !d.eof
 }
 
-func (d *DecompressionBuffer) ReadBit() uint32 {
+func (d *DecompressionBuffer) ReadBit() bool {
 	if d.eof {
 		panic("Tried reading an invalid bit")
 	}
 
-	bit := uint32((d.current & (1 << d.position)) >> d.position)
+	bit := nthLowestBit(d.position, uint64(d.current))
 
 	d.position--
 
@@ -92,124 +92,60 @@ func (d *DecompressionBuffer) ReadBit() uint32 {
 	return bit
 }
 
+func (d *DecompressionBuffer) ReadBits(n uint32) uint64 {
+	value := uint64(0)
+	for n != MaxUint32 {
+		value = value << 1
+		if d.ReadBit() {
+			value |= 1
+		}
+		n--
+	}
+	return value
+}
+
 //The current value we're trying to read has the same number
 //of leading zeros and XOR length as the previous entry.
 func (d *DecompressionBuffer) readPartialXOR(previous float64) float64 {
-	j := uint64(d.lengthOfWindow)
-	var xor uint64
-	xor = 0
-	for uint32(j) != MaxUint32 {
-		bit := d.ReadBit()
-		xor = xor | (uint64(bit) << j)
-		j--
-	}
-
-	var rebuiltNumber uint64
-	rebuiltNumber = 0
 	previousBits := math.Float64bits(previous)
-	xor = xor << (64 - d.leadingZeroWindowLength - d.lengthOfWindow)
-	rebuiltNumber = previousBits ^ xor
-
-	var buffer *bytes.Buffer
-	buffer = new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, rebuiltNumber)
-
-	b := buffer.Bytes()
-	readbuf := bytes.NewReader(b)
-	var result float64
-	err := binary.Read(readbuf, binary.BigEndian, &result)
-	if err != nil {
-		panic("WUT")
-	}
-
-	return result
+	xor := d.ReadBits(d.lengthOfWindow) << (64 - d.leadingZeroWindowLength - d.lengthOfWindow)
+	return math.Float64frombits(previousBits ^ xor)
 }
 
 //Read a complete XOR record from the stream. 5 bits for leadering
 //zeros, 6 bits for XOR length, and then the XOR field.
 func (d *DecompressionBuffer) readFullXOR(previous float64) float64 {
-	i := uint32(4)
-	var leadingZeros uint32
-	leadingZeros = 0
-	for i != MaxUint32 {
-		bit := d.ReadBit()
-		leadingZeros = leadingZeros | (bit << i)
-		i--
-	}
+	leadingZeros := uint32(d.ReadBits(4))
+	xorLength := uint32(d.ReadBits(5))
 
-	i = uint32(5)
-	var xorLength uint32
-	xorLength = 0
-	for i != MaxUint32 {
-		bit := d.ReadBit()
-		xorLength = xorLength | (bit << i)
-		i--
-	}
+	xor := d.ReadBits(xorLength) << (64 - leadingZeros - xorLength)
 
-	j := uint64(xorLength)
-	var xor uint64
-	xor = 0
-	for uint32(j) != MaxUint32 {
-		bit := d.ReadBit()
-		xor = xor | (uint64(bit) << j)
-		j--
-	}
+	rebuiltNumber := math.Float64bits(previous) ^ xor
 
-	var rebuiltNumber uint64
-	rebuiltNumber = 0
-	previousBits := math.Float64bits(previous)
-	xor = xor << (64 - leadingZeros - xorLength)
-	rebuiltNumber = previousBits ^ xor
+	d.lengthOfWindow = xorLength
+	d.leadingZeroWindowLength = leadingZeros
 
-	var buffer *bytes.Buffer
-	buffer = new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, rebuiltNumber)
-
-	b := buffer.Bytes()
-	readbuf := bytes.NewReader(b)
-	var result float64
-	err := binary.Read(readbuf, binary.BigEndian, &result)
-	if err != nil {
-		panic("WUT")
-	}
-
-	d.lengthOfWindow = uint64(xorLength)
-	d.leadingZeroWindowLength = uint64(leadingZeros)
-
-	return result
+	return math.Float64frombits(rebuiltNumber)
 }
 
 func (d *DecompressionBuffer) Decompress() []float64 {
-	first := d.readFirst()
+	first := d.readFloat()
+	result := []float64{first}
 
-	result := make([]float64, 1)
-	result[0] = first
-
-	var bit uint32
-	var prev float64
-	prev = first
-
+	number := first
 	for d.hasMore() && len(result) < d.expectedSize {
-		bit = d.ReadBit()
-		if bit == 0 {
-			//Repeat of previous value.
-			result = append(result, prev)
-		} else {
-			//Hit a 1, so we need another bit to know what to do
-			bit = d.ReadBit()
-			if bit == 1 {
-				//Control bit. We have full XOR + lengths.
-				num := d.readFullXOR(prev)
-				prev = num
-				result = append(result, num)
+		if d.ReadBit() {
+			// Hit a 1, so we need another bit to know what to do.
+			// Otherwise it's a repeat of the previous value.
+			if d.ReadBit() {
+				// With have full XOR + lengths
+				number = d.readFullXOR(number)
 			} else {
-				//The next XOR has the same # of leading zeros and length
-				//as the previous entry.
-				num := d.readPartialXOR(prev)
-				prev = num
-				result = append(result, num)
+				// We have partial XOR (it has the same number of leading zeroes and length)
+				number = d.readPartialXOR(number)
 			}
 		}
+		result = append(result, number)
 	}
 	return result
 }
