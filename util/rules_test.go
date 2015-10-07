@@ -289,3 +289,65 @@ func TestDoNotMatchRegex(t *testing.T) {
 		}
 	}
 }
+
+func TestDoNotMatchRegexReverse(t *testing.T) {
+	rule, err := Compile(RawRule{
+		Pattern:          `%foo%.%animal%.%color%`,
+		MetricKeyPattern: `%foo%.%color%`,
+		DoNotMatch: map[string]string{
+			`animal`: `stuffed|teddy`,
+			`color`:  `z{4}|qy+`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error %s", err.Error())
+	}
+	tests := []struct {
+		input    api.TaggedMetric
+		graphite string
+		success  bool
+	}{
+		{
+			api.TaggedMetric{
+				MetricKey: "qux.red",
+				TagSet: map[string]string{
+					`animal`: `elephant`,
+				},
+			},
+			"qux.elephant.red",
+			true,
+		},
+		{
+			api.TaggedMetric{
+				MetricKey: "qux.qyyy",
+				TagSet: map[string]string{
+					`animal`: `elephant`,
+				},
+			},
+			"",
+			false,
+		},
+		{
+			api.TaggedMetric{
+				MetricKey: "bar.red",
+				TagSet: map[string]string{
+					`animal`: `teddy-bear`,
+				},
+			},
+			"",
+			false,
+		},
+	}
+	for _, test := range tests {
+		result, err := rule.ToGraphiteName(test.input)
+		if test.success {
+			if err != nil {
+				t.Errorf("Expected success but failed: test %+v; result %s", test, err.Error())
+			}
+		} else {
+			if err == nil {
+				t.Errorf("Expected failure to convert for test %+v but got %s", test, result)
+			}
+		}
+	}
+}
