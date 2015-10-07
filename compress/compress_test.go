@@ -83,3 +83,32 @@ func TestCompressionLarge(t *testing.T) {
 		t.Errorf("The array didn't decompress correctly.\n%f\n%f\n", data, decompressed)
 	}
 }
+
+func TestCompressionRatio(t *testing.T) {
+	r := rand.New(rand.NewSource(0))
+	mean := 0.0
+	count := 100
+	for i := 0; i < count; i++ {
+		length := r.Intn(5000) + 100
+		c := NewCompressionBuffer()
+		data := []float64{}
+		value := rand.ExpFloat64() * 1e-5
+		for j := 0; j < length; j++ {
+			if rand.Intn(10) != 0 {
+				value += rand.ExpFloat64()
+			}
+			data = append(data, value)
+		}
+		c.Compress(data)
+		c.Finalize()
+		compressed := c.Bytes()
+		compressionRatio := float64(length*8) / float64(len(compressed))
+		if compressionRatio < 1 {
+			t.Errorf("Data size was increased when compressed")
+			t.Errorf("Compression ratio: %f; original %d: compressed %d", float64(length*8)/float64(len(compressed)), length*8, len(compressed))
+		}
+		mean += compressionRatio
+	}
+	mean = mean / float64(count)
+	t.Logf("mean compression ratio: %f", mean)
+}
