@@ -456,9 +456,9 @@ func TestApplyTransformNaN(t *testing.T) {
 			transform:  Integral,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
-				"B": {0, 0, 0, 0, 3 * 30, 6 * 30},
-				"C": {0, 1 * 30, 3 * 30, 3 * 30, 5 * 30, 6 * 30},
+				"A": {0, 1 * 30, nan, 4 * 30, 8 * 30, 13 * 30},
+				"B": {0, nan, nan, nan, 3 * 30, 6 * 30},
+				"C": {0, 1 * 30, 3 * 30, nan, 5 * 30, 6 * 30},
 			},
 		},
 		{
@@ -474,9 +474,9 @@ func TestApplyTransformNaN(t *testing.T) {
 			transform:  Cumulative,
 			parameters: []function.Value{},
 			expected: map[string][]float64{
-				"A": {0, 1, 1, 4, 8, 13},
-				"B": {0, 0, 0, 0, 3, 6},
-				"C": {0, 1, 3, 3, 5, 6},
+				"A": {0, 1, nan, 4, 8, 13},
+				"B": {0, nan, nan, nan, 3, 6},
+				"C": {0, 1, 3, nan, 5, 6},
 			},
 		},
 		{
