@@ -63,8 +63,7 @@ func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context 
 
 func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
 	defer context.Profiler.Record("Cassandra AddMetrics")()
-	a.db.AddMetricNames(metrics)
-	return nil
+	return a.db.AddMetricNames(metrics)
 }
 
 func (a *CassandraMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
@@ -130,17 +129,13 @@ func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	queryInsert := "INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)"
 	queryUpdate := "UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?"
 
-	c := make(chan *gocql.Query, 10)
+	boundQueries := make(chan *gocql.Query, 10)
 	done := make(chan bool)
 	go func() {
-		for {
-			boundQuery, more := <-c
-			if !more {
-				done <- true
-				return
-			}
+		for boundQuery := range boundQueries {
 			_ = boundQuery.Exec()
 		}
+		done <- true
 	}()
 
 	//For every query queue up an insert and a shard update and start streaming them.
@@ -152,7 +147,7 @@ func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 			return data, nil
 		})
 		boundQuery.Consistency(gocql.One)
-		c <- boundQuery
+		boundQueries <- boundQuery
 
 		boundQuery = db.session.Bind(queryUpdate, func(q *gocql.QueryInfo) ([]interface{}, error) {
 			data := make([]interface{}, 2)
@@ -161,9 +156,9 @@ func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 			return data, nil
 		})
 		boundQuery.Consistency(gocql.One)
-		c <- boundQuery
+		boundQueries <- boundQuery
 	}
-	close(c)
+	close(boundQueries)
 
 	<-done
 	return nil
