@@ -181,13 +181,11 @@ func EvaluateMany(context *EvaluationContext, expressions []Expression) ([]Value
 			}(i, expr)
 		}
 		array := make([]Value, length)
-		for i := 0; i < length; i++ {
-			result := <-results
+		for result := range results {
 			if result.err != nil {
 				return nil, result.err
-			} else {
-				array[result.index] = result.value
 			}
+			array[result.index] = result.value
 		}
 		return array, nil
 	}
