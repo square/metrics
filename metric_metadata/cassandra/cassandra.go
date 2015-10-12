@@ -131,10 +131,10 @@ func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 
 	boundQueries := make(chan *gocql.Query, 10)
 	done := make(chan bool)
-	errors := make(error, 1)
+	errors := make(chan error, 1)
 	go func() {
 		for boundQuery := range boundQueries {
-			err = boundQuery.Exec()
+			err := boundQuery.Exec()
 			if err != nil && len(errors) < cap(errors) {
 				errors <- err
 			}
