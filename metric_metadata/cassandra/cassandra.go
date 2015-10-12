@@ -129,38 +129,33 @@ func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	queryInsert := "INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)"
 	queryUpdate := "UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?"
 
-	boundQueries := make(chan *gocql.Query, 10)
-	done := make(chan bool)
-	go func() {
-		for boundQuery := range boundQueries {
-			_ = boundQuery.Exec()
-		}
-		done <- true
-	}()
-
 	//For every query queue up an insert and a shard update and start streaming them.
 	for _, m := range metrics {
 		boundQuery := db.session.Bind(queryInsert, func(q *gocql.QueryInfo) ([]interface{}, error) {
-			data := make([]interface{}, 2)
-			data[0] = m.MetricKey
-			data[1] = m.TagSet.Serialize()
-			return data, nil
+			return []interface{}{
+				m.MetricKey,
+				m.TagSet.Serialize(),
+			}, nil
 		})
 		boundQuery.Consistency(gocql.One)
-		boundQueries <- boundQuery
+		err := boundQuery.Exec()
+		if err != nil {
+			return err
+		}
 
 		boundQuery = db.session.Bind(queryUpdate, func(q *gocql.QueryInfo) ([]interface{}, error) {
-			data := make([]interface{}, 2)
-			data[0] = []string{string(m.MetricKey)}
-			data[1] = 0
-			return data, nil
+			return []interface{}{
+				[]string{string(m.MetricKey)},
+				0,
+			}, nil
 		})
 		boundQuery.Consistency(gocql.One)
-		boundQueries <- boundQuery
+		err = boundQuery.Exec()
+		if err != nil {
+			return err
+		}
 	}
-	close(boundQueries)
 
-	<-done
 	return nil
 }
 
