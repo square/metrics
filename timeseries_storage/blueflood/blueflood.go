@@ -333,8 +333,8 @@ func (b *Blueflood) constructURL(
 // fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
 func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, []byte, error) {
 	log.Debugf("Blueflood fetch: %s", queryUrl.String())
-	success := make(chan queryResponse)
-	failure := make(chan error)
+	success := make(chan queryResponse, 1)
+	failure := make(chan error, 1)
 	timeout := time.After(b.config.Timeout)
 	var rawResponse []byte
 	go func() {
