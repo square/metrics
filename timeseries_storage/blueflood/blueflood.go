@@ -358,7 +358,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 		err = json.Unmarshal(body, &parsedJson)
 		// Construct a Timeseries from the result:
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding"}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryUrl.String()}
 			return
 		}
 		success <- parsedJson
