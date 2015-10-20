@@ -1,0 +1,9 @@
+rules:
+  - pattern: "%app%.%host%.cpu.percentage"
+    metric_key: cpu.percentage
+    tests:
+      - sample: mqe.server140.cpu.percentage
+        expected_metric_key: cpu.percentage
+        expected_tags:
+          app: mqe
+          host: server140
