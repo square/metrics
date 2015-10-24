@@ -194,7 +194,7 @@ func TestApplyTransform(t *testing.T) {
 			expected: map[string][]float64{
 				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
 				"B": {0, 1.0 / 30, 0, 2.0 / 30, 0},
-				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, 2.0 / 30, 1.0 / 30},
+				"C": {1.0 / 30, 1.0 / 30, 1.0 / 30, 0.0, 0.0},
 			},
 		},
 	}
@@ -244,7 +244,7 @@ func TestApplyNotes(t *testing.T) {
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
-				Values: []float64{0, 1, 2, 3, 2, 1},
+				Values: []float64{1, 2, 3, 2, 1, 2},
 				TagSet: api.TagSet{
 					"series": "C",
 				},
@@ -263,7 +263,6 @@ func TestApplyNotes(t *testing.T) {
 			transform: rate,
 			parameter: []function.Value{},
 			expected: []string{
-				"Rate(map[series:C]): The underlying counter reset between 3.000000, 2.000000\n",
 				"Rate(map[series:C]): The underlying counter reset between 2.000000, 1.000000\n",
 			},
 		},
@@ -276,7 +275,13 @@ func TestApplyNotes(t *testing.T) {
 			t.Error(err)
 			continue
 		}
+		if len(test.expected) != len(ctx.EvaluationNotes) {
+			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.EvaluationNotes))
+		}
 		for i, note := range test.expected {
+			if i >= len(ctx.EvaluationNotes) {
+				break
+			}
 			if ctx.EvaluationNotes[i] != note {
 				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.EvaluationNotes[i])
 			}
@@ -467,7 +472,7 @@ func TestApplyTransformNaN(t *testing.T) {
 			expected: map[string][]float64{
 				"A": {1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
 				"B": {nan, nan, nan, nan, 0},
-				"C": {1 / 30.0, 1 / 30.0, nan, nan, 1 / 30.0},
+				"C": {1 / 30.0, 1 / 30.0, nan, nan, 0.0},
 			},
 		},
 		{
@@ -516,7 +521,7 @@ func TestApplyTransformNaN(t *testing.T) {
 				v := values[i]
 				e := expected[i]
 				if (math.IsNaN(e) != math.IsNaN(v)) || (!math.IsNaN(e) && math.Abs(v-e) > 1e-7) {
-					t.Errorf("(actual) %+v != %+v (expected)", values, expected)
+					t.Errorf("(actual) %+v != %+v (expected) for series %s", values, expected, series.TagSet["series"])
 					break
 				}
 			}
