@@ -118,7 +118,7 @@ var MovingAverage = function.MetricFunction{
 				}
 				// Numerical error could (possibly) cause count == 0 but sum != 0.
 				if i-limit+1 >= 0 {
-					if count == 0 {
+					if count == 0 || math.IsNaN(series.Values[i]) {
 						results[i-limit+1] = math.NaN()
 					} else {
 						results[i-limit+1] = sum / float64(count)

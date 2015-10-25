@@ -62,14 +62,16 @@ func Integral(ctx *function.EvaluationContext, series api.Timeseries, parameters
 	result := make([]float64, len(values))
 	integral := 0.0
 	for i := range values {
+		if math.IsNaN(values[i]) {
+			// Gaps in the original remain gaps in the integral version.
+			result[i] = math.NaN()
+			continue
+		}
 		// Skip the 0th element since thats not technically part of our timerange
 		if i == 0 {
 			continue
 		}
-
-		if !math.IsNaN(values[i]) {
-			integral += values[i]
-		}
+		integral += values[i]
 		result[i] = integral * scale
 	}
 	return result, nil
@@ -82,13 +84,14 @@ func Cumulative(ctx *function.EvaluationContext, series api.Timeseries, paramete
 	sum := 0.0
 	for i := range values {
 		// Skip the 0th element since thats not technically part of our timerange
+		if math.IsNaN(values[i]) {
+			result[i] = math.NaN()
+			continue
+		}
 		if i == 0 {
 			continue
 		}
-
-		if !math.IsNaN(values[i]) {
-			sum += values[i]
-		}
+		sum += values[i]
 		result[i] = sum
 	}
 	return result, nil
