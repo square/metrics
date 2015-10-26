@@ -25,10 +25,10 @@ import (
 	"time"
 )
 
-var bluefloodAddress = flag.String("blueflood-address", "", "Specify the URL for the HTTP  Blueflood server. ex: [http://localhost:19000/v2.0/tenant-id/ingest]")
-var mqeIngestionAddress = flag.String("mqe-ingestion-address", "", "Specify the URL (including port) for the MQE Ingestion server.")
+var bluefloodAddress = flag.String("blueflood-address", "", "Specify the URL for the HTTP  Blueflood server. [example: http://localhost:19000/v2.0/tenant-id/ingest]")
+var mqeIngestionAddress = flag.String("mqe-ingestion-address", "", "Specify the URL (including port) for the MQE Ingestion server [example: localhost:7774]")
 
-type SourceMetric struct {
+type sourceMetric struct {
 	Metric string
 	Source Source
 }
@@ -36,18 +36,14 @@ type SourceMetric struct {
 func main() {
 	flag.Parse()
 
-	if *bluefloodAddress == "" {
-		fmt.Printf("You must specify the blueflood address with `-blueflood-address`\n")
-		return
-	}
-	if *mqeIngestionAddress == "" {
-		fmt.Printf("You must specify the MQE ingestion address address with `-mqe-ingestion-address`\n")
+	if *bluefloodAddress == "" || *mqeIngestionAddress == "" {
+		flag.Usage()
 		return
 	}
 
 	//
 
-	metrics := []SourceMetric{}
+	metrics := []sourceMetric{}
 
 	{
 		sources := make([]Source, 5)
@@ -57,7 +53,7 @@ func main() {
 			})
 		}
 		for i := 0; i < 10; i++ {
-			metrics = append(metrics, SourceMetric{
+			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.cpu.percentage", i),
 				NewLinear(sources),
 			})
@@ -73,7 +69,7 @@ func main() {
 		}
 		for i := 0; i < 10; i++ {
 			scale := rand.Float64()*90 + 10
-			metrics = append(metrics, SourceMetric{
+			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.connection.http.count", i),
 				&Mapper{NewLinear(sources), func(x float64) float64 { return scale * math.Floor(x) }}, // MAP
 			})
@@ -88,7 +84,7 @@ func main() {
 			})
 		}
 		for i := range sources {
-			metrics = append(metrics, SourceMetric{
+			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.connection.http.latency", i),
 				&Capper{sources[i], 0, 1000},
 			})
@@ -108,62 +104,6 @@ func main() {
 			}
 		}
 	}
-
-	//
-	/*
-		serverCount := 200
-
-		cpuPercentage := make([]float64, serverCount)
-		cpuVelocities := make([]float64, serverCount)
-		cpuQuota := make([]float64, serverCount)
-
-		apps := []string{"mqe", "example", "webserver", "blueflood"}
-
-		for i := 0; i < serverCount; i++ {
-			cpuQuota[i] = float64(rand.Intn(6)*10 + 50)
-			cpuPercentage[i] = cpuQuota[i] * rand.Float64()
-			cpuVelocities[i] = rand.Float64() * 4
-		}
-
-		client := &http.Client{}
-
-		for {
-			// Report data to both Blueflood and MQE ingestion.
-			for i := range cpuPercentage {
-				err := reportMetric(client, cpuPercentage[i], "%s.server%d.cpu.percentage", apps[i%len(apps)], i/len(apps))
-				if err != nil {
-					fmt.Printf("Error\n", err.Error())
-				}
-			}
-			for i := range cpuQuota {
-				err := reportMetric(client, cpuQuota[i], "%s.server%d.cpu.quota", apps[i%len(apps)], i/len(apps))
-				if err != nil {
-					fmt.Printf("Error\n", err.Error())
-				}
-			}
-			// Simulate changing CPU usage (with randomness + sinusoidal trends)
-			appBias := make([]float64, len(apps))
-			for i := range appBias {
-				appBias[i] = rand.NormFloat64()
-			}
-			for i := range cpuPercentage {
-				cpuVelocities[i] *= 0.99
-				cpuVelocities[i] += appBias[i%len(apps)]
-				cpuVelocities[i] += rand.NormFloat64() * 0.25
-
-				cpuPercentage[i] *= 0.99
-
-				cpuPercentage[i] += cpuVelocities[i]
-				if cpuPercentage[i] < 0 {
-					cpuPercentage[i] = 0
-				}
-				if cpuPercentage[i] > cpuQuota[i]*1.05 {
-					cpuPercentage[i] = cpuQuota[i] * 1.05
-				}
-			}
-			<-time.After(15 * time.Second)
-		}
-	*/
 }
 
 func reportMetric(client *http.Client, value float64, name string, options ...interface{}) error {

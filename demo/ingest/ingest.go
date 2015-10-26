@@ -15,6 +15,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -26,10 +27,23 @@ import (
 	"github.com/square/metrics/util"
 )
 
-const rulePath = "conversion_rules" // relative to execution
+// rulePath specifies the directory to look for the conversion rule files *.yaml
+var rulePath = flag.String("rule-path", "", "Specify the directory of the conversion rule files. [example: metrics/demo/conversion_rules]")
+
+// cassandraHost specifies the IP of the Cassandra host that MQE uses.
+// You can use 127.0.0.1 (which will use Cassandra's default port (TODO: look this up)) if you set it up on your local machine.
+var cassandraHost = flag.String("cassandra-host", "", "Specify the IP of MQE's Cassandra host. [example: 127.0.0.1]")
+
+// listenOnPort specifies the port to listen on for ingestion.
+var listenOnPort = flag.String("listen-on", "", "Specify the port to listen on [example: 7774]")
 
 func main() {
-	rules, err := util.LoadRules(rulePath)
+	flag.Parse()
+	if *rulePath == "" || *cassandraHost == "" || *listenOnPort == "" {
+		flag.Usage()
+		return
+	}
+	rules, err := util.LoadRules(*rulePath)
 	if err != nil {
 		fmt.Printf("Error loading rules; %+v", err.Error())
 		return
@@ -38,8 +52,8 @@ func main() {
 	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
 
 	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.CassandraMetricMetadataConfig{
-		Hosts:    []string{"127.0.0.1"}, // using the default port
-		Keyspace: "metrics_indexer",     // from schema in github.com/square/metrics/schema
+		Hosts:    []string{*cassandraHost}, // using the default port
+		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
 	})
 	if err != nil {
 		fmt.Printf("Error encountered while creating Cassandra API instance: %+v", err.Error())
@@ -49,72 +63,69 @@ func main() {
 
 	// Now we'll create an HTTP service which can be provided metric names.
 	// It will deliver them to Cassandra through this api
-
 	http.HandleFunc("/ingest", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Printf("Received request.\n")
-		body := req.Body
+		// This function is called each time that an ingestion request is received for the /ingest path.
 
-		bytes, err := ioutil.ReadAll(body)
+		// Print so that you can verify that it's working.
+		fmt.Printf("Received request.\n")
+
+		// Read the body, which is expected to contain a newline-separated list of metric names.
+		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Error reading body %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(fmt.Sprintf("Error reading body: %s", err.Error())))
-		}
-
-		metrics := []util.GraphiteMetric{} // TODO: apply conversion rules
-
-		for _, metric := range strings.Split(string(bytes), "\n") {
-			metric = strings.TrimSpace(metric)
-			if metric != "" {
-				metrics = append(metrics, util.GraphiteMetric(metric))
-			}
-		}
-
-		if len(metrics) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("received no metrics"))
 			return
 		}
 
-		// Now, convert them
-
-		converted := []api.TaggedMetric{}
-
-		messages := []string{}
-
-		for _, metric := range metrics {
-			result, err := converter.ToTaggedName(metric)
-			if err != nil {
-				messages = append(messages, err.Error())
-				continue
-			}
-			converted = append(converted, result)
-		}
-
-		err = cassandra.AddMetrics(converted, api.MetricMetadataAPIContext{})
-
-		if err != nil {
-			log.Printf("Error sending metrics to Cassandra: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(fmt.Sprintf("error connecting to cassandra %s", err.Error())))
-			return
-		}
-		err = body.Close()
+		// Close the body now that we're done.
+		err = req.Body.Close()
 		if err != nil {
 			log.Printf("Error closing body: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		for _, message := range messages {
-			w.Write([]byte("Error: "))
-			w.Write([]byte(message))
-			w.Write([]byte("\n"))
+		// Split the body into lines, and trim whitespace for each metric.
+		metrics := []util.GraphiteMetric{}
+		for _, metric := range strings.Split(string(bytes), "\n") {
+			if metric := strings.TrimSpace(metric); metric != "" {
+				metrics = append(metrics, util.GraphiteMetric(metric))
+			}
+		}
+
+		// If there weren't any metrics, then send back a bad request.
+		if len(metrics) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("No metrics were received."))
+			return
+		}
+
+		// Take all of the metrics we received and convert them with the specified conversiond rules.
+		converted := []api.TaggedMetric{}
+
+		for _, metric := range metrics {
+			// If conversion fails because no rule is applicable, then err will be non-nil.
+			result, err := converter.ToTaggedName(metric)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(fmt.Sprintf("Error converting metric `%s`; %s\n", metric, err.Error())))
+				continue
+			}
+			converted = append(converted, result)
+		}
+
+		// All of the metrics that were successfully converted will be placed into the Cassandra store by MQE.
+		err = cassandra.AddMetrics(converted, api.MetricMetadataAPIContext{})
+		if err != nil {
+			log.Printf("Error sending metrics to Cassandra: %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("Error connecting to Cassandra; %s\n", err.Error())))
+			return
 		}
 	})
 
-	err = http.ListenAndServe(":7774", nil)
+	err = http.ListenAndServe(":"+*listenOnPort, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
