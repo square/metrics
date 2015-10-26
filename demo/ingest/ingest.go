@@ -31,7 +31,7 @@ import (
 var rulePath = flag.String("rule-path", "", "Specify the directory of the conversion rule files. [example: metrics/demo/conversion_rules]")
 
 // cassandraHost specifies the IP of the Cassandra host that MQE uses.
-// You can use 127.0.0.1 (which will use Cassandra's default port (TODO: look this up)) if you set it up on your local machine.
+// You can use 127.0.0.1 (which will use Cassandra's default port 9160) if you set it up on your local machine.
 var cassandraHost = flag.String("cassandra-host", "", "Specify the IP of MQE's Cassandra host. [example: 127.0.0.1]")
 
 // listenOnPort specifies the port to listen on for ingestion.
