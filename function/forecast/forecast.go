@@ -14,9 +14,8 @@
 
 package forecast
 
-import (
-	"math"
-)
+import "fmt"
+import "math"
 
 // Uses the Holt-Winters model for data.
 // Assume y(t) = (a + bt)*f(t)
@@ -84,8 +83,8 @@ func (m HoltWintersModel) EstimatePoint(t int) float64 {
 
 // EstimateRange creates a slice for the range of values including index `from` and excluding index `to`.
 // If `from != 0`, then `result[0]` corresponds to the time `0`, and `result[len(result)-1]` corresponds to time `to-1`.
-func (m HoltWintersModel) EstimateRange(from int, to int) []float64 {
-	result := make([]float64, to-from)
+func (m HoltWintersModel) EstimateRange(from int, count int) []float64 {
+	result := make([]float64, count)
 	for i := range result {
 		result[i] = m.EstimatePoint(i + from)
 	}
@@ -96,12 +95,12 @@ func (m HoltWintersModel) EstimateRange(from int, to int) []float64 {
 // Given ys and a period with period << len(ys), computes an estimate model
 // (alpha + beta*t) * seasonal[t]
 // Requires at least 2 full periods to work correctly. Partial periods are ignored.
-func HoltWintersMultiplicativeEstimate(ys []float64, period int) HoltWintersModel {
+func HoltWintersMultiplicativeEstimate(ys []float64, period int) (HoltWintersModel, error) {
 	if len(ys) < period*2 {
-		panic("HoltWintersMultiplicativeEstimate expects at least as many values as twice the period")
+		return HoltWintersModel{}, fmt.Errorf("HoltWintersMultiplicativeEstimate expects at least as many values as twice the period")
 	}
 	if period <= 0 {
-		panic("HoltWintersMultiplicativeEstimate: period should be positive")
+		return HoltWintersModel{}, fmt.Errorf("HoltWintersMultiplicativeEstimate: period should be positive")
 	}
 	periodMeans := []float64{}
 	for i := 0; i+period <= len(ys); i += period {
@@ -147,7 +146,7 @@ func HoltWintersMultiplicativeEstimate(ys []float64, period int) HoltWintersMode
 		Alpha:  alpha,
 		Beta:   beta,
 		Season: season,
-	}
+	}, nil
 }
 
 // GeneralizedHoltWintersModel is a generalization of the Holt-Winters model.

@@ -143,6 +143,12 @@ func (tr Timerange) Shift(shift time.Duration) Timerange {
 	return tr.Snap()
 }
 
+// ExtendLength returns a timerange which whose length is set to the given amount
+func (tr Timerange) SelectLength(length time.Duration) Timerange {
+	tr.end = tr.start + int64(length/time.Millisecond)
+	return tr.Snap()
+}
+
 // Slots represent the total # of data points
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
