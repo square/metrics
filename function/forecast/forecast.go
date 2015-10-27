@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filter
+package forecast
 
 import (
 	"math"
@@ -43,20 +43,21 @@ func LinearRegression(ys []float64) (float64, float64) {
 		xym += float64(i) * ys[i]
 		x2m += float64(i) * float64(i)
 	}
-	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Fitting_the_regression_line for justification.
 	xm /= float64(c)
 	ym /= float64(c)
 	xym /= float64(c)
 	x2m /= float64(c)
+	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Fitting_the_regression_line for justification.
 	beta := (xym - xm*ym) / (x2m - xm*xm)
 	alpha := ym - beta*xm
 	return alpha, beta
 }
 
+// mean computes the mean of the given data points, skipping NaN values.
 func mean(xs []float64) float64 {
 	s := 0.0
 	c := 0
-	for v := range xs {
+	for _, v := range xs {
 		if math.IsNaN(v) {
 			continue
 		}
@@ -66,6 +67,8 @@ func mean(xs []float64) float64 {
 	return s / float64(c)
 }
 
+// HoltWintersModel represents a function f(t) = S(t)*(a + b*t)
+// where S(t) is a periodic function, given as Season[t % P].
 type HoltWintersModel struct {
 	Alpha  float64
 	Beta   float64
@@ -76,7 +79,7 @@ type HoltWintersModel struct {
 func (m HoltWintersModel) EstimatePoint(t int) float64 {
 	n := len(m.Season)
 	i := (t%n + n) % n // i = t (modulo n); and 0 <= i < n
-	return m.Season[i] * (m.Alpha + m.Beta*t)
+	return m.Season[i] * (m.Alpha + m.Beta*float64(t))
 }
 
 // EstimateRange creates a slice for the range of values including index `from` and excluding index `to`.
@@ -89,16 +92,16 @@ func (m HoltWintersModel) EstimateRange(from int, to int) []float64 {
 	return result
 }
 
-// HoltWintersMultiplicativeEstimate1 estimates the Holt-Winters parameters alpha, beta, and seasonal function.
+// HoltWintersMultiplicativeEstimate estimates the Holt-Winters parameters alpha, beta, and seasonal function.
 // Given ys and a period with period << len(ys), computes an estimate model
 // (alpha + beta*t) * seasonal[t]
 // Requires at least 2 full periods to work correctly. Partial periods are ignored.
-func HoltWintersMultiplicativeEstimate1(ys []float64, period int) HoltWintersModel {
+func HoltWintersMultiplicativeEstimate(ys []float64, period int) HoltWintersModel {
 	if len(ys) < period*2 {
-		panic("HoltWintersMultiplicativeEstimate1 expects at least as many values as twice the period")
+		panic("HoltWintersMultiplicativeEstimate expects at least as many values as twice the period")
 	}
 	if period <= 0 {
-		panic("HoltWintersMultiplicativeEstimate1: period should be positive")
+		panic("HoltWintersMultiplicativeEstimate: period should be positive")
 	}
 	periodMeans := []float64{}
 	for i := 0; i+period <= len(ys); i += period {
@@ -107,7 +110,7 @@ func HoltWintersMultiplicativeEstimate1(ys []float64, period int) HoltWintersMod
 
 	// We perform linear regression on the means of each period, which gives us a good estimate of overall behavior,
 	// independent of the seasonal factor.
-	_, mBeta := LinearRegression(means)
+	_, mBeta := LinearRegression(periodMeans)
 
 	// the overall slope is thus
 	beta := mBeta / float64(period)
@@ -158,9 +161,9 @@ type GeneralizedHoltWintersModel struct {
 
 // EstimatePoint uses the generalized Holt-Winters model with the given parameters to estimate the value at time t.
 func (m GeneralizedHoltWintersModel) EstimatePoint(t int) float64 {
-	n := len(m.Season)
+	n := len(m.Alphas)
 	i := (t%n + n) % n // i = t (modulo n); and 0 <= i < n
-	return m.Alphas[i] + m.Betas[i]*t
+	return m.Alphas[i] + m.Betas[i]*float64(t)
 }
 
 // EstimateRange creates a slice for the range of values including index `from` and excluding index `to`.
@@ -177,7 +180,6 @@ func (m GeneralizedHoltWintersModel) EstimateRange(from int, to int) []float64 {
 // given the data and the period of the model parameters. There must be at least 2 complete periods of data,
 // but to be even slightly effective, more data MUST be provided.
 // The data at the end of the array will be ignored if there is an incomplete period.
-// TODO: evaluate the effectiveness of this model.
 func EstimateGeneralizedHoltWintersModel(ys []float64, period int) GeneralizedHoltWintersModel {
 	count := len(ys) / period
 	alphas := make([]float64, period)
@@ -195,11 +197,16 @@ func EstimateGeneralizedHoltWintersModel(ys []float64, period int) GeneralizedHo
 	}
 }
 
-func GeneralizeMultiplicativeModel(m HoltWintersModel) GeneralizeMultiplicativeModel {
+// GeneralizeMultiplicativeModel takes a HoltWintersModel and turns it into an equivalent GeneralizedHoltWintersModel.
+func GeneralizeMultiplicativeModel(m HoltWintersModel) GeneralizedHoltWintersModel {
 	alphas := make([]float64, len(m.Season))
 	betas := make([]float64, len(m.Season))
 	for i := range alphas {
 		alphas[i] = m.Season[i%len(m.Season)] * m.Alpha
 		betas[i] = m.Season[i%len(m.Season)] * m.Beta
+	}
+	return GeneralizedHoltWintersModel{
+		Alphas: alphas,
+		Betas:  betas,
 	}
 }
