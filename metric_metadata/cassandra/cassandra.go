@@ -53,6 +53,10 @@ func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context 
 	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
 	}
+	return a.AddMetricTagsToTagIndex(metric, context)
+}
+func (a *CassandraMetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("Cassandra AddMetricTagsToTagIndex")()
 	for tagKey, tagValue := range metric.TagSet {
 		if err := a.db.AddToTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
 			return err
@@ -63,6 +67,13 @@ func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context 
 
 func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
 	defer context.Profiler.Record("Cassandra AddMetrics")()
+	// Add each of the metrics to the tag index
+	for _, metric := range metrics {
+		err := a.AddMetricTagsToTagIndex(metric, context)
+		if err != nil {
+			return err
+		}
+	}
 	return a.db.AddMetricNames(metrics)
 }
 
@@ -112,9 +123,8 @@ func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (cassandraDatabase
 	}, nil
 }
 
-// AddMetricName inserts to metric to Cassandra.
+// AddMetricName inserts the metric to Cassandra.
 func (db *cassandraDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-
 	if err := db.session.Query("INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)", metricKey, tagSet.Serialize()).Exec(); err != nil {
 		return err
 	}
@@ -125,6 +135,7 @@ func (db *cassandraDatabase) AddMetricName(metricKey api.MetricKey, tagSet api.T
 
 }
 
+// AddMetricNames adds many metric names to Cassandra (equivalent to calling AddMetricName many times, but more performant)
 func (db *cassandraDatabase) AddMetricNames(metrics []api.TaggedMetric) error {
 	queryInsert := "INSERT INTO metric_names (metric_key, tag_set) VALUES (?, ?)"
 	queryUpdate := "UPDATE metric_name_set SET metric_names = metric_names + ? WHERE shard = ?"
