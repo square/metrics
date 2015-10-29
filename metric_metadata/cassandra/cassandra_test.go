@@ -123,6 +123,26 @@ func Test_GetAllMetrics(t *testing.T) {
 	defer cleanDatabase(t, db)
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
+	a.CheckError(db.AddMetricNames([]api.TaggedMetric{
+		{
+			"metric.c",
+			api.TagSet{
+				"bar": "cat",
+			},
+		},
+		{
+			"metric.d",
+			api.TagSet{
+				"bar": "dog",
+			},
+		},
+		{
+			"metric.e",
+			api.TagSet{
+				"bar": "cat",
+			},
+		},
+	}))
 	keys, err := db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
@@ -132,7 +152,17 @@ func Test_GetAllMetrics(t *testing.T) {
 	keys, err = db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
-	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b"})
+	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b", "metric.c", "metric.d", "metric.e"})
+
+	lookupFooC, err := db.GetMetricKeys("foo", "c")
+	a.CheckError(err)
+	sort.Sort(api.MetricKeys(lookupFooC))
+	a.Eq(lookupFooC, []api.MetricKey{"metric.b"})
+
+	lookupBarCat, err := db.GetMetricKeys("bar", "cat")
+	a.CheckError(err)
+	sort.Sort(api.MetricKeys(lookupBarCat))
+	a.Eq(lookupBarCat, []api.MetricKey{"metric.c", "metric.e"})
 }
 
 func Test_TagIndex(t *testing.T) {
@@ -142,9 +172,7 @@ func Test_TagIndex(t *testing.T) {
 		return
 	}
 	defer cleanDatabase(t, db)
-	if db == nil {
-		return
-	}
+
 	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
 		a.CheckError(err)
 	} else {
