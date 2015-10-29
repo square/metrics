@@ -3,6 +3,7 @@ package function
 import (
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
@@ -147,6 +148,28 @@ func (c FetchCounter) Consume(n int) bool {
 type Expression interface {
 	// Evaluate the given expression.
 	Evaluate(context *EvaluationContext) (Value, error)
+}
+
+func EvaluateToScalar(e Expression, context *EvaluationContext) (float64, error) {
+	scalarValue, err := e.Evaluate(context)
+	if err != nil {
+		return 0, err
+	}
+	return scalarValue.ToScalar()
+}
+func EvaluateToDuration(e Expression, context *EvaluationContext) (time.Duration, error) {
+	scalarValue, err := e.Evaluate(context)
+	if err != nil {
+		return 0, err
+	}
+	return scalarValue.ToDuration()
+}
+func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesList, error) {
+	seriesValue, err := e.Evaluate(context)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
+	return seriesValue.ToSeriesList(context.Timerange)
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
