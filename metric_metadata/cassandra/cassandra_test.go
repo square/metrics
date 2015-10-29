@@ -146,7 +146,7 @@ func Test_GetAllMetrics(t *testing.T) {
 	keys, err := db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
-	a.Eq(keys, []api.MetricKey{"metric.a"})
+	a.Eq(keys, []api.MetricKey{"metric.a", "metric.c", "metric.d", "metric.e"})
 	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
 	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
 	keys, err = db.GetAllMetrics()
