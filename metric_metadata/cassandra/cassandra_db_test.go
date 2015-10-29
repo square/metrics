@@ -26,6 +26,10 @@ import (
 )
 
 func newDatabase(t *testing.T) *cassandraDatabase {
+	if !cassandraClean {
+		t.Fatalf("Attempted to create new Cassandra database without cleaning up the old one first.")
+	}
+	cassandraClean = false
 	cluster := gocql.NewCluster("localhost")
 	cluster.Keyspace = "metrics_indexer_test"
 	cluster.Consistency = gocql.One
@@ -46,21 +50,18 @@ func newDatabase(t *testing.T) *cassandraDatabase {
 		session: session,
 	}
 }
-
 func cleanDatabase(t *testing.T, db *cassandraDatabase) {
 	db.session.Close()
+	cassandraClean = true
 }
 
-func Test_MetricName_GetTagSet(t *testing.T) {
+func Test_MetricName_GetTagSet_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
 		return
 	}
 	defer cleanDatabase(t, db)
-	if db == nil {
-		return
-	}
 	if _, err := db.GetTagSet("sample"); err == nil {
 		t.Errorf("Cassandra should error on fetching nonexistent metric")
 	}
@@ -114,7 +115,7 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 	}
 }
 
-func Test_GetAllMetrics(t *testing.T) {
+func Test_GetAllMetrics_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
@@ -153,19 +154,9 @@ func Test_GetAllMetrics(t *testing.T) {
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
 	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b", "metric.c", "metric.d", "metric.e"})
-
-	lookupFooC, err := db.GetMetricKeys("foo", "c")
-	a.CheckError(err)
-	sort.Sort(api.MetricKeys(lookupFooC))
-	a.Eq(lookupFooC, []api.MetricKey{"metric.b"})
-
-	lookupBarCat, err := db.GetMetricKeys("bar", "cat")
-	a.CheckError(err)
-	sort.Sort(api.MetricKeys(lookupBarCat))
-	a.Eq(lookupBarCat, []api.MetricKey{"metric.c", "metric.e"})
 }
 
-func Test_TagIndex(t *testing.T) {
+func Test_TagIndex_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
