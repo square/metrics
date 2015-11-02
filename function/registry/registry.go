@@ -69,7 +69,7 @@ func init() {
 	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
 	// Forecast
 	MustRegister(forecast.ModelHoltWinters)
-	MustRegister(forecast.HoltWintersAdaptive)
+	MustRegister(forecast.SmoothHoltWinters)
 	// Weird ones
 	MustRegister(transform.Alias)
 	MustRegister(transform.Derivative)
