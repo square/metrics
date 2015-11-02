@@ -45,7 +45,7 @@ var ModelHoltWinters = function.MetricFunction{
 		}
 		// We need to perform a fetch of length 'length' offset 'when' for all this data.
 		// Then we apply the Holt-Winters model to each of the resulting series.
-		newContext := *context
+		newContext := context.Copy()
 		newContext.Timerange = newContext.Timerange.Shift(when).SelectLength(length)
 
 		original, err := function.EvaluateToSeriesList(arguments[0], &newContext)
@@ -57,7 +57,7 @@ var ModelHoltWinters = function.MetricFunction{
 			Series:    make([]api.Timeseries, len(original.Series)),
 			Timerange: context.Timerange,
 			Name:      original.Name,
-			Query:     fmt.Sprintf("forecast.holt_winters(%s, %s, %s, %s)", original.Query, period.String(), when.String(), length.String()),
+			Query:     fmt.Sprintf("forecast.model_holt_winters(%s, %s, %s, %s)", original.Query, period.String(), when.String(), length.String()),
 		}
 		slotTrainingStart := int(when / context.Timerange.Resolution())
 		slotQueryStart := int(context.Timerange.Start() / context.Timerange.ResolutionMillis())
@@ -162,7 +162,7 @@ var SmoothHoltWinters = function.MetricFunction{
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
-			return nil, fmt.Errorf("forecast.holt_winters_adaptive expects the period parameter to mean at least one slot") // TODO: use a structured error
+			return nil, fmt.Errorf("forecast.smooth_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], context)
@@ -174,7 +174,7 @@ var SmoothHoltWinters = function.MetricFunction{
 			Series:    make([]api.Timeseries, len(seriesList.Series)),
 			Timerange: context.Timerange,
 			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.holt_winters_adaptive(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate),
+			Query:     fmt.Sprintf("forecast.smooth_holt_winters(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate),
 		}
 
 		for seriesIndex := range result.Series {
