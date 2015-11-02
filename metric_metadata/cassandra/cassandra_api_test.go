@@ -15,6 +15,7 @@
 package cassandra
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -29,14 +30,23 @@ func newCassandraAPI(t *testing.T) (*CassandraMetricMetadataAPI, api.MetricMetad
 		t.Fatalf("Attempted to create new database without cleaning up the old one.")
 	}
 	cassandraClean = false
-	cassandra, err := NewCassandraMetricMetadataAPI(CassandraMetricMetadataConfig{
+	cassandraInterface, err := NewCassandraMetricMetadataAPI(CassandraMetricMetadataConfig{
 		Hosts:    []string{"localhost"},
 		Keyspace: "metrics_indexer_test",
 	})
 	if err != nil {
 		t.Fatalf("Cannot instantiate Cassandra API: %s", err.Error())
 	}
-	return cassandra.(*CassandraMetricMetadataAPI), api.MetricMetadataAPIContext{}
+	cassandra := cassandraInterface.(*CassandraMetricMetadataAPI)
+
+	tables := []string{"metric_names", "tag_index", "metric_name_set"}
+	for _, table := range tables {
+		// Truncate the tables
+		if err := cassandra.db.session.Query(fmt.Sprintf("TRUNCATE %s", table)).Exec(); err != nil {
+			t.Fatalf("Cannot truncate %s: %s", table, err.Error())
+		}
+	}
+	return cassandra, api.MetricMetadataAPIContext{}
 }
 
 func cleanAPI(t *testing.T, c *CassandraMetricMetadataAPI) {
