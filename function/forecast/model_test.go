@@ -51,7 +51,7 @@ func noisyRandomModel() ([]float64, int) {
 	return data, period
 }
 
-func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64, int), model func([]float64, int, int, int) []float64) {
+func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64, int), model func([]float64, int) (Model, error)) {
 	data, period := source()
 	if len(data) < period*3 {
 		t.Fatalf("TEST CASE ERROR: must be sufficient data; we require len(data) >= period*3")
@@ -61,7 +61,8 @@ func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64
 	start := rand.Intn(len(data))
 	length := rand.Intn(len(data) - start)
 
-	guess := model(data[:partialLength], period, start, length)
+	trainedModel, _ := model(data[:partialLength], period)
+	guess := trainedModel.EstimateRange(start, length)
 	if len(guess) != length {
 		t.Errorf("Expected length %d but got length %d", length, len(guess))
 		return
@@ -85,18 +86,10 @@ func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64
 	}
 }
 
-func generalizedHoltWintersModel(data []float64, period int, start int, length int) []float64 {
-	model, err := EstimateGeneralizedHoltWintersModel(data, period)
-	if err != nil {
-		panic(err)
-	}
-	return model.EstimateRange(start, length)
-}
-
 func TestModel(t *testing.T) {
 	// The model's accuracy varies, depending on how exactly the noise affects it.
 	for i := 0; i < 1000; i++ {
-		randomEvaluateModel(t, 0.001, randomModel, generalizedHoltWintersModel)
-		randomEvaluateModel(t, 20, noisyRandomModel, generalizedHoltWintersModel)
+		randomEvaluateModel(t, 0.001, randomModel, EstimateGeneralizedHoltWintersModel)
+		randomEvaluateModel(t, 20, noisyRandomModel, EstimateGeneralizedHoltWintersModel)
 	}
 }
