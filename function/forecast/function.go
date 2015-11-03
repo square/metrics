@@ -22,61 +22,6 @@ import (
 	"github.com/square/metrics/function"
 )
 
-// HoltWintersModel computes a Holt-Winters model for the given time series.
-var ModelHoltWinters = function.MetricFunction{
-	Name:         "forecast.model_holt_winters",
-	MinArguments: 4, // series, period, time offset to train, length of training period
-	MaxArguments: 4,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		if period <= 0 {
-			return nil, fmt.Errorf("forecast.holt_winters expected period to be positive") // TODO: use a structured error
-		}
-		when, err := function.EvaluateToDuration(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		length, err := function.EvaluateToDuration(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		// We need to perform a fetch of length 'length' offset 'when' for all this data.
-		// Then we apply the Holt-Winters model to each of the resulting series.
-		newContext := context.Copy()
-		newContext.Timerange = newContext.Timerange.Shift(when).SelectLength(length)
-
-		original, err := function.EvaluateToSeriesList(arguments[0], &newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(original.Series)),
-			Timerange: context.Timerange,
-			Name:      original.Name,
-			Query:     fmt.Sprintf("forecast.model_holt_winters(%s, %s, %s, %s)", original.Query, period.String(), when.String(), length.String()),
-		}
-		slotTrainingStart := int(when / context.Timerange.Resolution())
-		slotQueryStart := int(context.Timerange.Start() / context.Timerange.ResolutionMillis())
-		for s := range result.Series {
-			training := original.Series[s].Values
-			model, err := HoltWintersMultiplicativeEstimate(training, int(period/context.Timerange.Resolution()))
-			if err != nil {
-				return nil, err // TODO: determine if there's a more graceful way to indicate the error - probably not
-			}
-			result.Series[s] = api.Timeseries{
-				TagSet: original.Series[s].TagSet,
-				Raw:    original.Series[s].Raw,
-				Values: model.EstimateRange(slotQueryStart-slotTrainingStart, context.Timerange.Slots()),
-			}
-		}
-		return result, nil
-	},
-}
-
 type weighted struct {
 	value  float64
 	weight float64
@@ -136,6 +81,69 @@ func newCycle(rate float64, n int) cycle {
 	return cycle{
 		season: c,
 	}
+}
+
+var modelHoltWinters = function.MetricFunction{
+	Name:         "forecast.model_generalized_holt_winters",
+	MinArguments: 4, // Series, period, start time of training, end time of training
+	MaxArguments: 4,
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		period, err := function.EvaluateToDuration(arguments[1], context)
+		if err != nil {
+			return nil, err
+		}
+		periodSamples := int(period / context.Timerange.Resolution())
+		if periodSamples <= 0 {
+			return nil, fmt.Errorf("forecast.model_generalized_holt_winters expected the period to exceed the resolution") // TODO: use structured error
+		}
+		start, err := function.EvaluateToDuration(arguments[2], context)
+		if err != nil {
+			return nil, err
+		}
+		end, err := function.EvaluateToDuration(arguments[3], context)
+		if err != nil {
+			return nil, err
+		}
+		if end < start {
+			return nil, fmt.Errorf("forecast.model_generalized_holt_winters expected the end time to come after the start time") // TODO: use a structured error
+		}
+		newContext := context.Copy()
+		newTimerange, err := api.NewSnappedTimerange(context.Timerange.End()-start.Nanoseconds()/1e6, context.Timerange.End()-end.Nanoseconds()/1e6, context.Timerange.ResolutionMillis())
+		if err != nil {
+			return nil, err
+		}
+		newContext.Timerange = newTimerange
+		trainingSeries, err := function.EvaluateToSeriesList(arguments[0], &newContext)
+		context.CopyNotesFrom(&newContext)
+		newContext.Invalidate()
+
+		// Run the series through the generalized Holt-Winters model estimator, and then use this model to estimate the current timerange.
+
+		result := api.SeriesList{
+			Name:      trainingSeries.Name,
+			Query:     fmt.Sprintf("forecast.model_generalized_holt_winters(%s, %s, %s, %s)", trainingSeries.Query, period.String(), start.String(), end.String()),
+			Timerange: context.Timerange,
+			Series:    make([]api.Timeseries, len(trainingSeries.Series)),
+		}
+
+		// How far in the future the fetch time is than the training time.
+		timeOffset := int(-start / context.Timerange.Resolution())
+
+		for i := range result.Series {
+			trainingData := trainingSeries.Series[i]
+			model, err := EstimateGeneralizedHoltWintersModel(trainingData.Values, periodSamples)
+			if err != nil {
+				return nil, err // TODO: add further explanatory message
+			}
+			estimate := model.EstimateRange(timeOffset, len(trainingData.Values))
+			result.Series[i] = api.Timeseries{
+				Values: estimate,
+				TagSet: trainingData.TagSet,
+			}
+		}
+
+		return result, nil
+	},
 }
 
 var SmoothHoltWinters = function.MetricFunction{
