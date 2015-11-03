@@ -26,6 +26,10 @@ import (
 )
 
 func newDatabase(t *testing.T) *cassandraDatabase {
+	if !cassandraClean {
+		t.Fatalf("Attempted to create new Cassandra database without cleaning up the old one first.")
+	}
+	cassandraClean = false
 	cluster := gocql.NewCluster("localhost")
 	cluster.Keyspace = "metrics_indexer_test"
 	cluster.Consistency = gocql.One
@@ -46,21 +50,18 @@ func newDatabase(t *testing.T) *cassandraDatabase {
 		session: session,
 	}
 }
-
 func cleanDatabase(t *testing.T, db *cassandraDatabase) {
 	db.session.Close()
+	cassandraClean = true
 }
 
-func Test_MetricName_GetTagSet(t *testing.T) {
+func Test_MetricName_GetTagSet_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
 		return
 	}
 	defer cleanDatabase(t, db)
-	if db == nil {
-		return
-	}
 	if _, err := db.GetTagSet("sample"); err == nil {
 		t.Errorf("Cassandra should error on fetching nonexistent metric")
 	}
@@ -114,7 +115,7 @@ func Test_MetricName_GetTagSet(t *testing.T) {
 	}
 }
 
-func Test_GetAllMetrics(t *testing.T) {
+func Test_GetAllMetrics_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
@@ -123,28 +124,46 @@ func Test_GetAllMetrics(t *testing.T) {
 	defer cleanDatabase(t, db)
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
 	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
+	a.CheckError(db.AddMetricNames([]api.TaggedMetric{
+		{
+			"metric.c",
+			api.TagSet{
+				"bar": "cat",
+			},
+		},
+		{
+			"metric.d",
+			api.TagSet{
+				"bar": "dog",
+			},
+		},
+		{
+			"metric.e",
+			api.TagSet{
+				"bar": "cat",
+			},
+		},
+	}))
 	keys, err := db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
-	a.Eq(keys, []api.MetricKey{"metric.a"})
+	a.Eq(keys, []api.MetricKey{"metric.a", "metric.c", "metric.d", "metric.e"})
 	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
 	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
 	keys, err = db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
-	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b"})
+	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b", "metric.c", "metric.d", "metric.e"})
 }
 
-func Test_TagIndex(t *testing.T) {
+func Test_TagIndex_DB(t *testing.T) {
 	a := assert.New(t)
 	db := newDatabase(t)
 	if db == nil {
 		return
 	}
 	defer cleanDatabase(t, db)
-	if db == nil {
-		return
-	}
+
 	if rows, err := db.GetMetricKeys("environment", "production"); err != nil {
 		a.CheckError(err)
 	} else {
