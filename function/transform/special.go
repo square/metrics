@@ -203,7 +203,18 @@ func rate(ctx *function.EvaluationContext, series api.Timeseries, parameters []f
 			// values[i] is our best approximatation of the delta between i-1 and i
 			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 			// the counter has reset, and we know *at least* v[i] increments have happened
-			result[i-1] = math.Max(values[i], 0) / scale
+			// result[i-1] = math.Max(values[i], 0) / scale
+
+			// Disabling the smarts here, since multiple data points across restarts
+			// within a rollup bucket makes this wildly inaccurate and we default
+			// to using avg rollups.
+			// [[1, 1000000], [29, 100]] with a 30s rollup ends up being [[0, 500050]]
+			// and our rate approximation becomes [[0, 16668.33]], when we'd expect
+			// [[0, 3.33]]. Even if things work as expected, at best we get the right
+			// numbers, and at worst it'll be grossly below actual.
+			// We could probably work around this by using min rollups on counters,
+			// but then we'll have to figure out how to identify counters.
+			result[i-1] = math.NaN()
 		}
 	}
 	return result, nil
