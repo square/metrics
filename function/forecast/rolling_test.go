@@ -16,6 +16,10 @@ package forecast
 
 import "testing"
 
+func ComputeRMSEPercent(func([]float64) []float64) {
+
+}
+
 // TestRollingAccuracy tests how accurate the rolling forecast functions are.
 // For example, those that use exponential smoothing to estimate the parameters of the Multiplicative Holt-Winters model.
 // They must be tested differently than others, due to the fact that they don't receive separate training data and intervals

@@ -15,49 +15,15 @@
 package forecast
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 )
 import "math"
 import "math/rand"
 
-func randomModel(t *testing.T) ([]float64, int) {
-	period := rand.Intn(10) + 10
-	length := 10 * period
-	season := make([]float64, period)
-	sum := 0.0
-	for i := range season {
-		season[i] = math.Abs(rand.ExpFloat64()) + 1
-		sum += season[i]
-	}
-	for i := range season {
-		// Normalize them so that their mean is 1
-		season[i] /= sum / float64(len(season))
-	}
-	trend := rand.ExpFloat64()
-	start := rand.ExpFloat64() * 20
-	result := make([]float64, length)
-	for i := range result {
-		result[i] = (start + trend*float64(i)) * season[i%period]
-	}
-	//t.Logf("Generated Season: %+v", season)
-	//t.Logf("Generated Trend: %f", trend)
-	//t.Logf("Generated Base: %f", start)
-	return result, period
-}
-
-func noisyRandomModel(t *testing.T) ([]float64, int) {
-	data, period := randomModel(t)
-	for i := range data {
-		data[i] += rand.ExpFloat64()
-	}
-	return data, period
-}
-
 // Returns the root-mean-square-error percentage of total (so that it is scale independent)
-func testModelRMSEPercent(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) float64 {
-	data, period := source(t)
+func testModelRMSEPercent(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error)) float64 {
+	data, period := source()
 	if len(data) < period*3 {
 		t.Fatalf("TEST CASE ERROR: must be sufficient data; we require len(data) >= period*3")
 	}
@@ -95,28 +61,7 @@ func testModelRMSEPercent(t *testing.T, source func(*testing.T) ([]float64, int)
 	return rmse / magnitude * 100
 }
 
-type statisticalSummary struct {
-	FirstQuartile float64
-	Median        float64
-	ThirdQuartile float64
-}
-
-func (s statisticalSummary) String() string {
-	return fmt.Sprintf("First quartile: %f  Median: %f  Third quartile: %f", s.FirstQuartile, s.Median, s.ThirdQuartile)
-}
-
-func (s statisticalSummary) better(other statisticalSummary) bool {
-	return s.FirstQuartile <= other.FirstQuartile && s.Median <= other.Median && s.ThirdQuartile <= other.ThirdQuartile
-}
-func summarizeSlice(slice []float64) statisticalSummary {
-	return statisticalSummary{
-		FirstQuartile: slice[len(slice)/4],
-		Median:        slice[len(slice)/2],
-		ThirdQuartile: slice[len(slice)/4*3],
-	}
-}
-
-func testModelRMSEs(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) statisticalSummary {
+func testModelRMSEs(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error)) statisticalSummary {
 	n := 2000
 	result := make([]float64, n)
 	for i := range result {
@@ -130,15 +75,21 @@ func testModelRMSEs(t *testing.T, source func(*testing.T) ([]float64, int), mode
 type modelTest struct {
 	model        func([]float64, int) (Model, error)
 	modelName    string
-	source       func(*testing.T) ([]float64, int)
+	source       func() ([]float64, int)
 	sourceName   string
 	maximumError statisticalSummary
 }
 
 func applyTestForModel(t *testing.T, test modelTest) {
 	modelError := testModelRMSEs(t, test.source, test.model)
-	if !modelError.better(test.maximumError) {
+	improvement := modelError.improvementOver(test.maximumError)
+	if improvement < 0 {
 		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+		return
+	}
+	if improvement > 0.1 {
+		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", improvement, test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+		return
 	}
 }
 
@@ -154,7 +105,7 @@ func TestModelAccuracy(t *testing.T) {
 		{
 			model:      TrainGeneralizedHoltWintersModel,
 			modelName:  "Generalized Holt Winters Model",
-			source:     randomModel,
+			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "Random Holt-Winters model instance",
 			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
 				FirstQuartile: 0.00001,
@@ -165,19 +116,19 @@ func TestModelAccuracy(t *testing.T) {
 		{
 			model:      TrainGeneralizedHoltWintersModel,
 			modelName:  "Generalized Holt Winters Model",
-			source:     noisyRandomModel,
+			source:     addNoiseToSource(pureMultiplicativeHoltWintersSource, 0.5),
 			sourceName: "Random Holt-Winters model instance with noise",
 			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
-				FirstQuartile: 0.75,
-				Median:        1.6,
-				ThirdQuartile: 3.5,
+				FirstQuartile: 0.15,
+				Median:        0.3,
+				ThirdQuartile: 0.5,
 			},
 		},
 
 		{
 			model:      TrainMultiplicativeHoltWintersModel,
 			modelName:  "Multiplicative Holt Winters Model",
-			source:     randomModel,
+			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "Random Holt-Winters model instance",
 			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
 				FirstQuartile: 0.00001,
@@ -188,12 +139,12 @@ func TestModelAccuracy(t *testing.T) {
 		{
 			model:      TrainMultiplicativeHoltWintersModel,
 			modelName:  "Multiplicative Holt Winters Model",
-			source:     noisyRandomModel,
+			source:     addNoiseToSource(pureMultiplicativeHoltWintersSource, 0.5),
 			sourceName: "Random Holt-Winters model instance with noise",
 			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
 				FirstQuartile: 1.25,
 				Median:        2.85,
-				ThirdQuartile: 7.3,
+				ThirdQuartile: 7.7,
 			},
 		},
 	}

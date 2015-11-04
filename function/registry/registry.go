@@ -24,7 +24,6 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/aggregate"
 	"github.com/square/metrics/function/filter"
-	"github.com/square/metrics/function/forecast"
 	"github.com/square/metrics/function/join"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
@@ -67,8 +66,6 @@ func init() {
 	MustRegister(NewFilterRecent("filter.recent_lowest_max", aggregate.Max, true))
 	MustRegister(NewFilterRecent("filter.recent_highest_min", aggregate.Min, false))
 	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
-	// Forecast
-	MustRegister(forecast.SmoothHoltWinters)
 	// Weird ones
 	MustRegister(transform.Alias)
 	MustRegister(transform.Derivative)
