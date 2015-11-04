@@ -131,7 +131,7 @@ var modelHoltWinters = function.MetricFunction{
 
 		for i := range result.Series {
 			trainingData := trainingSeries.Series[i]
-			model, err := EstimateGeneralizedHoltWintersModel(trainingData.Values, periodSamples)
+			model, err := TrainGeneralizedHoltWintersModel(trainingData.Values, periodSamples)
 			if err != nil {
 				return nil, err // TODO: add further explanatory message
 			}

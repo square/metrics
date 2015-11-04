@@ -152,7 +152,7 @@ func TestModelAccuracy(t *testing.T) {
 
 	tests := []modelTest{
 		{
-			model:      EstimateGeneralizedHoltWintersModel,
+			model:      TrainGeneralizedHoltWintersModel,
 			modelName:  "Generalized Holt Winters Model",
 			source:     randomModel,
 			sourceName: "Random Holt-Winters model instance",
@@ -163,7 +163,7 @@ func TestModelAccuracy(t *testing.T) {
 			},
 		},
 		{
-			model:      EstimateGeneralizedHoltWintersModel,
+			model:      TrainGeneralizedHoltWintersModel,
 			modelName:  "Generalized Holt Winters Model",
 			source:     noisyRandomModel,
 			sourceName: "Random Holt-Winters model instance with noise",
