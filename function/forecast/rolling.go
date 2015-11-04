@@ -14,13 +14,7 @@
 
 package forecast
 
-import (
-	"fmt"
-	"math"
-
-	"github.com/square/metrics/api"
-	"github.com/square/metrics/function"
-)
+import "math"
 
 type weighted struct {
 	value  float64
@@ -83,151 +77,39 @@ func newCycle(rate float64, n int) cycle {
 	}
 }
 
-var modelHoltWinters = function.MetricFunction{
-	Name:         "forecast.model_generalized_holt_winters",
-	MinArguments: 4, // Series, period, start time of training, end time of training
-	MaxArguments: 4,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		periodSamples := int(period / context.Timerange.Resolution())
-		if periodSamples <= 0 {
-			return nil, fmt.Errorf("forecast.model_generalized_holt_winters expected the period to exceed the resolution") // TODO: use structured error
-		}
-		start, err := function.EvaluateToDuration(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
-		end, err := function.EvaluateToDuration(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		if end < start {
-			return nil, fmt.Errorf("forecast.model_generalized_holt_winters expected the end time to come after the start time") // TODO: use a structured error
-		}
-		newContext := context.Copy()
-		newTimerange, err := api.NewSnappedTimerange(context.Timerange.End()-start.Nanoseconds()/1e6, context.Timerange.End()-end.Nanoseconds()/1e6, context.Timerange.ResolutionMillis())
-		if err != nil {
-			return nil, err
-		}
-		newContext.Timerange = newTimerange
-		trainingSeries, err := function.EvaluateToSeriesList(arguments[0], &newContext)
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate()
+func rollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64) []float64 {
+	estimate := make([]float64, len(ys))
 
-		// Run the series through the generalized Holt-Winters model estimator, and then use this model to estimate the current timerange.
+	level := newWeighted(levelLearningRate)
+	trend := newWeighted(trendLearningRate)
+	season := newCycle(seasonalLearningRate, period)
 
-		result := api.SeriesList{
-			Name:      trainingSeries.Name,
-			Query:     fmt.Sprintf("forecast.model_generalized_holt_winters(%s, %s, %s, %s)", trainingSeries.Query, period.String(), start.String(), end.String()),
-			Timerange: context.Timerange,
-			Series:    make([]api.Timeseries, len(trainingSeries.Series)),
+	for i, y := range ys {
+		// Remember the old values.
+		oldLevel := level.get()
+		oldTrend := trend.get()
+		oldSeason := season.get(i)
+
+		// Update the level, by increasing it by the estimate slope
+		level.boostAdd(oldTrend)
+		// Then observing the new y [if y is NaN, this skips, as desired]
+		level.observe(y / oldSeason) // observe the y/s non-seasonal value
+
+		// Next, observe the trend- difference between this level and last.
+		// If y is NaN, we want to skip instead of updating.
+		if math.IsNaN(y) {
+			trend.skip()
+		} else {
+			// Compare the new level against the old.
+			trend.observe(level.get() - oldLevel)
 		}
 
-		// How far in the future the fetch time is than the training time.
-		timeOffset := int(-start / context.Timerange.Resolution())
+		// Lastly, the seasonal value is just y / (l+b) the non-seasonal component.
+		// If y is NaN, this will be NaN too, causing it to skip (as desired).
+		season.observe(i, y/(oldLevel+oldTrend))
 
-		for i := range result.Series {
-			trainingData := trainingSeries.Series[i]
-			model, err := TrainGeneralizedHoltWintersModel(trainingData.Values, periodSamples)
-			if err != nil {
-				return nil, err // TODO: add further explanatory message
-			}
-			estimate := model.EstimateRange(timeOffset, len(trainingData.Values))
-			result.Series[i] = api.Timeseries{
-				Values: estimate,
-				TagSet: trainingData.TagSet,
-			}
-		}
-
-		return result, nil
-	},
-}
-
-var SmoothHoltWinters = function.MetricFunction{
-	Name:         "forecast.smooth_holt_winters",
-	MinArguments: 5, // Series, period, level learning rate,  trend learning rate, seasonal learning rate,
-	MaxArguments: 5,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		levelLearningRate, err := function.EvaluateToScalar(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
-		trendLearningRate, err := function.EvaluateToScalar(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		seasonalLearningRate, err := function.EvaluateToScalar(arguments[4], context)
-		if err != nil {
-			return nil, err
-		}
-
-		samples := int(period / context.Timerange.Resolution())
-		if samples <= 0 {
-			return nil, fmt.Errorf("forecast.smooth_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
-		}
-
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], context)
-		if err != nil {
-			return nil, err
-		}
-
-		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(seriesList.Series)),
-			Timerange: context.Timerange,
-			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.smooth_holt_winters(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate),
-		}
-
-		for seriesIndex := range result.Series {
-			// This will be the result.
-			estimate := make([]float64, len(seriesList.Series[seriesIndex].Values))
-
-			level := newWeighted(levelLearningRate)
-			trend := newWeighted(trendLearningRate)
-			season := newCycle(seasonalLearningRate, samples)
-
-			for i, y := range seriesList.Series[seriesIndex].Values {
-				// Remember the old values.
-				oldLevel := level.get()
-				oldTrend := trend.get()
-				oldSeason := season.get(i)
-
-				// Update the level, by increasing it by the estimate slope
-				level.boostAdd(oldTrend)
-				// Then observing the new y [if y is NaN, this skips, as desired]
-				level.observe(y / oldSeason) // observe the y/s non-seasonal value
-
-				// Next, observe the trend- difference between this level and last.
-				// If y is NaN, we want to skip instead of updating.
-				if math.IsNaN(y) {
-					trend.skip()
-				} else {
-					// Compare the new level against the old.
-					trend.observe(level.get() - oldLevel)
-				}
-
-				// Lastly, the seasonal value is just y / (l+b) the non-seasonal component.
-				// If y is NaN, this will be NaN too, causing it to skip (as desired).
-				season.observe(i, y/(oldLevel+oldTrend))
-
-				// Our estimate is the level times the seasonal component.
-				estimate[i] = level.get() * season.get(i)
-			}
-
-			result.Series[seriesIndex] = api.Timeseries{
-				TagSet: seriesList.Series[seriesIndex].TagSet,
-				Raw:    seriesList.Series[seriesIndex].Raw,
-				Values: estimate,
-			}
-		}
-
-		return result, nil
-	},
+		// Our estimate is the level times the seasonal component.
+		estimate[i] = level.get() * season.get(i)
+	}
+	return estimate
 }
