@@ -141,7 +141,7 @@ func (m MultiplicativeHoltWintersModel) EstimateRange(start int, length int) []f
 
 // Trains a multiplicative Holt-Winters model on the given data (using the given period).
 // The input slice is not modified.
-func TrainMultiplicativeHoltWintersModel(ys []float64, period int) (MultiplicativeHoltWintersModel, error) {
+func TrainMultiplicativeHoltWintersModel(ys []float64, period int) (Model, error) {
 	if period <= 0 {
 		return MultiplicativeHoltWintersModel{}, fmt.Errorf("Training the multiplicative Holt-Winters model requires a positive period.") // TODO: structured error
 	}
@@ -198,18 +198,27 @@ func TrainMultiplicativeHoltWintersModel(ys []float64, period int) (Multiplicati
 				if n == m {
 					continue
 				}
-				sumS += 1 + (gs[n]-gs[m])/beta/float64(period)/float64(n-m)
+				value := 1 + (gs[n]-gs[m])/beta/float64(period)/float64(n-m)
+				sumS += value
 				countS++
 			}
 		}
 		season[t] = sumS / float64(countS)
 	}
 
+	//log.Printf("Calculated season: %+v", season)
+
 	// Lastly, we'll need to compute 'alpha'. We do this be "deseasonalizing" zs.
+
+	// g(t) = a S(t) + b (S(t) - 1) t
+	// So we have to subtract out b(S(t)-1)t
+	// and then divide by S(t):
+	// a = (g(t) - b(S(t)-1)t) / S(t)
 
 	ds := make([]float64, len(zs))
 	for i := range zs {
-		ds[i] = zs[i] / season[mod(i, period)]
+		s := season[mod(i, period)]
+		ds[i] = (zs[i] - beta*(s-1)*float64(i)) / s
 	}
 
 	alpha := 0.0
@@ -217,6 +226,8 @@ func TrainMultiplicativeHoltWintersModel(ys []float64, period int) (Multiplicati
 		alpha += ds[i]
 	}
 	alpha /= float64(len(ds))
+
+	//log.Printf("Calculated alpha: %f", alpha)
 
 	return MultiplicativeHoltWintersModel{
 		season: season,

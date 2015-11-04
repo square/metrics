@@ -14,11 +14,15 @@
 
 package forecast
 
-import "testing"
+import (
+	"fmt"
+	"sort"
+	"testing"
+)
 import "math"
 import "math/rand"
 
-func randomModel() ([]float64, int) {
+func randomModel(t *testing.T) ([]float64, int) {
 	period := rand.Intn(10) + 10
 	length := 10 * period
 	season := make([]float64, period)
@@ -37,35 +41,39 @@ func randomModel() ([]float64, int) {
 	for i := range result {
 		result[i] = (start + trend*float64(i)) * season[i%period]
 	}
-	//t.Logf("Season: %+v", season)
-	//t.Logf("Trend: %f", trend)
-	//t.Logf("Start: %f", start)
+	//t.Logf("Generated Season: %+v", season)
+	//t.Logf("Generated Trend: %f", trend)
+	//t.Logf("Generated Base: %f", start)
 	return result, period
 }
 
-func noisyRandomModel() ([]float64, int) {
-	data, period := randomModel()
+func noisyRandomModel(t *testing.T) ([]float64, int) {
+	data, period := randomModel(t)
 	for i := range data {
 		data[i] += rand.ExpFloat64()
 	}
 	return data, period
 }
 
-func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64, int), model func([]float64, int) (Model, error)) {
-	data, period := source()
+func testModelRMSE(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) float64 {
+	data, period := source(t)
 	if len(data) < period*3 {
 		t.Fatalf("TEST CASE ERROR: must be sufficient data; we require len(data) >= period*3")
 	}
-	partialLength := rand.Intn(len(data)-period*2) + period*2
+	trainingLength := rand.Intn(len(data)-period*3) + period*3 // We need at least 3 periods of data.
 
-	start := rand.Intn(len(data))
-	length := rand.Intn(len(data) - start)
+	testStart := rand.Intn(len(data))
+	testLength := rand.Intn(len(data) - testStart)
 
-	trainedModel, _ := model(data[:partialLength], period)
-	guess := trainedModel.EstimateRange(start, length)
-	if len(guess) != length {
-		t.Errorf("Expected length %d but got length %d", length, len(guess))
-		return
+	trainedModel, err := model(data[:trainingLength], period)
+	if err != nil {
+		t.Errorf("Got error when evaluating model: %s", err.Error())
+		return 0
+	}
+	guess := trainedModel.EstimateRange(testStart, testLength)
+	if len(guess) != testLength {
+		t.Errorf("Expected length %d but got length %d", testLength, len(guess))
+		return 0
 	}
 
 	// root mean square error
@@ -74,22 +82,124 @@ func randomEvaluateModel(t *testing.T, epsilon float64, source func() ([]float64
 	for i := range guess {
 		if math.IsNaN(guess[i]) {
 			t.Errorf("Missing data in result: %+v", guess)
-			return
+			return 0
 		}
-		correct := data[i+start]
+		correct := data[i+testStart]
 		rmse += (guess[i] - correct) * (guess[i] - correct)
 	}
 	rmse /= float64(len(guess))
 	rmse = math.Sqrt(rmse)
-	if rmse > epsilon {
-		t.Errorf("Root-mean-square error is %f which exceeds %f; \nexpected: %+v\nestimate: %+v", rmse, epsilon, data[start:start+length], guess)
+	return rmse
+}
+
+type statisticalSummary struct {
+	FirstQuartile float64
+	Median        float64
+	ThirdQuartile float64
+}
+
+func (s statisticalSummary) String() string {
+	return fmt.Sprintf("First quartile: %f  Median: %f  Third quartile: %f", s.FirstQuartile, s.Median, s.ThirdQuartile)
+}
+
+func (s statisticalSummary) better(other statisticalSummary) bool {
+	return s.FirstQuartile <= other.FirstQuartile && s.Median <= other.Median && s.ThirdQuartile <= other.ThirdQuartile
+}
+func summarizeSlice(slice []float64) statisticalSummary {
+	return statisticalSummary{
+		FirstQuartile: slice[len(slice)/4],
+		Median:        slice[len(slice)/2],
+		ThirdQuartile: slice[len(slice)/4*3],
 	}
 }
 
-func TestModel(t *testing.T) {
-	// The model's accuracy varies, depending on how exactly the noise affects it.
-	for i := 0; i < 1000; i++ {
-		randomEvaluateModel(t, 0.001, randomModel, EstimateGeneralizedHoltWintersModel)
-		randomEvaluateModel(t, 20, noisyRandomModel, EstimateGeneralizedHoltWintersModel)
+func testModelRMSEs(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) statisticalSummary {
+	n := 2000
+	result := make([]float64, n)
+	for i := range result {
+		result[i] = testModelRMSE(t, source, model)
 	}
+	sort.Float64s(result)
+
+	return summarizeSlice(result)
+}
+
+type modelTest struct {
+	model        func([]float64, int) (Model, error)
+	modelName    string
+	source       func(*testing.T) ([]float64, int)
+	sourceName   string
+	maximumError statisticalSummary
+}
+
+func applyTestForModel(t *testing.T, test modelTest) {
+	modelError := testModelRMSEs(t, test.source, test.model)
+	if !modelError.better(test.maximumError) {
+		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+	}
+}
+
+func TestModelAccuracy(t *testing.T) {
+	// The model's accuracy varies, depending on how exactly the noise affects it.
+
+	tests := []modelTest{
+		{
+			model:      EstimateGeneralizedHoltWintersModel,
+			modelName:  "Generalized Holt Winters Model",
+			source:     randomModel,
+			sourceName: "Random Holt-Winters model instance",
+			maximumError: statisticalSummary{ // Should be essentially perfect, up to FP error.
+				FirstQuartile: 0.0001,
+				Median:        0.0001,
+				ThirdQuartile: 0.0001,
+			},
+		},
+		{
+			model:      EstimateGeneralizedHoltWintersModel,
+			modelName:  "Generalized Holt Winters Model",
+			source:     noisyRandomModel,
+			sourceName: "Random Holt-Winters model instance with noise",
+			maximumError: statisticalSummary{ // Do not expect it to do too well
+				FirstQuartile: 1,
+				Median:        1.15,
+				ThirdQuartile: 2,
+			},
+		},
+
+		{
+			model:      TrainMultiplicativeHoltWintersModel,
+			modelName:  "Multiplicative Holt Winters Model",
+			source:     randomModel,
+			sourceName: "Random Holt-Winters model instance",
+			maximumError: statisticalSummary{ // Should be essentially perfect, up to FP error.
+				FirstQuartile: 0.0001,
+				Median:        0.0001,
+				ThirdQuartile: 0.0001,
+			},
+		},
+		{
+			model:      TrainMultiplicativeHoltWintersModel,
+			modelName:  "Multiplicative Holt Winters Model",
+			source:     noisyRandomModel,
+			sourceName: "Random Holt-Winters model instance with noise",
+			maximumError: statisticalSummary{ // Do not expect it to do too well
+				FirstQuartile: 1.45,
+				Median:        2.2,
+				ThirdQuartile: 4.2,
+			},
+		},
+	}
+	for _, test := range tests {
+		applyTestForModel(t, test)
+	}
+
+	/*
+		if model, best := testModelRMSEs(t, randomModel, EstimateGeneralizedHoltWintersModel), statisticalSummary{}; !model.better(best) {
+			t.Errorf("Generalized Holt Winters Model fails on random conforming model. Should be ")
+		}
+		testModelRMSEs(t, noisyRandomModel, EstimateGeneralizedHoltWintersModel)
+
+		testModelRMSEs(t, randomModel, TrainMultiplicativeHoltWintersModel)
+		testModelRMSEs(t, noisyRandomModel, TrainMultiplicativeHoltWintersModel)*/
+
 }
