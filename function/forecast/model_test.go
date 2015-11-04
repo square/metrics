@@ -55,7 +55,8 @@ func noisyRandomModel(t *testing.T) ([]float64, int) {
 	return data, period
 }
 
-func testModelRMSE(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) float64 {
+// Returns the root-mean-square-error percentage of total (so that it is scale independent)
+func testModelRMSEPercent(t *testing.T, source func(*testing.T) ([]float64, int), model func([]float64, int) (Model, error)) float64 {
 	data, period := source(t)
 	if len(data) < period*3 {
 		t.Fatalf("TEST CASE ERROR: must be sufficient data; we require len(data) >= period*3")
@@ -76,20 +77,22 @@ func testModelRMSE(t *testing.T, source func(*testing.T) ([]float64, int), model
 		return 0
 	}
 
-	// root mean square error
-	rmse := 0.0
-
+	rmse := 0.0      // root mean square error
+	magnitude := 0.0 // the size of the data (mean of absolute value of all correct data)
 	for i := range guess {
 		if math.IsNaN(guess[i]) {
 			t.Errorf("Missing data in result: %+v", guess)
 			return 0
 		}
 		correct := data[i+testStart]
+		magnitude += math.Abs(correct)
 		rmse += (guess[i] - correct) * (guess[i] - correct)
 	}
 	rmse /= float64(len(guess))
+	magnitude /= float64(len(guess))
+
 	rmse = math.Sqrt(rmse)
-	return rmse
+	return rmse / magnitude * 100
 }
 
 type statisticalSummary struct {
@@ -117,7 +120,7 @@ func testModelRMSEs(t *testing.T, source func(*testing.T) ([]float64, int), mode
 	n := 2000
 	result := make([]float64, n)
 	for i := range result {
-		result[i] = testModelRMSE(t, source, model)
+		result[i] = testModelRMSEPercent(t, source, model)
 	}
 	sort.Float64s(result)
 
@@ -139,6 +142,11 @@ func applyTestForModel(t *testing.T, test modelTest) {
 	}
 }
 
+// TestModelAccuracy acts primarily as a sanity check and a regression test.
+// It calculates the root-mean-square-error as a percentage of the mean data magnitude (so that it is scale-independent)
+// as a means for evaluating the accuracy of various models.
+// The models are each tried on many inputs, and the 1st (25), 2nd (50), and 3rd (75) quartiles of error are recorded.
+// These quartiles are compared to the limits established by the test.
 func TestModelAccuracy(t *testing.T) {
 	// The model's accuracy varies, depending on how exactly the noise affects it.
 
@@ -148,10 +156,10 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Generalized Holt Winters Model",
 			source:     randomModel,
 			sourceName: "Random Holt-Winters model instance",
-			maximumError: statisticalSummary{ // Should be essentially perfect, up to FP error.
-				FirstQuartile: 0.0001,
-				Median:        0.0001,
-				ThirdQuartile: 0.0001,
+			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
+				FirstQuartile: 0.00001,
+				Median:        0.00001,
+				ThirdQuartile: 0.00001,
 			},
 		},
 		{
@@ -159,10 +167,10 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Generalized Holt Winters Model",
 			source:     noisyRandomModel,
 			sourceName: "Random Holt-Winters model instance with noise",
-			maximumError: statisticalSummary{ // Do not expect it to do too well
-				FirstQuartile: 1,
-				Median:        1.15,
-				ThirdQuartile: 2,
+			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
+				FirstQuartile: 0.75,
+				Median:        1.6,
+				ThirdQuartile: 3.5,
 			},
 		},
 
@@ -171,10 +179,10 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Multiplicative Holt Winters Model",
 			source:     randomModel,
 			sourceName: "Random Holt-Winters model instance",
-			maximumError: statisticalSummary{ // Should be essentially perfect, up to FP error.
-				FirstQuartile: 0.0001,
-				Median:        0.0001,
-				ThirdQuartile: 0.0001,
+			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
+				FirstQuartile: 0.00001,
+				Median:        0.00001,
+				ThirdQuartile: 0.00001,
 			},
 		},
 		{
@@ -182,24 +190,14 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Multiplicative Holt Winters Model",
 			source:     noisyRandomModel,
 			sourceName: "Random Holt-Winters model instance with noise",
-			maximumError: statisticalSummary{ // Do not expect it to do too well
-				FirstQuartile: 1.45,
-				Median:        2.2,
-				ThirdQuartile: 4.2,
+			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
+				FirstQuartile: 1.25,
+				Median:        2.85,
+				ThirdQuartile: 7.3,
 			},
 		},
 	}
 	for _, test := range tests {
 		applyTestForModel(t, test)
 	}
-
-	/*
-		if model, best := testModelRMSEs(t, randomModel, EstimateGeneralizedHoltWintersModel), statisticalSummary{}; !model.better(best) {
-			t.Errorf("Generalized Holt Winters Model fails on random conforming model. Should be ")
-		}
-		testModelRMSEs(t, noisyRandomModel, EstimateGeneralizedHoltWintersModel)
-
-		testModelRMSEs(t, randomModel, TrainMultiplicativeHoltWintersModel)
-		testModelRMSEs(t, noisyRandomModel, TrainMultiplicativeHoltWintersModel)*/
-
 }
