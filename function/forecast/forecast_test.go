@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 func randomSlice(n int) []float64 {
@@ -67,6 +68,7 @@ func (s statisticalSummary) improvementOver(other statisticalSummary) float64 {
 	return math.Min(other.FirstQuartile-s.FirstQuartile, math.Min(other.Median-s.Median, other.ThirdQuartile-s.ThirdQuartile))
 }
 func summarizeSlice(slice []float64) statisticalSummary {
+	sort.Float64s(slice)
 	return statisticalSummary{
 		FirstQuartile: slice[len(slice)/4],
 		Median:        slice[len(slice)/2],

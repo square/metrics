@@ -30,6 +30,11 @@ func (w *weighted) observe(y float64) {
 		w.skip()
 		return
 	}
+	if w.weight == 0 || math.IsNaN(w.value) || math.IsInf(w.value, 0) { // Special case to prevent 'NaN'
+		w.value = y
+		w.weight = w.rate
+		return
+	}
 	w.weight *= 1 - w.rate
 	w.value = (w.value*w.weight + y*w.rate) / (w.weight + w.rate)
 	w.weight += w.rate
@@ -77,12 +82,17 @@ func newCycle(rate float64, n int) cycle {
 	}
 }
 
-func rollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64) []float64 {
+func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64) []float64 {
 	estimate := make([]float64, len(ys))
 
 	level := newWeighted(levelLearningRate)
 	trend := newWeighted(trendLearningRate)
 	season := newCycle(seasonalLearningRate, period)
+
+	// we need to initialize the season to '1':
+	for i := 0; i < period; i++ {
+		season.observe(i, 1)
+	}
 
 	for i, y := range ys {
 		// Remember the old values.
@@ -93,7 +103,7 @@ func rollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRat
 		// Update the level, by increasing it by the estimate slope
 		level.boostAdd(oldTrend)
 		// Then observing the new y [if y is NaN, this skips, as desired]
-		level.observe(y / oldSeason) // observe the y/s non-seasonal value
+		level.observe(y / oldSeason) // observe the y's non-seasonal value
 
 		// Next, observe the trend- difference between this level and last.
 		// If y is NaN, we want to skip instead of updating.

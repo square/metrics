@@ -14,15 +14,95 @@
 
 package forecast
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
-func ComputeRMSEPercent(func([]float64) []float64) {
+// computeRMSEPercentHoles computes the percent-root-mean-square-error for the given input on the given roller,
+// and inserting a hole into the last quarter
+func computeRMSEPercentHoles(correct []float64, period int, roller func([]float64, int) []float64) float64 {
+	// We'll have to put holes in the correct data.
+	// We'll split it into 4 quadrants. The second and fourth will be missing, and must be inferred.
+	training := make([]float64, len(correct))
+	for i := range training {
+		if i < 3*len(training)/4 {
+			training[i] = correct[i]
+		} else {
+			training[i] = math.NaN()
+		}
+	}
+	guess := roller(training, period)
+	// Evaluate the RMSE for the holes
+	count := 0
+	rmse := 0.0      // root mean squared error
+	magnitude := 0.0 // magnitude of correct values
+	for i := range training {
+		if !math.IsNaN(training[i]) {
+			continue
+		}
+		count++
+		rmse += (correct[i] - guess[i]) * (correct[i] - guess[i])
+		magnitude += math.Abs(correct[i])
+	}
+	rmse /= float64(count)
+	magnitude /= float64(count)
+	rmse = math.Sqrt(rmse)
+	return rmse / magnitude * 100
+}
 
+func computeRMSEStatistics(t *testing.T, test rollingTest) {
+	n := 2000
+	results := make([]float64, n)
+	for i := range results {
+		correct, period := test.source()
+		results[i] = computeRMSEPercentHoles(correct, period, test.roller)
+	}
+	stats := summarizeSlice(results)
+	improvement := stats.improvementOver(test.maximumError)
+	if math.IsNaN(improvement) {
+		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s`", test.rollerName, test.sourceName)
+	}
+	if improvement < 0 {
+		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+	}
+	if improvement > 0.1 {
+		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+	}
+}
+
+type rollingTest struct {
+	roller       func([]float64, int) []float64
+	rollerName   string
+	source       func() ([]float64, int)
+	sourceName   string
+	maximumError statisticalSummary
+}
+
+func parameters(fun func([]float64, int, float64, float64, float64) []float64, a float64, b float64, c float64) func([]float64, int) []float64 {
+	return func(xs []float64, p int) []float64 {
+		return fun(xs, p, a, b, c)
+	}
 }
 
 // TestRollingAccuracy tests how accurate the rolling forecast functions are.
 // For example, those that use exponential smoothing to estimate the parameters of the Multiplicative Holt-Winters model.
 // They must be tested differently than others, due to the fact that they don't receive separate training data and intervals
 func TestRollingAccuracy(t *testing.T) {
-
+	tests := []rollingTest{
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.05, 0.05, 0.5),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "Random Holt-Winters model instance with noise",
+			maximumError: statisticalSummary{
+				FirstQuartile: 2.2,
+				Median:        4.8,
+				ThirdQuartile: 11.7,
+			},
+		},
+	}
+	for _, test := range tests {
+		computeRMSEStatistics(t, test)
+	}
 }

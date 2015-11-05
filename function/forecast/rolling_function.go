@@ -80,7 +80,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
 				Raw:    series.Raw,
-				Values: rollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate),
+				Values: RollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate),
 			}
 		}
 
