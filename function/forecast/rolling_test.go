@@ -92,15 +92,16 @@ func computeRMSEStatistics(t *testing.T, test rollingTest) {
 	stats := summarizeSlice(results)
 	improvement := stats.improvementOver(test.maximumError)
 	if math.IsNaN(improvement) {
-		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s` with %s noise", test.rollerName, test.sourceName, test.noiseName)
+		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s` with %s noise", test.rollerName, test.sourceName, test.noiserName)
 		return
 	}
-	if stats.FirstQuartile > test.maximumError.FirstQuartile || stats.Median > test.maximumError.Median || stats.ThirdQuartile > test.maximumError.ThirdQuartile {
-		t.Errorf("Model `%s` fails on input `%s` with %s noise\n\terror: %s\n\ttolerance: %s", test.rollerName, test.sourceName, test.noiseName, stats.String(), test.maximumError.String())
+	if stats.FirstQuartile > test.maximumError.FirstQuartile+1 || stats.Median > test.maximumError.Median+1 || stats.ThirdQuartile > test.maximumError.ThirdQuartile+1 {
+		t.Errorf("Model `%s` fails on input `%s` with %s noise\n\terror: %s\n\ttolerance: %s", test.rollerName, test.sourceName, test.noiserName, stats.String(), test.maximumError.String())
 		return
 	}
-	if stats.FirstQuartile+0.1 < test.maximumError.FirstQuartile || stats.Median+0.1 < test.maximumError.Median || stats.ThirdQuartile+0.1 < test.maximumError.ThirdQuartile {
-		t.Errorf("You can improve the error bounds for model `%s` on input `%s` with %s noise\n\tError: %s\n\tTolerance: %s", test.rollerName, test.sourceName, test.noiseName, stats.String(), test.maximumError.String())
+	if stats.FirstQuartile+1 < test.maximumError.FirstQuartile || stats.Median+1 < test.maximumError.Median || stats.ThirdQuartile+1 < test.maximumError.ThirdQuartile {
+		t.Errorf("You can improve the error bounds for model `%s` on input `%s` with %s noise\n\tError: %s\n\tTolerance: %s", test.rollerName, test.sourceName, test.noiserName, stats.String(), test.maximumError.String())
+		return
 	}
 }
 
@@ -110,7 +111,7 @@ type rollingTest struct {
 	source       func() ([]float64, int)
 	sourceName   string
 	noiser       func([]float64) []float64
-	noiseName    string
+	noiserName   string
 	maximumError statisticalSummary
 }
 
@@ -133,7 +134,7 @@ func TestRollingAccuracy(t *testing.T) {
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "pure random Holt-Winters model instance",
-			noiseName:  "no",
+			noiserName: "no",
 			maximumError: statisticalSummary{
 				FirstQuartile: 1.0,
 				Median:        2.5,
@@ -146,7 +147,7 @@ func TestRollingAccuracy(t *testing.T) {
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "pure random Holt-Winters model instance",
 			noiser:     gaussianNoise,
-			noiseName:  "gaussian (strength 1)",
+			noiserName: "gaussian (strength 1)",
 			maximumError: statisticalSummary{
 				FirstQuartile: 1.2,
 				Median:        2.6,
@@ -159,7 +160,7 @@ func TestRollingAccuracy(t *testing.T) {
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "pure random Holt-Winters model instance",
 			noiser:     spikeNoise,
-			noiseName:  "spiking",
+			noiserName: "spiking",
 			maximumError: statisticalSummary{
 				FirstQuartile: 20.1,
 				Median:        47.6,
@@ -171,7 +172,7 @@ func TestRollingAccuracy(t *testing.T) {
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureInterpolatingMultiplicativeHoltWintersSource,
 			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
-			noiseName:  "no",
+			noiserName: "no",
 			maximumError: statisticalSummary{
 				FirstQuartile: 10.6,
 				Median:        17.9,
@@ -184,7 +185,7 @@ func TestRollingAccuracy(t *testing.T) {
 			source:     pureInterpolatingMultiplicativeHoltWintersSource,
 			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
 			noiser:     gaussianNoise,
-			noiseName:  "gaussian (strength 1)",
+			noiserName: "gaussian (strength 1)",
 			maximumError: statisticalSummary{
 				FirstQuartile: 10.9,
 				Median:        18.4,
@@ -197,7 +198,7 @@ func TestRollingAccuracy(t *testing.T) {
 			source:     pureInterpolatingMultiplicativeHoltWintersSource,
 			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
 			noiser:     spikeNoise,
-			noiseName:  "spiking",
+			noiserName: "spiking",
 			maximumError: statisticalSummary{
 				FirstQuartile: 17.8,
 				Median:        42.3,

@@ -22,7 +22,7 @@ import "math"
 import "math/rand"
 
 // Returns the root-mean-square-error percentage of total (so that it is scale independent)
-func testModelRMSEPercent(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error)) float64 {
+func testModelRMSEPercent(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error), noiser func([]float64) []float64) float64 {
 	data, period := source()
 	if len(data) < period*3 {
 		t.Fatalf("TEST CASE ERROR: must be sufficient data; we require len(data) >= period*3")
@@ -32,7 +32,14 @@ func testModelRMSEPercent(t *testing.T, source func() ([]float64, int), model fu
 	testStart := rand.Intn(len(data))
 	testLength := rand.Intn(len(data) - testStart)
 
-	trainedModel, err := model(data[:trainingLength], period)
+	// We add noise to the training data, but compare the result to the original,
+	// since we want to model to ignore noisy effects.
+	trainingData := data
+	if noiser != nil {
+		trainingData = noiser(trainingData)
+	}
+
+	trainedModel, err := model(trainingData[:trainingLength], period)
 	if err != nil {
 		t.Errorf("Got error when evaluating model: %s", err.Error())
 		return 0
@@ -61,11 +68,11 @@ func testModelRMSEPercent(t *testing.T, source func() ([]float64, int), model fu
 	return rmse / magnitude * 100
 }
 
-func testModelRMSEs(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error)) statisticalSummary {
+func testModelRMSEs(t *testing.T, source func() ([]float64, int), model func([]float64, int) (Model, error), noiser func([]float64) []float64) statisticalSummary {
 	n := 2000
 	result := make([]float64, n)
 	for i := range result {
-		result[i] = testModelRMSEPercent(t, source, model)
+		result[i] = testModelRMSEPercent(t, source, model, noiser)
 	}
 	sort.Float64s(result)
 
@@ -77,20 +84,25 @@ type modelTest struct {
 	modelName    string
 	source       func() ([]float64, int)
 	sourceName   string
+	noiser       func([]float64) []float64
+	noiserName   string
 	maximumError statisticalSummary
 }
 
 func applyTestForModel(t *testing.T, test modelTest) {
-	modelError := testModelRMSEs(t, test.source, test.model)
+	modelError := testModelRMSEs(t, test.source, test.model, test.noiser)
 	improvement := modelError.improvementOver(test.maximumError)
 	if math.IsNaN(improvement) {
 		t.Errorf("Trained model `%s` produces unexpected NaNs on input of type `%s`", test.modelName, test.sourceName)
+		return
 	}
-	if modelError.FirstQuartile > test.maximumError.FirstQuartile || modelError.Median > test.maximumError.Median || modelError.ThirdQuartile > test.maximumError.ThirdQuartile {
-		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+	if modelError.FirstQuartile > test.maximumError.FirstQuartile+1 || modelError.Median > test.maximumError.Median+1 || modelError.ThirdQuartile > test.maximumError.ThirdQuartile+1 {
+		t.Errorf("Model `%s` fails on input `%s` with %s noise\n\tError: %s\n\tTolerance: %s", test.modelName, test.sourceName, test.noiserName, modelError.String(), test.maximumError.String())
+		return
 	}
-	if modelError.FirstQuartile+0.1 < test.maximumError.FirstQuartile || modelError.Median+0.1 < test.maximumError.Median || modelError.ThirdQuartile+0.1 < test.maximumError.ThirdQuartile {
-		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", improvement, test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+	if modelError.FirstQuartile+1 < test.maximumError.FirstQuartile || modelError.Median+1 < test.maximumError.Median || modelError.ThirdQuartile+1 < test.maximumError.ThirdQuartile {
+		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` with %s noise\n\tError: %s\n\tTolerance: %s", improvement, test.modelName, test.sourceName, test.noiserName, modelError.String(), test.maximumError.String())
+		return
 	}
 }
 
@@ -108,6 +120,7 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Generalized Holt Winters Model",
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "Random Holt-Winters model instance",
+			noiserName: "no",
 			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
 				FirstQuartile: 0.00001,
 				Median:        0.00001,
@@ -117,12 +130,14 @@ func TestModelAccuracy(t *testing.T) {
 		{
 			model:      TrainGeneralizedHoltWintersModel,
 			modelName:  "Generalized Holt Winters Model",
-			source:     addNoiseToSource(pureMultiplicativeHoltWintersSource, 0.5),
-			sourceName: "Random Holt-Winters model instance with noise",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "Random Holt-Winters model instance",
+			noiser:     gaussianNoise,
+			noiserName: "guassian (strength 1)",
 			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
-				FirstQuartile: 0.15,
-				Median:        0.3,
-				ThirdQuartile: 0.5,
+				FirstQuartile: 0.4,
+				Median:        0.65,
+				ThirdQuartile: 1.2,
 			},
 		},
 
@@ -131,6 +146,7 @@ func TestModelAccuracy(t *testing.T) {
 			modelName:  "Multiplicative Holt Winters Model",
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "Random Holt-Winters model instance",
+			noiserName: "no",
 			maximumError: statisticalSummary{ // Should be perfect, up to FP error.
 				FirstQuartile: 0.00001,
 				Median:        0.00001,
@@ -140,12 +156,14 @@ func TestModelAccuracy(t *testing.T) {
 		{
 			model:      TrainMultiplicativeHoltWintersModel,
 			modelName:  "Multiplicative Holt Winters Model",
-			source:     addNoiseToSource(pureMultiplicativeHoltWintersSource, 0.5),
-			sourceName: "Random Holt-Winters model instance with noise",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "Random Holt-Winters model instance",
+			noiser:     gaussianNoise,
+			noiserName: "gaussian (strength 1)",
 			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
-				FirstQuartile: 1.1,
-				Median:        2.7,
-				ThirdQuartile: 7.7,
+				FirstQuartile: 2.3,
+				Median:        5.9,
+				ThirdQuartile: 17.9,
 			},
 		},
 	}
