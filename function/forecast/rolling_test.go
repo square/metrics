@@ -28,6 +28,23 @@ func gaussianNoise(data []float64) []float64 {
 	return result
 }
 
+func spikeNoise(data []float64) []float64 {
+	result := make([]float64, len(data))
+	min := data[0]
+	max := data[0]
+	for i := range data {
+		result[i] = data[i]
+		min = math.Min(min, data[i])
+		max = math.Max(max, data[i])
+	}
+	// expand the range:
+	size := max - min
+	for i := 0; i < len(data)/100+3; i++ {
+		result[rand.Intn(len(result))] = rand.Float64()*size*3 + min - size
+	}
+	return result
+}
+
 // computeRMSEPercentHoles computes the percent-root-mean-square-error for the given input on the given roller,
 // and inserting a hole into the last quarter
 func computeRMSEPercentHoles(correct []float64, period int, roller func([]float64, int) []float64, noiser func([]float64) []float64) float64 {
@@ -107,6 +124,9 @@ func parameters(fun func([]float64, int, float64, float64, float64) []float64, a
 // For example, those that use exponential smoothing to estimate the parameters of the Multiplicative Holt-Winters model.
 // They must be tested differently than others, due to the fact that they don't receive separate training data and prediction intervals.
 func TestRollingAccuracy(t *testing.T) {
+	// Note: the sample size is not large enough for the tolerances below to be precise.
+	// If the random seed is changed, they will likely need to be changed.
+	// Increasing the sample size in computeRMSEStatistics will reduce this effect.
 	tests := []rollingTest{
 		{
 			roller:     parameters(RollingMultiplicativeHoltWinters, 0.5, 0.5, 0.6),
@@ -134,6 +154,19 @@ func TestRollingAccuracy(t *testing.T) {
 			},
 		},
 		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.5, 0.4, 0.4),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiser:     spikeNoise,
+			noiseName:  "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 13.8,
+				Median:        45.8,
+				ThirdQuartile: 143.5,
+			},
+		},
+		{
 			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureInterpolatingMultiplicativeHoltWintersSource,
@@ -141,11 +174,10 @@ func TestRollingAccuracy(t *testing.T) {
 			noiseName:  "no",
 			maximumError: statisticalSummary{
 				FirstQuartile: 10.6,
-				Median:        17.8,
-				ThirdQuartile: 42.3,
+				Median:        17.9,
+				ThirdQuartile: 40.8,
 			},
 		},
-
 		{
 			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
 			rollerName: "Rolling Multiplicative Holt-Winters",
@@ -154,9 +186,22 @@ func TestRollingAccuracy(t *testing.T) {
 			noiser:     gaussianNoise,
 			noiseName:  "gaussian (strength 1)",
 			maximumError: statisticalSummary{
-				FirstQuartile: 11.0,
+				FirstQuartile: 10.9,
 				Median:        18.4,
-				ThirdQuartile: 42.95,
+				ThirdQuartile: 42.4,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiser:     spikeNoise,
+			noiseName:  "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 17.8,
+				Median:        42.3,
+				ThirdQuartile: 124.6,
 			},
 		},
 	}
