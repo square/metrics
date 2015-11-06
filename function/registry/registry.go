@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/aggregate"
 	"github.com/square/metrics/function/filter"
+	"github.com/square/metrics/function/forecast"
 	"github.com/square/metrics/function/join"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
@@ -75,6 +76,10 @@ func init() {
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
+	// Forecasting
+	MustRegister(forecast.FunctionTrainGeneralizedHoltWinters)
+	MustRegister(forecast.FunctionTrainMultiplicativeHoltWinters)
+	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)
 }
 
 // StandardRegistry of a functions available in MQE.
