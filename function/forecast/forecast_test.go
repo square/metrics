@@ -47,7 +47,7 @@ func pureMultiplicativeHoltWintersSource() ([]float64, int) {
 func pureInterpolatingMultiplicativeHoltWintersSource() ([]float64, int) {
 	// Will be longer than others (TODO: length as parameter)
 	period := rand.Intn(10) + 10
-	length := 100*period + rand.Intn(period)
+	length := 10*period + rand.Intn(period)
 
 	season1 := randomSlice(period)
 	trend1 := rand.Float64()*4 - 2
@@ -62,11 +62,11 @@ func pureInterpolatingMultiplicativeHoltWintersSource() ([]float64, int) {
 	for i := range result {
 		a := season1[i%period] * (trend1*float64(i) + level1)
 		b := season2[i%period] * (trend2*float64(i) + level2)
-		w := float64(i) / float64(length)
-		w *= 4 / 3
+		w := float64(i) / (float64(length) * 0.75)
 		if w > 1 {
 			w = 1
 		}
+		// We interpolate between 'a' and 'b'
 		result[i] = a*w + b*(1-w)
 	}
 	return result, period

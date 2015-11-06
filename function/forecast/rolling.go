@@ -82,7 +82,18 @@ func newCycle(rate float64, n int) cycle {
 	}
 }
 
+// RollingMultiplicativeHoltWinters approximate the given input using the Holt-Winters model by performing exponential averaging on the HW parameters.
+// It scales 'levelLearningRate' and 'trendLearningRate' by the 'period'.
+// That is, if you double the period, it will take twice as long as before for the level and trend parameters to update.
+// This makes it easier to use with varying period values.
 func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64) []float64 {
+	// We'll interpret the rates as "the effective change per whole period" (so the seasonal learning rate is unchanged).
+	// The intensity of the old value after n iterations is (1-rate)^n. We want to find rate' such that
+	// 1 - rate = (1 - rate')^n
+	// so
+	// 1 - (1 - rate)^(1/n) = rate'
+	levelLearningRate = 1 - math.Pow(1-levelLearningRate, 1/float64(period))
+	trendLearningRate = 1 - math.Pow(1-trendLearningRate, 1/float64(period))
 	estimate := make([]float64, len(ys))
 
 	level := newWeighted(levelLearningRate)

@@ -62,12 +62,14 @@ func computeRMSEStatistics(t *testing.T, test rollingTest) {
 	improvement := stats.improvementOver(test.maximumError)
 	if math.IsNaN(improvement) {
 		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s`", test.rollerName, test.sourceName)
+		return
 	}
 	if stats.FirstQuartile > test.maximumError.FirstQuartile || stats.Median > test.maximumError.Median || stats.ThirdQuartile > test.maximumError.ThirdQuartile {
-		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+		t.Errorf("Model `%s` fails on input `%s`\n\terror: %s\n\ttolerance: %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+		return
 	}
 	if stats.FirstQuartile+0.1 < test.maximumError.FirstQuartile || stats.Median+0.1 < test.maximumError.Median || stats.ThirdQuartile+0.1 < test.maximumError.ThirdQuartile {
-		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", improvement, test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+		t.Errorf("You can improve the error bounds for model `%s` on input `%s`\n\tError: %s\n\tTolerance: %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
 	}
 }
 
@@ -91,25 +93,25 @@ func parameters(fun func([]float64, int, float64, float64, float64) []float64, a
 func TestRollingAccuracy(t *testing.T) {
 	tests := []rollingTest{
 		{
-			roller:     parameters(RollingMultiplicativeHoltWinters, 0.05, 0.05, 0.5),
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.45, 0.45, 0.5),
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureMultiplicativeHoltWintersSource,
 			sourceName: "pure random Holt-Winters model instance",
 			maximumError: statisticalSummary{
-				FirstQuartile: 2.2,
-				Median:        4.8,
-				ThirdQuartile: 11.7,
+				FirstQuartile: 2.0,
+				Median:        4.9,
+				ThirdQuartile: 11.2,
 			},
 		},
 		{
-			roller:     parameters(RollingMultiplicativeHoltWinters, 0.025, 0.025, 0.5),
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureInterpolatingMultiplicativeHoltWintersSource,
 			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
 			maximumError: statisticalSummary{
-				FirstQuartile: 19.1,
-				Median:        30.7,
-				ThirdQuartile: 71.9,
+				FirstQuartile: 10.5,
+				Median:        18.5,
+				ThirdQuartile: 43.8,
 			},
 		},
 	}

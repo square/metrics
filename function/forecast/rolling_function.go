@@ -16,7 +16,6 @@ package forecast
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -53,16 +52,6 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 		if samples <= 0 {
 			return nil, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
-
-		// We need to adjust the level and trend learning rates depending on the value of 'samples' for sane behavior.
-		// When the resolution is small, there will be more samples in a period, so it will look like it adapts more quickly to changes.
-		// We'll interpret the rates as "the effective change per whole period" (so the seasonal learning rate is unchanged).
-		// The intensity of the old value after n iterations is (1-rate)^n. We want to find rate' such that
-		// 1 - rate = (1 - rate')^n
-		// so
-		// 1 - (1 - rate)^(1/n) = rate'
-		levelLearningRate = 1 - math.Pow(1-levelLearningRate, 1/float64(samples))
-		trendLearningRate = 1 - math.Pow(1-trendLearningRate, 1/float64(samples))
 
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
