@@ -63,11 +63,11 @@ func computeRMSEStatistics(t *testing.T, test rollingTest) {
 	if math.IsNaN(improvement) {
 		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s`", test.rollerName, test.sourceName)
 	}
-	if improvement < 0 {
+	if stats.FirstQuartile > test.maximumError.FirstQuartile || stats.Median > test.maximumError.Median || stats.ThirdQuartile > test.maximumError.ThirdQuartile {
 		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
 	}
-	if improvement > 0.1 {
-		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
+	if stats.FirstQuartile+0.1 < test.maximumError.FirstQuartile || stats.Median+0.1 < test.maximumError.Median || stats.ThirdQuartile+0.1 < test.maximumError.ThirdQuartile {
+		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", improvement, test.rollerName, test.sourceName, stats.String(), test.maximumError.String())
 	}
 }
 
@@ -94,11 +94,22 @@ func TestRollingAccuracy(t *testing.T) {
 			roller:     parameters(RollingMultiplicativeHoltWinters, 0.05, 0.05, 0.5),
 			rollerName: "Rolling Multiplicative Holt-Winters",
 			source:     pureMultiplicativeHoltWintersSource,
-			sourceName: "Random Holt-Winters model instance with noise",
+			sourceName: "pure random Holt-Winters model instance",
 			maximumError: statisticalSummary{
 				FirstQuartile: 2.2,
 				Median:        4.8,
 				ThirdQuartile: 11.7,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.025, 0.025, 0.5),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			maximumError: statisticalSummary{
+				FirstQuartile: 19.1,
+				Median:        30.7,
+				ThirdQuartile: 71.9,
 			},
 		},
 	}

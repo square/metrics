@@ -44,6 +44,34 @@ func pureMultiplicativeHoltWintersSource() ([]float64, int) {
 	return result, period
 }
 
+func pureInterpolatingMultiplicativeHoltWintersSource() ([]float64, int) {
+	// Will be longer than others (TODO: length as parameter)
+	period := rand.Intn(10) + 10
+	length := 100*period + rand.Intn(period)
+
+	season1 := randomSlice(period)
+	trend1 := rand.Float64()*4 - 2
+	level1 := rand.Float64()*100 + 200
+
+	season2 := randomSlice(period)
+	trend2 := rand.Float64()*4 - 2
+	level2 := rand.Float64()*100 + 200
+
+	result := make([]float64, length)
+
+	for i := range result {
+		a := season1[i%period] * (trend1*float64(i) + level1)
+		b := season2[i%period] * (trend2*float64(i) + level2)
+		w := float64(i) / float64(length)
+		w *= 4 / 3
+		if w > 1 {
+			w = 1
+		}
+		result[i] = a*w + b*(1-w)
+	}
+	return result, period
+}
+
 func addNoiseToSource(source func() ([]float64, int), strength float64) func() ([]float64, int) {
 	return func() ([]float64, int) {
 		data, period := source()

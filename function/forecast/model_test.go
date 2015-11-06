@@ -83,13 +83,14 @@ type modelTest struct {
 func applyTestForModel(t *testing.T, test modelTest) {
 	modelError := testModelRMSEs(t, test.source, test.model)
 	improvement := modelError.improvementOver(test.maximumError)
-	if improvement < 0 {
-		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
-		return
+	if math.IsNaN(improvement) {
+		t.Errorf("Trained model `%s` produces unexpected NaNs on input of type `%s`", test.modelName, test.sourceName)
 	}
-	if improvement > 0.1 {
+	if modelError.FirstQuartile > test.maximumError.FirstQuartile || modelError.Median > test.maximumError.Median || modelError.ThirdQuartile > test.maximumError.ThirdQuartile {
+		t.Errorf("Model `%s` fails on input `%s` with error %s when maximum tolerated is %s", test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
+	}
+	if modelError.FirstQuartile+0.1 < test.maximumError.FirstQuartile || modelError.Median+0.1 < test.maximumError.Median || modelError.ThirdQuartile+0.1 < test.maximumError.ThirdQuartile {
 		t.Errorf("You can improve the error bounds by %f for model `%s` on input `%s` :: %s with tolerance %s", improvement, test.modelName, test.sourceName, modelError.String(), test.maximumError.String())
-		return
 	}
 }
 
@@ -142,8 +143,8 @@ func TestModelAccuracy(t *testing.T) {
 			source:     addNoiseToSource(pureMultiplicativeHoltWintersSource, 0.5),
 			sourceName: "Random Holt-Winters model instance with noise",
 			maximumError: statisticalSummary{ // Do not expect it to do perfectly, since there's error
-				FirstQuartile: 1.25,
-				Median:        2.85,
+				FirstQuartile: 1.1,
+				Median:        2.7,
 				ThirdQuartile: 7.7,
 			},
 		},
