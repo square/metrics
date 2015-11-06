@@ -161,9 +161,9 @@ func TestRollingAccuracy(t *testing.T) {
 			noiser:     spikeNoise,
 			noiseName:  "spiking",
 			maximumError: statisticalSummary{
-				FirstQuartile: 13.8,
-				Median:        45.8,
-				ThirdQuartile: 143.5,
+				FirstQuartile: 20.1,
+				Median:        47.6,
+				ThirdQuartile: 137.1,
 			},
 		},
 		{
