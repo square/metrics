@@ -55,6 +55,9 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 				return nil, err
 			}
 		}
+		if extraTrainingTime < 0 {
+			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+		}
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
@@ -63,6 +66,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 
 		newContext := context.Copy()
 		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
+		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], &newContext)
 		context.CopyNotesFrom(&newContext)
 		newContext.Invalidate()
@@ -81,7 +85,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
 				Raw:    series.Raw,
-				Values: RollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate),
+				Values: RollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate)[extraSlots:], // Slice to drop the first few extra slots from the result
 			}
 		}
 
