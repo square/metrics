@@ -133,6 +133,9 @@ func (tr Timerange) Snap() Timerange {
 	}
 	tr.start = snap(tr.start, tr.resolution)
 	tr.end = snap(tr.end, tr.resolution)
+	if tr.end < tr.start {
+		tr.end = tr.start // This better preserves the invariants without having to return an error.
+	}
 	return tr
 }
 
@@ -143,9 +146,15 @@ func (tr Timerange) Shift(shift time.Duration) Timerange {
 	return tr.Snap()
 }
 
-// ExtendLength returns a timerange which whose length is set to the given amount
+// SelectLength returns a timerange which whose length is set to the given amount
 func (tr Timerange) SelectLength(length time.Duration) Timerange {
 	tr.end = tr.start + int64(length/time.Millisecond)
+	return tr.Snap()
+}
+
+// ExtendBefore increases the length of the timerange by the given duration.
+func (tr Timerange) ExtendBefore(length time.Duration) Timerange {
+	tr.start -= int64(length / time.Millisecond)
 	return tr.Snap()
 }
 
