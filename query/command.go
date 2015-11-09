@@ -58,6 +58,7 @@ type Command interface {
 type DescribeCommand struct {
 	metricName api.MetricKey
 	predicate  api.Predicate
+	index      bool
 }
 
 // DescribeAllCommand returns all the metrics available in the system.
@@ -114,6 +115,26 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 		// sort the result
 		natural_sort.Sort(list)
 		keyValueLists[key] = list
+	}
+	if cmd.index {
+		// Add metadata for indexing
+		taggedMetrics := make([]api.TaggedMetric, len(tagsets))
+		for i := range taggedMetrics {
+			taggedMetrics[i] = api.TaggedMetric{
+				MetricKey: cmd.metricName,
+				TagSet:    tagsets[i],
+			}
+		}
+		indexes, err := context.TimeseriesStorageAPI.DescribeIndex(taggedMetrics)
+		if err != nil {
+			return CommandResult{}, err
+		}
+		return CommandResult{
+			Body: keyValueLists,
+			Metadata: map[string]interface{}{
+				"indexes": indexes,
+			},
+		}, nil
 	}
 	return CommandResult{Body: keyValueLists}, nil
 }

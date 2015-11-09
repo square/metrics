@@ -68,6 +68,7 @@ describeSingleStmt <-
   _ <METRIC_NAME> { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
   { p.makeDescribe() }
+  ("index" { p.addIndexClause() } )?
 
 propertyClause <-
   { p.addEvaluationContext() }

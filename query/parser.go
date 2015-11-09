@@ -236,6 +236,15 @@ func (p *Parser) makeDescribe() {
 	}
 }
 
+func (p *Parser) addIndexClause() {
+	describe, ok := p.command.(*DescribeCommand)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	describe.index = true
+}
+
 func (p *Parser) makeSelect() {
 	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
 	if !ok {
