@@ -15,7 +15,10 @@
 package forecast
 
 // Returns the unique integer r such that x == r (mod m) and 0 <= r < m
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 func mod(x int, m int) int {
 	return ((x % m) + m) % m
@@ -48,4 +51,47 @@ func LinearRegression(ys []float64) (float64, float64) {
 	beta := (xym - xm*ym) / (x2m - xm*xm)
 	alpha := ym - beta*xm
 	return alpha, beta
+}
+
+func pValueFromNormalDifferences(correct []float64, estimate []float64) ([]float64, error) {
+	if len(correct) != len(estimate) {
+		return nil, fmt.Errorf("p-value calculation requires two lists of equal size")
+	}
+	deviations := []float64{}
+	for i := range correct {
+		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
+			continue
+		}
+		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
+			continue
+		}
+		deviations = append(deviations, estimate[i]-correct[i])
+	}
+	meandev := 0.0
+	for _, dev := range deviations {
+		meandev += dev
+	}
+	meandev /= float64(len(deviations))
+	stddev := 0.0
+	for _, dev := range deviations {
+		stddev += (meandev - dev) * (meandev - dev)
+	}
+	stddev /= float64(len(deviations)) - 1
+	stddev = math.Sqrt(stddev) // Now we have a good estimate for the population standard deviation.
+	pvalues := make([]float64, len(estimate))
+	for i := range pvalues {
+		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
+			pvalues[i] = math.NaN()
+			continue
+		}
+		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
+			pvalues[i] = math.NaN()
+			continue
+		}
+		difference := estimate[i] - correct[i]
+		tvalue := (difference - meandev) / stddev
+		pvalue := 2 * math.Erf(-math.Abs(tvalue))
+		pvalues[i] = pvalue
+	}
+	return pvalues, nil
 }
