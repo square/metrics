@@ -66,9 +66,9 @@ describeMetrics <- _ "metrics" KEY _ "where" KEY tagName _ "=" literalString { p
 
 describeSingleStmt <-
   _ <METRIC_NAME> { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
+  ("index" { p.addIndexClause() } )?
   optionalPredicateClause
   { p.makeDescribe() }
-  ("index" { p.addIndexClause() } )?
 
 propertyClause <-
   { p.addEvaluationContext() }

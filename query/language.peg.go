@@ -692,9 +692,9 @@ func (p *Parser) Execute() {
 		case ruleAction5:
 			p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
 		case ruleAction6:
-			p.makeDescribe()
-		case ruleAction7:
 			p.addIndexClause()
+		case ruleAction7:
+			p.makeDescribe()
 		case ruleAction8:
 			p.addEvaluationContext()
 		case ruleAction9:
@@ -1708,97 +1708,97 @@ func (p *Parser) Init() {
 								{
 									add(ruleAction5, position)
 								}
+								{
+									position119, tokenIndex119, depth119 := position, tokenIndex, depth
+									{
+										position121, tokenIndex121, depth121 := position, tokenIndex, depth
+										if buffer[position] != rune('i') {
+											goto l122
+										}
+										position++
+										goto l121
+									l122:
+										position, tokenIndex, depth = position121, tokenIndex121, depth121
+										if buffer[position] != rune('I') {
+											goto l119
+										}
+										position++
+									}
+								l121:
+									{
+										position123, tokenIndex123, depth123 := position, tokenIndex, depth
+										if buffer[position] != rune('n') {
+											goto l124
+										}
+										position++
+										goto l123
+									l124:
+										position, tokenIndex, depth = position123, tokenIndex123, depth123
+										if buffer[position] != rune('N') {
+											goto l119
+										}
+										position++
+									}
+								l123:
+									{
+										position125, tokenIndex125, depth125 := position, tokenIndex, depth
+										if buffer[position] != rune('d') {
+											goto l126
+										}
+										position++
+										goto l125
+									l126:
+										position, tokenIndex, depth = position125, tokenIndex125, depth125
+										if buffer[position] != rune('D') {
+											goto l119
+										}
+										position++
+									}
+								l125:
+									{
+										position127, tokenIndex127, depth127 := position, tokenIndex, depth
+										if buffer[position] != rune('e') {
+											goto l128
+										}
+										position++
+										goto l127
+									l128:
+										position, tokenIndex, depth = position127, tokenIndex127, depth127
+										if buffer[position] != rune('E') {
+											goto l119
+										}
+										position++
+									}
+								l127:
+									{
+										position129, tokenIndex129, depth129 := position, tokenIndex, depth
+										if buffer[position] != rune('x') {
+											goto l130
+										}
+										position++
+										goto l129
+									l130:
+										position, tokenIndex, depth = position129, tokenIndex129, depth129
+										if buffer[position] != rune('X') {
+											goto l119
+										}
+										position++
+									}
+								l129:
+									{
+										add(ruleAction6, position)
+									}
+									goto l120
+								l119:
+									position, tokenIndex, depth = position119, tokenIndex119, depth119
+								}
+							l120:
 								if !_rules[ruleoptionalPredicateClause]() {
 									goto l0
 								}
 								{
-									add(ruleAction6, position)
+									add(ruleAction7, position)
 								}
-								{
-									position120, tokenIndex120, depth120 := position, tokenIndex, depth
-									{
-										position122, tokenIndex122, depth122 := position, tokenIndex, depth
-										if buffer[position] != rune('i') {
-											goto l123
-										}
-										position++
-										goto l122
-									l123:
-										position, tokenIndex, depth = position122, tokenIndex122, depth122
-										if buffer[position] != rune('I') {
-											goto l120
-										}
-										position++
-									}
-								l122:
-									{
-										position124, tokenIndex124, depth124 := position, tokenIndex, depth
-										if buffer[position] != rune('n') {
-											goto l125
-										}
-										position++
-										goto l124
-									l125:
-										position, tokenIndex, depth = position124, tokenIndex124, depth124
-										if buffer[position] != rune('N') {
-											goto l120
-										}
-										position++
-									}
-								l124:
-									{
-										position126, tokenIndex126, depth126 := position, tokenIndex, depth
-										if buffer[position] != rune('d') {
-											goto l127
-										}
-										position++
-										goto l126
-									l127:
-										position, tokenIndex, depth = position126, tokenIndex126, depth126
-										if buffer[position] != rune('D') {
-											goto l120
-										}
-										position++
-									}
-								l126:
-									{
-										position128, tokenIndex128, depth128 := position, tokenIndex, depth
-										if buffer[position] != rune('e') {
-											goto l129
-										}
-										position++
-										goto l128
-									l129:
-										position, tokenIndex, depth = position128, tokenIndex128, depth128
-										if buffer[position] != rune('E') {
-											goto l120
-										}
-										position++
-									}
-								l128:
-									{
-										position130, tokenIndex130, depth130 := position, tokenIndex, depth
-										if buffer[position] != rune('x') {
-											goto l131
-										}
-										position++
-										goto l130
-									l131:
-										position, tokenIndex, depth = position130, tokenIndex130, depth130
-										if buffer[position] != rune('X') {
-											goto l120
-										}
-										position++
-									}
-								l130:
-									{
-										add(ruleAction7, position)
-									}
-									goto l121
-								l120:
-									position, tokenIndex, depth = position120, tokenIndex120, depth120
-								}
-							l121:
 								depth--
 								add(ruledescribeSingleStmt, position115)
 							}
@@ -1841,7 +1841,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 6 describeMetrics <- <(_ (('m' / 'M') ('e' / 'E') ('t' / 'T') ('r' / 'R') ('i' / 'I') ('c' / 'C') ('s' / 'S')) KEY _ (('w' / 'W') ('h' / 'H') ('e' / 'E') ('r' / 'R') ('e' / 'E')) KEY tagName _ '=' literalString Action4)> */
 		nil,
-		/* 7 describeSingleStmt <- <(_ <METRIC_NAME> Action5 optionalPredicateClause Action6 (('i' / 'I') ('n' / 'N') ('d' / 'D') ('e' / 'E') ('x' / 'X') Action7)?)> */
+		/* 7 describeSingleStmt <- <(_ <METRIC_NAME> Action5 (('i' / 'I') ('n' / 'N') ('d' / 'D') ('e' / 'E') ('x' / 'X') Action6)? optionalPredicateClause Action7)> */
 		nil,
 		/* 8 propertyClause <- <(Action8 (_ PROPERTY_KEY Action9 _ PROPERTY_VALUE Action10 Action11)* Action12)> */
 		nil,
@@ -5648,9 +5648,9 @@ func (p *Parser) Init() {
 		nil,
 		/* 75 Action5 <- <{ p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 76 Action6 <- <{ p.makeDescribe() }> */
+		/* 76 Action6 <- <{ p.addIndexClause() }> */
 		nil,
-		/* 77 Action7 <- <{ p.addIndexClause() }> */
+		/* 77 Action7 <- <{ p.makeDescribe() }> */
 		nil,
 		/* 78 Action8 <- <{ p.addEvaluationContext() }> */
 		nil,
