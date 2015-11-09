@@ -15,8 +15,6 @@
 package forecast
 
 import (
-	"fmt"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 )
@@ -66,53 +64,6 @@ func FunctionAnomalyMaker(name string, model function.MetricFunction) function.M
 	}
 }
 
-var FunctionAnomalyRollingMultiplicativeHoltWinters = function.MetricFunction{
-	Name:         "forecast.anomaly_rolling_multiplicative_holt_winters",
-	MinArguments: 5, // Series, period, level learning rate,  trend learning rate, seasonal learning rate,
-	MaxArguments: 5,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		levelLearningRate, err := function.EvaluateToScalar(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
-		trendLearningRate, err := function.EvaluateToScalar(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		seasonalLearningRate, err := function.EvaluateToScalar(arguments[4], context)
-		if err != nil {
-			return nil, err
-		}
-
-		samples := int(period / context.Timerange.Resolution())
-		if samples <= 0 {
-			return nil, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
-		}
-
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], context)
-		if err != nil {
-			return nil, err
-		}
-
-		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(seriesList.Series)),
-			Timerange: context.Timerange,
-			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.rolling_multiplicative_holt_winters(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate),
-		}
-
-		for seriesIndex, series := range seriesList.Series {
-			result.Series[seriesIndex] = api.Timeseries{
-				TagSet: series.TagSet,
-				Raw:    series.Raw,
-				Values: RollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate),
-			}
-		}
-
-		return result, nil
-	},
-}
+var FunctionAnomalyRollingMultiplicativeHoltWinters = FunctionAnomalyMaker("forecast.anomaly_rolling_multiplicative_holt_winters", FunctionRollingMultiplicativeHoltWinters)
+var FunctionAnomalyTrainGeneralizedHoltWinters = FunctionAnomalyMaker("forecast.anomaly_train_generalized_holt_winters_model", FunctionTrainGeneralizedHoltWinters)
+var FunctionAnomalyTrainMultiplicativeHoltWinters = FunctionAnomalyMaker("forecast.anomaly_train_multiplicative_holt_winters_model", FunctionTrainMultiplicativeHoltWinters)

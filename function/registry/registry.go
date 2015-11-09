@@ -80,6 +80,10 @@ func init() {
 	MustRegister(forecast.FunctionTrainGeneralizedHoltWinters)
 	MustRegister(forecast.FunctionTrainMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)
+
+	MustRegister(forecast.FunctionAnomalyTrainGeneralizedHoltWinters)
+	MustRegister(forecast.FunctionAnomalyTrainMultiplicativeHoltWinters)
+	MustRegister(forecast.FunctionAnomalyRollingMultiplicativeHoltWinters)
 }
 
 // StandardRegistry of a functions available in MQE.
