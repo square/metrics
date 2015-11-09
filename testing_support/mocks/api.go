@@ -143,6 +143,10 @@ func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smal
 	return requested.Resolution()
 }
 
+func (f FakeTimeseriesStorageAPI) DescribeIndex(metrics []api.TaggedMetric) ([]string, error) {
+	return make([]string, len(metrics)), nil
+}
+
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
