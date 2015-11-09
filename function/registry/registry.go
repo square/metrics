@@ -71,6 +71,7 @@ func init() {
 	MustRegister(transform.Alias)
 	MustRegister(transform.Derivative)
 	MustRegister(transform.MovingAverage)
+	MustRegister(transform.ExponentialMovingAverage)
 	MustRegister(transform.Rate)
 	MustRegister(transform.Timeshift)
 	// Tags
