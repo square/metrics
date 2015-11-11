@@ -229,20 +229,24 @@ func (p *Parser) makeDescribe() {
 		p.flagTypeAssertion()
 		return
 	}
-	literal := p.popStringLiteral()
-	p.command = &DescribeCommand{
-		metricName: api.MetricKey(literal),
-		predicate:  predicateNode,
-	}
-}
-
-func (p *Parser) addIndexClause() {
-	describe, ok := p.command.(*DescribeCommand)
+	index, ok := p.popNode(reflect.TypeOf((*indexClause)(nil))).(*indexClause)
 	if !ok {
 		p.flagTypeAssertion()
 		return
 	}
-	describe.index = true
+	literal := p.popStringLiteral()
+	p.command = &DescribeCommand{
+		metricName: api.MetricKey(literal),
+		predicate:  predicateNode,
+		index:      index.useIndexing,
+	}
+}
+
+func (p *Parser) addIndexClause() {
+	p.nodeStack = append(p.nodeStack, &indexClause{true})
+}
+func (p *Parser) noIndexClause() {
+	p.nodeStack = append(p.nodeStack, &indexClause{false})
 }
 
 func (p *Parser) makeSelect() {

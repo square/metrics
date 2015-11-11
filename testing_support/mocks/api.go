@@ -144,7 +144,11 @@ func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smal
 }
 
 func (f FakeTimeseriesStorageAPI) DescribeIndex(metrics []api.TaggedMetric) ([]string, error) {
-	return make([]string, len(metrics)), nil
+	names := make([]string, len(metrics))
+	for i := range names {
+		names[i] = fmt.Sprintf("index %s %s", metrics[i].MetricKey, metrics[i].TagSet.Serialize())
+	}
+	return names, nil
 }
 
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
