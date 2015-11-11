@@ -14,12 +14,12 @@
 
 package forecast
 
-// Returns the unique integer r such that x == r (mod m) and 0 <= r < m
 import (
 	"fmt"
 	"math"
 )
 
+// Returns the unique integer r such that x == r (mod m) and 0 <= r < m
 func mod(x int, m int) int {
 	return ((x % m) + m) % m
 }
