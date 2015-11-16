@@ -90,7 +90,7 @@ func pValueFromNormalDifferences(correct []float64, estimate []float64) ([]float
 		}
 		difference := estimate[i] - correct[i]
 		tvalue := (difference - meandev) / stddev
-		pvalue := 2 * math.Erf(-math.Abs(tvalue))
+		pvalue := 1 - math.Erf(math.Abs(tvalue)/math.Sqrt2)
 		pvalues[i] = pvalue
 	}
 	return pvalues, nil
