@@ -47,7 +47,7 @@ func functionTrainModel(name string, trainer func(ys []float64, period int) (Mod
 				return nil, fmt.Errorf("%s expected the end time to come after the start time", name) // TODO: use a structured error
 			}
 			newContext := context.Copy()
-			newTimerange, err := api.NewSnappedTimerange(context.Timerange.End()-start.Nanoseconds()/1e6, context.Timerange.End()-end.Nanoseconds()/1e6, context.Timerange.ResolutionMillis())
+			newTimerange, err := api.NewSnappedTimerange(context.Timerange.End()+start.Nanoseconds()/1e6, context.Timerange.End()+end.Nanoseconds()/1e6, context.Timerange.ResolutionMillis())
 			if err != nil {
 				return nil, err
 			}
@@ -66,6 +66,9 @@ func functionTrainModel(name string, trainer func(ys []float64, period int) (Mod
 			}
 
 			// How far in the future the fetch time is than the training time.
+			// In general, 'start' will be negative. Therefore, we negate it here,
+			// so that data will be fetched in the model's future (the present)
+			// since it was trained in the past.
 			timeOffset := int(-start / context.Timerange.Resolution())
 
 			for i := range result.Series {
