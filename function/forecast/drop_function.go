@@ -34,7 +34,7 @@ var FunctionDrop = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		lastValue := float64(context.Timerange.Slots()) - float64(context.Timerange.Slots())*dropTime.Seconds()/context.Timerange.Resolution().Seconds()
+		lastValue := float64(context.Timerange.Slots()) - dropTime.Seconds()/context.Timerange.Resolution().Seconds()
 		result := make([]api.Timeseries, len(original.Series))
 		for i, series := range original.Series {
 			values := make([]float64, len(series.Values))
