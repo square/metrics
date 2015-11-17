@@ -14,7 +14,10 @@
 
 package forecast
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // Forecast uses variants of the Holt-Winters model for data.
 // Multiplicative model: Assume y(t) = (a + bt)*f(t)  where f(t) is a periodic function with known period L and mean 1.
@@ -102,10 +105,13 @@ func TrainMultiplicativeHoltWintersModel(ys []float64, period int) (Model, error
 		countS := 0
 		for n := range gs {
 			for m := range gs {
-				if n == m {
+				if n <= m {
 					continue
 				}
 				value := 1 + (gs[n]-gs[m])/beta/float64(period)/float64(n-m)
+				if math.IsNaN(value) {
+					continue
+				}
 				sumS += value
 				countS++
 			}
