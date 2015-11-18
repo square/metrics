@@ -22,8 +22,8 @@ import (
 // FunctionAnomalyMaker makes anomaly-measurement functions that return simple p-values for deviations from the predicted model.
 // In order to make this procedure mostly automatic, it performs a join on the original tagsets to match them up with their predictions.
 func FunctionAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
-	if model.MinArguments < 1 {
-		panic("FunctionAnomalyMaker requires that the model argument take at least one parameter.")
+	if model.MinArguments < 2 {
+		panic("FunctionAnomalyMaker requires that the model argument take at least one parameter; series and period.")
 	}
 	return function.MetricFunction{
 		Name:         name,
@@ -42,6 +42,11 @@ func FunctionAnomalyMaker(name string, model function.MetricFunction) function.M
 			if err != nil {
 				return nil, err
 			}
+			period, err := function.EvaluateToDuration(arguments[1], context)
+			if err != nil {
+				return nil, err
+			}
+			periodSlots := int(period / context.Timerange.Resolution())
 			// Now we need to match up 'original' and 'prediction'
 			// We'll use a hashmap for now.
 			// TODO: clean this up to hog less memory
@@ -53,7 +58,7 @@ func FunctionAnomalyMaker(name string, model function.MetricFunction) function.M
 			result := make([]api.Timeseries, len(prediction.Series))
 			for i, series := range prediction.Series {
 				result[i] = series
-				result[i].Values, err = pValueFromNormalDifferences(lookup[series.TagSet.Serialize()], series.Values)
+				result[i].Values, err = pValueFromNormalDifferenceSlices(lookup[series.TagSet.Serialize()], series.Values, periodSlots)
 				if err != nil {
 					return nil, err
 				}

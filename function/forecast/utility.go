@@ -52,7 +52,6 @@ func LinearRegression(ys []float64) (float64, float64) {
 	alpha := ym - beta*xm
 	return alpha, beta
 }
-
 func pValueFromNormalDifferences(correct []float64, estimate []float64) ([]float64, error) {
 	if len(correct) != len(estimate) {
 		return nil, fmt.Errorf("p-value calculation requires two lists of equal size")
@@ -94,4 +93,35 @@ func pValueFromNormalDifferences(correct []float64, estimate []float64) ([]float
 		pvalues[i] = pvalue
 	}
 	return pvalues, nil
+}
+func pValueFromNormalDifferenceSlices(correct []float64, estimate []float64, period int) ([]float64, error) {
+	if period <= 0 {
+		return nil, fmt.Errorf("Period must be strictly positive")
+	}
+	slices := make([][]float64, period)
+	for r := range slices {
+		// 42. 0 -> 5. 1 -> 5. 2 -> 4.   [0,10,20,30,40] [1,11,21,31,41] [2,12,22,32]
+		// n/p + if n%p < r then 1 else 0
+		length := len(correct) / period
+		if len(correct)%period < r {
+			length++
+		}
+		correctSlice := make([]float64, length)
+		estimateSlice := make([]float64, length)
+		for i := range correctSlice {
+			correctSlice[i] = correct[r+i*period]
+			estimateSlice[i] = estimate[r+i*period]
+		}
+		var err error
+		slices[r], err = pValueFromNormalDifferences(correctSlice, estimateSlice)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// un-interleave the slices
+	answer := make([]float64, len(correct))
+	for i := range answer {
+		answer[i] = slices[i%period][i/period]
+	}
+	return answer, nil
 }
