@@ -90,16 +90,16 @@ func computeRMSEStatistics(t *testing.T, test rollingTest) {
 		results[i] = computeRMSEPercentHoles(correct, period, test.roller, test.noiser)
 	}
 	stats := summarizeSlice(results)
-	improvement := stats.improvementOver(test.maximumError)
-	if math.IsNaN(improvement) {
+	if math.IsNaN(stats.FirstQuartile) || math.IsNaN(stats.Median) || math.IsNaN(stats.ThirdQuartile) {
 		t.Errorf("Roller model `%s` produces unexpected NaNs on input of type `%s` with %s noise", test.rollerName, test.sourceName, test.noiserName)
 		return
 	}
-	if stats.FirstQuartile > test.maximumError.FirstQuartile+1 || stats.Median > test.maximumError.Median+1 || stats.ThirdQuartile > test.maximumError.ThirdQuartile+1 {
+	tolerance := 1.5
+	if stats.FirstQuartile > test.maximumError.FirstQuartile+tolerance || stats.Median > test.maximumError.Median+tolerance || stats.ThirdQuartile > test.maximumError.ThirdQuartile+tolerance {
 		t.Errorf("Model `%s` fails on input `%s` with %s noise\n\terror: %s\n\ttolerance: %s", test.rollerName, test.sourceName, test.noiserName, stats.String(), test.maximumError.String())
 		return
 	}
-	if stats.FirstQuartile+1 < test.maximumError.FirstQuartile || stats.Median+1 < test.maximumError.Median || stats.ThirdQuartile+1 < test.maximumError.ThirdQuartile {
+	if stats.FirstQuartile+tolerance < test.maximumError.FirstQuartile || stats.Median+tolerance < test.maximumError.Median || stats.ThirdQuartile+tolerance < test.maximumError.ThirdQuartile {
 		t.Errorf("You can improve the error bounds for model `%s` on input `%s` with %s noise\n\tError: %s\n\tTolerance: %s", test.rollerName, test.sourceName, test.noiserName, stats.String(), test.maximumError.String())
 		return
 	}
@@ -162,9 +162,9 @@ func TestRollingAccuracy(t *testing.T) {
 			noiser:     spikeNoise,
 			noiserName: "spiking",
 			maximumError: statisticalSummary{
-				FirstQuartile: 20.1,
-				Median:        47.6,
-				ThirdQuartile: 137.1,
+				FirstQuartile: 19.7,
+				Median:        45.6,
+				ThirdQuartile: 134.0,
 			},
 		},
 		{
@@ -200,9 +200,9 @@ func TestRollingAccuracy(t *testing.T) {
 			noiser:     spikeNoise,
 			noiserName: "spiking",
 			maximumError: statisticalSummary{
-				FirstQuartile: 17.8,
-				Median:        42.3,
-				ThirdQuartile: 124.6,
+				FirstQuartile: 17.4,
+				Median:        41.8,
+				ThirdQuartile: 123.0,
 			},
 		},
 	}

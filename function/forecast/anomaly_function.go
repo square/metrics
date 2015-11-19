@@ -70,5 +70,3 @@ func FunctionAnomalyMaker(name string, model function.MetricFunction) function.M
 }
 
 var FunctionAnomalyRollingMultiplicativeHoltWinters = FunctionAnomalyMaker("forecast.anomaly_rolling_multiplicative_holt_winters", FunctionRollingMultiplicativeHoltWinters)
-var FunctionAnomalyTrainGeneralizedHoltWinters = FunctionAnomalyMaker("forecast.anomaly_train_generalized_holt_winters_model", FunctionTrainGeneralizedHoltWinters)
-var FunctionAnomalyTrainMultiplicativeHoltWinters = FunctionAnomalyMaker("forecast.anomaly_train_multiplicative_holt_winters_model", FunctionTrainMultiplicativeHoltWinters)
