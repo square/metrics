@@ -23,7 +23,7 @@ import (
 // In order to make this procedure mostly automatic, it performs a join on the original tagsets to match them up with their predictions.
 func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
 	if model.MinArguments < 2 {
-		panic("FunctionAnomalyMaker requires that the model argument take at least one parameter; series and period.")
+		panic("FunctionAnomalyMaker requires that the model argument take at least two parameters; series and period.")
 	}
 	return function.MetricFunction{
 		Name:         name,
