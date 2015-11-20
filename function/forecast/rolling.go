@@ -134,3 +134,17 @@ func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRat
 	}
 	return estimate
 }
+
+// RollingSeasonal estimates purely seasonal data without a trend or level component.
+// For data which shows no long- or short-term trends, this model is more likely to recognize
+// deviant behavior. However, it will perform worse than Holt-Winters on data which does
+// have any significant trends.
+func RollingSeasonal(ys []float64, period int, seasonalLearningRate float64) []float64 {
+	season := newCycle(seasonalLearningRate, period)
+	estimate := make([]float64, len(ys))
+	for i := range ys {
+		season.observe(i, ys[i])
+		estimate[i] = season.get(i)
+	}
+	return estimate
+}

@@ -120,6 +120,11 @@ func parameters(fun func([]float64, int, float64, float64, float64) []float64, a
 		return fun(xs, p, a, b, c)
 	}
 }
+func learnrate(fun func([]float64, int, float64) []float64, rate float64) func([]float64, int) []float64 {
+	return func(xs []float64, p int) []float64 {
+		return fun(xs, p, rate)
+	}
+}
 
 // TestRollingAccuracy tests how accurate the rolling forecast functions are.
 // For example, those that use exponential smoothing to estimate the parameters of the Multiplicative Holt-Winters model.
@@ -203,6 +208,166 @@ func TestRollingAccuracy(t *testing.T) {
 				FirstQuartile: 17.4,
 				Median:        41.8,
 				ThirdQuartile: 123.0,
+			},
+		},
+
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.5, 0.5, 0.6),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiserName: "no",
+			maximumError: statisticalSummary{
+				FirstQuartile: 1.0,
+				Median:        2.5,
+				ThirdQuartile: 6.6,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.5, 0.5, 0.6),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiser:     gaussianNoise,
+			noiserName: "gaussian (strength 1)",
+			maximumError: statisticalSummary{
+				FirstQuartile: 1.2,
+				Median:        2.6,
+				ThirdQuartile: 6.7,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.5, 0.4, 0.4),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiser:     spikeNoise,
+			noiserName: "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 19.7,
+				Median:        45.6,
+				ThirdQuartile: 134.0,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiserName: "no",
+			maximumError: statisticalSummary{
+				FirstQuartile: 10.6,
+				Median:        17.9,
+				ThirdQuartile: 40.8,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiser:     gaussianNoise,
+			noiserName: "gaussian (strength 1)",
+			maximumError: statisticalSummary{
+				FirstQuartile: 10.9,
+				Median:        18.4,
+				ThirdQuartile: 42.4,
+			},
+		},
+		{
+			roller:     parameters(RollingMultiplicativeHoltWinters, 0.36, 0.36, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiser:     spikeNoise,
+			noiserName: "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 17.4,
+				Median:        41.8,
+				ThirdQuartile: 123.0,
+			},
+		},
+		/////////
+		/////////
+		/////////
+		/////////
+		/////////
+		/////////
+		/////////
+		{
+			roller:     learnrate(RollingSeasonal, 0.6),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiserName: "no",
+			maximumError: statisticalSummary{
+				FirstQuartile: 9.3,
+				Median:        16.4,
+				ThirdQuartile: 40.6,
+			},
+		},
+		{
+			roller:     learnrate(RollingSeasonal, 0.6),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiser:     gaussianNoise,
+			noiserName: "gaussian (strength 1)",
+			maximumError: statisticalSummary{
+				FirstQuartile: 9.2,
+				Median:        16.4,
+				ThirdQuartile: 43.8,
+			},
+		},
+		{
+			roller:     learnrate(RollingSeasonal, 0.4),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureMultiplicativeHoltWintersSource,
+			sourceName: "pure random Holt-Winters model instance",
+			noiser:     spikeNoise,
+			noiserName: "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 19.7,
+				Median:        33.0,
+				ThirdQuartile: 76.2,
+			},
+		},
+		{
+			roller:     learnrate(RollingSeasonal, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiserName: "no",
+			maximumError: statisticalSummary{
+				FirstQuartile: 16.3,
+				Median:        22.3,
+				ThirdQuartile: 43.0,
+			},
+		},
+		{
+			roller:     learnrate(RollingSeasonal, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiser:     gaussianNoise,
+			noiserName: "gaussian (strength 1)",
+			maximumError: statisticalSummary{
+				FirstQuartile: 16.4,
+				Median:        22.5,
+				ThirdQuartile: 43.1,
+			},
+		},
+		{
+			roller:     learnrate(RollingSeasonal, 0.88),
+			rollerName: "Rolling Multiplicative Holt-Winters",
+			source:     pureInterpolatingMultiplicativeHoltWintersSource,
+			sourceName: "time-interpolation of two pure random Holt-Winters model instances",
+			noiser:     spikeNoise,
+			noiserName: "spiking",
+			maximumError: statisticalSummary{
+				FirstQuartile: 19.8,
+				Median:        32.7,
+				ThirdQuartile: 101.6,
 			},
 		},
 	}
