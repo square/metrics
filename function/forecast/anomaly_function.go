@@ -21,7 +21,7 @@ import (
 
 // FunctionAnomalyMaker makes anomaly-measurement functions that return simple p-values for deviations from the predicted model.
 // In order to make this procedure mostly automatic, it performs a join on the original tagsets to match them up with their predictions.
-func FunctionAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
+func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
 	if model.MinArguments < 2 {
 		panic("FunctionAnomalyMaker requires that the model argument take at least one parameter; series and period.")
 	}
@@ -69,4 +69,5 @@ func FunctionAnomalyMaker(name string, model function.MetricFunction) function.M
 	}
 }
 
-var FunctionAnomalyRollingMultiplicativeHoltWinters = FunctionAnomalyMaker("forecast.anomaly_rolling_multiplicative_holt_winters", FunctionRollingMultiplicativeHoltWinters)
+var FunctionAnomalyRollingMultiplicativeHoltWinters = FunctionPeriodicAnomalyMaker("forecast.anomaly_rolling_multiplicative_holt_winters", FunctionRollingMultiplicativeHoltWinters)
+var FunctionAnomalyRollingSeasonal = FunctionPeriodicAnomalyMaker("forecast.anomaly_rolling_seasonal", FunctionRollingSeasonal)

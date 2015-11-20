@@ -79,6 +79,9 @@ func init() {
 	// Forecasting
 	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionAnomalyRollingMultiplicativeHoltWinters)
+	MustRegister(forecast.FunctionRollingSeasonal)
+	MustRegister(forecast.FunctionAnomalyRollingSeasonal)
+	MustRegister(forecast.FunctionForecastLinear)
 
 	MustRegister(forecast.FunctionDrop)
 }
