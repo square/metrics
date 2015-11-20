@@ -77,13 +77,13 @@ func init() {
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
 	// Forecasting
-	MustRegister(forecast.FunctionTrainGeneralizedHoltWinters)
-	MustRegister(forecast.FunctionTrainMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)
-
-	MustRegister(forecast.FunctionAnomalyTrainGeneralizedHoltWinters)
-	MustRegister(forecast.FunctionAnomalyTrainMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionAnomalyRollingMultiplicativeHoltWinters)
+	MustRegister(forecast.FunctionRollingSeasonal)
+	MustRegister(forecast.FunctionAnomalyRollingSeasonal)
+	MustRegister(forecast.FunctionForecastLinear)
+
+	MustRegister(forecast.FunctionDrop)
 }
 
 // StandardRegistry of a functions available in MQE.
