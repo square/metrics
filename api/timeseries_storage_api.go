@@ -25,6 +25,7 @@ type TimeseriesStorageAPI interface {
 	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
 	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	DescribeIndex([]TaggedMetric) ([]string, error)
 }
 
 type FetchTimeseriesRequest struct {

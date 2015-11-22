@@ -201,6 +201,7 @@ module.run(function($http) {
     "by",
     "collapse",
     "describe",
+	"index",
     "from",
     "group",
     "match",
@@ -635,4 +636,3 @@ function makeLabel(onlySingleSeries, serieslist, series) {
 function hasProfiling(data) {
   return data && data.profile;
 }
-

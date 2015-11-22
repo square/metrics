@@ -133,6 +133,19 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
+func (b *Blueflood) DescribeIndex(metrics []api.TaggedMetric) ([]string, error) {
+	result := make([]string, len(metrics))
+	for i, metric := range metrics {
+		index, err := b.graphiteConverter.ToGraphiteName(metric)
+		if err != nil {
+			result[i] = fmt.Sprintf("* conversion error: %s", err.Error())
+		} else {
+			result[i] = string(index)
+		}
+	}
+	return result, nil
+}
+
 func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
 	go func() {
 		select {

@@ -108,6 +108,10 @@ type matcherClause struct {
 	regex *regexp.Regexp
 }
 
+type indexClause struct {
+	useIndexing bool
+}
+
 // temporary nodes
 // ---------------
 // These nodes are only present during the parsing step and are not present
@@ -247,6 +251,11 @@ func (node *tagLiteral) Print(buffer *bytes.Buffer, indent int) {
 func (node *matcherClause) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
 	printHelper(buffer, indent+1, node.regex.String())
+}
+
+func (node *indexClause) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, fmt.Sprintf("%t", node.useIndexing))
 }
 
 // Expressions

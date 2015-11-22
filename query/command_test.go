@@ -72,6 +72,50 @@ func TestCommand_Describe(t *testing.T) {
 	}
 }
 
+func TestCommand_DescribeIndex(t *testing.T) {
+	fakeAPI := mocks.NewFakeMetricMetadataAPI()
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")})
+
+	query := "describe series_0 index"
+
+	a := assert.New(t).Contextf("query=%s", query)
+
+	fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
+
+	command, err := Parse(query)
+	a.CheckError(err)
+	a.EqString(command.Name(), "describe")
+	result, err := command.Execute(ExecutionContext{
+		TimeseriesStorageAPI:      fakeTimeseriesStorage,
+		MetricMetadataAPI:         fakeAPI,
+		FetchLimit:                1000,
+		Timeout:                   0,
+		OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+	})
+	a.CheckError(err)
+	if result.Metadata == nil {
+		t.Fatalf("Expected metadata in result from `%s`", query)
+	}
+	indexValue, ok := result.Metadata["indexes"]
+	if !ok {
+		t.Fatalf("Expected metadata to have `index` field")
+	}
+	index, ok := indexValue.([]string)
+	if !ok {
+		t.Fatalf("Expected metadata field `index` to have type []string")
+	}
+	expected := []string{
+		"index series_0{dc=west,env=production,host=a}",
+		"index series_0{dc=west,env=staging,host=b}",
+		"index series_0{dc=east,env=production,host=c}",
+		"index series_0{dc=east,env=staging,host=d}",
+	}
+	a.Eq(index, expected)
+}
+
 func TestCommand_DescribeAll(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("")})
