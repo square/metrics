@@ -37,6 +37,9 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err
 			}
+			// TODO: improve sharing by using the `original` value as the first argument to the arguments,
+			// since the context is known to be the same and therefore it should evaluate identically.
+			// There is currently no standard "literal series list node" or similar that we could use for this purepose.
 			predictionValue, err := model.Compute(context, arguments, groups)
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
