@@ -8,6 +8,8 @@ Indexer & Query Engine for Square's metrics.
 
 **This project is still under development and should not be used for anything in production yet. We are not seeking external contributors at this time**
 
+We currently support Go 1.4 and Go 1.5.
+
 Development
 ===========
 
@@ -60,6 +62,7 @@ Dependencies
 
 ```
 go get github.com/gocql/gocql
+go get github.com/pointlander/peg
 go get gopkg.in/yaml.v2
 ```
 
@@ -77,5 +80,4 @@ Please ensure the code is correctly formatted and passes the linter.
 
 ```
 go fmt ./...
-golint ./... # TODO - exclude generated files.
 ```
