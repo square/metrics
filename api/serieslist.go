@@ -25,8 +25,7 @@ import (
 type SeriesList struct {
 	Series    []Timeseries `json:"series"`
 	Timerange Timerange    `json:"timerange"`
-	Name      string       `json:"name"`  // human-readable description of the given time series.
-	Query     string       `json:"query"` // query actually executed for the series
+	Name      string       `json:"name"` // human-readable description of the given time series.
 }
 
 // IsValid determines whether the given time series is valid.

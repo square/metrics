@@ -78,10 +78,6 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 			Series:    make([]api.Timeseries, len(seriesList.Series)),
 			Timerange: context.Timerange,
 			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.rolling_multiplicative_holt_winters(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate),
-		}
-		if extraTrainingTime > 0 {
-			result.Query = fmt.Sprintf("forecast.rolling_multiplicative_holt_winters(%s, %s, %f, %f, %s)", seriesList.Query, period.String(), seasonalLearningRate, trendLearningRate, extraTrainingTime.String())
 		}
 
 		for seriesIndex, series := range seriesList.Series {
@@ -142,10 +138,6 @@ var FunctionRollingSeasonal = function.MetricFunction{
 			Series:    make([]api.Timeseries, len(seriesList.Series)),
 			Timerange: context.Timerange,
 			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.rolling_seasonal(%s, %s, %f, %f)", seriesList.Query, period.String(), seasonalLearningRate),
-		}
-		if extraTrainingTime > 0 {
-			result.Query = fmt.Sprintf("forecast.rolling_seasonal(%s, %s, %f, %f, %s)", seriesList.Query, period.String(), seasonalLearningRate, extraTrainingTime.String())
 		}
 
 		for seriesIndex, series := range seriesList.Series {
@@ -194,10 +186,6 @@ var FunctionForecastLinear = function.MetricFunction{
 			Series:    make([]api.Timeseries, len(seriesList.Series)),
 			Timerange: context.Timerange,
 			Name:      seriesList.Name,
-			Query:     fmt.Sprintf("forecast.linear(%s)", seriesList.Query),
-		}
-		if extraTrainingTime > 0 {
-			result.Query = fmt.Sprintf("forecast.linear(%s, %s)", seriesList.Query, extraTrainingTime.String())
 		}
 
 		for seriesIndex, series := range seriesList.Series {

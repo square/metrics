@@ -17,7 +17,6 @@ package transform
 import (
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -46,8 +45,7 @@ var Timeshift = function.MetricFunction{
 
 		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Query = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
-			seriesValue.Name = seriesValue.Query
+			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
 			return seriesValue, nil
 		}
 		return result, nil
@@ -127,8 +125,7 @@ var MovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Query = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		list.Name = list.Query
+		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
 		return list, nil
 	},
 }
@@ -155,7 +152,6 @@ var Alias = function.MetricFunction{
 			return nil, err
 		}
 		list.Name = name
-		list.Query = fmt.Sprintf("transform.alias(%s, %s)", value.GetName(), strconv.Quote(name))
 		return list, nil
 	},
 }
@@ -259,8 +255,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 				}
 			}
 
-			result.Query = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
-			result.Name = result.Query
+			result.Name = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
 			return result, nil
 		},
 	}
