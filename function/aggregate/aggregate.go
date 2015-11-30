@@ -213,7 +213,6 @@ func AggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags [
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(groups)),
 		Timerange: list.Timerange,
-		Name:      list.Name,
 	}
 
 	for i, group := range groups {

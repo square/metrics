@@ -30,7 +30,6 @@ type Value interface {
 	ToString() (string, error)
 	ToScalar() (float64, error)
 	ToDuration() (time.Duration, error)
-	GetName() string
 }
 
 // A StringValue holds a string

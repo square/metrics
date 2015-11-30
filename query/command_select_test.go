@@ -60,7 +60,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
-			Name:      "series_1",
 		}}},
 		{"select series_timeout from 0 to 120 resolution 30ms", true, []api.SeriesList{}},
 		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
@@ -69,7 +68,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
-			Name:      "",
 		}}},
 		{"select series_1 * 2 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -77,7 +75,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: testTimerange,
-			Name:      "",
 		}}},
 		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -85,7 +82,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.NewTagSet(),
 			}},
 			Timerange: testTimerange,
-			Name:      "series_2",
 		}}},
 		{"select (1 + series_2) | aggregate.max from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -93,7 +89,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.NewTagSet(),
 			}},
 			Timerange: testTimerange,
-			Name:      "series_2",
 		}}},
 		{"select series_1 from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -101,7 +96,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
-			Name:      "series_1",
 		}}},
 		{"select transform.timeshift(series_1,31ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -109,7 +103,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
-			Name:      "series_1",
 		}}},
 		{"select transform.timeshift(series_1,62ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -117,7 +110,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
-			Name:      "series_1",
 		}}},
 		{"select transform.timeshift(series_1,29ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -125,7 +117,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: earlyTimerange,
-			Name:      "series_1",
 		}}},
 		{"select transform.timeshift(series_1,-31ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -133,7 +124,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: lateTimerange,
-			Name:      "series_1",
 		}}},
 		{"select transform.timeshift(series_1,-29ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
@@ -141,7 +131,6 @@ func TestCommand_Select(t *testing.T) {
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
 			Timerange: lateTimerange,
-			Name:      "series_1",
 		}}},
 		{"select series_3 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{

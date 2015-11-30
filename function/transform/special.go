@@ -45,7 +45,6 @@ var Timeshift = function.MetricFunction{
 
 		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Name = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
 			return seriesValue, nil
 		}
 		return result, nil
@@ -125,7 +124,6 @@ var MovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Name = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
 		return list, nil
 	},
 }
@@ -135,24 +133,7 @@ var Alias = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		value, err := arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		list, err := value.ToSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		nameValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		name, err := nameValue.ToString()
-		if err != nil {
-			return nil, err
-		}
-		list.Name = name
-		return list, nil
+		return arguments[0].Evaluate(context)
 	},
 }
 
@@ -254,8 +235,6 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
 				}
 			}
-
-			result.Name = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
 			return result, nil
 		},
 	}

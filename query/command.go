@@ -172,6 +172,7 @@ func (cmd *DescribeMetricsCommand) Name() string {
 type QuerySeriesList struct {
 	api.SeriesList
 	Query string `json:"query"`
+	Name  string `json:"name"`
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
@@ -294,6 +295,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			body[i] = QuerySeriesList{
 				SeriesList: lists[i],
 				Query:      cmd.expressions[i].QueryString(),
+				Name:       cmd.expressions[i].Name(),
 			}
 		}
 

@@ -14,10 +14,7 @@
 
 package api
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 // SeriesList is a list of time series sharing the same time range.
 // this struct must satisfy the `function.Value` interface. However, a type assertion
@@ -25,7 +22,6 @@ import (
 type SeriesList struct {
 	Series    []Timeseries `json:"series"`
 	Timerange Timerange    `json:"timerange"`
-	Name      string       `json:"name"` // human-readable description of the given time series.
 }
 
 // IsValid determines whether the given time series is valid.
@@ -44,17 +40,13 @@ func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
 }
 
 func (list SeriesList) ToString() (string, error) {
-	return "", ConversionError{"SeriesList", "string", fmt.Sprintf("serieslist[%s]", list.Name)}
+	return "", ConversionError{"SeriesList", "string", "serieslist[_]"}
 }
 
 func (list SeriesList) ToScalar() (float64, error) {
-	return 0, ConversionError{"SeriesList", "scalar", fmt.Sprintf("serieslist[%s]", list.Name)}
+	return 0, ConversionError{"SeriesList", "scalar", "serieslist[_]"}
 }
 
 func (list SeriesList) ToDuration() (time.Duration, error) {
-	return 0, ConversionError{"SeriesList", "duration", fmt.Sprintf("serieslist[%s]", list.Name)}
-}
-
-func (list SeriesList) GetName() string {
-	return list.Name
+	return 0, ConversionError{"SeriesList", "duration", "serieslist[_]"}
 }

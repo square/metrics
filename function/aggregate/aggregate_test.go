@@ -70,7 +70,6 @@ func Test_groupBy(t *testing.T) {
 			},
 		},
 		Timerange: api.Timerange{},
-		Name:      "",
 	}
 
 	var aggregateTestCases = []struct {
@@ -331,7 +330,6 @@ func Test_AggregateBy(t *testing.T) {
 			},
 		},
 		timerange,
-		"Test.List",
 	}
 
 	var aggregatedTests = []struct {
@@ -614,10 +612,6 @@ func Test_AggregateBy(t *testing.T) {
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {
 			t.Errorf("Expected aggregate's Timerange to be %+v but is %+v", testList.Timerange, aggregated.Timerange)
-			continue
-		}
-		if aggregated.Name != testList.Name {
-			t.Errorf("Expected aggregate's Name to be %s but is %s", testList.Name, aggregated.Name)
 			continue
 		}
 		if len(aggregated.Series) != len(testCase.Results) {
