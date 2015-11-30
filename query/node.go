@@ -145,6 +145,19 @@ func (f functionExpression) QueryString() string {
 	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
 
+type annotationExpression struct {
+	content    function.Expression
+	annotation string
+}
+
+func (ae annotationExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+	return ae.content.Evaluate(context)
+}
+
+func (ae annotationExpression) QueryString() string {
+	return ae.annotation
+}
+
 // etc nodes
 // ---------
 
@@ -328,6 +341,12 @@ func (node *functionExpression) Print(buffer *bytes.Buffer, indent int) {
 	for _, expression := range node.arguments {
 		printUnknown(buffer, indent+1, expression)
 	}
+}
+
+func (node *annotationExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.annotation)
+	printUnknown(buffer, indent+1, node.content)
 }
 
 func (node *metricFetchExpression) Print(buffer *bytes.Buffer, indent int) {
