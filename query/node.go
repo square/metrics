@@ -17,6 +17,7 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -157,6 +158,13 @@ func (f functionExpression) QueryString() string {
 	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
 func (f functionExpression) Name() string {
+	// TODO: deprecate this behavior before it becomes permanent
+	if f.functionName == "transform.alias" && len(f.arguments) == 2 {
+		log.Printf("I'm an alias")
+		if alias, ok := f.arguments[1].(*stringExpression); ok {
+			return alias.value
+		}
+	}
 	return f.QueryString()
 }
 

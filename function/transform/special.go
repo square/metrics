@@ -133,6 +133,9 @@ var Alias = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		// TODO: delete this function
+		// also, this operation is not thread-safe, is it?
+		context.EvaluationNotes = append(context.EvaluationNotes, "transform.alias is deprecated")
 		return arguments[0].Evaluate(context)
 	},
 }
