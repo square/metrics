@@ -76,9 +76,18 @@ type durationExpression struct {
 	duration time.Duration // milliseconds
 }
 
+// TODO: get a better format than the one provided by 'String()'
+func (d durationExpression) QueryString() string {
+	return d.name
+}
+
 // scalarExpression represents a scalar constant embedded within the expression.
 type scalarExpression struct {
 	value float64
+}
+
+func (s scalarExpression) QueryString() string {
+	return fmt.Sprintf("%v", s.value)
 }
 
 // stringExpression represents a string literal used as an expression.
@@ -86,10 +95,19 @@ type stringExpression struct {
 	value string
 }
 
+func (s stringExpression) QueryString() string {
+	return fmt.Sprintf("%q", s.value)
+}
+
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
 	metricName string
 	predicate  api.Predicate
+}
+
+// TODO: QueryString should indicate the associated predicate
+func (s metricFetchExpression) QueryString() string {
+	return s.metricName
 }
 
 // functionExpression represents a function call with subexpressions.
@@ -99,6 +117,32 @@ type functionExpression struct {
 	arguments        []function.Expression
 	groupBy          []string
 	groupByCollapses bool
+}
+
+// QueryString does the heavy lifting so implementations don't have to.
+func (f functionExpression) QueryString() string {
+	switch f.functionName {
+	case "+", "-", "*", "/":
+		if len(f.arguments) != 2 {
+			// Then it's not actually an operator.
+			break
+		}
+		return fmt.Sprintf("(%s %s %s)", f.arguments[0].QueryString(), f.functionName, f.arguments[1].QueryString())
+	}
+	argumentQueries := make([]string, len(f.arguments))
+	for i := range argumentQueries {
+		argumentQueries[i] = f.arguments[i].QueryString()
+	}
+	argumentString := strings.Join(argumentQueries, ", ")
+	groupString := ""
+	if len(f.groupBy) != 0 {
+		groupKeyword := "group by"
+		if f.groupByCollapses {
+			groupKeyword = "collapse by"
+		}
+		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(f.groupBy, ", "))
+	}
+	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
 
 // etc nodes

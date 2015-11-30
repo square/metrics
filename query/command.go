@@ -280,8 +280,23 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			}
 			description[key] = filtered
 		}
+
+		// Body adds the Query as an annotation.
+		// It's a slice of interfaces; it will be cast to an interface
+		// when returned from this function in a CommandResult.
+		body := make([]interface{}, len(lists))
+		for i := range body {
+			body[i] = struct {
+				api.SeriesList
+				Query string `json:"query"`
+			}{
+				SeriesList: lists[i],
+				Query:      cmd.expressions[i].QueryString(),
+			}
+		}
+
 		return CommandResult{
-			Body: lists,
+			Body: body,
 			Metadata: map[string]interface{}{
 				"description": description,
 				"notes":       evaluationContext.EvaluationNotes,

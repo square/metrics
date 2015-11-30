@@ -148,6 +148,7 @@ func (c FetchCounter) Consume(n int) bool {
 type Expression interface {
 	// Evaluate the given expression.
 	Evaluate(context *EvaluationContext) (Value, error)
+	QueryString() string
 }
 
 func EvaluateToScalar(e Expression, context *EvaluationContext) (float64, error) {

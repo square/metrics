@@ -31,6 +31,10 @@ type LiteralExpression struct {
 	Values []float64
 }
 
+func (le LiteralExpression) QueryString() string {
+	return "<literal expression>"
+}
+
 func (expr *LiteralExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{Values: expr.Values, TagSet: api.NewTagSet()}},
@@ -40,6 +44,10 @@ func (expr *LiteralExpression) Evaluate(context *function.EvaluationContext) (fu
 
 type LiteralSeriesExpression struct {
 	list api.SeriesList
+}
+
+func (lse LiteralSeriesExpression) QueryString() string {
+	return "<literal series expression>"
 }
 
 func (expr *LiteralSeriesExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
