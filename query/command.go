@@ -169,6 +169,11 @@ func (cmd *DescribeMetricsCommand) Name() string {
 	return "describe metrics"
 }
 
+type QuerySeriesList struct {
+	api.SeriesList
+	Query string `json:"query"`
+}
+
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	userTimerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
@@ -284,12 +289,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		// Body adds the Query as an annotation.
 		// It's a slice of interfaces; it will be cast to an interface
 		// when returned from this function in a CommandResult.
-		body := make([]interface{}, len(lists))
+		body := make([]QuerySeriesList, len(lists))
 		for i := range body {
-			body[i] = struct {
-				api.SeriesList
-				Query string `json:"query"`
-			}{
+			body[i] = QuerySeriesList{
 				SeriesList: lists[i],
 				Query:      cmd.expressions[i].QueryString(),
 			}

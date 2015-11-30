@@ -442,14 +442,11 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			a.CheckError(err)
-			actual := rawResult.Body.([]interface{})
+			actual := rawResult.Body.([]QuerySeriesList)
 			a.EqInt(len(actual), len(expected))
 			if len(actual) == len(expected) {
 				for i := range actual {
-					list := actual[i].(struct {
-						api.SeriesList
-						Query string `json:"query"`
-					})
+					list := actual[i]
 					a.EqInt(len(list.Series), len(expected[i].Series))
 					for j := range list.Series {
 						a.Eq(list.Series[j].TagSet, expected[i].Series[j].TagSet)
@@ -577,19 +574,12 @@ func TestNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]interface{})
+		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []interface{} containing struct{api.SeriesList; Query string `json:\"query\"`}; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
+			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
-		actualList, ok := seriesListList[0].(struct {
-			api.SeriesList
-			Query string `json:"query"`
-		})
-		if !ok {
-			t.Errorf("expected list of struct{api.SeriesList; Query string `json:\"query\"`} but got %+T", actualList)
-		}
-		actual := actualList.Name
+		actual := seriesListList[0].Name
 		if actual != test.expected {
 			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
 			continue
@@ -680,20 +670,12 @@ func TestQuery(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]interface{})
+		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []interface{} containing struct{api.SeriesList; Query `json:\"string\"`}; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
+			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
-		firstSeriesList, ok := seriesListList[0].(struct {
-			api.SeriesList
-			Query string `json:"query"`
-		})
-		if !ok {
-			t.Errorf("expected first element of result slice to be of type struct{api.SeriesList; Query `json:\"string\"`}; but got %+v :: %T", seriesListList[0], seriesListList[0])
-			continue
-		}
-		actual := firstSeriesList.Query
+		actual := seriesListList[0].Query
 		if actual != test.expected {
 			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
 			continue
@@ -795,22 +777,12 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]interface{})
+		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []interface{} containing struct{api.SeriesList; Query string `json:\"query\"`}; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
+			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
-		list, ok := seriesListList[0].(struct {
-			api.SeriesList
-			Query string `json:"query"`
-		})
-		if !ok {
-			t.Errorf("expected query to contain a struct{api.SeriesList; Query string `json:\"query\"`}; but got %+v :: %T", seriesListList[0], seriesListList[0])
-			continue
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
+		list := seriesListList[0]
 		a := assert.New(t)
 		expectedSeries := test.expected.Series
 		for i, series := range list.Series {
