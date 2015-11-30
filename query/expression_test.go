@@ -34,6 +34,9 @@ type LiteralExpression struct {
 func (le LiteralExpression) QueryString() string {
 	return "<literal expression>"
 }
+func (le LiteralExpression) Name() string {
+	return "<literal expression>"
+}
 
 func (expr *LiteralExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return api.SeriesList{
@@ -49,7 +52,9 @@ type LiteralSeriesExpression struct {
 func (lse LiteralSeriesExpression) QueryString() string {
 	return "<literal series expression>"
 }
-
+func (lse LiteralSeriesExpression) Name() string {
+	return "<literal series expression>"
+}
 func (expr *LiteralSeriesExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
 	return expr.list, nil
 }

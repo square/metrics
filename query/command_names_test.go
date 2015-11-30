@@ -60,7 +60,7 @@ func TestNaming(t *testing.T) {
 			expected: "aggregate.sum(series_1 group by dc)",
 		},
 		{
-			query:    "select aggregate.sum(series_1 group by dc,env) from 0 to 0",
+			query:    "select aggregate.sum(series_1 group by dc, env) from 0 to 0",
 			expected: "aggregate.sum(series_1 group by dc, env)",
 		},
 		{
@@ -72,7 +72,7 @@ func TestNaming(t *testing.T) {
 			expected: "aggregate.sum(series_1 collapse by dc, env)",
 		},
 		{
-			query:    "select transform.alias(aggregate.sum(series_1 group by dc,env), 'hello') from 0 to 0",
+			query:    "select transform.alias(aggregate.sum(series_1 group by dc, env), 'hello') from 0 to 0",
 			expected: "hello",
 		},
 		{
@@ -181,32 +181,32 @@ func TestQuery(t *testing.T) {
 		},
 		// Tests for {annotations} in queries
 		{
-			query:    "select series_1 {annotation override} from 0 to 0",
-			expected: "annotation override",
+			query:    "select series_1{annotation override} from 0 to 0",
+			expected: "series_1 {annotation override}",
 		},
 		{
-			query:    "select aggregate.sum(series_1 group by dc,env) {hello} from 0 to 0",
-			expected: "hello",
+			query:    "select aggregate.sum(series_1 group by dc,env)   {hello} from 0 to 0",
+			expected: "aggregate.sum(series_1 group by dc, env) {hello}",
 		},
 		{
 			query:    "select series_1 + series_2 {hello} from 0 to 0",
-			expected: "(series_1 + hello)",
+			expected: "(series_1 + series_2 {hello})",
 		},
 		{
 			query:    "select series_1 {goodbye} + series_2 {hello} from 0 to 0",
-			expected: "(goodbye + hello)",
+			expected: "(series_1 {goodbye} + series_2 {hello})",
 		},
 		{
 			query:    `select (series_1 + series_2) {varied whitespace and 0987654321~!@#$%^&*()||\\,,[]:<>.?/"''" punctuation is allowed} from 0 to 0`,
-			expected: `varied whitespace and 0987654321~!@#$%^&*()||\\,,[]:<>.?/"''" punctuation is allowed`,
+			expected: `(series_1 + series_2) {varied whitespace and 0987654321~!@#$%^&*()||\\,,[]:<>.?/"''" punctuation is allowed}`,
 		},
 		{
 			query:    "select series_1 | aggregate.sum {it's a sum} from 0 to 0",
-			expected: "it's a sum",
+			expected: "aggregate.sum(series_1) {it's a sum}",
 		},
 		{
 			query:    "select series_1 | aggregate.sum {it's a sum} | transform.derivative from 0 to 0",
-			expected: "transform.derivative(it's a sum)",
+			expected: "transform.derivative(aggregate.sum(series_1) {it's a sum})",
 		},
 	}
 	for _, test := range tests {

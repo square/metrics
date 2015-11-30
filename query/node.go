@@ -76,9 +76,12 @@ type durationExpression struct {
 	duration time.Duration // milliseconds
 }
 
-// TODO: get a better format than the one provided by 'String()'
 func (d durationExpression) QueryString() string {
 	return d.name
+}
+
+func (d durationExpression) Name() string {
+	return d.QueryString()
 }
 
 // scalarExpression represents a scalar constant embedded within the expression.
@@ -89,6 +92,9 @@ type scalarExpression struct {
 func (s scalarExpression) QueryString() string {
 	return fmt.Sprintf("%v", s.value)
 }
+func (s scalarExpression) Name() string {
+	return s.QueryString()
+}
 
 // stringExpression represents a string literal used as an expression.
 type stringExpression struct {
@@ -98,6 +104,9 @@ type stringExpression struct {
 func (s stringExpression) QueryString() string {
 	return fmt.Sprintf("%q", s.value)
 }
+func (s stringExpression) Name() string {
+	return s.QueryString()
+}
 
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
@@ -106,8 +115,11 @@ type metricFetchExpression struct {
 }
 
 // TODO: QueryString should indicate the associated predicate
-func (s metricFetchExpression) QueryString() string {
-	return s.metricName
+func (m metricFetchExpression) QueryString() string {
+	return m.metricName
+}
+func (m metricFetchExpression) Name() string {
+	return m.QueryString()
 }
 
 // functionExpression represents a function call with subexpressions.
@@ -144,6 +156,9 @@ func (f functionExpression) QueryString() string {
 	}
 	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
+func (f functionExpression) Name() string {
+	return f.QueryString()
+}
 
 type annotationExpression struct {
 	content    function.Expression
@@ -155,6 +170,9 @@ func (ae annotationExpression) Evaluate(context *function.EvaluationContext) (fu
 }
 
 func (ae annotationExpression) QueryString() string {
+	return fmt.Sprintf("%s {%s}", ae.content.QueryString(), ae.annotation)
+}
+func (ae annotationExpression) Name() string {
 	return ae.annotation
 }
 
