@@ -2,6 +2,7 @@ package function
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,9 +29,31 @@ type EvaluationContext struct {
 	Registry                  Registry
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
-	EvaluationNotes           []string //Debug + numerical notes that can be added during evaluation
-	invalid                   bool     // Because these can be copied, it's best to mark a no-longer used context as dead
+	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
+	invalid                   bool             // Because these can be copied, it's best to mark a no-longer used context as dead
 	UserSpecifiableConfig     api.UserSpecifiableConfig
+}
+
+type EvaluationNotes struct {
+	mutex sync.Mutex
+	notes []string
+}
+
+func (notes *EvaluationNotes) AddNote(note string) {
+	if notes == nil {
+		return
+	}
+	notes.mutex.Lock()
+	defer notes.mutex.Unlock()
+	notes.notes = append(notes.notes, note)
+}
+func (notes *EvaluationNotes) Notes() []string {
+	if notes == nil {
+		return nil
+	}
+	notes.mutex.Lock()
+	defer notes.mutex.Unlock()
+	return notes.notes
 }
 
 type Registry interface {
@@ -50,49 +73,19 @@ type MetricFunction struct {
 	MinArguments  int
 	MaxArguments  int
 	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
-	Compute       func(*EvaluationContext, []Expression, Groups) (Value, error)
+	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
 }
 
-func (e *EvaluationContext) Copy() EvaluationContext {
-	return EvaluationContext{
-		MetricMetadataAPI:         e.MetricMetadataAPI,
-		FetchLimit:                e.FetchLimit,
-		TimeseriesStorageAPI:      e.TimeseriesStorageAPI,
-		Predicate:                 e.Predicate,
-		SampleMethod:              e.SampleMethod,
-		Timerange:                 e.Timerange,
-		Cancellable:               e.Cancellable,
-		Registry:                  e.Registry,
-		Profiler:                  e.Profiler,
-		OptimizationConfiguration: e.OptimizationConfiguration,
-		EvaluationNotes:           []string{},
-		invalid:                   false,
-		UserSpecifiableConfig:     e.UserSpecifiableConfig,
-	}
+func (e EvaluationContext) AddNote(note string) {
+	e.EvaluationNotes.AddNote(note)
 }
 
-func (e *EvaluationContext) AddNote(note string) {
-	if e.EvaluationNotes == nil {
-		e.EvaluationNotes = []string{}
-	}
-	e.EvaluationNotes = append(e.EvaluationNotes, note)
-}
-
-func (e *EvaluationContext) CopyNotesFrom(other *EvaluationContext) {
-	if e.EvaluationNotes == nil {
-		e.EvaluationNotes = []string{}
-	}
-	if len(other.EvaluationNotes) > 0 {
-		e.EvaluationNotes = append(e.EvaluationNotes, other.EvaluationNotes...)
-	}
-}
-
-func (e *EvaluationContext) Invalidate() {
-	e.invalid = true
+func (e EvaluationContext) Notes() []string {
+	return e.EvaluationNotes.Notes()
 }
 
 // Evaluate the given metric function.
-func (f MetricFunction) Evaluate(context *EvaluationContext,
+func (f MetricFunction) Evaluate(context EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
 	if context.invalid {
 		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
@@ -147,24 +140,24 @@ func (c FetchCounter) Consume(n int) bool {
 // Expressions correspond to the timerange in the current EvaluationContext.
 type Expression interface {
 	// Evaluate the given expression.
-	Evaluate(context *EvaluationContext) (Value, error)
+	Evaluate(context EvaluationContext) (Value, error)
 }
 
-func EvaluateToScalar(e Expression, context *EvaluationContext) (float64, error) {
+func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) {
 	scalarValue, err := e.Evaluate(context)
 	if err != nil {
 		return 0, err
 	}
 	return scalarValue.ToScalar()
 }
-func EvaluateToDuration(e Expression, context *EvaluationContext) (time.Duration, error) {
+func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration, error) {
 	scalarValue, err := e.Evaluate(context)
 	if err != nil {
 		return 0, err
 	}
 	return scalarValue.ToDuration()
 }
-func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesList, error) {
+func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
 	seriesValue, err := e.Evaluate(context)
 	if err != nil {
 		return api.SeriesList{}, err
@@ -175,7 +168,7 @@ func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesL
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
 // If any evaluation errors, EvaluateMany will propagate that error. The resulting values
 // will be in the order corresponding to the provided expressions.
-func EvaluateMany(context *EvaluationContext, expressions []Expression) ([]Value, error) {
+func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value, error) {
 	if context.invalid {
 		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
 	}

@@ -31,7 +31,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 	Name:         "forecast.rolling_multiplicative_holt_winters",
 	MinArguments: 5, // Series, period, level learning rate,  trend learning rate, seasonal learning rate
 	MaxArguments: 6, // Series, period, level learning rate,  trend learning rate, seasonal learning rate, extra training time
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		period, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
@@ -64,12 +64,10 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 			return nil, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
-		newContext := context.Copy()
+		newContext := context
 		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], &newContext)
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate()
+		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +101,7 @@ var FunctionRollingSeasonal = function.MetricFunction{
 	Name:         "forecast.rolling_seasonal",
 	MinArguments: 3, // Series, period, seasonal learning rate
 	MaxArguments: 4, // Series, period, seasonal learning rate, extra training time
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		period, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
@@ -128,12 +126,10 @@ var FunctionRollingSeasonal = function.MetricFunction{
 			return nil, fmt.Errorf("forecast.rolling_seasonal expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
-		newContext := context.Copy()
+		newContext := context
 		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], &newContext)
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate()
+		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +163,7 @@ var FunctionForecastLinear = function.MetricFunction{
 	Name:         "forecast.linear",
 	MinArguments: 1, // Series
 	MaxArguments: 2, // Series, extra training time
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		extraTrainingTime := time.Duration(0)
 		if len(arguments) == 2 {
 			var err error
@@ -180,12 +176,10 @@ var FunctionForecastLinear = function.MetricFunction{
 			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
-		newContext := context.Copy()
+		newContext := context
 		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], &newContext)
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate()
+		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
