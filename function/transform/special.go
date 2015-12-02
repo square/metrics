@@ -133,6 +133,80 @@ var MovingAverage = function.MetricFunction{
 	},
 }
 
+var ExponentialMovingAverage = function.MetricFunction{
+	Name:         "transform.exponential_moving_average",
+	MinArguments: 2,
+	MaxArguments: 2,
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
+
+		sizeValue, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		size, err := sizeValue.ToDuration()
+		if err != nil {
+			return nil, err
+		}
+		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
+		if limit < 1 {
+			// At least one value must be included at all times
+			limit = 1
+		}
+
+		newContext := context.Copy()
+		timerange := context.Timerange
+		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		if err != nil {
+			return nil, err
+		}
+		// The new context has a timerange which is extended beyond the query's.
+		listValue, err := arguments[0].Evaluate(&newContext)
+		if err != nil {
+			return nil, err
+		}
+
+		// This value must be a SeriesList.
+		list, err := listValue.ToSeriesList(newContext.Timerange)
+		if err != nil {
+			return nil, err
+		}
+
+		// How many "ticks" are there in "size"?
+		// size / resolution
+		// alpha is a parameter such that
+		// alpha^ticks = 1/2
+		// so, alpha = exp(log(1/2) / ticks)
+		alpha := math.Exp(math.Log(0.5) * float64(context.Timerange.Resolution()) / float64(size))
+
+		// The timerange must be reverted.
+		list.Timerange = context.Timerange
+		context.CopyNotesFrom(&newContext)
+		newContext.Invalidate() //Prevent this from leaking or getting used.
+
+		// Update each series in the list.
+		for index, series := range list.Series {
+			// The series will be given a (shorter) replaced list of values.
+			results := make([]float64, context.Timerange.Slots())
+			weight := 0.0
+			sum := 0.0
+			for i := range series.Values {
+				weight *= alpha
+				sum *= alpha
+				if !math.IsNaN(series.Values[i]) {
+					weight += 1
+					sum += series.Values[i]
+				}
+				results[i-limit+1] = sum / weight
+			}
+			list.Series[index].Values = results
+		}
+		list.Query = fmt.Sprintf("transform.exponential_moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
+		list.Name = list.Query
+		return list, nil
+	},
+}
+
 var Alias = function.MetricFunction{
 	Name:         "transform.alias",
 	MinArguments: 2,
