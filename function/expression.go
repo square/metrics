@@ -84,6 +84,11 @@ func (e EvaluationContext) Notes() []string {
 	return e.EvaluationNotes.Notes()
 }
 
+func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
+	e.Timerange = t
+	return e
+}
+
 // Evaluate the given metric function.
 func (f MetricFunction) Evaluate(context EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {

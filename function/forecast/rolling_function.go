@@ -64,8 +64,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 			return nil, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
-		newContext := context
-		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
+		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
@@ -126,8 +125,7 @@ var FunctionRollingSeasonal = function.MetricFunction{
 			return nil, fmt.Errorf("forecast.rolling_seasonal expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
-		newContext := context
-		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
+		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
@@ -176,8 +174,7 @@ var FunctionForecastLinear = function.MetricFunction{
 			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
-		newContext := context
-		newContext.Timerange = newContext.Timerange.ExtendBefore(extraTrainingTime)
+		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {

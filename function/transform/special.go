@@ -75,12 +75,12 @@ var MovingAverage = function.MetricFunction{
 			limit = 1
 		}
 
-		newContext := context
 		timerange := context.Timerange
-		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
+		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
 		listValue, err := arguments[0].Evaluate(newContext)
 		if err != nil {
@@ -219,12 +219,13 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			var err error
 			// Calcuate the new timerange to include one extra point to the left
-			newContext := context
+
 			timerange := context.Timerange
-			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+			newTimerange, err := api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 			if err != nil {
 				return nil, err
 			}
+			newContext := context.WithTimerange(newTimerange)
 
 			// The new context has a timerange which is extended beyond the query's.
 			listValue, err := arguments[0].Evaluate(newContext)
