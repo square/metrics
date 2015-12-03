@@ -30,7 +30,6 @@ type EvaluationContext struct {
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
 	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
-	invalid                   bool             // Because these can be copied, it's best to mark a no-longer used context as dead
 	UserSpecifiableConfig     api.UserSpecifiableConfig
 }
 
@@ -92,9 +91,6 @@ func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 // Evaluate the given metric function.
 func (f MetricFunction) Evaluate(context EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
-	if context.invalid {
-		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
-	}
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
@@ -174,10 +170,6 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 // If any evaluation errors, EvaluateMany will propagate that error. The resulting values
 // will be in the order corresponding to the provided expressions.
 func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value, error) {
-	if context.invalid {
-		panic("Attempted to evaluate a function on an EvaluationContext that's been explicitly invalidated.")
-	}
-
 	type result struct {
 		index int
 		err   error
