@@ -125,6 +125,7 @@ func TestQuery(t *testing.T) {
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.ParseTagSet("dc=east,env=staging")})
 
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
@@ -208,11 +209,19 @@ func TestQuery(t *testing.T) {
 			query:    "select series_1 | aggregate.sum {it's a sum} | transform.derivative from 0 to 0",
 			expected: "transform.derivative(aggregate.sum(series_1) {it's a sum})",
 		},
+		{
+			query:    "`series-special#characters`[app in ('test', \"test\") and not host match 'qaz'] from 0 to 0",
+			expected: "`series-special#characters`[(app in (\"test\", \"test\") and not host match \"qaz\")]",
+		},
+		{
+			query:    "series_1[foo = 'bar' or bar = 'foo' or qux != 'baz'] from 0 to 0",
+			expected: `series_1[(foo = "bar" or (bar = "foo" or not qux = "baz"))]`,
+		},
 	}
 	for _, test := range tests {
 		command, err := Parse(test.query)
 		if err != nil {
-			t.Fatalf("Unexpected error while parsing")
+			t.Fatalf("Unexpected error while parsing: %s", err.Error())
 			return
 		}
 		if command.Name() != "select" {
@@ -237,7 +246,7 @@ func TestQuery(t *testing.T) {
 		}
 		actual := seriesListList[0].Query
 		if actual != test.expected {
-			t.Errorf("Expected `%s` but got `%s` for query `%s`", test.expected, actual, test.query)
+			t.Errorf("Expected:\n\t%s\n but got \n\t%s\n for query `%s`", test.expected, actual, test.query)
 			continue
 		}
 	}

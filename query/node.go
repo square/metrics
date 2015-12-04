@@ -115,9 +115,21 @@ type metricFetchExpression struct {
 	predicate  api.Predicate
 }
 
+var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*$`)
+
 // TODO: QueryString should indicate the associated predicate
 func (m metricFetchExpression) QueryString() string {
-	return m.metricName
+	query := m.metricName
+	if !OrdinaryIdentifierRegex.MatchString(m.metricName) {
+		query = fmt.Sprintf("`%s`", query)
+	}
+	if m.predicate != nil {
+		predicateString := m.predicate.Query()
+		if predicateString != "" {
+			query = fmt.Sprintf("%s[%s]", query, predicateString)
+		}
+	}
+	return query
 }
 func (m metricFetchExpression) Name() string {
 	return m.QueryString()
