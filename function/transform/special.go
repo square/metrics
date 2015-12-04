@@ -196,8 +196,6 @@ var ExponentialMovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Query = fmt.Sprintf("transform.exponential_moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		list.Name = list.Query
 		return list, nil
 	},
 }
