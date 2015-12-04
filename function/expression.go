@@ -11,17 +11,11 @@ import (
 	"github.com/square/metrics/optimize"
 )
 
-// EvaluationContext is the central piece of logic, providing
-// helper funcions & varaibles to evaluate a given piece of
-// metrics query.
-// * Contains a TimeseriesStorageAPI object, which can be used to fetch data
-// from the backend systems.
-// * Contains current timerange being queried for - this can be
-// changed by say, application of time shift function.
-type EvaluationContext struct {
+// EvaluationContextInternals contains fields which cannot be changed or configured during evaluation.
+// In order to reduce the size of the struct, they're stored outside it, as a pointer.
+type EvaluationContextInternals struct {
 	TimeseriesStorageAPI      api.TimeseriesStorageAPI // Backend to fetch data from
 	MetricMetadataAPI         api.MetricMetadataAPI    // Api to obtain metadata from
-	Timerange                 api.Timerange            // Timerange to fetch data from
 	SampleMethod              api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate                 api.Predicate            // Predicate to apply to TagSets prior to fetching
 	FetchLimit                FetchCounter             // A limit on the number of fetches which may be performed
@@ -30,7 +24,59 @@ type EvaluationContext struct {
 	Profiler                  *inspect.Profiler // A profiler pointer
 	OptimizationConfiguration *optimize.OptimizationConfiguration
 	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
-	UserSpecifiableConfig     api.UserSpecifiableConfig
+}
+
+// EvaluationContext is the central piece of logic, providing
+// Only the Timerange and UserSpecifiableConfig are public. They can be modified during execution,
+// but the other internal fields cannot. (For example, the sampling resolution or the timeseries API cannot be changed).
+// All of the internal values are exposed as methods, which effectively makes them read-only.
+type EvaluationContext struct {
+	Timerange             api.Timerange // Timerange to fetch data from
+	UserSpecifiableConfig api.UserSpecifiableConfig
+	internal              *EvaluationContextInternals
+}
+
+func CreateEvaluationContext(timerange api.Timerange, config api.UserSpecifiableConfig, internal EvaluationContextInternals) EvaluationContext {
+	return EvaluationContext{
+		Timerange:             timerange,
+		UserSpecifiableConfig: config,
+		internal:              &internal,
+	}
+}
+
+func (e EvaluationContext) Predicate() api.Predicate {
+	return e.internal.Predicate
+}
+func (e EvaluationContext) FetchLimitConsume(n int) error {
+	ok := e.internal.FetchLimit.Consume(n)
+	if ok {
+		return nil
+	}
+	return NewLimitError("fetch limit exceeded: too many series to fetch", e.internal.FetchLimit.Current(), e.internal.FetchLimit.Limit())
+}
+func (e EvaluationContext) GetFunction(name string) (MetricFunction, bool) {
+	return e.internal.Registry.GetFunction(name)
+}
+func (e EvaluationContext) OptimizationConfiguration() *optimize.OptimizationConfiguration {
+	return e.internal.OptimizationConfiguration
+}
+func (e EvaluationContext) GetAllTags(metricKey api.MetricKey) ([]api.TagSet, error) {
+	context := api.MetricMetadataAPIContext{
+		Profiler: e.internal.Profiler,
+	}
+	return e.internal.MetricMetadataAPI.GetAllTags(metricKey, context)
+}
+func (e EvaluationContext) FetchMultipleTimeseries(metrics []api.TaggedMetric) (api.SeriesList, error) {
+	request := api.FetchMultipleTimeseriesRequest{
+		metrics,
+		e.internal.SampleMethod,
+		e.Timerange,
+		e.internal.MetricMetadataAPI,
+		e.internal.Cancellable,
+		e.internal.Profiler,
+		e.UserSpecifiableConfig,
+	}
+	return e.internal.TimeseriesStorageAPI.FetchMultipleTimeseries(request)
 }
 
 type EvaluationNotes struct {
@@ -76,11 +122,14 @@ type MetricFunction struct {
 }
 
 func (e EvaluationContext) AddNote(note string) {
-	e.EvaluationNotes.AddNote(note)
+	if e.internal == nil {
+		return // drop the note
+	}
+	e.internal.EvaluationNotes.AddNote(note)
 }
 
 func (e EvaluationContext) Notes() []string {
-	return e.EvaluationNotes.Notes()
+	return e.internal.EvaluationNotes.Notes()
 }
 
 func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {

@@ -74,16 +74,20 @@ func TestMovingAverage(t *testing.T) {
 
 	backend := fakeBackend
 	result, err := evaluateToSeriesList(expression,
-		function.EvaluationContext{
-			MetricMetadataAPI:         fakeAPI,
-			TimeseriesStorageAPI:      backend,
-			Timerange:                 timerange,
-			SampleMethod:              api.SampleMean,
-			FetchLimit:                function.NewFetchCounter(1000),
-			Registry:                  registry.Default(),
-			Cancellable:               api.NewCancellable(),
-			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
-		})
+		function.CreateEvaluationContext(
+			timerange,
+			api.UserSpecifiableConfig{},
+			function.EvaluationContextInternals{
+				MetricMetadataAPI:         fakeAPI,
+				TimeseriesStorageAPI:      backend,
+				SampleMethod:              api.SampleMean,
+				FetchLimit:                function.NewFetchCounter(1000),
+				Registry:                  registry.Default(),
+				Cancellable:               api.NewCancellable(),
+				OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+			},
+		),
+	)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

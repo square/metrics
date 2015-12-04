@@ -269,7 +269,7 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
+		ctx := function.CreateEvaluationContext(api.Timerange{}, api.UserSpecifiableConfig{}, function.EvaluationContextInternals{EvaluationNotes: new(function.EvaluationNotes)})
 		_, err := ApplyTransform(ctx, list, test.transform, test.parameter)
 		if err != nil {
 			t.Error(err)

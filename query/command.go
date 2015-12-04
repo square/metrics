@@ -215,20 +215,23 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	}
 
 	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
-	evaluationContext := function.EvaluationContext{
-		MetricMetadataAPI:         context.MetricMetadataAPI,
-		FetchLimit:                function.NewFetchCounter(context.FetchLimit),
-		TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
-		Predicate:                 cmd.predicate,
-		SampleMethod:              cmd.context.SampleMethod,
-		Timerange:                 chosenTimerange,
-		Cancellable:               cancellable,
-		Registry:                  r,
-		Profiler:                  context.Profiler,
-		OptimizationConfiguration: context.OptimizationConfiguration,
-		EvaluationNotes:           new(function.EvaluationNotes),
-		UserSpecifiableConfig:     context.UserSpecifiableConfig,
-	}
+	evaluationContext := function.CreateEvaluationContext(
+		chosenTimerange,
+		context.UserSpecifiableConfig,
+		function.EvaluationContextInternals{
+			MetricMetadataAPI:    context.MetricMetadataAPI,
+			FetchLimit:           function.NewFetchCounter(context.FetchLimit),
+			TimeseriesStorageAPI: context.TimeseriesStorageAPI,
+			Predicate:            cmd.predicate,
+			SampleMethod:         cmd.context.SampleMethod,
+
+			Cancellable:               cancellable,
+			Registry:                  r,
+			Profiler:                  context.Profiler,
+			OptimizationConfiguration: context.OptimizationConfiguration,
+			EvaluationNotes:           new(function.EvaluationNotes),
+		},
+	)
 
 	timeout := (<-chan time.Time)(nil)
 	if hasTimeout {
@@ -284,7 +287,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			Body: lists,
 			Metadata: map[string]interface{}{
 				"description": description,
-				"notes":       evaluationContext.EvaluationNotes,
+				"notes":       evaluationContext.Notes(),
 			},
 		}, nil
 	}
