@@ -8,6 +8,8 @@ Indexer & Query Engine for Square's metrics.
 
 **This project is still under development and should not be used for anything in production yet. We are not seeking external contributors at this time**
 
+We currently support Go 1.4 and Go 1.5.
+
 Development
 ===========
 
@@ -16,17 +18,26 @@ Check out the project to the development directory.
 Project Structure
 -----------------
 ```
-├── api                # list of publically exposed APIs.
-│   └── backend
-│       └── blueflood  # implementation of the blueflood backend.
-├── assert             # helper functions to make test writing easier.
-├── internal           # internal library - should not be exposed to the users.
-├── main               # entry point.
-│   └── common
-├── mocks              # helper code to mock HTTP calls.
-├── query              # logic around parsing & execution of the queries.
-│   └── aggregate
-└── schema             # CQL schema files.
+Main packages:
+├── api                 # core type and function definitions
+├── function            # MQE function definition interface
+│   └── registry        # registry for custom MQE functions
+├── main
+│   └── ui              # the UI executable
+├── metric_metadata     # interface for storing metric metadata
+│   └── cassandra       # Cassandra backend for metric metadata
+├── query               # query language and parsing
+├── timeseries_storage  # interface for storing time series data
+
+Miscellaneous packages:
+├── compress            # experimental metrics-compression protocol
+├── inspect             # profiling to measure MQE query performance
+├── log                 # custom logging
+├── optimize            # MQE optimization interface
+├── schema              # example Cassandra schema configurations
+├── testing_support     # mocks for interfaces
+├── ui                  # webserver for UI interface
+├── util                # conversion rules for graphite metrics
 ```
 
 Cassandra
@@ -51,6 +62,7 @@ Dependencies
 
 ```
 go get github.com/gocql/gocql
+go get github.com/pointlander/peg
 go get gopkg.in/yaml.v2
 ```
 
@@ -68,5 +80,4 @@ Please ensure the code is correctly formatted and passes the linter.
 
 ```
 go fmt ./...
-golint ./... # TODO - exclude generated files.
 ```
