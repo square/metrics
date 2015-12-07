@@ -217,6 +217,10 @@ func TestQuery(t *testing.T) {
 			query:    "series_1[foo = 'bar' or bar = 'foo' or qux != 'baz'] from 0 to 0",
 			expected: `series_1[(foo = "bar" or (bar = "foo" or not qux = "baz"))]`,
 		},
+		{
+			query:    "series_1[`foo-bar` = 'qaz' and `foo-bar` match 'x' and `foo-bar` in ('a', 'b')] from 0 to 0",
+			expected: "series_1[(`foo-bar` = \"qaz\" and (`foo-bar` match \"x\" and `foo-bar` in (\"a\", \"b\")))]",
+		},
 	}
 	for _, test := range tests {
 		command, err := Parse(test.query)
