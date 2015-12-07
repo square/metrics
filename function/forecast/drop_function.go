@@ -25,7 +25,7 @@ var FunctionDrop = function.MetricFunction{
 	Name:         "forecast.drop",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		original, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
 			return nil, err

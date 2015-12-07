@@ -38,7 +38,7 @@ func (le LiteralExpression) Name() string {
 	return "<literal expression>"
 }
 
-func (expr *LiteralExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{Values: expr.Values, TagSet: api.NewTagSet()}},
 		Timerange: api.Timerange{},
@@ -55,7 +55,7 @@ func (lse LiteralSeriesExpression) QueryString() string {
 func (lse LiteralSeriesExpression) Name() string {
 	return "<literal series expression>"
 }
-func (expr *LiteralSeriesExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return expr.list, nil
 }
 
@@ -82,13 +82,17 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		result, err := evaluateToSeriesList(test.expr, &function.EvaluationContext{
-			TimeseriesStorageAPI: FakeBackend{},
-			Timerange:            test.timerange,
-			SampleMethod:         api.SampleMean,
-			FetchLimit:           function.NewFetchCounter(1000),
-			Registry:             registry.Default(),
-		})
+		result, err := evaluateToSeriesList(test.expr, function.CreateEvaluationContext(
+			test.timerange,
+			api.UserSpecifiableConfig{},
+
+			function.EvaluationContextInternals{
+				TimeseriesStorageAPI: FakeBackend{},
+				SampleMethod:         api.SampleMean,
+				FetchLimit:           function.NewFetchCounter(1000),
+				Registry:             registry.Default(),
+			},
+		))
 
 		if err != nil {
 			t.Fatalf("failed to convert number into serieslist")
@@ -103,17 +107,18 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := &function.EvaluationContext{
-		TimeseriesStorageAPI: FakeBackend{},
-		MetricMetadataAPI:    nil,
-		Timerange:            api.Timerange{},
-		SampleMethod:         api.SampleMean,
-		Predicate:            nil,
-		FetchLimit:           function.NewFetchCounter(1000),
-		Cancellable:          api.NewCancellable(),
-	}
+	emptyContext := function.CreateEvaluationContext(
+		api.Timerange{},
+		api.UserSpecifiableConfig{},
+		function.EvaluationContextInternals{
+			TimeseriesStorageAPI: FakeBackend{},
+			SampleMethod:         api.SampleMean,
+			FetchLimit:           function.NewFetchCounter(1000),
+			Cancellable:          api.NewCancellable(),
+		},
+	)
 	for _, test := range []struct {
-		context              *function.EvaluationContext
+		context              function.EvaluationContext
 		functionName         string
 		left                 api.SeriesList
 		right                api.SeriesList
@@ -373,7 +378,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
-func evaluateToSeriesList(e function.Expression, context *function.EvaluationContext) (api.SeriesList, error) {
+func evaluateToSeriesList(e function.Expression, context function.EvaluationContext) (api.SeriesList, error) {
 	value, err := e.Evaluate(context)
 	if err != nil {
 		return api.SeriesList{}, err

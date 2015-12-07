@@ -24,52 +24,46 @@ import (
 // Implementations
 // ===============
 
-func (expr durationExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr durationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.NewDurationValue(expr.name, expr.duration), nil
 }
 
-func (expr scalarExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr scalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.value), nil
 }
 
-func (expr stringExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr stringExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.StringValue(expr.value), nil
 }
 
-func (expr *metricFetchExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	// Merge predicates appropriately
 	var predicate api.Predicate
-	if context.Predicate == nil && expr.predicate == nil {
+	if context.Predicate() == nil && expr.predicate == nil {
 		predicate = api.TruePredicate
-	} else if context.Predicate == nil {
+	} else if context.Predicate() == nil {
 		predicate = expr.predicate
 	} else if expr.predicate == nil {
-		predicate = context.Predicate
+		predicate = context.Predicate()
 	} else {
-		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
+		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate()}}
 	}
 
 	updateFunction := func() ([]api.TagSet, error) {
-		metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
-			Profiler: context.Profiler,
-		})
+		metricTagSets, err := context.GetAllTags(api.MetricKey(expr.metricName))
 		if err != nil {
 			return nil, err
 		}
 		return metricTagSets, nil
 	}
-	metricTagSets, err := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(api.MetricKey(expr.metricName), updateFunction)
+	metricTagSets, err := context.OptimizationConfiguration().AllTagsCacheHitOrExecute(api.MetricKey(expr.metricName), updateFunction)
 	if err != nil {
 		return nil, err
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	ok := context.FetchLimit.Consume(len(filtered))
-
-	if !ok {
-		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
-			context.FetchLimit.Current(),
-			context.FetchLimit.Limit())
+	if err := context.FetchLimitConsume(len(filtered)); err != nil {
+		return nil, err
 	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
@@ -77,17 +71,7 @@ func (expr *metricFetchExpression) Evaluate(context *function.EvaluationContext)
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	serieslist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
-		api.FetchMultipleTimeseriesRequest{
-			metrics,
-			context.SampleMethod,
-			context.Timerange,
-			context.MetricMetadataAPI,
-			context.Cancellable,
-			context.Profiler,
-			context.UserSpecifiableConfig,
-		},
-	)
+	serieslist, err := context.FetchMultipleTimeseries(metrics)
 
 	if err != nil {
 		return nil, err
@@ -96,8 +80,8 @@ func (expr *metricFetchExpression) Evaluate(context *function.EvaluationContext)
 	return serieslist, nil
 }
 
-func (expr *functionExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
-	fun, ok := context.Registry.GetFunction(expr.functionName)
+func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	fun, ok := context.GetFunction(expr.functionName)
 	if !ok {
 		return nil, SyntaxError{expr.functionName, fmt.Sprintf("no such function %s", expr.functionName)}
 	}
