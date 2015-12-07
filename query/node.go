@@ -147,21 +147,16 @@ type functionExpression struct {
 	groupByCollapses bool
 }
 
-// QueryString does the heavy lifting so implementations don't have to.
-func (f functionExpression) QueryString() string {
+func functionFormatString(argumentStrings []string, f functionExpression) string {
 	switch f.functionName {
 	case "+", "-", "*", "/":
 		if len(f.arguments) != 2 {
 			// Then it's not actually an operator.
 			break
 		}
-		return fmt.Sprintf("(%s %s %s)", f.arguments[0].QueryString(), f.functionName, f.arguments[1].QueryString())
+		return fmt.Sprintf("(%s %s %s)", argumentStrings[0], f.functionName, argumentStrings[1])
 	}
-	argumentQueries := make([]string, len(f.arguments))
-	for i := range argumentQueries {
-		argumentQueries[i] = f.arguments[i].QueryString()
-	}
-	argumentString := strings.Join(argumentQueries, ", ")
+	argumentString := strings.Join(argumentStrings, ", ")
 	groupString := ""
 	if len(f.groupBy) != 0 {
 		groupKeyword := "group by"
@@ -176,6 +171,15 @@ func (f functionExpression) QueryString() string {
 	}
 	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
+
+// QueryString does the heavy lifting so implementations don't have to.
+func (f functionExpression) QueryString() string {
+	argumentStrings := []string{}
+	for i := range f.arguments {
+		argumentStrings = append(argumentStrings, f.arguments[i].QueryString())
+	}
+	return functionFormatString(argumentStrings, f)
+}
 func (f functionExpression) Name() string {
 	// TODO: deprecate (and remove) this behavior before it becomes permanent
 	if f.functionName == "transform.alias" && len(f.arguments) == 2 {
@@ -183,7 +187,11 @@ func (f functionExpression) Name() string {
 			return alias.value
 		}
 	}
-	return f.QueryString()
+	argumentStrings := []string{}
+	for i := range f.arguments {
+		argumentStrings = append(argumentStrings, f.arguments[i].Name())
+	}
+	return functionFormatString(argumentStrings, f)
 }
 
 type annotationExpression struct {
