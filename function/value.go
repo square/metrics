@@ -26,7 +26,7 @@ import (
 // Value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
 type Value interface {
-	ToSeriesList(api.Timerange) (api.SeriesList, error)
+	ToSeriesList(api.Timerange, string) (api.SeriesList, error)
 	ToString(string) (string, error)          // takes a description of the object's expression
 	ToScalar(string) (float64, error)         // takes a description of the object's expression
 	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
@@ -35,8 +35,8 @@ type Value interface {
 // A StringValue holds a string
 type StringValue string
 
-func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", fmt.Sprintf("%q", value)}
+func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
+	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", description}
 }
 
 func (value StringValue) ToString(description string) (string, error) {
@@ -54,7 +54,7 @@ func (value StringValue) ToDuration(description string) (time.Duration, error) {
 // A ScalarValue holds a float and can be converted to a serieslist
 type ScalarValue float64
 
-func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+func (value ScalarValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
 
 	series := make([]float64, timerange.Slots())
 	for i := range series {
@@ -88,8 +88,8 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 	return DurationValue{name, duration}
 }
 
-func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", value.name}
+func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
+	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", description}
 }
 
 func (value DurationValue) ToString(description string) (string, error) {

@@ -35,7 +35,7 @@ func (list SeriesList) isValid() bool {
 	return true // validation is now successful.
 }
 
-func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
+func (list SeriesList) ToSeriesList(time Timerange, description string) (SeriesList, error) {
 	return list, nil
 }
 

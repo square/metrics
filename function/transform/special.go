@@ -71,13 +71,7 @@ var MovingAverage = function.MetricFunction{
 			return nil, err
 		}
 		// The new context has a timerange which is extended beyond the query's.
-		listValue, err := arguments[0].Evaluate(&newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		// This value must be a SeriesList.
-		list, err := listValue.ToSeriesList(newContext.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -144,13 +138,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 			return nil, err
 		}
 		// The new context has a timerange which is extended beyond the query's.
-		listValue, err := arguments[0].Evaluate(&newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		// This value must be a SeriesList.
-		list, err := listValue.ToSeriesList(newContext.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -269,13 +257,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			}
 
 			// The new context has a timerange which is extended beyond the query's.
-			listValue, err := arguments[0].Evaluate(&newContext)
-			if err != nil {
-				return nil, err
-			}
-
-			// This value must be a SeriesList.
-			list, err := listValue.ToSeriesList(newContext.Timerange)
+			list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
 			if err != nil {
 				return nil, err
 			}

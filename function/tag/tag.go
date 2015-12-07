@@ -72,11 +72,7 @@ var DropFunction = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		result, err := arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		list, err := result.ToSeriesList(context.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
 			return nil, err
 		}
@@ -95,11 +91,7 @@ var SetFunction = function.MetricFunction{
 	MinArguments: 3,
 	MaxArguments: 3,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		result, err := arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		list, err := result.ToSeriesList(context.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
 			return nil, err
 		}

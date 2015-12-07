@@ -147,12 +147,7 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 		MinArguments: 2,
 		MaxArguments: 2,
 		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			value, err := arguments[0].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			// The value must be a SeriesList.
-			list, err := value.ToSeriesList(context.Timerange)
+			list, err := function.EvaluateToSeriesList(arguments[0], context)
 			if err != nil {
 				return nil, err
 			}
@@ -178,12 +173,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 		MinArguments: 3,
 		MaxArguments: 3,
 		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			value, err := arguments[0].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			// The value must be a SeriesList.
-			list, err := value.ToSeriesList(context.Timerange)
+			list, err := function.EvaluateToSeriesList(arguments[0], context)
 			if err != nil {
 				return nil, err
 			}
@@ -215,11 +205,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 		AllowsGroupBy: true,
 		Compute: func(context *function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
 			argument := args[0]
-			value, err := argument.Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			seriesList, err := value.ToSeriesList(context.Timerange)
+			seriesList, err := function.EvaluateToSeriesList(argument, context)
 			if err != nil {
 				return nil, err
 			}
@@ -234,18 +220,14 @@ func NewTransform(name string, parameterCount int, transformer func(*function.Ev
 		Name:         name,
 		MinArguments: parameterCount + 1,
 		MaxArguments: parameterCount + 1,
-		Compute: func(context *function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			listValue, err := args[0].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			list, err := listValue.ToSeriesList(context.Timerange)
+		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+			list, err := function.EvaluateToSeriesList(arguments[0], context)
 			if err != nil {
 				return nil, err
 			}
 			parameters := make([]function.Value, parameterCount)
 			for i := range parameters {
-				parameters[i], err = args[i+1].Evaluate(context)
+				parameters[i], err = arguments[i+1].Evaluate(context)
 				if err != nil {
 					return nil, err
 				}
@@ -269,11 +251,11 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 			}
 			leftValue := evaluated[0]
 			rightValue := evaluated[1]
-			leftList, err := leftValue.ToSeriesList(context.Timerange)
+			leftList, err := leftValue.ToSeriesList(context.Timerange, args[0].QueryString())
 			if err != nil {
 				return nil, err
 			}
-			rightList, err := rightValue.ToSeriesList(context.Timerange)
+			rightList, err := rightValue.ToSeriesList(context.Timerange, args[1].QueryString())
 			if err != nil {
 				return nil, err
 			}

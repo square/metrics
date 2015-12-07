@@ -171,7 +171,7 @@ func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesL
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return seriesValue.ToSeriesList(context.Timerange)
+	return seriesValue.ToSeriesList(context.Timerange, e.QueryString())
 }
 func EvaluateToString(e Expression, context *EvaluationContext) (string, error) {
 	stringValue, err := e.Evaluate(context)

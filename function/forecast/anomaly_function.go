@@ -44,7 +44,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
 			}
-			prediction, err := predictionValue.ToSeriesList(context.Timerange)
+			prediction, err := predictionValue.ToSeriesList(context.Timerange, "prediction series")
 			if err != nil {
 				return nil, err
 			}
