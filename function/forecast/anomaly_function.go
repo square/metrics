@@ -101,7 +101,7 @@ func standardDeviationsFromExpected(correct []float64, estimate []float64) ([]fl
 	//
 	stddevDifference := 0.0
 	for _, difference := range differences {
-		stddevDifference += (difference - meanDifference) * (difference - meanDifference)
+		stddevDifference += math.Pow(difference-meanDifference, 2)
 	}
 	stddevDifference /= float64(len(differences)) - 1
 	stddevDifference = math.Sqrt(stddevDifference)
