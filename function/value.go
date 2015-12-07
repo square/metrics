@@ -51,10 +51,6 @@ func (value StringValue) ToDuration(description string) (time.Duration, error) {
 	return 0, api.ConversionError{"string", "duration", description}
 }
 
-func (value StringValue) GetName() string {
-	return string(value)
-}
-
 // A ScalarValue holds a float and can be converted to a serieslist
 type ScalarValue float64
 
@@ -83,10 +79,6 @@ func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
 	return 0, api.ConversionError{"scalar", "duration", description}
 }
 
-func (value ScalarValue) GetName() string {
-	return fmt.Sprintf("%g", value)
-}
-
 type DurationValue struct {
 	name     string
 	duration time.Duration
@@ -110,10 +102,6 @@ func (value DurationValue) ToScalar(description string) (float64, error) {
 
 func (value DurationValue) ToDuration(description string) (time.Duration, error) {
 	return time.Duration(value.duration), nil
-}
-
-func (value DurationValue) GetName() string {
-	return value.name
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
