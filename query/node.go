@@ -17,7 +17,6 @@ package query
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -117,12 +116,16 @@ type metricFetchExpression struct {
 
 var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*$`)
 
+func EscapeIdentifier(identifier string) string {
+	if !OrdinaryIdentifierRegex.MatchString(identifier) {
+		return fmt.Sprintf("`%s`", identifier)
+	}
+	return identifier
+}
+
 // TODO: QueryString should indicate the associated predicate
 func (m metricFetchExpression) QueryString() string {
-	query := m.metricName
-	if !OrdinaryIdentifierRegex.MatchString(m.metricName) {
-		query = fmt.Sprintf("`%s`", query)
-	}
+	query := EscapeIdentifier(m.metricName)
 	if m.predicate != nil {
 		predicateString := m.predicate.Query()
 		if predicateString != "" {
@@ -165,14 +168,17 @@ func (f functionExpression) QueryString() string {
 		if f.groupByCollapses {
 			groupKeyword = "collapse by"
 		}
-		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(f.groupBy, ", "))
+		escapedGroupBy := []string{}
+		for _, group := range f.groupBy {
+			escapedGroupBy = append(escapedGroupBy, EscapeIdentifier(group))
+		}
+		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(escapedGroupBy, ", "))
 	}
 	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
 }
 func (f functionExpression) Name() string {
-	// TODO: deprecate this behavior before it becomes permanent
+	// TODO: deprecate (and remove) this behavior before it becomes permanent
 	if f.functionName == "transform.alias" && len(f.arguments) == 2 {
-		log.Printf("I'm an alias")
 		if alias, ok := f.arguments[1].(*stringExpression); ok {
 			return alias.value
 		}
