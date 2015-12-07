@@ -20,6 +20,7 @@ package api
 type Predicate interface {
 	// checks the matcher.
 	Apply(tagSet TagSet) bool
+	Query() string
 }
 
 // TruePredicate is always true
@@ -34,4 +35,7 @@ type constantPredicate struct {
 
 func (p constantPredicate) Apply(TagSet) bool {
 	return p.value
+}
+func (p constantPredicate) Query() string {
+	return ""
 }

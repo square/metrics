@@ -17,7 +17,6 @@ package transform
 import (
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -46,8 +45,6 @@ var Timeshift = function.MetricFunction{
 
 		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Query = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
-			seriesValue.Name = seriesValue.Query
 			return seriesValue, nil
 		}
 		return result, nil
@@ -127,8 +124,6 @@ var MovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Query = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		list.Name = list.Query
 		return list, nil
 	},
 }
@@ -201,8 +196,6 @@ var ExponentialMovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Query = fmt.Sprintf("transform.exponential_moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		list.Name = list.Query
 		return list, nil
 	},
 }
@@ -212,25 +205,10 @@ var Alias = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		value, err := arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		list, err := value.ToSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		nameValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		name, err := nameValue.ToString()
-		if err != nil {
-			return nil, err
-		}
-		list.Name = name
-		list.Query = fmt.Sprintf("transform.alias(%s, %s)", value.GetName(), strconv.Quote(name))
-		return list, nil
+		// TODO: delete this function
+		// also, this operation is not thread-safe, is it?
+		context.EvaluationNotes = append(context.EvaluationNotes, "transform.alias is deprecated")
+		return arguments[0].Evaluate(context)
 	},
 }
 
@@ -332,9 +310,6 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
 				}
 			}
-
-			result.Query = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
-			result.Name = result.Query
 			return result, nil
 		},
 	}
