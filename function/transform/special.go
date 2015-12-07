@@ -17,7 +17,6 @@ package transform
 import (
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -46,8 +45,6 @@ var Timeshift = function.MetricFunction{
 
 		if seriesValue, ok := result.(api.SeriesList); ok {
 			seriesValue.Timerange = context.Timerange
-			seriesValue.Query = fmt.Sprintf("transform.timeshift(%s,%s)", result.GetName(), value.GetName())
-			seriesValue.Name = seriesValue.Query
 			return seriesValue, nil
 		}
 		return result, nil
@@ -127,8 +124,78 @@ var MovingAverage = function.MetricFunction{
 			}
 			list.Series[index].Values = results
 		}
-		list.Query = fmt.Sprintf("transform.moving_average(%s, %s)", listValue.GetName(), sizeValue.GetName())
-		list.Name = list.Query
+		return list, nil
+	},
+}
+
+var ExponentialMovingAverage = function.MetricFunction{
+	Name:         "transform.exponential_moving_average",
+	MinArguments: 2,
+	MaxArguments: 2,
+	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
+
+		sizeValue, err := arguments[1].Evaluate(context)
+		if err != nil {
+			return nil, err
+		}
+		size, err := sizeValue.ToDuration()
+		if err != nil {
+			return nil, err
+		}
+		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
+		if limit < 1 {
+			// At least one value must be included at all times
+			limit = 1
+		}
+
+		newContext := context.Copy()
+		timerange := context.Timerange
+		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		if err != nil {
+			return nil, err
+		}
+		// The new context has a timerange which is extended beyond the query's.
+		listValue, err := arguments[0].Evaluate(&newContext)
+		if err != nil {
+			return nil, err
+		}
+
+		// This value must be a SeriesList.
+		list, err := listValue.ToSeriesList(newContext.Timerange)
+		if err != nil {
+			return nil, err
+		}
+
+		// How many "ticks" are there in "size"?
+		// size / resolution
+		// alpha is a parameter such that
+		// alpha^ticks = 1/2
+		// so, alpha = exp(log(1/2) / ticks)
+		alpha := math.Exp(math.Log(0.5) * float64(context.Timerange.Resolution()) / float64(size))
+
+		// The timerange must be reverted.
+		list.Timerange = context.Timerange
+		context.CopyNotesFrom(&newContext)
+		newContext.Invalidate() //Prevent this from leaking or getting used.
+
+		// Update each series in the list.
+		for index, series := range list.Series {
+			// The series will be given a (shorter) replaced list of values.
+			results := make([]float64, context.Timerange.Slots())
+			weight := 0.0
+			sum := 0.0
+			for i := range series.Values {
+				weight *= alpha
+				sum *= alpha
+				if !math.IsNaN(series.Values[i]) {
+					weight += 1
+					sum += series.Values[i]
+				}
+				results[i-limit+1] = sum / weight
+			}
+			list.Series[index].Values = results
+		}
 		return list, nil
 	},
 }
@@ -138,25 +205,10 @@ var Alias = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		value, err := arguments[0].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		list, err := value.ToSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		nameValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		name, err := nameValue.ToString()
-		if err != nil {
-			return nil, err
-		}
-		list.Name = name
-		list.Query = fmt.Sprintf("transform.alias(%s, %s)", value.GetName(), strconv.Quote(name))
-		return list, nil
+		// TODO: delete this function
+		// also, this operation is not thread-safe, is it?
+		context.EvaluationNotes = append(context.EvaluationNotes, "transform.alias is deprecated")
+		return arguments[0].Evaluate(context)
 	},
 }
 
@@ -258,9 +310,6 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
 				}
 			}
-
-			result.Query = fmt.Sprintf("transform.%s(%s)", name, listValue.GetName())
-			result.Name = result.Query
 			return result, nil
 		},
 	}

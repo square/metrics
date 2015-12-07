@@ -111,7 +111,6 @@ func TestDrop(t *testing.T) {
 	}
 	list := api.SeriesList{
 		Timerange: timerange,
-		Name:      "ExampleTestSeries!",
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -150,7 +149,6 @@ func TestDrop(t *testing.T) {
 	result := DropTag(list, "host")
 	expect := api.SeriesList{
 		Timerange: timerange,
-		Name:      "ExampleTestSeries!",
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -184,7 +182,6 @@ func TestDrop(t *testing.T) {
 	}
 	// Verify that result == expect
 	a := assert.New(t)
-	a.EqString(result.Name, expect.Name)
 	a.Eq(result.Timerange, expect.Timerange)
 	a.EqInt(len(result.Series), len(expect.Series))
 	for i := range result.Series {
@@ -305,7 +302,6 @@ func TestSet(t *testing.T) {
 	newValue := "east"
 	list := api.SeriesList{
 		Timerange: timerange,
-		Name:      "ExampleTestSeries!",
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -342,7 +338,6 @@ func TestSet(t *testing.T) {
 	result := SetTag(list, "dc", newValue)
 	expect := api.SeriesList{
 		Timerange: timerange,
-		Name:      "ExampleTestSeries!",
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -380,7 +375,6 @@ func TestSet(t *testing.T) {
 	}
 	// Verify that result == expect
 	a := assert.New(t)
-	a.EqString(result.Name, expect.Name)
 	a.Eq(result.Timerange, expect.Timerange)
 	a.EqInt(len(result.Series), len(expect.Series))
 	for i := range result.Series {
