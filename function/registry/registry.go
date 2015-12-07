@@ -156,11 +156,7 @@ func NewFilter(name string, summary func([]float64) float64, ascending bool) fun
 			if err != nil {
 				return nil, err
 			}
-			countValue, err := arguments[1].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			countFloat, err := countValue.ToScalar()
+			countFloat, err := function.EvaluateToScalar(arguments[1], context)
 			if err != nil {
 				return nil, err
 			}
@@ -191,11 +187,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 			if err != nil {
 				return nil, err
 			}
-			countValue, err := arguments[1].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			countFloat, err := countValue.ToScalar()
+			countFloat, err := function.EvaluateToScalar(arguments[1], context)
 			if err != nil {
 				return nil, err
 			}
@@ -204,11 +196,7 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 			if count < 0 {
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
-			durationValue, err := arguments[2].Evaluate(context)
-			if err != nil {
-				return nil, err
-			}
-			duration, err := durationValue.ToDuration()
+			duration, err := function.EvaluateToDuration(arguments[2], context)
 			if err != nil {
 				return nil, err
 			}

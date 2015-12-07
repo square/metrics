@@ -27,18 +27,14 @@ var Timeshift = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		value, err := arguments[1].Evaluate(context)
+		duration, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
-		duration, err := value.ToDuration()
-		if err != nil {
-			return nil, err
-		}
-		newContext := context
+		newContext := context.Copy()
 		newContext.Timerange = newContext.Timerange.Shift(duration)
 
-		result, err := arguments[0].Evaluate(newContext)
+		result, err := arguments[0].Evaluate(&newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -58,11 +54,7 @@ var MovingAverage = function.MetricFunction{
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
-		sizeValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		size, err := sizeValue.ToDuration()
+		size, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
@@ -135,11 +127,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
-		sizeValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		size, err := sizeValue.ToDuration()
+		size, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}

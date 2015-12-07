@@ -80,11 +80,7 @@ var DropFunction = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		value, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		dropTag, err := value.ToString()
+		dropTag, err := function.EvaluateToString(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
@@ -107,19 +103,11 @@ var SetFunction = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-		tagValue, err := arguments[1].Evaluate(context)
+		tag, err := function.EvaluateToString(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
-		tag, err := tagValue.ToString()
-		if err != nil {
-			return nil, err
-		}
-		setValue, err := arguments[2].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		set, err := setValue.ToString()
+		set, err := function.EvaluateToString(arguments[2], context)
 		if err != nil {
 			return nil, err
 		}

@@ -157,14 +157,14 @@ func EvaluateToScalar(e Expression, context *EvaluationContext) (float64, error)
 	if err != nil {
 		return 0, err
 	}
-	return scalarValue.ToScalar()
+	return scalarValue.ToScalar(e.QueryString())
 }
 func EvaluateToDuration(e Expression, context *EvaluationContext) (time.Duration, error) {
-	scalarValue, err := e.Evaluate(context)
+	durationValue, err := e.Evaluate(context)
 	if err != nil {
 		return 0, err
 	}
-	return scalarValue.ToDuration()
+	return durationValue.ToDuration(e.QueryString())
 }
 func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesList, error) {
 	seriesValue, err := e.Evaluate(context)
@@ -172,6 +172,13 @@ func EvaluateToSeriesList(e Expression, context *EvaluationContext) (api.SeriesL
 		return api.SeriesList{}, err
 	}
 	return seriesValue.ToSeriesList(context.Timerange)
+}
+func EvaluateToString(e Expression, context *EvaluationContext) (string, error) {
+	stringValue, err := e.Evaluate(context)
+	if err != nil {
+		return "", err
+	}
+	return stringValue.ToString(e.QueryString())
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
