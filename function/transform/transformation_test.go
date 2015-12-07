@@ -154,7 +154,6 @@ func TestApplyTransform(t *testing.T) {
 			},
 		},
 		Timerange: testTimerange,
-		Name:      "test",
 	}
 	testCases := []struct {
 		transform transform
@@ -251,7 +250,6 @@ func TestApplyNotes(t *testing.T) {
 			},
 		},
 		Timerange: testTimerange,
-		Name:      "test",
 	}
 
 	testCases := []struct {
@@ -320,7 +318,6 @@ func TestApplyBound(t *testing.T) {
 			},
 		},
 		Timerange: testTimerange,
-		Name:      "test",
 	}
 	tests := []struct {
 		lower       float64
@@ -441,7 +438,6 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 		Timerange: testTimerange,
-		Name:      "test",
 	}
 	tests := []struct {
 		transform  transform

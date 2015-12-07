@@ -76,9 +76,24 @@ type durationExpression struct {
 	duration time.Duration // milliseconds
 }
 
+func (d durationExpression) QueryString() string {
+	return d.name
+}
+
+func (d durationExpression) Name() string {
+	return d.QueryString()
+}
+
 // scalarExpression represents a scalar constant embedded within the expression.
 type scalarExpression struct {
 	value float64
+}
+
+func (s scalarExpression) QueryString() string {
+	return fmt.Sprintf("%v", s.value)
+}
+func (s scalarExpression) Name() string {
+	return s.QueryString()
 }
 
 // stringExpression represents a string literal used as an expression.
@@ -86,10 +101,41 @@ type stringExpression struct {
 	value string
 }
 
+func (s stringExpression) QueryString() string {
+	return fmt.Sprintf("%q", s.value)
+}
+func (s stringExpression) Name() string {
+	return s.QueryString()
+}
+
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
 	metricName string
 	predicate  api.Predicate
+}
+
+var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*$`)
+
+func EscapeIdentifier(identifier string) string {
+	if !OrdinaryIdentifierRegex.MatchString(identifier) {
+		return fmt.Sprintf("`%s`", identifier)
+	}
+	return identifier
+}
+
+// TODO: QueryString should indicate the associated predicate
+func (m metricFetchExpression) QueryString() string {
+	query := EscapeIdentifier(m.metricName)
+	if m.predicate != nil {
+		predicateString := m.predicate.Query()
+		if predicateString != "" {
+			query = fmt.Sprintf("%s[%s]", query, predicateString)
+		}
+	}
+	return query
+}
+func (m metricFetchExpression) Name() string {
+	return m.QueryString()
 }
 
 // functionExpression represents a function call with subexpressions.
@@ -99,6 +145,69 @@ type functionExpression struct {
 	arguments        []function.Expression
 	groupBy          []string
 	groupByCollapses bool
+}
+
+func functionFormatString(argumentStrings []string, f functionExpression) string {
+	switch f.functionName {
+	case "+", "-", "*", "/":
+		if len(f.arguments) != 2 {
+			// Then it's not actually an operator.
+			break
+		}
+		return fmt.Sprintf("(%s %s %s)", argumentStrings[0], f.functionName, argumentStrings[1])
+	}
+	argumentString := strings.Join(argumentStrings, ", ")
+	groupString := ""
+	if len(f.groupBy) != 0 {
+		groupKeyword := "group by"
+		if f.groupByCollapses {
+			groupKeyword = "collapse by"
+		}
+		escapedGroupBy := []string{}
+		for _, group := range f.groupBy {
+			escapedGroupBy = append(escapedGroupBy, EscapeIdentifier(group))
+		}
+		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(escapedGroupBy, ", "))
+	}
+	return fmt.Sprintf("%s(%s%s)", f.functionName, argumentString, groupString)
+}
+
+// QueryString does the heavy lifting so implementations don't have to.
+func (f functionExpression) QueryString() string {
+	argumentStrings := []string{}
+	for i := range f.arguments {
+		argumentStrings = append(argumentStrings, f.arguments[i].QueryString())
+	}
+	return functionFormatString(argumentStrings, f)
+}
+func (f functionExpression) Name() string {
+	// TODO: deprecate (and remove) this behavior before it becomes permanent
+	if f.functionName == "transform.alias" && len(f.arguments) == 2 {
+		if alias, ok := f.arguments[1].(*stringExpression); ok {
+			return alias.value
+		}
+	}
+	argumentStrings := []string{}
+	for i := range f.arguments {
+		argumentStrings = append(argumentStrings, f.arguments[i].Name())
+	}
+	return functionFormatString(argumentStrings, f)
+}
+
+type annotationExpression struct {
+	content    function.Expression
+	annotation string
+}
+
+func (ae annotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return ae.content.Evaluate(context)
+}
+
+func (ae annotationExpression) QueryString() string {
+	return fmt.Sprintf("%s {%s}", ae.content.QueryString(), ae.annotation)
+}
+func (ae annotationExpression) Name() string {
+	return ae.annotation
 }
 
 // etc nodes
@@ -284,6 +393,12 @@ func (node *functionExpression) Print(buffer *bytes.Buffer, indent int) {
 	for _, expression := range node.arguments {
 		printUnknown(buffer, indent+1, expression)
 	}
+}
+
+func (node *annotationExpression) Print(buffer *bytes.Buffer, indent int) {
+	printType(buffer, indent, node)
+	printHelper(buffer, indent+1, node.annotation)
+	printUnknown(buffer, indent+1, node.content)
 }
 
 func (node *metricFetchExpression) Print(buffer *bytes.Buffer, indent int) {

@@ -480,6 +480,18 @@ func (p *Parser) addFunctionInvocation() {
 	})
 }
 
+func (p *Parser) addAnnotationExpression(annotation string) {
+	content, ok := p.popNode(expressionType).(function.Expression)
+	if !ok {
+		p.flagTypeAssertion()
+		return
+	}
+	p.pushNode(&annotationExpression{
+		content:    content,
+		annotation: annotation,
+	})
+}
+
 func (p *Parser) addMetricExpression() {
 	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
 	if !ok {

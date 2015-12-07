@@ -32,8 +32,6 @@ func ApplyTransform(ctx function.EvaluationContext, list api.SeriesList, transfo
 	result := api.SeriesList{
 		Series:    make([]api.Timeseries, len(list.Series)),
 		Timerange: list.Timerange,
-		Name:      list.Name,
-		Query:     list.Query,
 	}
 	var numResult []float64
 	var err error

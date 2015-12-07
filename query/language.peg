@@ -108,28 +108,29 @@ expression_product <-
     expression_atom { p.addOperatorFunction() }
   ) *
 
-add_pipe <-
+add_one_pipe <-
+  _ OP_PIPE
+  _ <IDENTIFIER>
+  { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
   (
-    _ OP_PIPE _ <IDENTIFIER> {
-      p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
-    }
     (
-      (
-      _ PAREN_OPEN
-        (expressionList / {p.addExpressionList()}) # argument list
-        optionalGroupBy
-        _ PAREN_CLOSE
-      ) / {
-        p.addExpressionList()
-        p.addGroupBy()
-      }
-    )
-    {
-      p.addPipeExpression()
+    _ PAREN_OPEN
+      (expressionList / {p.addExpressionList()}) # argument list
+      optionalGroupBy
+    _ PAREN_CLOSE
+    ) / {
+      p.addExpressionList()
+      p.addGroupBy()
     }
-  ) *
+  )
+  { p.addPipeExpression() }
+  expression_annotation
 
-expression_atom <-
+add_pipe <- (add_one_pipe) *
+
+expression_atom <- expression_atom_raw expression_annotation
+
+expression_atom_raw <-
   expression_function /
   expression_metric /
   # #sub-expression
@@ -139,6 +140,13 @@ expression_atom <-
   _ <NUMBER> { p.addNumberNode(buffer[begin:end]) } /
   _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
 
+expression_annotation_required <-
+  _ "{"
+  <[^}]*>
+  "}"
+  { p.addAnnotationExpression(buffer[begin:end]) }
+
+expression_annotation <- expression_annotation_required?
 
 optionalGroupBy <- { p.addGroupBy() } (groupByClause / collapseByClause)?
 

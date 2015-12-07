@@ -60,7 +60,6 @@ func TestFilter(t *testing.T) {
 	list := api.SeriesList{
 		Series:    []api.Timeseries{series["A"], series["B"], series["C"], series["D"]},
 		Timerange: timerange,
-		Name:      "test_series",
 	}
 	tests := []struct {
 		summary func([]float64) float64

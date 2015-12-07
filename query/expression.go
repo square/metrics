@@ -77,9 +77,6 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		return nil, err
 	}
 
-	serieslist.Name = expr.metricName
-	serieslist.Query = expr.metricName
-
 	return serieslist, nil
 }
 
