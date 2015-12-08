@@ -581,7 +581,7 @@ func TestTransformIdentity(t *testing.T) {
 					// While this is odd, think about it this way:
 					// We saw 5 increments (15 - 20), then we saw thirty total increments
 					// (3, 18, 30) over the rest of the time period
-					expected: []float64{0, 5, 8, 23, 35},
+					expected: []float64{0, 5, math.NaN(), 20, 32},
 					transforms: []transform{
 						rate,
 						Integral,
