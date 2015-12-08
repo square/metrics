@@ -263,7 +263,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	case result := <-results:
 		lists := make([]api.SeriesList, len(result))
 		for i := range result {
-			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange)
+			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange, cmd.expressions[i].QueryString())
 			if err != nil {
 				return CommandResult{}, err
 			}

@@ -26,39 +26,35 @@ import (
 // Value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
 type Value interface {
-	ToSeriesList(api.Timerange) (api.SeriesList, error)
-	ToString() (string, error)
-	ToScalar() (float64, error)
-	ToDuration() (time.Duration, error)
+	ToSeriesList(api.Timerange, string) (api.SeriesList, error)
+	ToString(string) (string, error)          // takes a description of the object's expression
+	ToScalar(string) (float64, error)         // takes a description of the object's expression
+	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
 }
 
 // A StringValue holds a string
 type StringValue string
 
-func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", fmt.Sprintf("%q", value)}
+func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
+	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", description}
 }
 
-func (value StringValue) ToString() (string, error) {
+func (value StringValue) ToString(description string) (string, error) {
 	return string(value), nil
 }
 
-func (value StringValue) ToScalar() (float64, error) {
-	return 0, api.ConversionError{"string", "scalar", fmt.Sprintf("%q", value)}
+func (value StringValue) ToScalar(description string) (float64, error) {
+	return 0, api.ConversionError{"string", "scalar", description}
 }
 
-func (value StringValue) ToDuration() (time.Duration, error) {
-	return 0, api.ConversionError{"string", "duration", fmt.Sprintf("%q", value)}
-}
-
-func (value StringValue) GetName() string {
-	return string(value)
+func (value StringValue) ToDuration(description string) (time.Duration, error) {
+	return 0, api.ConversionError{"string", "duration", description}
 }
 
 // A ScalarValue holds a float and can be converted to a serieslist
 type ScalarValue float64
 
-func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+func (value ScalarValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
 
 	series := make([]float64, timerange.Slots())
 	for i := range series {
@@ -71,20 +67,16 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 	}, nil
 }
 
-func (value ScalarValue) ToString() (string, error) {
+func (value ScalarValue) ToString(description string) (string, error) {
 	return "", api.ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
-func (value ScalarValue) ToScalar() (float64, error) {
+func (value ScalarValue) ToScalar(description string) (float64, error) {
 	return float64(value), nil
 }
 
-func (value ScalarValue) ToDuration() (time.Duration, error) {
-	return 0, api.ConversionError{"scalar", "duration", fmt.Sprintf("%f", value)}
-}
-
-func (value ScalarValue) GetName() string {
-	return fmt.Sprintf("%g", value)
+func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
+	return 0, api.ConversionError{"scalar", "duration", description}
 }
 
 type DurationValue struct {
@@ -96,24 +88,20 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 	return DurationValue{name, duration}
 }
 
-func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", value.name}
+func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
+	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", description}
 }
 
-func (value DurationValue) ToString() (string, error) {
-	return "", api.ConversionError{"duration", "string", value.name}
+func (value DurationValue) ToString(description string) (string, error) {
+	return "", api.ConversionError{"duration", "string", description}
 }
 
-func (value DurationValue) ToScalar() (float64, error) {
-	return 0, api.ConversionError{"duration", "scalar", value.name}
+func (value DurationValue) ToScalar(description string) (float64, error) {
+	return 0, api.ConversionError{"duration", "scalar", description}
 }
 
-func (value DurationValue) ToDuration() (time.Duration, error) {
+func (value DurationValue) ToDuration(description string) (time.Duration, error) {
 	return time.Duration(value.duration), nil
-}
-
-func (value DurationValue) GetName() string {
-	return value.name
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
