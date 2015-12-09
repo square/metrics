@@ -82,7 +82,7 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		result, err := evaluateToSeriesList(test.expr, function.EvaluationContext{
+		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
 			Timerange:            test.timerange,
 			SampleMethod:         api.SampleMean,
@@ -330,7 +330,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		result, err := value.ToSeriesList(test.context.Timerange)
+		result, err := value.ToSeriesList(test.context.Timerange, "-test-")
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue
@@ -371,14 +371,6 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		}
 
 	}
-}
-
-func evaluateToSeriesList(e function.Expression, context function.EvaluationContext) (api.SeriesList, error) {
-	value, err := e.Evaluate(context)
-	if err != nil {
-		return api.SeriesList{}, err
-	}
-	return value.ToSeriesList(context.Timerange)
 }
 
 var _ api.TimeseriesStorageAPI = (*FakeBackend)(nil)

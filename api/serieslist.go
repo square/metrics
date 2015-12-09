@@ -35,18 +35,18 @@ func (list SeriesList) isValid() bool {
 	return true // validation is now successful.
 }
 
-func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
+func (list SeriesList) ToSeriesList(time Timerange, description string) (SeriesList, error) {
 	return list, nil
 }
 
-func (list SeriesList) ToString() (string, error) {
-	return "", ConversionError{"SeriesList", "string", "serieslist[_]"}
+func (list SeriesList) ToString(description string) (string, error) {
+	return "", ConversionError{"SeriesList", "string", description}
 }
 
-func (list SeriesList) ToScalar() (float64, error) {
-	return 0, ConversionError{"SeriesList", "scalar", "serieslist[_]"}
+func (list SeriesList) ToScalar(description string) (float64, error) {
+	return 0, ConversionError{"SeriesList", "scalar", description}
 }
 
-func (list SeriesList) ToDuration() (time.Duration, error) {
-	return 0, ConversionError{"SeriesList", "duration", "serieslist[_]"}
+func (list SeriesList) ToDuration(description string) (time.Duration, error) {
+	return 0, ConversionError{"SeriesList", "duration", description}
 }

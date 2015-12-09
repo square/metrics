@@ -27,27 +27,13 @@ var Timeshift = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		value, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		duration, err := value.ToDuration()
-		if err != nil {
-			return nil, err
-		}
-		newContext := context
-		newContext.Timerange = newContext.Timerange.Shift(duration)
-
-		result, err := arguments[0].Evaluate(newContext)
+		duration, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
 
-		if seriesValue, ok := result.(api.SeriesList); ok {
-			seriesValue.Timerange = context.Timerange
-			return seriesValue, nil
-		}
-		return result, nil
+		newContext := context.WithTimerange(context.Timerange.Shift(duration))
+		return arguments[0].Evaluate(newContext)
 	},
 }
 
@@ -58,11 +44,7 @@ var MovingAverage = function.MetricFunction{
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
-		sizeValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		size, err := sizeValue.ToDuration()
+		size, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
@@ -79,13 +61,7 @@ var MovingAverage = function.MetricFunction{
 		}
 		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
-		listValue, err := arguments[0].Evaluate(newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		// This value must be a SeriesList.
-		list, err := listValue.ToSeriesList(newContext.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -133,11 +109,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
-		sizeValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		size, err := sizeValue.ToDuration()
+		size, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
@@ -156,13 +128,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 		newContext := context.WithTimerange(newTimerange)
 
 		// The new context has a timerange which is extended beyond the query's.
-		listValue, err := arguments[0].Evaluate(newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		// This value must be a SeriesList.
-		list, err := listValue.ToSeriesList(newContext.Timerange)
+		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -279,13 +245,7 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 			newContext := context.WithTimerange(newTimerange)
 
 			// The new context has a timerange which is extended beyond the query's.
-			listValue, err := arguments[0].Evaluate(newContext)
-			if err != nil {
-				return nil, err
-			}
-
-			// This value must be a SeriesList.
-			list, err := listValue.ToSeriesList(newContext.Timerange)
+			list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 			if err != nil {
 				return nil, err
 			}

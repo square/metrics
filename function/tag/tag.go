@@ -72,19 +72,11 @@ var DropFunction = function.MetricFunction{
 	MinArguments: 2,
 	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		result, err := arguments[0].Evaluate(context)
+		list, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
 			return nil, err
 		}
-		list, err := result.ToSeriesList(context.Timerange)
-		if err != nil {
-			return nil, err
-		}
-		value, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		dropTag, err := value.ToString()
+		dropTag, err := function.EvaluateToString(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
@@ -99,27 +91,15 @@ var SetFunction = function.MetricFunction{
 	MinArguments: 3,
 	MaxArguments: 3,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		result, err := arguments[0].Evaluate(context)
+		list, err := function.EvaluateToSeriesList(arguments[0], context)
 		if err != nil {
 			return nil, err
 		}
-		list, err := result.ToSeriesList(context.Timerange)
+		tag, err := function.EvaluateToString(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
-		tagValue, err := arguments[1].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		tag, err := tagValue.ToString()
-		if err != nil {
-			return nil, err
-		}
-		setValue, err := arguments[2].Evaluate(context)
-		if err != nil {
-			return nil, err
-		}
-		set, err := setValue.ToString()
+		set, err := function.EvaluateToString(arguments[2], context)
 		if err != nil {
 			return nil, err
 		}

@@ -15,6 +15,9 @@
 package forecast
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 )
@@ -34,11 +37,14 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err
 			}
+			// TODO: improve sharing by using the `original` value as the first argument to the arguments,
+			// since the context is known to be the same and therefore it should evaluate identically.
+			// There is currently no standard "literal series list node" or similar that we could use for this purepose.
 			predictionValue, err := model.Compute(context, arguments, groups)
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
 			}
-			prediction, err := predictionValue.ToSeriesList(context.Timerange)
+			prediction, err := predictionValue.ToSeriesList(context.Timerange, "prediction series")
 			if err != nil {
 				return nil, err
 			}
@@ -58,7 +64,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			result := make([]api.Timeseries, len(prediction.Series))
 			for i, series := range prediction.Series {
 				result[i] = series
-				result[i].Values, err = pValueFromNormalDifferenceSlices(lookup[series.TagSet.Serialize()], series.Values, periodSlots)
+				result[i].Values, err = periodicStandardDeviationsFromExpected(lookup[series.TagSet.Serialize()], series.Values, periodSlots)
 				if err != nil {
 					return nil, err
 				}
@@ -71,3 +77,82 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 
 var FunctionAnomalyRollingMultiplicativeHoltWinters = FunctionPeriodicAnomalyMaker("forecast.anomaly_rolling_multiplicative_holt_winters", FunctionRollingMultiplicativeHoltWinters)
 var FunctionAnomalyRollingSeasonal = FunctionPeriodicAnomalyMaker("forecast.anomaly_rolling_seasonal", FunctionRollingSeasonal)
+
+func standardDeviationsFromExpected(correct []float64, estimate []float64) ([]float64, error) {
+	if len(correct) != len(estimate) {
+		return nil, fmt.Errorf("p-value calculation requires two lists of equal size")
+	}
+	differences := []float64{}
+	for i := range correct {
+		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
+			continue
+		}
+		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
+			continue
+		}
+		differences = append(differences, estimate[i]-correct[i])
+	}
+	meanDifference := 0.0
+	for _, difference := range differences {
+		meanDifference += difference
+	}
+	meanDifference /= float64(len(differences))
+
+	//
+	stddevDifference := 0.0
+	for _, difference := range differences {
+		stddevDifference += math.Pow(difference-meanDifference, 2)
+	}
+	stddevDifference /= float64(len(differences)) - 1
+	stddevDifference = math.Sqrt(stddevDifference)
+	// stddevDifference estimates the true population standard deviation of the differences between the estimate and the correct values.
+	// We now use this value to standardize our differences.
+	standardDifferences := make([]float64, len(estimate))
+	for i := range standardDifferences {
+		difference := (estimate[i] - correct[i])
+		standardDifferences[i] = (difference - meanDifference) / stddevDifference
+	}
+	return standardDifferences, nil
+}
+func periodicStandardDeviationsFromExpected(correct []float64, estimate []float64, period int) ([]float64, error) {
+	if period <= 0 {
+		return nil, fmt.Errorf("Period must be strictly positive")
+	}
+	if len(correct) != len(estimate) {
+		return nil, fmt.Errorf("to estimate anomaly values, the ground truth and estimate slices must be the same length")
+	}
+	slices := make([][]float64, period)
+	for r := range slices {
+		// Consider len(correct) = 42
+		// If our period is 10, what are the indices for each group?
+		// 0: [0,10,20,30,40]
+		// 1: [1,11,21,31,41]
+		// 2: [2,12,22,32]
+		// 3: [3,13,23,33]
+		// ...
+		// 9: [9,19,29,39]
+
+		// each slot r, (0 <= r < p) gets (n/p + (n%p < r ? 1 : 0)) indices.
+		length := len(correct) / period
+		if r < len(correct)%period {
+			length++
+		}
+		correctSlice := make([]float64, length)
+		estimateSlice := make([]float64, length)
+		for i := range correctSlice {
+			correctSlice[i] = correct[r+i*period]
+			estimateSlice[i] = estimate[r+i*period]
+		}
+		var err error
+		slices[r], err = standardDeviationsFromExpected(correctSlice, estimateSlice)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// un-interleave the slices
+	answer := make([]float64, len(correct))
+	for i := range answer {
+		answer[i] = slices[i%period][i/period]
+	}
+	return answer, nil
+}

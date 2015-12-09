@@ -73,7 +73,8 @@ func TestMovingAverage(t *testing.T) {
 	}
 
 	backend := fakeBackend
-	result, err := evaluateToSeriesList(expression,
+
+	result, err := function.EvaluateToSeriesList(expression,
 		function.EvaluationContext{
 			MetricMetadataAPI:         fakeAPI,
 			TimeseriesStorageAPI:      backend,

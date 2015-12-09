@@ -14,10 +14,7 @@
 
 package forecast
 
-import (
-	"fmt"
-	"math"
-)
+import "math"
 
 // Returns the unique integer r such that x == r (mod m) and 0 <= r < m
 func mod(x int, m int) int {
@@ -51,77 +48,4 @@ func LinearRegression(ys []float64) (float64, float64) {
 	beta := (xym - xm*ym) / (x2m - xm*xm)
 	alpha := ym - beta*xm
 	return alpha, beta
-}
-func pValueFromNormalDifferences(correct []float64, estimate []float64) ([]float64, error) {
-	if len(correct) != len(estimate) {
-		return nil, fmt.Errorf("p-value calculation requires two lists of equal size")
-	}
-	deviations := []float64{}
-	for i := range correct {
-		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
-			continue
-		}
-		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
-			continue
-		}
-		deviations = append(deviations, estimate[i]-correct[i])
-	}
-	meandev := 0.0
-	for _, dev := range deviations {
-		meandev += dev
-	}
-	meandev /= float64(len(deviations))
-	stddev := 0.0
-	for _, dev := range deviations {
-		stddev += (meandev - dev) * (meandev - dev)
-	}
-	stddev /= float64(len(deviations)) - 1
-	stddev = math.Sqrt(stddev) // Now we have a good estimate for the population standard deviation.
-	pvalues := make([]float64, len(estimate))
-	for i := range pvalues {
-		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
-			pvalues[i] = math.NaN()
-			continue
-		}
-		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
-			pvalues[i] = math.NaN()
-			continue
-		}
-		difference := estimate[i] - correct[i]
-		tvalue := (difference - meandev) / stddev
-		pvalue := 1 - math.Erf(math.Abs(tvalue)/math.Sqrt2)
-		pvalues[i] = pvalue
-	}
-	return pvalues, nil
-}
-func pValueFromNormalDifferenceSlices(correct []float64, estimate []float64, period int) ([]float64, error) {
-	if period <= 0 {
-		return nil, fmt.Errorf("Period must be strictly positive")
-	}
-	slices := make([][]float64, period)
-	for r := range slices {
-		// 42. 0 -> 5. 1 -> 5. 2 -> 4.   [0,10,20,30,40] [1,11,21,31,41] [2,12,22,32]
-		// n/p + if n%p < r then 1 else 0
-		length := len(correct) / period
-		if len(correct)%period < r {
-			length++
-		}
-		correctSlice := make([]float64, length)
-		estimateSlice := make([]float64, length)
-		for i := range correctSlice {
-			correctSlice[i] = correct[r+i*period]
-			estimateSlice[i] = estimate[r+i*period]
-		}
-		var err error
-		slices[r], err = pValueFromNormalDifferences(correctSlice, estimateSlice)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// un-interleave the slices
-	answer := make([]float64, len(correct))
-	for i := range answer {
-		answer[i] = slices[i%period][i/period]
-	}
-	return answer, nil
 }
