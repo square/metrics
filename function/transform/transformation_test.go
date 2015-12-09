@@ -94,13 +94,13 @@ func TestTransformTimeseries(t *testing.T) {
 			if !transform.useParam {
 				params = []function.Value{}
 			}
-			ctx := function.EvaluationContext{EvaluationNotes: []string{}}
+			ctx := function.EvaluationContext{}
 			seriesList := api.SeriesList{
 				Series:    []api.Timeseries{series},
 				Timerange: timerange,
 			}
 
-			a, err := ApplyTransform(&ctx, seriesList, transform.fun, params)
+			a, err := ApplyTransform(ctx, seriesList, transform.fun, params)
 			result := a.Series[0]
 			if err != nil {
 				t.Error(err)
@@ -198,8 +198,8 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		result, err := ApplyTransform(&ctx, list, test.transform, test.parameter)
+		ctx := function.EvaluationContext{}
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameter)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -267,21 +267,21 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		_, err := ApplyTransform(&ctx, list, test.transform, test.parameter)
+		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
+		_, err := ApplyTransform(ctx, list, test.transform, test.parameter)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		if len(test.expected) != len(ctx.EvaluationNotes) {
-			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.EvaluationNotes))
+		if len(test.expected) != len(ctx.Notes()) {
+			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.Notes()))
 		}
 		for i, note := range test.expected {
-			if i >= len(ctx.EvaluationNotes) {
+			if i >= len(ctx.Notes()) {
 				break
 			}
-			if ctx.EvaluationNotes[i] != note {
-				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.EvaluationNotes[i])
+			if ctx.Notes()[i] != note {
+				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.Notes()[i])
 			}
 		}
 
@@ -367,7 +367,7 @@ func TestApplyBound(t *testing.T) {
 	}
 	for _, test := range tests {
 		bounders := []struct {
-			bounder  func(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error)
+			bounder  func(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error)
 			params   []function.Value
 			expected map[string][]float64
 			name     string
@@ -378,8 +378,8 @@ func TestApplyBound(t *testing.T) {
 		}
 
 		for _, bounder := range bounders {
-			ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-			bounded, err := ApplyTransform(&ctx, list, bounder.bounder, bounder.params)
+			ctx := function.EvaluationContext{}
+			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params)
 			if err != nil {
 				t.Errorf(err.Error())
 				continue
@@ -400,11 +400,11 @@ func TestApplyBound(t *testing.T) {
 			}
 		}
 	}
-	ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-	if _, err = ApplyTransform(&ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
+	ctx := function.EvaluationContext{}
+	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
-	if _, err = ApplyTransform(&ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
+	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
 }
@@ -500,8 +500,8 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		ctx := function.EvaluationContext{EvaluationNotes: []string{}}
-		result, err := ApplyTransform(&ctx, list, test.transform, test.parameters)
+		ctx := function.EvaluationContext{}
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameters)
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
 			return
@@ -600,14 +600,14 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContext{EvaluationNotes: []string{}}
+				ctx := function.EvaluationContext{}
 
 				seriesList := api.SeriesList{
 					Series:    []api.Timeseries{result},
 					Timerange: timerange,
 				}
 				params := []function.Value{}
-				a, err := ApplyTransform(&ctx, seriesList, fun, params)
+				a, err := ApplyTransform(ctx, seriesList, fun, params)
 				result = a.Series[0]
 				if err != nil {
 					t.Error(err)

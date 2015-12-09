@@ -38,7 +38,7 @@ func (le LiteralExpression) Name() string {
 	return "<literal expression>"
 }
 
-func (expr *LiteralExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return api.SeriesList{
 		Series:    []api.Timeseries{api.Timeseries{Values: expr.Values, TagSet: api.NewTagSet()}},
 		Timerange: api.Timerange{},
@@ -55,7 +55,7 @@ func (lse LiteralSeriesExpression) QueryString() string {
 func (lse LiteralSeriesExpression) Name() string {
 	return "<literal series expression>"
 }
-func (expr *LiteralSeriesExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return expr.list, nil
 }
 
@@ -82,7 +82,7 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		result, err := function.EvaluateToSeriesList(test.expr, &function.EvaluationContext{
+		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
 			Timerange:            test.timerange,
 			SampleMethod:         api.SampleMean,
@@ -103,7 +103,7 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := &function.EvaluationContext{
+	emptyContext := function.EvaluationContext{
 		TimeseriesStorageAPI: FakeBackend{},
 		MetricMetadataAPI:    nil,
 		Timerange:            api.Timerange{},
@@ -113,7 +113,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		Cancellable:          api.NewCancellable(),
 	}
 	for _, test := range []struct {
-		context              *function.EvaluationContext
+		context              function.EvaluationContext
 		functionName         string
 		left                 api.SeriesList
 		right                api.SeriesList

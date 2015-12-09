@@ -232,7 +232,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		Registry:                  r,
 		Profiler:                  context.Profiler,
 		OptimizationConfiguration: context.OptimizationConfiguration,
-		EvaluationNotes:           []string{},
+		EvaluationNotes:           new(function.EvaluationNotes),
 		UserSpecifiableConfig:     context.UserSpecifiableConfig,
 	}
 
@@ -247,7 +247,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
 	go func() {
 		// Evaluate the result, and send it along the goroutines.
-		result, err := function.EvaluateMany(&evaluationContext, cmd.expressions)
+		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
 		if err != nil {
 			errors <- err
 			return

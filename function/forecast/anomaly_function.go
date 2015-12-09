@@ -32,7 +32,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 		Name:         name,
 		MinArguments: model.MinArguments,
 		MaxArguments: model.MaxArguments,
-		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			original, err := function.EvaluateToSeriesList(arguments[0], context)
 			if err != nil {
 				return nil, err

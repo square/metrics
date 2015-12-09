@@ -26,24 +26,14 @@ var Timeshift = function.MetricFunction{
 	Name:         "transform.timeshift",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		duration, err := function.EvaluateToDuration(arguments[1], context)
 		if err != nil {
 			return nil, err
 		}
-		newContext := context.Copy()
-		newContext.Timerange = newContext.Timerange.Shift(duration)
 
-		result, err := arguments[0].Evaluate(&newContext)
-		if err != nil {
-			return nil, err
-		}
-
-		if seriesValue, ok := result.(api.SeriesList); ok {
-			seriesValue.Timerange = context.Timerange
-			return seriesValue, nil
-		}
-		return result, nil
+		newContext := context.WithTimerange(context.Timerange.Shift(duration))
+		return arguments[0].Evaluate(newContext)
 	},
 }
 
@@ -51,7 +41,7 @@ var MovingAverage = function.MetricFunction{
 	Name:         "transform.moving_average",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
 		size, err := function.EvaluateToDuration(arguments[1], context)
@@ -64,22 +54,20 @@ var MovingAverage = function.MetricFunction{
 			limit = 1
 		}
 
-		newContext := context.Copy()
 		timerange := context.Timerange
-		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
+		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
-		list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
+		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
 
 		// The timerange must be reverted.
 		list.Timerange = context.Timerange
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate() //Prevent this from leaking or getting used.
 
 		// Update each series in the list.
 		for index, series := range list.Series {
@@ -118,7 +106,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 	Name:         "transform.exponential_moving_average",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 
 		size, err := function.EvaluateToDuration(arguments[1], context)
@@ -131,14 +119,16 @@ var ExponentialMovingAverage = function.MetricFunction{
 			limit = 1
 		}
 
-		newContext := context.Copy()
 		timerange := context.Timerange
-		newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
+
+		newContext := context.WithTimerange(newTimerange)
+
 		// The new context has a timerange which is extended beyond the query's.
-		list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
+		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -152,8 +142,6 @@ var ExponentialMovingAverage = function.MetricFunction{
 
 		// The timerange must be reverted.
 		list.Timerange = context.Timerange
-		context.CopyNotesFrom(&newContext)
-		newContext.Invalidate() //Prevent this from leaking or getting used.
 
 		// Update each series in the list.
 		for index, series := range list.Series {
@@ -180,10 +168,9 @@ var Alias = function.MetricFunction{
 	Name:         "transform.alias",
 	MinArguments: 2,
 	MaxArguments: 2,
-	Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// TODO: delete this function
-		// also, this operation is not thread-safe, is it?
-		context.EvaluationNotes = append(context.EvaluationNotes, "transform.alias is deprecated")
+		context.AddNote("transform.alias is deprecated")
 		return arguments[0].Evaluate(context)
 	},
 }
@@ -192,7 +179,7 @@ var Alias = function.MetricFunction{
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
 var Derivative = newDerivativeBasedTransform("derivative", derivative)
 
-func derivative(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+func derivative(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
@@ -212,7 +199,7 @@ func derivative(ctx *function.EvaluationContext, series api.Timeseries, paramete
 // differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
-func rate(ctx *function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
@@ -246,26 +233,19 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		Name:         "transform." + name,
 		MinArguments: 1,
 		MaxArguments: 1,
-		Compute: func(context *function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			var err error
-			// Calcuate the new timerange to include one extra point to the left
-			newContext := context.Copy()
-			timerange := context.Timerange
-			newContext.Timerange, err = api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
-			if err != nil {
-				return nil, err
-			}
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+
+			// Calcuate the new timerange to include one extra point to the left.
+			newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 
 			// The new context has a timerange which is extended beyond the query's.
-			list, err := function.EvaluateToSeriesList(arguments[0], &newContext)
+			list, err := function.EvaluateToSeriesList(arguments[0], newContext)
 			if err != nil {
 				return nil, err
 			}
 
 			// Reset the timerange
 			list.Timerange = context.Timerange
-			context.CopyNotesFrom(&newContext)
-			newContext.Invalidate() // Prevent leaking this around.
 
 			//Apply the original context to the transform even though the list
 			//will include one additional data point.

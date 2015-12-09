@@ -199,7 +199,7 @@ type annotationExpression struct {
 	annotation string
 }
 
-func (ae annotationExpression) Evaluate(context *function.EvaluationContext) (function.Value, error) {
+func (ae annotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return ae.content.Evaluate(context)
 }
 
