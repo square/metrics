@@ -234,15 +234,9 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 		MinArguments: 1,
 		MaxArguments: 1,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			var err error
-			// Calcuate the new timerange to include one extra point to the left
 
-			timerange := context.Timerange
-			newTimerange, err := api.NewSnappedTimerange(timerange.Start()-timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
-			if err != nil {
-				return nil, err
-			}
-			newContext := context.WithTimerange(newTimerange)
+			// Calcuate the new timerange to include one extra point to the left.
+			newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 
 			// The new context has a timerange which is extended beyond the query's.
 			list, err := function.EvaluateToSeriesList(arguments[0], newContext)
