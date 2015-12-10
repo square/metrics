@@ -31,6 +31,11 @@ func TestQueryNaming(t *testing.T) {
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.ParseTagSet("dc=east,env=staging")})
 
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.bar.", api.ParseTagSet("qaz=foo1")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{".foo.bar", api.ParseTagSet("qaz=foo1")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.2bar", api.ParseTagSet("qaz=foo1")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"_names423.with_.dots_and_und3rsc0r3s", api.ParseTagSet("qaz=foo1")})
+
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {
 		query        string
@@ -128,6 +133,22 @@ func TestQueryNaming(t *testing.T) {
 		{
 			query:    "series_1[`foo-bar` = 'qaz' and `foo-bar` match 'x' and `foo-bar` in ('a', 'b')] from 0 to 0",
 			expected: "series_1[(`foo-bar` = \"qaz\" and (`foo-bar` match \"x\" and `foo-bar` in (\"a\", \"b\")))]",
+		},
+		{
+			query:    "_names423.with_.dots_and_und3rsc0r3s from 0 to 0",
+			expected: "_names423.with_.dots_and_und3rsc0r3s",
+		},
+		{
+			query:    "`foo.bar.` from 0 to 0",
+			expected: "`foo.bar.`",
+		},
+		{
+			query:    "`.foo.bar` from 0 to 0",
+			expected: "`.foo.bar`",
+		},
+		{
+			query:    "`foo.2bar` from 0 to 0",
+			expected: "`foo.2bar`",
 		},
 	}
 	for _, test := range tests {

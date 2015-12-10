@@ -16,20 +16,10 @@ package query
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/square/metrics/api"
 )
-
-var validNameRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z_0-9]*$`)
-
-func escapeName(name string) string {
-	if validNameRegexp.MatchString(name) {
-		return name
-	}
-	return fmt.Sprintf("`%s`", name)
-}
 
 func (matcher *andPredicate) Apply(tagSet api.TagSet) bool {
 	for _, subPredicate := range matcher.predicates {
@@ -104,13 +94,13 @@ func (matcher *listMatcher) Apply(tagSet api.TagSet) bool {
 }
 func (matcher *listMatcher) Query() string {
 	if len(matcher.values) == 1 {
-		return fmt.Sprintf("%s = %q", escapeName(matcher.tag), matcher.values[0])
+		return fmt.Sprintf("%s = %q", EscapeIdentifier(matcher.tag), matcher.values[0])
 	}
 	quotedValues := make([]string, len(matcher.values))
 	for i, value := range matcher.values {
 		quotedValues[i] = fmt.Sprintf("%q", value)
 	}
-	return fmt.Sprintf("%s in (%s)", escapeName(matcher.tag), strings.Join(quotedValues, ", "))
+	return fmt.Sprintf("%s in (%s)", EscapeIdentifier(matcher.tag), strings.Join(quotedValues, ", "))
 }
 
 func (matcher *regexMatcher) Apply(tagSet api.TagSet) bool {
@@ -120,7 +110,7 @@ func (matcher *regexMatcher) Apply(tagSet api.TagSet) bool {
 	return matcher.regex.MatchString(tagSet[matcher.tag])
 }
 func (matcher *regexMatcher) Query() string {
-	return fmt.Sprintf("%s match %q", escapeName(matcher.tag), matcher.regex.String())
+	return fmt.Sprintf("%s match %q", EscapeIdentifier(matcher.tag), matcher.regex.String())
 }
 
 func matchPrecondition(matcherTag string, tagSet api.TagSet) bool {

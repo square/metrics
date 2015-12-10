@@ -114,7 +114,7 @@ type metricFetchExpression struct {
 	predicate  api.Predicate
 }
 
-var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*$`)
+var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)*$`)
 
 func EscapeIdentifier(identifier string) string {
 	if !OrdinaryIdentifierRegex.MatchString(identifier) {
