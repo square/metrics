@@ -31,7 +31,6 @@ type FetchTimeseriesRequest struct {
 	Metric                TaggedMetric // metric to fetch.
 	SampleMethod          SampleMethod // up/downsampling behavior.
 	Timerange             Timerange    // time range to fetch data from.
-	MetricMetadata        MetricMetadataAPI
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
@@ -41,7 +40,6 @@ type FetchMultipleTimeseriesRequest struct {
 	Metrics               []TaggedMetric
 	SampleMethod          SampleMethod
 	Timerange             Timerange
-	MetricMetadata        MetricMetadataAPI
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
@@ -97,7 +95,6 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 	for _, metric := range r.Metrics {
 		request := FetchTimeseriesRequest{
 			Metric:                metric,
-			MetricMetadata:        r.MetricMetadata,
 			Cancellable:           r.Cancellable,
 			SampleMethod:          r.SampleMethod,
 			Timerange:             r.Timerange,

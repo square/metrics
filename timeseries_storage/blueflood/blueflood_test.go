@@ -78,7 +78,7 @@ func Test_Blueflood(t *testing.T) {
 			queryUrl:     defaultQueryUrl,
 			clientConfig: defaultClientConfig,
 			queryResponse: `{
-        "unit": "unknown", 
+        "unit": "unknown",
         "values": [
           {
             "numPoints": 1,
@@ -163,11 +163,10 @@ func Test_Blueflood(t *testing.T) {
 		b.client = fakeHttpClient
 
 		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-			Metric:         test.queryMetric,
-			SampleMethod:   test.sampleMethod,
-			Timerange:      test.timerange,
-			MetricMetadata: fakeApi,
-			Cancellable:    api.NewCancellable(),
+			Metric:       test.queryMetric,
+			SampleMethod: test.sampleMethod,
+			Timerange:    test.timerange,
+			Cancellable:  api.NewCancellable(),
 		})
 
 		if test.expectedErrorCode != 0 {
@@ -200,16 +199,6 @@ func TestIncludeRawPayload(t *testing.T) {
 			},
 		},
 	}
-
-	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeApi.AddPair(
-		api.TaggedMetric{
-			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
-		},
-		util.GraphiteMetric("some.key.value"),
-		&graphite,
-	)
 
 	now := time.Unix(1438734300000, 0)
 
@@ -298,7 +287,6 @@ func TestIncludeRawPayload(t *testing.T) {
 		},
 		SampleMethod:          api.SampleMean,
 		Timerange:             queryTimerange,
-		MetricMetadata:        fakeApi,
 		Cancellable:           api.NewCancellable(),
 		UserSpecifiableConfig: userConfig,
 	})
@@ -372,16 +360,6 @@ func TestFullResolutionDataFilling(t *testing.T) {
 			},
 		},
 	}
-
-	fakeApi := mocks.NewFakeMetricMetadataAPI()
-	fakeApi.AddPair(
-		api.TaggedMetric{
-			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
-		},
-		util.GraphiteMetric("some.key.value"),
-		&graphite,
-	)
 
 	now := time.Unix(1438734300000, 0)
 
@@ -507,10 +485,9 @@ func TestFullResolutionDataFilling(t *testing.T) {
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
 		},
-		SampleMethod:   api.SampleMean,
-		Timerange:      queryTimerange,
-		MetricMetadata: fakeApi,
-		Cancellable:    api.NewCancellable(),
+		SampleMethod: api.SampleMean,
+		Timerange:    queryTimerange,
+		Cancellable:  api.NewCancellable(),
 	})
 	if err != nil {
 		t.Fatalf("Expected success, but got error: %s", err.Error())

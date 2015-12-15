@@ -50,17 +50,13 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	metricTagSets, err := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(
-		metricKey,
-		func() ([]api.TagSet, error) {
-			return context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
-				Profiler: context.Profiler,
-			})
-		},
-	)
+	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
+		Profiler: context.Profiler,
+	})
 	if err != nil {
 		return nil, err
 	}
+
 	filtered := applyPredicates(metricTagSets, predicate)
 
 	if err := context.FetchLimit.Consume(len(filtered)); err != nil {
@@ -74,13 +70,12 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		api.FetchMultipleTimeseriesRequest{
-			metrics,
-			context.SampleMethod,
-			context.Timerange,
-			context.MetricMetadataAPI,
-			context.Cancellable,
-			context.Profiler,
-			context.UserSpecifiableConfig,
+			Metrics:               metrics,
+			SampleMethod:          context.SampleMethod,
+			Timerange:             context.Timerange,
+			Cancellable:           context.Cancellable,
+			Profiler:              context.Profiler,
+			UserSpecifiableConfig: context.UserSpecifiableConfig,
 		},
 	)
 }
