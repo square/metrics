@@ -16,8 +16,6 @@ func NewMetadataAPICache(metadataAPI api.MetricMetadataAPI, ttl time.Duration) *
 	}
 }
 
-// TODO: if this kind of repeated "embedded-but-with-different-behavior-on-a-few-methods" struct is defined in more places,
-// then combine them via actual embedding.
 type MetadataAPICache struct {
 	api.MetricMetadataAPI
 	mutex        sync.Mutex

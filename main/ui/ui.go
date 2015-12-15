@@ -84,21 +84,20 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	optimizer := optimize.NewOptimizationConfiguration()
-	optimizer.EnableMetricMetadataCaching = true
-
 	//Defaults
 	userConfig := api.UserSpecifiableConfig{
 		IncludeRawData: false,
 	}
 
-	startServer(config.UIConfig, query.ExecutionContext{
-		MetricMetadataAPI:         apiInstance,
-		TimeseriesStorageAPI:      blueflood,
-		FetchLimit:                1500,
-		SlotLimit:                 5000,
-		Registry:                  registry.Default(),
-		OptimizationConfiguration: optimizer,
-		UserSpecifiableConfig:     userConfig,
+	optimizer := optimize.NewOptimizationConfiguration()
+	executionContext := optimizer.OptimizeExecutionContext(query.ExecutionContext{
+		MetricMetadataAPI:     apiInstance,
+		TimeseriesStorageAPI:  blueflood,
+		FetchLimit:            1500,
+		SlotLimit:             5000,
+		Registry:              registry.Default(),
+		UserSpecifiableConfig: userConfig,
 	})
+
+	startServer(config.UIConfig, executionContext)
 }

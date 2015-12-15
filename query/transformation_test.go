@@ -24,7 +24,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/mocks"
 )
 
@@ -76,14 +75,13 @@ func TestMovingAverage(t *testing.T) {
 
 	result, err := function.EvaluateToSeriesList(expression,
 		function.EvaluationContext{
-			MetricMetadataAPI:         fakeAPI,
-			TimeseriesStorageAPI:      backend,
-			Timerange:                 timerange,
-			SampleMethod:              api.SampleMean,
-			FetchLimit:                function.NewFetchCounter(1000),
-			Registry:                  registry.Default(),
-			Cancellable:               api.NewCancellable(),
-			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+			MetricMetadataAPI:    fakeAPI,
+			TimeseriesStorageAPI: backend,
+			Timerange:            timerange,
+			SampleMethod:         api.SampleMean,
+			FetchLimit:           function.NewFetchCounter(1000),
+			Registry:             registry.Default(),
+			Cancellable:          api.NewCancellable(),
 		})
 	if err != nil {
 		t.Errorf(err.Error())
