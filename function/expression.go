@@ -128,8 +128,15 @@ func (c FetchCounter) Current() int {
 
 // Consume decrements the internal counter and returns whether the result is at least 0.
 // It does so in a threadsafe manner.
-func (c FetchCounter) Consume(n int) bool {
-	return atomic.AddInt32(c.count, -int32(n)) >= 0
+func (c FetchCounter) Consume(n int) error {
+	result := atomic.AddInt32(c.count, -int32(n))
+	if result >= 0 {
+		return nil
+	}
+	return NewLimitError("fetch limit exceeded: too many series to fetch",
+		n,
+		c.limit,
+	)
 }
 
 // Expression is a piece of code, which can be evaluated in a given

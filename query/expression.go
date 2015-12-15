@@ -37,6 +37,7 @@ func (expr stringExpression) Evaluate(context function.EvaluationContext) (funct
 }
 
 func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	metricKey := api.MetricKey(expr.metricName)
 	// Merge predicates appropriately
 	var predicate api.Predicate
 	if context.Predicate == nil && expr.predicate == nil {
@@ -49,35 +50,29 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
 	}
 
-	updateFunction := func() ([]api.TagSet, error) {
-		metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
-			Profiler: context.Profiler,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return metricTagSets, nil
-	}
-	metricTagSets, err := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(api.MetricKey(expr.metricName), updateFunction)
+	metricTagSets, err := context.OptimizationConfiguration.AllTagsCacheHitOrExecute(
+		metricKey,
+		func() ([]api.TagSet, error) {
+			return context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
+				Profiler: context.Profiler,
+			})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	ok := context.FetchLimit.Consume(len(filtered))
-
-	if !ok {
-		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
-			context.FetchLimit.Current(),
-			context.FetchLimit.Limit())
+	if err := context.FetchLimit.Consume(len(filtered)); err != nil {
+		return nil, err
 	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
 	for i := range metrics {
-		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
+		metrics[i] = api.TaggedMetric{metricKey, filtered[i]}
 	}
 
-	serieslist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
+	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		api.FetchMultipleTimeseriesRequest{
 			metrics,
 			context.SampleMethod,
@@ -88,12 +83,6 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 			context.UserSpecifiableConfig,
 		},
 	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return serieslist, nil
 }
 
 func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
