@@ -91,9 +91,9 @@ func (err TimeseriesStorageError) TokenName() string {
 // ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single
 // fetch requests (for now).
 func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
-	fetchSingleRequests := make([]FetchTimeseriesRequest, 0)
-	for _, metric := range r.Metrics {
-		request := FetchTimeseriesRequest{
+	fetchSingleRequests := make([]FetchTimeseriesRequest, len(r.Metrics))
+	for i, metric := range r.Metrics {
+		fetchSingleRequests[i] = FetchTimeseriesRequest{
 			Metric:                metric,
 			Cancellable:           r.Cancellable,
 			SampleMethod:          r.SampleMethod,
@@ -101,7 +101,6 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 			Profiler:              r.Profiler,
 			UserSpecifiableConfig: r.UserSpecifiableConfig,
 		}
-		fetchSingleRequests = append(fetchSingleRequests, request)
 	}
 	return fetchSingleRequests
 }
