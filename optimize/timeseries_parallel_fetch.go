@@ -53,63 +53,62 @@ func NewParallelTimeseriesStorageAPI(concurrentRequests int, storage api.Timeser
 	}
 }
 
+func (p ParallelTimeseriesStorageAPI) spawnSingleRequest(request api.FetchTimeseriesRequest) (chan api.Timeseries, chan error) {
+	errChan := make(chan error, 1) // Capacity prevents deadlock and then garbage
+	resultChan := make(chan api.Timeseries, 1)
+	go func() {
+		select {
+		case <-p.tickets.Wait():
+			// Congestion is minimal, so proceed,
+			// but free up our spot when we're done:
+			defer p.tickets.Done()
+		case <-request.Cancellable.Done():
+			// Don't bother doing anything at all, since the timeout has occurred,
+			// and our answer would be ignored anyway.
+			return
+		}
+		// Ask the TimeseriesStorageAPI about my request.
+		if result, err := p.TimeseriesStorageAPI.FetchSingleTimeseries(request); err != nil {
+			errChan <- err
+		} else {
+			resultChan <- result
+		}
+	}()
+	return resultChan, errChan
+}
+
 func (p ParallelTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("parallel FetchMultipleTimeseries")()
 	if request.Cancellable == nil {
 		panic("request.Cancellable cannot be nil")
 	}
 
-	count := len(request.Metrics)
-
-	total := make(chan struct{}, count) // synchronizes the individual tasks
-
-	errChan := make(chan error, count) // possible collection of individual errors
-
 	singleRequests := request.ToSingle()
+	count := len(singleRequests)
 
-	answers := make([]api.Timeseries, count) // Where the resulting Timeseries are placed.
-
+	answerChannels := make([]chan api.Timeseries, count)
+	errChannels := make([]chan error, count)
 	for i := range singleRequests {
-		go func(i int) {
-			select {
-			// TODO: add a way to stop early (e.g. in event of error)
-			case <-p.tickets.Wait():
-				// Congestion is minimal, so proceed,
-				// but free up our spot when we're done:
-				defer p.tickets.Done()
-			case <-request.Cancellable.Done():
-				// Don't bother doing anything at all, since the timeout has occurred,
-				// and our answer would be ignored anyway.
-				return
-			}
-			// Ask the TimeseriesStorageAPI about my request, #i.
-			answer, err := p.TimeseriesStorageAPI.FetchSingleTimeseries(singleRequests[i])
-			if err != nil {
-				// Errors go in the error channel.
-				errChan <- err
-				return
-			}
-			answers[i] = answer // Store my answer
-			total <- struct{}{} // Let the synchronizer know that I'm done
-		}(i)
+		answerChannels[i], errChannels[i] = p.spawnSingleRequest(singleRequests[i])
 	}
-	waiting := count
-	for {
+
+	answers := make([]api.Timeseries, count)
+
+	for i := range answers {
 		select {
-		case <-total:
-			waiting--
-			if waiting != 0 {
-				// All done!
-				return api.SeriesList{
-					Series:    answers,
-					Timerange: request.Timerange,
-				}, nil
-			}
-			// Still waiting on work
-		case err := <-errChan: // One of the fetches produced an error:
-			return api.SeriesList{}, err
-		case <-request.Cancellable.Done(): // Timeout
+		case <-request.Cancellable.Done():
+			// Runs out of time
 			return api.SeriesList{}, api.TimeseriesStorageError{Code: api.FetchTimeoutError}
+		case err := <-errChannels[i]:
+			// Got an error
+			return api.SeriesList{}, err
+		case answers[i] = <-answerChannels[i]:
+			// Fill this answer
 		}
 	}
+
+	return api.SeriesList{
+		Series:    answers,
+		Timerange: request.Timerange,
+	}, nil
 }

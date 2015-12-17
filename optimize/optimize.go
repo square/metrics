@@ -36,7 +36,8 @@ type OptimizationConfiguration struct {
 func NewOptimizationConfiguration() OptimizationConfiguration {
 	return OptimizationConfiguration{
 		MetadataCacheTTL:                   2 * time.Hour,
-		FetchTimeseriesStorageConcurrently: false,
+		FetchTimeseriesStorageConcurrently: true,
+		MaximumConcurrentFetches:           10,
 	}
 }
 

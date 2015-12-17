@@ -196,21 +196,15 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 	if request.Cancellable == nil {
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
 	}
-	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
+	resultSeries := make([]api.Timeseries, len(singleRequests))
 	for i := range singleRequests {
-		//Make sure we close around the specific individual request
-		//and not the ranged/copied request.
-		singleRequest := singleRequests[i]
-		works[i] = func() (api.Timeseries, error) {
-			return b.FetchSingleTimeseries(singleRequest)
+		var err error
+		resultSeries[i], err = b.FetchSingleTimeseries(singleRequests[i])
+		if err != nil {
+			return api.SeriesList{}, err
 		}
-	}
-
-	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
-	if err != nil {
-		return api.SeriesList{}, err
 	}
 
 	return api.SeriesList{
