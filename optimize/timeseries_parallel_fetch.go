@@ -16,29 +16,26 @@ package optimize
 
 import "github.com/square/metrics/api"
 
+type Ticket struct{}
+
 type Tickets struct {
-	tickets chan struct{}
-	size    int
+	tickets chan Ticket
 }
 
 func NewTickets(n int) Tickets {
 	t := Tickets{
-		tickets: make(chan struct{}, n),
-		size:    n,
+		tickets: make(chan Ticket, n),
 	}
 	for i := 0; i < n; i++ {
-		t.tickets <- struct{}{}
+		t.tickets <- Ticket{}
 	}
 	return t
 }
-func (t Tickets) Wait() <-chan struct{} {
+func (t Tickets) Wait() <-chan Ticket {
 	return t.tickets
 }
 func (t Tickets) Done() {
-	t.tickets <- struct{}{}
-}
-func (t Tickets) Size() int {
-	return t.size
+	t.tickets <- Ticket{}
 }
 
 type ParallelTimeseriesStorageAPI struct {
@@ -57,24 +54,25 @@ func (p ParallelTimeseriesStorageAPI) spawnSingleRequest(request api.FetchTimese
 	errChan := make(chan error, 1) // Capacity prevents deadlock and then garbage
 	resultChan := make(chan api.Timeseries, 1)
 	go func() {
-		select {
-		case <-p.tickets.Wait():
-			// Congestion is minimal, so proceed,
-			// but free up our spot when we're done:
-			defer p.tickets.Done()
-		case <-request.Cancellable.Done():
-			// Don't bother doing anything at all, since the timeout has occurred,
-			// and our answer would be ignored anyway.
-			return
-		}
-		// Ask the TimeseriesStorageAPI about my request.
-		if result, err := p.TimeseriesStorageAPI.FetchSingleTimeseries(request); err != nil {
-			errChan <- err
-		} else {
-			resultChan <- result
-		}
+		result, err := p.FetchSingleTimeseries(request)
+		resultChan <- result
+		errChan <- err
 	}()
 	return resultChan, errChan
+}
+
+func (p ParallelTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+	// We check that we're not performing too many concurrent requests, by waiting for a ticket.
+	// Note: this could block for a while, depending on congestion.
+	select {
+	case <-p.tickets.Wait():
+		// We have our ticket, so we can proceed.
+		defer p.tickets.Done() // Put the ticket back when we're done.
+	case <-request.Cancellable.Done():
+		// We ran out of time, so don't bother performing the query at all.
+		return api.Timeseries{}, api.TimeseriesStorageError{Code: api.FetchTimeoutError}
+	}
+	return p.FetchSingleTimeseries(request)
 }
 
 func (p ParallelTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
