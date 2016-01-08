@@ -68,18 +68,18 @@ type TimeseriesStorageError struct {
 }
 
 func (err TimeseriesStorageError) Error() string {
-	message := "[%s] unknown error"
+	message := "[%s %+v] unknown error"
 	switch err.Code {
 	case FetchTimeoutError:
-		message = "[%s] timeout"
+		message = "[%s %+v] timeout"
 	case InvalidSeriesError:
-		message = "[%s] invalid series"
+		message = "[%s %+v] invalid series"
 	case LimitError:
-		message = "[%s] limit reached"
+		message = "[%s %+v] limit reached"
 	case Unsupported:
-		message = "[%s] unsupported operation"
+		message = "[%s %+v] unsupported operation"
 	}
-	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey))
+	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey), err.Metric.TagSet)
 	if err.Message != "" {
 		formatted = formatted + " - " + err.Message
 	}
