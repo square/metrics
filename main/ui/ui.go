@@ -36,8 +36,8 @@ import (
 	"github.com/square/metrics/util"
 )
 
-func startServer(config common.UIConfig, context query.ExecutionContext) {
-	httpMux := ui.NewMux(config.Config, context, ui.Hook{})
+func startServer(config ui.Config, context query.ExecutionContext) {
+	httpMux := ui.NewMux(config, context, ui.Hook{})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
@@ -72,10 +72,11 @@ func main() {
 
 	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {
-		//Blah
+		fmt.Printf("Error loading conversion rules: %s", err.Error())
+		return
 	}
-	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
-	config.Blueflood.GraphiteMetricConverter = &graphite
+
+	config.Blueflood.GraphiteMetricConverter = &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
@@ -87,7 +88,7 @@ func main() {
 		IncludeRawData: false,
 	}
 
-	startServer(config.UIConfig, query.ExecutionContext{
+	startServer(config.UI, query.ExecutionContext{
 		MetricMetadataAPI:         apiInstance,
 		TimeseriesStorageAPI:      blueflood,
 		FetchLimit:                1500,

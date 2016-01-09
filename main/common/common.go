@@ -38,17 +38,11 @@ var (
 	Logger     = flag.String("logger", "glog", "Selects the logger to use")
 )
 
-type UIConfig struct {
-	Port      int `yaml:"port"`
-	Timeout   int `yaml:"timeout"`
-	ui.Config `yaml:"config"`
-}
-
 type Config struct {
 	Blueflood           blueflood.Config `yaml:"blueflood"`
 	Cassandra           cassandra.Config `yaml:"api"` // TODO: Probably rethink how we name this
 	ConversionRulesPath string           `yaml:"conversion_rules_path"`
-	UIConfig            UIConfig         `yaml:"ui"`
+	UI                  ui.Config        `yaml:"ui"`
 }
 
 func LoadConfig() Config {

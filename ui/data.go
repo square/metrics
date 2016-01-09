@@ -19,6 +19,8 @@ import (
 )
 
 type Config struct {
+	Port      int    `yaml:"port"`
+	Timeout   int    `yaml:"timeout"`
 	StaticDir string `yaml:"static_dir"`
 }
 
