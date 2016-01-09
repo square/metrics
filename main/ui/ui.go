@@ -29,7 +29,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
@@ -69,11 +68,7 @@ func main() {
 
 	config := common.LoadConfig()
 
-	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
-		Hosts:    config.MetricMetadataConfig.Hosts,
-		Keyspace: config.MetricMetadataConfig.Keyspace,
-	}
-	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
+	apiInstance := common.NewMetricMetadataAPI(config.Cassandra)
 
 	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {

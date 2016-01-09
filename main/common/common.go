@@ -45,10 +45,10 @@ type UIConfig struct {
 }
 
 type Config struct {
-	Blueflood            blueflood.Config         `yaml:"blueflood"`
-	MetricMetadataConfig api.MetricMetadataConfig `yaml:"api"` // TODO: Probably rethink how we name this
-	ConversionRulesPath  string                   `yaml:"conversion_rules_path"`
-	UIConfig             UIConfig                 `yaml:"ui"`
+	Blueflood           blueflood.Config `yaml:"blueflood"`
+	Cassandra           cassandra.Config `yaml:"api"` // TODO: Probably rethink how we name this
+	ConversionRulesPath string           `yaml:"conversion_rules_path"`
+	UIConfig            UIConfig         `yaml:"ui"`
 }
 
 func LoadConfig() Config {
@@ -88,7 +88,7 @@ func ExitWithMessage(message string) {
 }
 
 // NewMetricMetadataAPI creates a new instance of the API.
-func NewMetricMetadataAPI(config cassandra.CassandraMetricMetadataConfig) api.MetricMetadataAPI {
+func NewMetricMetadataAPI(config cassandra.Config) api.MetricMetadataAPI {
 	apiInstance, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))

@@ -25,11 +25,6 @@ type MetricMetadataAPIContext struct {
 	Profiler *inspect.Profiler
 }
 
-type MetricMetadataConfig struct {
-	Hosts    []string `yaml:"hosts"`
-	Keyspace string   `yaml:"keyspace"`
-}
-
 type MetricMetadataAPI interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
