@@ -47,6 +47,7 @@ type UIConfig struct {
 type Config struct {
 	Blueflood            blueflood.Config         `yaml:"blueflood"`
 	MetricMetadataConfig api.MetricMetadataConfig `yaml:"api"` // TODO: Probably rethink how we name this
+	ConversionRulesPath  string                   `yaml:"conversion_rules_path"`
 	UIConfig             UIConfig                 `yaml:"ui"`
 }
 

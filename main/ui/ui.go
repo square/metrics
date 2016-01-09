@@ -75,7 +75,7 @@ func main() {
 	}
 	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
 
-	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {
 		//Blah
 	}
