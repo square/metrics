@@ -133,84 +133,20 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
-	go func() {
-		select {
-		case ticket := <-ctx.tickets:
-			series, err := work()
-			// Put the ticket back (regardless of whether caller drops)
-			ctx.tickets <- ticket
-			// Store the result
-			*result = series
-			// Return the error (and sync up with the caller).
-			channel <- err
-		case <-cancellable.Done():
-			channel <- api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
-		}
-	}()
-}
-
-func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
-	results := make([]api.Timeseries, len(works))
-	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
-
-	limit := b.config.MaxSimultaneousRequests
-	tickets := make(chan struct{}, limit)
-	for i := 0; i < limit; i++ {
-		tickets <- struct{}{}
-	}
-	ctx := BluefloodParallelRequest{
-		tickets: tickets,
-	}
-	for i := range results {
-		b.fetchLazy(cancellable, &results[i], works[i], channel, ctx)
-	}
-
-	var err error = nil
-	for _ = range works {
-		select {
-		case thisErr := <-channel:
-			if thisErr != nil {
-				err = thisErr
-			}
-		case <-cancellable.Done():
-			return nil, api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
-}
-
 func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
 	if request.Cancellable == nil {
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
 	}
-	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
+	resultSeries := make([]api.Timeseries, len(singleRequests))
 	for i := range singleRequests {
-		//Make sure we close around the specific individual request
-		//and not the ranged/copied request.
-		singleRequest := singleRequests[i]
-		works[i] = func() (api.Timeseries, error) {
-			return b.FetchSingleTimeseries(singleRequest)
+		var err error
+		resultSeries[i], err = b.FetchSingleTimeseries(singleRequests[i])
+		if err != nil {
+			return api.SeriesList{}, err
 		}
-	}
-
-	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
-	if err != nil {
-		return api.SeriesList{}, err
 	}
 
 	return api.SeriesList{

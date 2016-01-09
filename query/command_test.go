@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
@@ -60,11 +59,10 @@ func TestCommand_Describe(t *testing.T) {
 		a.EqString(command.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{
-			TimeseriesStorageAPI:      fakeTimeseriesStorage,
-			MetricMetadataAPI:         test.metricmetadata,
-			FetchLimit:                1000,
-			Timeout:                   0,
-			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+			TimeseriesStorageAPI: fakeTimeseriesStorage,
+			MetricMetadataAPI:    test.metricmetadata,
+			FetchLimit:           1000,
+			Timeout:              0,
 		})
 		a.CheckError(err)
 		a.Eq(rawResult.Body, test.expected)
@@ -97,11 +95,10 @@ func TestCommand_DescribeAll(t *testing.T) {
 		a.EqString(command.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{
-			TimeseriesStorageAPI:      fakeMulti,
-			MetricMetadataAPI:         test.metricmetadata,
-			FetchLimit:                1000,
-			Timeout:                   0,
-			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+			TimeseriesStorageAPI: fakeMulti,
+			MetricMetadataAPI:    test.metricmetadata,
+			FetchLimit:           1000,
+			Timeout:              0,
 		})
 		a.CheckError(err)
 		a.Eq(rawResult.Body, test.expected)

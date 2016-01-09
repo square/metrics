@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/mocks"
 )
 
@@ -162,11 +161,10 @@ func TestQueryNaming(t *testing.T) {
 			continue
 		}
 		rawResult, err := command.Execute(ExecutionContext{
-			TimeseriesStorageAPI:      fakeBackend,
-			MetricMetadataAPI:         fakeAPI,
-			FetchLimit:                1000,
-			Timeout:                   0,
-			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
+			TimeseriesStorageAPI: fakeBackend,
+			MetricMetadataAPI:    fakeAPI,
+			FetchLimit:           1000,
+			Timeout:              0,
 		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())

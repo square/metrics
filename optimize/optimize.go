@@ -1,11 +1,23 @@
+// Copyright 2015 Square Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package optimize
 
 import (
-	_ "fmt"
-	"sync"
 	"time"
 
-	"github.com/square/metrics/api"
+	"github.com/square/metrics/query"
 )
 
 // The optimization package is designed to be an externalized
@@ -16,74 +28,25 @@ import (
 // Optimization configuration has the tunable nobs for
 // improving performance.
 type OptimizationConfiguration struct {
-	EnableMetricMetadataCaching bool
-	metricMetadataAPI           api.MetricMetadataAPI
-	metricKeyToTagCache         map[api.MetricKey]TagSetCacheEntry
-	mutex                       *sync.Mutex
-	TimeSourceForNow            TimeSource
-	CacheTTL                    time.Duration
+	MetadataCacheTTL                   time.Duration
+	FetchTimeseriesStorageConcurrently bool
+	MaximumConcurrentFetches           int
 }
 
-type TimeSource func() time.Time
-
-type TagSetCacheEntry struct {
-	tags      []api.TagSet
-	expiresAt time.Time
-}
-
-func NewOptimizationConfiguration() *OptimizationConfiguration {
-	optimize := OptimizationConfiguration{
-		metricKeyToTagCache: make(map[api.MetricKey]TagSetCacheEntry, 3000),
-		mutex:               &sync.Mutex{},
-		CacheTTL:            time.Hour * 2,
-		TimeSourceForNow:    time.Now,
-	}
-	return &optimize
-}
-
-// If we have a cached result for this particular metric then use it,
-// otherwise call the supplied update function and cache the result
-// transparently.
-func (optimize *OptimizationConfiguration) AllTagsCacheHitOrExecute(metric api.MetricKey, update func() ([]api.TagSet, error)) ([]api.TagSet, error) {
-	// Just in case we were never initialized.
-	if optimize == nil {
-		return update()
-	}
-	// If caching is disabled, always run the provided update function
-	if !optimize.EnableMetricMetadataCaching {
-		return update()
-	}
-
-	tags, cacheHit := optimize.cacheGet(metric)
-	if !cacheHit {
-		var err error
-		if tags, err = update(); err != nil {
-			return nil, err
-		}
-
-		optimize.cacheUpdate(metric, tags)
-		return tags, nil
-	}
-	return tags, nil
-}
-
-func (optimize *OptimizationConfiguration) cacheUpdate(metric api.MetricKey, tags []api.TagSet) {
-	optimize.mutex.Lock()
-	defer optimize.mutex.Unlock()
-	optimize.metricKeyToTagCache[metric] = TagSetCacheEntry{
-		tags:      tags,
-		expiresAt: time.Now().Add(optimize.CacheTTL),
+func NewOptimizationConfiguration() OptimizationConfiguration {
+	return OptimizationConfiguration{
+		MetadataCacheTTL:                   2 * time.Hour,
+		FetchTimeseriesStorageConcurrently: true,
+		MaximumConcurrentFetches:           10,
 	}
 }
 
-func (optimize *OptimizationConfiguration) cacheGet(metric api.MetricKey) ([]api.TagSet, bool) {
-	optimize.mutex.Lock()
-	defer optimize.mutex.Unlock()
-	if val, ok := optimize.metricKeyToTagCache[metric]; ok {
-		if optimize.TimeSourceForNow().After(val.expiresAt) {
-			return nil, false
-		}
-		return val.tags, true
+func (config OptimizationConfiguration) OptimizeExecutionContext(e query.ExecutionContext) query.ExecutionContext {
+	if config.MetadataCacheTTL > 0 {
+		e.MetricMetadataAPI = NewMetadataAPICache(e.MetricMetadataAPI, config.MetadataCacheTTL)
 	}
-	return nil, false
+	if config.FetchTimeseriesStorageConcurrently {
+		e.TimeseriesStorageAPI = NewParallelTimeseriesStorageAPI(config.MaximumConcurrentFetches, e.TimeseriesStorageAPI)
+	}
+	return e
 }
