@@ -39,9 +39,9 @@ var (
 )
 
 type Config struct {
-	Blueflood           blueflood.Config `yaml:"blueflood"`
-	Cassandra           cassandra.Config `yaml:"api"` // TODO: Probably rethink how we name this
 	ConversionRulesPath string           `yaml:"conversion_rules_path"`
+	Blueflood           blueflood.Config `yaml:"blueflood"`
+	Cassandra           cassandra.Config `yaml:"cassandra"`
 	UI                  ui.Config        `yaml:"ui"`
 }
 
