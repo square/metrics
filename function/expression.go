@@ -21,6 +21,7 @@ import (
 type EvaluationContext struct {
 	TimeseriesStorageAPI      api.TimeseriesStorageAPI // Backend to fetch data from
 	MetricMetadataAPI         api.MetricMetadataAPI    // Api to obtain metadata from
+	MetricConverter           api.MetricConverter      // API to convert metrics
 	Timerange                 api.Timerange            // Timerange to fetch data from
 	SampleMethod              api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate                 api.Predicate            // Predicate to apply to TagSets prior to fetching

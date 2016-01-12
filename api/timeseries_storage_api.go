@@ -23,12 +23,12 @@ import (
 
 type TimeseriesStorageAPI interface {
 	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
-	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
-	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	FetchSingleTimeseries(request FetchTimeseriesRequest) ([]float64, error)
+	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) ([][]float64, error)
 }
 
 type FetchTimeseriesRequest struct {
-	Metric                TaggedMetric // metric to fetch.
+	Metric                []byte       // metric to fetch.
 	SampleMethod          SampleMethod // up/downsampling behavior.
 	Timerange             Timerange    // time range to fetch data from.
 	Cancellable           Cancellable
@@ -37,7 +37,7 @@ type FetchTimeseriesRequest struct {
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics               []TaggedMetric
+	Metrics               [][]byte
 	SampleMethod          SampleMethod
 	Timerange             Timerange
 	Cancellable           Cancellable
@@ -60,7 +60,7 @@ const (
 )
 
 type TimeseriesStorageError struct {
-	Metric  TaggedMetric
+	Metric  []byte
 	Code    TimeseriesStorageErrorCode
 	Message string
 }
@@ -77,7 +77,7 @@ func (err TimeseriesStorageError) Error() string {
 	case Unsupported:
 		message = "[%s %+v] unsupported operation"
 	}
-	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey), err.Metric.TagSet)
+	formatted := fmt.Sprintf(message, string(err.Metric))
 	if err.Message != "" {
 		formatted = formatted + " - " + err.Message
 	}
@@ -85,7 +85,7 @@ func (err TimeseriesStorageError) Error() string {
 }
 
 func (err TimeseriesStorageError) TokenName() string {
-	return string(err.Metric.MetricKey)
+	return string(err.Metric)
 }
 
 // ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single

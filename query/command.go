@@ -225,6 +225,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		MetricMetadataAPI:         context.MetricMetadataAPI,
 		FetchLimit:                function.NewFetchCounter(context.FetchLimit),
 		TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
+		MetricConverter:           nil, // TODO: set this to something
 		Predicate:                 cmd.predicate,
 		SampleMethod:              cmd.context.SampleMethod,
 		Timerange:                 chosenTimerange,

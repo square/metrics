@@ -28,36 +28,12 @@ import (
 	"github.com/square/metrics/testing_support/mocks"
 )
 
-type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
-
-func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	t := r.Timerange
-	values := []float64{9, 2, 1, 6, 4, 5}
-	startIndex := t.Start()/100 - 10
-	result := make([]float64, t.Slots())
-	for i := range result {
-		result[i] = values[i+int(startIndex)]
-	}
-	return api.Timeseries{Values: values, TagSet: api.NewTagSet()}, nil
-}
-
-func (b movingAverageBackend) FetchMultipleTimeseries(r api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
-	timeseries := make([]api.Timeseries, 0)
-	singleRequests := r.ToSingle()
-	for _, request := range singleRequests {
-		series, _ := b.FetchSingleTimeseries(request)
-		timeseries = append(timeseries, series)
-	}
-	return api.SeriesList{
-		Series: timeseries,
-	}, nil
-}
-
 func TestMovingAverage(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()})
 
-	fakeBackend := movingAverageBackend{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
+
 	timerange, err := api.NewTimerange(1200, 1500, 100)
 	if err != nil {
 		t.Fatalf(err.Error())

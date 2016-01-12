@@ -15,13 +15,11 @@
 package mocks
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/util"
 )
 
 type FakeMetricMetadataAPI struct {
@@ -42,11 +40,6 @@ func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
 			value string
 		}][]api.MetricKey),
 	}
-}
-
-func (fa *FakeMetricMetadataAPI) AddPair(tm api.TaggedMetric, gm util.GraphiteMetric, converter *FakeGraphiteConverter) {
-	converter.MetricMap[gm] = tm
-	fa.AddPairWithoutGraphite(tm)
 }
 
 func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
@@ -114,22 +107,22 @@ MetricLoop:
 }
 
 type FakeGraphiteConverter struct {
-	MetricMap map[util.GraphiteMetric]api.TaggedMetric
+	MetricMap map[string]api.TaggedMetric
 }
 
-var _ util.GraphiteConverter = (*FakeGraphiteConverter)(nil)
+var _ api.MetricConverter = (*FakeGraphiteConverter)(nil)
 
-func (fa *FakeGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (util.GraphiteMetric, error) {
+func (fa *FakeGraphiteConverter) ToUntagged(metric api.TaggedMetric) ([]byte, error) {
 	for k, v := range fa.MetricMap {
 		if reflect.DeepEqual(v, metric) {
-			return k, nil
+			return []byte(k), nil
 		}
 	}
-	return "", fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
+	return nil, fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
 }
 
-func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.TaggedMetric, error) {
-	tm, exists := fa.MetricMap[metric]
+func (fa *FakeGraphiteConverter) ToTagged(metric []byte) (api.TaggedMetric, error) {
+	tm, exists := fa.MetricMap[string(metric)]
 	if !exists {
 		return api.TaggedMetric{}, fmt.Errorf("No mapping for graphite metric %+s to graphite metric", string(metric))
 	}
@@ -137,42 +130,47 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 	return tm, nil
 }
 
-type FakeTimeseriesStorageAPI struct{}
+type FakeTimeseriesStorageAPI struct {
+	MetricMap map[string][]float64
+}
 
 func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
 	return requested.Resolution()
 }
 
-func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
-	metricMap := map[api.MetricKey][]api.Timeseries{
-		"series_1": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}},
-		"series_2": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}, {Values: []float64{3, 0, 3, 6, 2}, TagSet: api.ParseTagSet("dc=east")}},
-		"series_3": {{Values: []float64{1, 1, 1, 4, 4}, TagSet: api.ParseTagSet("dc=west")}, {Values: []float64{5, 5, 5, 2, 2}, TagSet: api.ParseTagSet("dc=east")}, {Values: []float64{3, 3, 3, 3, 3}, TagSet: api.ParseTagSet("dc=north")}},
+func SampleFakeTimeseriesStorageAPI() FakeTimeseriesStorageAPI {
+	return FakeTimeseriesStorageAPI{
+		MetricMap: map[string][]float64{
+			"series_1.west":  []float64{1, 2, 3, 4, 5},
+			"series_2.west":  []float64{1, 2, 3, 4, 5},
+			"series_2.east":  []float64{30, 0, 3, 6, 2},
+			"series_3.west":  []float64{1, 1, 1, 4, 4},
+			"series_3.east":  []float64{5, 5, 5, 2, 2},
+			"series_3.north": []float64{3, 3, 3, 3, 3},
+		},
 	}
-	if string(request.Metric.MetricKey) == "series_timeout" {
-		<-make(chan struct{}) // block forever
-	}
-	list, ok := metricMap[request.Metric.MetricKey]
-	if !ok {
-		return api.Timeseries{}, errors.New("internal error")
-	}
-	for _, series := range list {
-		if request.Metric.TagSet.Serialize() == series.TagSet.Serialize() {
-			// Cut the values based on the Timerange.
-			values := make([]float64, request.Timerange.Slots())
-			for i := range values {
-				values[i] = series.Values[i+int(request.Timerange.Start())/30]
-			}
-			return api.Timeseries{Values: values, TagSet: series.TagSet}, nil
-		}
-	}
-	return api.Timeseries{}, errors.New("internal error")
 }
 
-func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([]float64, error) {
+	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
+	if string(request.Metric) == "series_timeout" {
+		<-make(chan struct{}) // block forever
+	}
+	values, ok := f.MetricMap[string(request.Metric)]
+	if !ok {
+		return nil, fmt.Errorf("internal error - no such metric %q known", string(request.Metric))
+	}
+
+	result := make([]float64, request.Timerange.Slots())
+	for i := range result {
+		result[i] = values[i+int(request.Timerange.Start())/30]
+	}
+	return result, nil
+}
+
+func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) ([][]float64, error) {
 	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
-	timeseries := make([]api.Timeseries, 0)
+	result := [][]float64{}
 
 	singleRequests := request.ToSingle()
 	for _, singleRequest := range singleRequests {
@@ -180,11 +178,8 @@ func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMulti
 		if err != nil {
 			continue
 		}
-		timeseries = append(timeseries, series)
+		result = append(result, series)
 	}
 
-	return api.SeriesList{
-		Series:    timeseries,
-		Timerange: request.Timerange,
-	}, nil
+	return result, nil
 }

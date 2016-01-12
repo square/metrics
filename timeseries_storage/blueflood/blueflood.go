@@ -31,10 +31,9 @@ import (
 )
 
 type Blueflood struct {
-	config            Config
-	client            httpClient
-	graphiteConverter util.GraphiteConverter
-	timeSource        TimeSource
+	config     Config
+	client     httpClient
+	timeSource TimeSource
 }
 
 //Implements TimeseriesStorageAPI
@@ -115,10 +114,9 @@ func NewBlueflood(c Config) api.TimeseriesStorageAPI {
 	}
 
 	b := Blueflood{
-		config:            c,
-		client:            c.HttpClient,
-		graphiteConverter: c.GraphiteMetricConverter,
-		timeSource:        c.TimeSource,
+		config:     c,
+		client:     c.HttpClient,
+		timeSource: c.TimeSource,
 	}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
@@ -133,7 +131,7 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
+func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *[]float64, work func() ([]float64, error), channel chan error, ctx BluefloodParallelRequest) {
 	go func() {
 		select {
 		case ticket := <-ctx.tickets:
@@ -146,7 +144,7 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeserie
 			channel <- err
 		case <-cancellable.Done():
 			channel <- api.TimeseriesStorageError{
-				api.TaggedMetric{},
+				nil,
 				api.FetchTimeoutError,
 				"",
 			}
@@ -154,8 +152,8 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeserie
 	}()
 }
 
-func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
-	results := make([]api.Timeseries, len(works))
+func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() ([]float64, error)) ([][]float64, error) {
+	results := make([][]float64, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 
 	limit := b.config.MaxSimultaneousRequests
@@ -179,7 +177,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 			}
 		case <-cancellable.Done():
 			return nil, api.TimeseriesStorageError{
-				api.TaggedMetric{},
+				nil,
 				api.FetchTimeoutError,
 				"",
 			}
@@ -191,39 +189,36 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 	return results, nil
 }
 
-func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) ([][]float64, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
 	if request.Cancellable == nil {
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
 	}
-	works := make([]func() (api.Timeseries, error), len(request.Metrics))
+	works := make([]func() ([]float64, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
 	for i := range singleRequests {
 		//Make sure we close around the specific individual request
 		//and not the ranged/copied request.
 		singleRequest := singleRequests[i]
-		works[i] = func() (api.Timeseries, error) {
+		works[i] = func() ([]float64, error) {
 			return b.FetchSingleTimeseries(singleRequest)
 		}
 	}
 
 	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
 	if err != nil {
-		return api.SeriesList{}, err
+		return nil, err
 	}
 
-	return api.SeriesList{
-		Series:    resultSeries,
-		Timerange: request.Timerange,
-	}, nil
+	return resultSeries, nil
 }
 
-func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
-	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
+func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([]float64, error) {
+	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", string(request.Metric))()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
-		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
+		return nil, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
@@ -234,14 +229,14 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	// Sample the data at the given `queryResolution`
 	queryUrl, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
-		return api.Timeseries{}, err
+		return nil, err
 	}
 
 	rawResults := make([][]byte, 1)
 	parsedResult, rawResult, err := b.fetch(request, queryUrl)
 	rawResults[0] = rawResult
 	if err != nil {
-		return api.Timeseries{}, err
+		return nil, err
 	}
 
 	// combinedResult contains the requested data, along with higher-resolution data intended to fill in gaps.
@@ -286,16 +281,9 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	log.Debugf("Constructed timeseries from result: %v", values)
 
 	if request.UserSpecifiableConfig.IncludeRawData {
-		return api.Timeseries{
-			Values: values,
-			TagSet: request.Metric.TagSet,
-			Raw:    rawResults,
-		}, nil
+		return values, nil // TODO: include raw results
 	} else {
-		return api.Timeseries{
-			Values: values,
-			TagSet: request.Metric.TagSet,
-		}, nil
+		return values, nil
 	}
 
 }
@@ -309,10 +297,7 @@ func (b *Blueflood) constructURL(
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
-	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
-	if err != nil {
-		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
-	}
+	graphiteName := string(request.Metric)
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, graphiteName))
 	if err != nil {

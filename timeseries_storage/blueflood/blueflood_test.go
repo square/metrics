@@ -34,8 +34,8 @@ func Test_Blueflood(t *testing.T) {
 	}
 
 	graphite := mocks.FakeGraphiteConverter{
-		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+		MetricMap: map[string]api.TaggedMetric{
+			"some.key.graphite": api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
@@ -43,12 +43,11 @@ func Test_Blueflood(t *testing.T) {
 	}
 
 	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
-		Ttls:                    make(map[string]int64),
-		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   0,
-		GraphiteMetricConverter: &graphite,
+		BaseUrl:               "https://blueflood.url",
+		TenantId:              "square",
+		Ttls:                  make(map[string]int64),
+		Timeout:               time.Millisecond,
+		FullResolutionOverlap: 0,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
 	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
@@ -157,8 +156,11 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
 		b.client = fakeHttpClient
 
+		untaggedQueryMetric, err := graphite.ToUntagged(test.queryMetric)
+		a.CheckError(err)
+
 		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-			Metric:       test.queryMetric,
+			Metric:       untaggedQueryMetric,
 			SampleMethod: test.sampleMethod,
 			Timerange:    test.timerange,
 			Cancellable:  api.NewCancellable(),
@@ -182,115 +184,6 @@ func Test_Blueflood(t *testing.T) {
 			}
 			a.Eq(seriesList, test.expectedSeriesList)
 		}
-	}
-}
-
-func TestIncludeRawPayload(t *testing.T) {
-	graphite := mocks.FakeGraphiteConverter{
-		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
-		},
-	}
-
-	now := time.Unix(1438734300000, 0)
-
-	baseTime := now.Unix() * 1000
-	timeSource := func() time.Time { return now }
-
-	queryTimerange, err := api.NewSnappedTimerange(
-		int64(baseTime)-300*1000*10, // 50 minutes ago
-		int64(baseTime)-300*1000*4,  // 20 minutes ago
-		300*1000,                    // 5 minute resolution
-	)
-
-	// The queries have to be relative to "now"
-	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
-		Ttls:                    make(map[string]int64),
-		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   14400,
-		GraphiteMetricConverter: &graphite,
-		TimeSource:              timeSource,
-	}
-
-	regularQueryURL := fmt.Sprintf(
-		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
-		queryTimerange.Start(),
-		queryTimerange.End()+queryTimerange.ResolutionMillis(),
-	)
-
-	regularResponse := fmt.Sprintf(`{
-	  "unit": "unknown",
-	  "values": [
-	    {
-	      "numPoints": 28,
-	      "timestamp": %d,
-	      "average": 100
-	    },
-	    {
-	      "numPoints": 29,
-	      "timestamp": %d,
-	      "average": 142
-	    },
-	    {
-	      "numPoints": 27,
-	      "timestamp": %d,
-	      "average": 138
-	    },
-	    {
-	      "numPoints": 28,
-	      "timestamp": %d,
-	      "average": 182
-	    }
-	  ],
-	  "metadata": {
-	    "limit": null,
-	    "next_href": null,
-	    "count": 4,
-	    "marker": null
-	  }
-	}`,
-		baseTime-300*1000*10, // 50 minutes ago
-		baseTime-300*1000*9,  // 45 minutes ago
-		baseTime-300*1000*8,  // 40 minutes ago
-		baseTime-300*1000*7,  // 35 minutes ago
-	)
-
-	fakeHttpClient := mocks.NewFakeHttpClient()
-	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
-	// fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
-	defaultClientConfig.HttpClient = fakeHttpClient
-	defaultClientConfig.TimeSource = timeSource
-
-	b := NewBlueflood(defaultClientConfig)
-	if err != nil {
-		t.Fatalf("timerange error: %s", err.Error())
-	}
-
-	userConfig := api.UserSpecifiableConfig{
-		IncludeRawData: true,
-	}
-
-	timeSeries, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-		Metric: api.TaggedMetric{
-			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
-		},
-		SampleMethod:          api.SampleMean,
-		Timerange:             queryTimerange,
-		Cancellable:           api.NewCancellable(),
-		UserSpecifiableConfig: userConfig,
-	})
-	if err != nil {
-		t.Fatalf("Expected success, but got error: %s", err.Error())
-	}
-
-	if timeSeries.Raw == nil || string(timeSeries.Raw[0]) != regularResponse {
-		t.Fatalf("Didn't fill in the raw result correctly, got: %s\n", string(timeSeries.Raw[0]))
 	}
 }
 
@@ -348,13 +241,14 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 
 func TestFullResolutionDataFilling(t *testing.T) {
 	graphite := mocks.FakeGraphiteConverter{
-		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
+		MetricMap: map[string]api.TaggedMetric{
+			"some.key.value": api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
 		},
 	}
+	panic(graphite) // TODO: use this somewhere
 
 	now := time.Unix(1438734300000, 0)
 
@@ -369,13 +263,12 @@ func TestFullResolutionDataFilling(t *testing.T) {
 
 	// The queries have to be relative to "now"
 	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
-		Ttls:                    make(map[string]int64),
-		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   14400,
-		GraphiteMetricConverter: &graphite,
-		TimeSource:              timeSource,
+		BaseUrl:               "https://blueflood.url",
+		TenantId:              "square",
+		Ttls:                  make(map[string]int64),
+		Timeout:               time.Millisecond,
+		FullResolutionOverlap: 14400,
+		TimeSource:            timeSource,
 	}
 
 	regularQueryURL := fmt.Sprintf(
@@ -476,10 +369,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	}
 
 	seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-		Metric: api.TaggedMetric{
-			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
-		},
+		Metric:       []byte("some.key.value"), // TODO: get converter working with this
 		SampleMethod: api.SampleMean,
 		Timerange:    queryTimerange,
 		Cancellable:  api.NewCancellable(),
@@ -488,11 +378,11 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		t.Fatalf("Expected success, but got error: %s", err.Error())
 	}
 	expected := []float64{100, 142, 138, 182, 13, 16, 19}
-	if len(seriesList.Values) != len(expected) {
+	if len(seriesList) != len(expected) {
 		t.Fatalf("Expected %+v but got %+v", expected, seriesList)
 	}
 	for i, expect := range expected {
-		if seriesList.Values[i] != expect {
+		if seriesList[i] != expect {
 			t.Fatalf("Expected %+v but got %+v", expected, seriesList)
 		}
 	}
