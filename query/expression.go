@@ -64,12 +64,8 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	}
 	filtered := applyPredicates(metricTagSets, predicate)
 
-	ok := context.FetchLimit.Consume(len(filtered))
-
-	if !ok {
-		return nil, function.NewLimitError("fetch limit exceeded: too many series to fetch",
-			context.FetchLimit.Current(),
-			context.FetchLimit.Limit())
+	if err := context.FetchLimit.Consume(len(filtered)); err != nil {
+		return nil, err
 	}
 
 	metrics := make([]api.TaggedMetric, len(filtered))
@@ -77,23 +73,16 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
 	}
 
-	serieslist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
+	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		api.FetchMultipleTimeseriesRequest{
 			metrics,
 			context.SampleMethod,
 			context.Timerange,
-			context.MetricMetadataAPI,
 			context.Cancellable,
 			context.Profiler,
 			context.UserSpecifiableConfig,
 		},
 	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return serieslist, nil
 }
 
 func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
