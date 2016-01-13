@@ -37,19 +37,23 @@ window.Autocom = (function(){
 	var colorCom = new Autocom(input);
 
 	// Assign the options for our Autocom
-	colorCom.options = ["red", "orange", "yellow", "yellow-green", "green", "cyan", "blue", "purple"];
-	
+	colorCom.options = ["red", "orange", "yellow", "yellow-green", "green", "cyan", "blue", "purple", "gray"];
+
 	// Words are made of lowercase letters and hyphens, but can't start with a hyphen
 	colorCom.prefixPattern = "[a-z][a-z\\-]+";
 	// The continue pattern is checked against, but its actual value is discard. Matching one letter is enough:
-	colorCom.prefixContinue = "[a-z\\-];"
+	colorCom.continuePattern = "[a-z\\-]";
 
 	// Adjust the tooltip position offset
 	colorCom.tooltipX = 25;
 	colorCom.tooltipY = 0;
 
-	// Configure the number of shown options  
+	// Configure the number of shown options
 	colorCom.config.count = 3;
+
+	// Alternative spellings that you shouldn't suggest, but treat as finished.
+	colorCom.tolerate = ["grey"];
+
 */
 
 /*
@@ -63,11 +67,11 @@ Fields:
 		after: a span inside shadow used to calculate marker position
 		holder: the element originally passed as an argument which holds all of these
 		tooltip: the tooltip elements which shows the suggests
-	
+
 	options: (default []) an array of strings; these are the options which autocomplete suggests
-	
+
 	prefixPattern: (default "[a-zA-Z]+") the regex to match the prefix of a valid word
-	prefixContinue: (default "[a-zA-Z]+") the regex to match the "middle" of a valid word
+	continuePattern: (default "[a-zA-Z]+") the regex to match the "middle" of a valid word
 
 	config:
 		threshold:        (default 0)    // Autocomplete score threshold required to show (for fuzzy suggestions)
@@ -75,7 +79,7 @@ Fields:
 		skipSpecialGiven: (default 0.25) // Penalty for skipping a special character in the input ("non-letter" having same upper- and lower-case form)
 		skipWord:         (default 0.25) // Penalty for skipping a prefixed letter in the suggestion
 		skipWordEnd:      (default 0)    // Penalty for skipping characters at the end of the candidate word (for most applications, it should be much smaller than skipWord)
-		count:            (default 8)    // The maximum number of autocomplete suggestions shown 
+		count:            (default 8)    // The maximum number of autocomplete suggestions shown
 
 	tooltipX: (default 0) the X offset for the tooltip (relative to the cursor)
 	tooltipY: (default 0) the Y offset for the tooltip (relative to the cursor)
@@ -234,9 +238,6 @@ function filterCandidates(word, givenOptions, config) {
 
 // Predicts the possible autocompletions based on `at` which includes the word we want, and our options.
 function predict(at, options, config) {
-	if (!at) {
-		return null;
-	}
 	var words = filterCandidates(at.word, options, config);
 	if (words.length === 0) {
 		return null;
@@ -286,11 +287,9 @@ function generateTooltipContents(tooltip, words, index, selectedCallback) {
 // Inserts `word` at the location specified by `at` inside of `input`.
 function insertWord(input, at, word, supressCallback) {
 	input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
-	setTimeout(function() {
-		input.focus();
-		input.selectionStart = input.selectionEnd = at.from + word.length;
-		supressCallback();
-	}, 1);
+	input.focus();
+	input.selectionStart = input.selectionEnd = at.from + word.length;
+	supressCallback();
 }
 
 
@@ -368,8 +367,9 @@ function Autocom(input) {
 	}
 	function renderTooltip() {
 		moveTooltip(elements, self.tooltipX, self.tooltipY);
-		var result = predict(predictReady(input, self.prefixPattern, self.continuePattern), self.options.slice(0), self.config);
-		if (result && !tooltipSuppress && document.activeElement === input) {
+		var predictionData = predictReady(input, self.prefixPattern, self.continuePattern);
+		var result = predictionData && predict(predictionData, self.options.slice(0), self.config);
+		if (predictionData && (self.tolerate || []).indexOf(predictionData.word) < 0 && result && !tooltipSuppress && document.activeElement === input) {
 			// If it's not currently active, then become active.
 			tooltipState = {
 				active: true,
@@ -381,7 +381,7 @@ function Autocom(input) {
 				tooltipState.index = 0;
 			}
 			generateTooltipContents(elements.tooltip, tooltipState.words, tooltipState.index, completeSelect);
-			
+
 			if (elements.marker.offsetLeft + elements.tooltip.offsetWidth > input.offsetWidth) {
 				elements.tooltip.style.left = Math.floor(input.offsetLeft + input.offsetWidth - elements.tooltip.offsetWidth) + "px";
 			}
@@ -390,7 +390,16 @@ function Autocom(input) {
 		}
 		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress;
 	}
+	var refreshStateCache = null;
+	var computeRefreshCacheState = function() {
+		return tooltipState.active + "." + tooltipState.index + "." + input.selectionStart + "," + input.selectionEnd + ":" + input.value;
+	}
 	var refresh = function() {
+		var newCache = computeRefreshCacheState();
+		if (newCache == refreshStateCache) {
+			return; // Don't do anything
+		}
+		refreshStateCache = newCache;
 		setTimeout(renderTooltip, 0);
 		var inputStyle = getComputedStyle(input);
 

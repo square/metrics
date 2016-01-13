@@ -226,14 +226,18 @@ module.run(function($http) {
     if (data.body.functions) {
       autocom.options = autocom.options.concat( data.body.functions );
     }
+    var tolerate = [];
     if (data.body.metrics) {
       autocom.options = autocom.options.concat( data.body.metrics.map(function(name) {
         if (name.indexOf("-") >= 0) {
           return "`" + name + "`";
+        } else {
+          tolerate.push("`" + name + "`");
         }
         return name;
       }));
     }
+    autocom.tolerate = tolerate;
   });
 });
 
@@ -635,4 +639,3 @@ function makeLabel(onlySingleSeries, serieslist, series) {
 function hasProfiling(data) {
   return data && data.profile;
 }
-
