@@ -21,6 +21,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/testing_support/assert"
+	"github.com/square/metrics/testing_support/mocks"
 )
 
 type FakeBackend struct {
@@ -84,7 +85,7 @@ func Test_ScalarExpression(t *testing.T) {
 		a := assert.New(t).Contextf("%+v", test)
 		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
-			MetricConverter:      nil, // TODO: fill this with something
+			MetricConverter:      &mocks.FakeGraphiteConverter{},
 			Timerange:            test.timerange,
 			SampleMethod:         api.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),

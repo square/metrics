@@ -91,6 +91,9 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	if err != nil {
 		return nil, err
 	}
+	if len(valuelist) != len(filtered) {
+		return nil, fmt.Errorf("INTERNAL SERVER ERROR: Requested %d timeseries for metric %s, but got %d", len(filtered), expr.metricName, len(valuelist))
+	}
 
 	if len(valuelist) != len(filtered) {
 		return nil, fmt.Errorf("Internal Server Error - Attempted to fetch %d but received only %d (without any indicated error).", len(filtered), len(valuelist))

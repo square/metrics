@@ -29,10 +29,15 @@ import (
 )
 
 func TestMovingAverage(t *testing.T) {
-	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()})
+	fakeConverter, fakeAPI := mocks.NewFakeGraphiteConverter([]api.TaggedMetric{
+		{"series", api.TagSet{}},
+	})
 
-	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{
+		MetricMap: map[string][]float64{
+			"series": {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 2, 1, 6, 4, 5},
+		},
+	}
 
 	timerange, err := api.NewTimerange(1200, 1500, 100)
 	if err != nil {
@@ -48,12 +53,11 @@ func TestMovingAverage(t *testing.T) {
 		},
 	}
 
-	backend := fakeBackend
-
 	result, err := function.EvaluateToSeriesList(expression,
 		function.EvaluationContext{
+			MetricConverter:           fakeConverter,
 			MetricMetadataAPI:         fakeAPI,
-			TimeseriesStorageAPI:      backend,
+			TimeseriesStorageAPI:      fakeBackend,
 			Timerange:                 timerange,
 			SampleMethod:              api.SampleMean,
 			FetchLimit:                function.NewFetchCounter(1000),

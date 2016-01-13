@@ -23,7 +23,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/util"
 )
 
 func Test_Blueflood(t *testing.T) {
@@ -31,15 +30,6 @@ func Test_Blueflood(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid testcase timerange")
 		return
-	}
-
-	graphite := mocks.FakeGraphiteConverter{
-		MetricMap: map[string]api.TaggedMetric{
-			"some.key.graphite": api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
-		},
 	}
 
 	defaultClientConfig := Config{
@@ -50,12 +40,10 @@ func Test_Blueflood(t *testing.T) {
 		FullResolutionOverlap: 0,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
-	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
+	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.tag.value?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
 
 	for _, test := range []struct {
 		name               string
-		metricMap          map[util.GraphiteMetric]api.TaggedMetric
-		queryMetric        api.TaggedMetric
 		sampleMethod       api.SampleMethod
 		timerange          api.Timerange
 		clientConfig       Config
@@ -64,14 +52,10 @@ func Test_Blueflood(t *testing.T) {
 		queryResponseCode  int
 		queryDelay         time.Duration
 		expectedErrorCode  api.TimeseriesStorageErrorCode
-		expectedSeriesList api.Timeseries
+		expectedSeriesList []float64
 	}{
 		{
-			name: "Success case",
-			queryMetric: api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
+			name:         "Success case",
 			sampleMethod: api.SampleMean,
 			timerange:    timerange,
 			queryUrl:     defaultQueryUrl,
@@ -97,17 +81,10 @@ func Test_Blueflood(t *testing.T) {
           "marker": null
         }
       }`,
-			expectedSeriesList: api.Timeseries{
-				Values: []float64{5, 3},
-				TagSet: api.ParseTagSet("tag=value"),
-			},
+			expectedSeriesList: []float64{5, 3},
 		},
 		{
-			name: "Failure case - invalid JSON",
-			queryMetric: api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
+			name:              "Failure case - invalid JSON",
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
@@ -116,11 +93,7 @@ func Test_Blueflood(t *testing.T) {
 			expectedErrorCode: api.FetchIOError,
 		},
 		{
-			name: "Failure case - HTTP error",
-			queryMetric: api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
+			name:              "Failure case - HTTP error",
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
@@ -130,11 +103,7 @@ func Test_Blueflood(t *testing.T) {
 			expectedErrorCode: api.FetchIOError,
 		},
 		{
-			name: "Failure case - timeout",
-			queryMetric: api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
+			name:              "Failure case - timeout",
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
@@ -156,11 +125,8 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
 		b.client = fakeHttpClient
 
-		untaggedQueryMetric, err := graphite.ToUntagged(test.queryMetric)
-		a.CheckError(err)
-
 		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-			Metric:       untaggedQueryMetric,
+			Metric:       "some.key.tag.value",
 			SampleMethod: test.sampleMethod,
 			Timerange:    test.timerange,
 			Cancellable:  api.NewCancellable(),
@@ -240,16 +206,6 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 }
 
 func TestFullResolutionDataFilling(t *testing.T) {
-	graphite := mocks.FakeGraphiteConverter{
-		MetricMap: map[string]api.TaggedMetric{
-			"some.key.value": api.TaggedMetric{
-				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
-			},
-		},
-	}
-	panic(graphite) // TODO: use this somewhere
-
 	now := time.Unix(1438734300000, 0)
 
 	baseTime := now.Unix() * 1000
@@ -369,7 +325,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	}
 
 	seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-		Metric:       "some.key.value", // TODO: get converter working with this
+		Metric:       "some.key.value",
 		SampleMethod: api.SampleMean,
 		Timerange:    queryTimerange,
 		Cancellable:  api.NewCancellable(),

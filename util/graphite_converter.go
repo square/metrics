@@ -37,7 +37,7 @@ type GraphiteConverterConfig struct {
 	ConversionRulesPath string `yaml:"conversion_rules_path"`
 }
 
-var _ GraphiteConverter = (*RuleBasedGraphiteConverter)(nil)
+// var _ GraphiteConverter = (*RuleBasedGraphiteConverter)(nil) // TODO: reeavluate this
 
 type RuleBasedGraphiteConverter struct {
 	Ruleset RuleSet
@@ -47,12 +47,12 @@ func (g *RuleBasedGraphiteConverter) EnableStats() {
 	g.Ruleset.EnableStats()
 }
 
-func (g *RuleBasedGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (GraphiteMetric, error) {
+func (g *RuleBasedGraphiteConverter) ToUntagged(metric api.TaggedMetric) (string, error) {
 	return g.Ruleset.ToGraphiteName(metric)
 }
 
-func (g *RuleBasedGraphiteConverter) ToTaggedName(metric GraphiteMetric) (api.TaggedMetric, error) {
-	match, matched := g.Ruleset.MatchRule(string(metric))
+func (g *RuleBasedGraphiteConverter) ToTagged(metric string) (api.TaggedMetric, error) {
+	match, matched := g.Ruleset.MatchRule(metric)
 	if matched {
 		return match, nil
 	}

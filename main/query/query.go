@@ -38,8 +38,7 @@ func main() {
 	if err != nil {
 		//Blah
 	}
-	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
-	config.Blueflood.GraphiteMetricConverter = &graphite
+	graphite := &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
@@ -66,7 +65,12 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(query.ExecutionContext{TimeseriesStorageAPI: blueflood, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
+		result, err := cmd.Execute(query.ExecutionContext{
+			MetricConverter:      graphite,
+			TimeseriesStorageAPI: blueflood,
+			MetricMetadataAPI:    apiInstance,
+			FetchLimit:           1000,
+		})
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

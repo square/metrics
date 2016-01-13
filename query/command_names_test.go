@@ -24,19 +24,19 @@ import (
 )
 
 func TestQueryNaming(t *testing.T) {
-	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.ParseTagSet("dc=east,env=staging")})
+	fakeConverter, fakeAPI := mocks.NewFakeGraphiteConverter([]api.TaggedMetric{
+		{"series_1", api.ParseTagSet("dc=west,env=production")},
+		{"series_1", api.ParseTagSet("dc=east,env=staging")},
+		{"series_2", api.ParseTagSet("dc=west,env=production")},
+		{"series_2", api.ParseTagSet("dc=east,env=staging")},
+		{"series-special#characters", api.ParseTagSet("dc=east,env=staging")},
+		{"foo.2bar", api.ParseTagSet("qaz=foo1")},
+		{".foo.bar", api.ParseTagSet("qaz=foo1")},
+		{"foo.bar.", api.ParseTagSet("qaz=foo1")},
+		{"_names423.with_.dots_and_und3rsc0r3s", api.ParseTagSet("qaz=foo1")},
+	})
 
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.bar.", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{".foo.bar", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.2bar", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"_names423.with_.dots_and_und3rsc0r3s", api.ParseTagSet("qaz=foo1")})
-
-	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
+	fakeBackend := mocks.FakeTimeseriesStorageAPI{AlwaysReturnData: true}
 	tests := []struct {
 		query        string
 		expected     string
@@ -162,6 +162,7 @@ func TestQueryNaming(t *testing.T) {
 			continue
 		}
 		rawResult, err := command.Execute(ExecutionContext{
+			MetricConverter:           fakeConverter,
 			TimeseriesStorageAPI:      fakeBackend,
 			MetricMetadataAPI:         fakeAPI,
 			FetchLimit:                1000,

@@ -25,42 +25,22 @@ import (
 )
 
 func TestProfilerIntegration(t *testing.T) {
-	myAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeTimeStorage := mocks.FakeTimeseriesStorageAPI{}
-	// 	myAPI := fakeAPI{
-	// 	tagSets: map[string][]api.TagSet{"A": []api.TagSet{
-	// 		{"x": "1", "y": "2"},
-	// 		{"x": "2", "y": "2"},
-	// 		{"x": "3", "y": "1"},
-	// 	},
-	// 		"B": []api.TagSet{
-	// 			{"q": "foo"},
-	// 			{"q": "bar"},
-	// 		},
-	// 		"C": []api.TagSet{
-	// 			{"c": "1"},
-	// 			{"c": "2"},
-	// 			{"c": "3"},
-	// 			{"c": "4"},
-	// 			{"c": "5"},
-	// 			{"c": "6"},
-	// 		},
-	// 	},
-	// }
+	fakeConverter, fakeAPI := mocks.NewFakeGraphiteConverter([]api.TaggedMetric{
+		{"A", api.TagSet{"x": "1", "y": "2"}},
+		{"A", api.TagSet{"x": "2", "y": "2"}},
+		{"A", api.TagSet{"x": "3", "y": "1"}},
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=2,y=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=3,y=1")})
+		{"B", api.TagSet{"q": "foo"}},
+		{"B", api.TagSet{"q": "bar"}},
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=foo")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=bar")})
-
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=1")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=3")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=4")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=5")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=6")})
+		{"C", api.TagSet{"c": "1"}},
+		{"C", api.TagSet{"c": "2"}},
+		{"C", api.TagSet{"c": "3"}},
+		{"C", api.TagSet{"c": "4"}},
+		{"C", api.TagSet{"c": "5"}},
+		{"C", api.TagSet{"c": "6"}},
+	})
+	fakeTimeStorage := mocks.FakeTimeseriesStorageAPI{AlwaysReturnData: true}
 
 	testCases := []struct {
 		query    string
@@ -142,8 +122,9 @@ func TestProfilerIntegration(t *testing.T) {
 		profilingCommand := NewProfilingCommandWithProfiler(cmd, profiler)
 
 		_, err = profilingCommand.Execute(ExecutionContext{
+			MetricConverter:           fakeConverter,
 			TimeseriesStorageAPI:      fakeTimeStorage,
-			MetricMetadataAPI:         myAPI,
+			MetricMetadataAPI:         fakeAPI,
 			FetchLimit:                10000,
 			Timeout:                   time.Second * 4,
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),

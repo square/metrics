@@ -186,7 +186,7 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 }
 
 // ToGraphiteName transforms the given tagged metric back to its graphite metric.
-func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, error) {
+func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (string, error) {
 	extractedTagSet := extractTagValues(rule.MetricKeyRegex, rule.metricKeyTags, string(taggedMetric.MetricKey))
 	if extractedTagSet == nil {
 		// no match found. not a correct rule to interpolate.
@@ -208,7 +208,7 @@ func (rule Rule) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, 
 		return "", err
 	}
 
-	return GraphiteMetric(interpolated), nil
+	return interpolated, nil
 }
 
 // MatchRule sees if a given graphite string matches
@@ -252,7 +252,7 @@ func (rule Rule) GraphitePatternTags() []string {
 
 // ToGraphiteName transforms the given tagged metric back to its graphite name,
 // checking against all the rules.
-func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (GraphiteMetric, error) {
+func (ruleSet RuleSet) ToGraphiteName(taggedMetric api.TaggedMetric) (string, error) {
 	for _, rule := range ruleSet.Rules {
 		reversed, err := rule.ToGraphiteName(taggedMetric)
 		if err == nil {

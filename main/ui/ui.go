@@ -75,8 +75,7 @@ func main() {
 		fmt.Printf("Error loading conversion rules: %s", err.Error())
 		return
 	}
-
-	config.Blueflood.GraphiteMetricConverter = &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+	graphite := &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
@@ -89,6 +88,7 @@ func main() {
 	}
 
 	startServer(config.UI, query.ExecutionContext{
+		MetricConverter:           graphite,
 		MetricMetadataAPI:         apiInstance,
 		TimeseriesStorageAPI:      blueflood,
 		FetchLimit:                1500,

@@ -29,10 +29,10 @@ var emptyGraphiteName = util.GraphiteMetric("")
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")})
 
 	for _, test := range []struct {
 		query          string
@@ -60,6 +60,7 @@ func TestCommand_Describe(t *testing.T) {
 		a.EqString(command.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{
+			MetricConverter:           &mocks.FakeGraphiteConverter{},
 			TimeseriesStorageAPI:      fakeTimeseriesStorage,
 			MetricMetadataAPI:         test.metricmetadata,
 			FetchLimit:                1000,
@@ -73,10 +74,10 @@ func TestCommand_Describe(t *testing.T) {
 
 func TestCommand_DescribeAll(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_0", api.ParseTagSet("")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_1", api.ParseTagSet("")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_2", api.ParseTagSet("")})
+	fakeAPI.InsertMetric(api.TaggedMetric{"series_3", api.ParseTagSet("")})
 
 	for _, test := range []struct {
 		query          string
@@ -97,6 +98,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 		a.EqString(command.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{
+			MetricConverter:           &mocks.FakeGraphiteConverter{},
 			TimeseriesStorageAPI:      fakeMulti,
 			MetricMetadataAPI:         test.metricmetadata,
 			FetchLimit:                1000,

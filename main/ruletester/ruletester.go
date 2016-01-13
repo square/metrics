@@ -131,12 +131,12 @@ const (
 )
 
 func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConverter) ConversionStatus {
-	graphiteMetric := util.GraphiteMetric(metric)
-	taggedMetric, err := graphiteConverter.ToTaggedName(graphiteMetric)
+	graphiteMetric := metric
+	taggedMetric, err := graphiteConverter.ToTagged(graphiteMetric)
 	if err != nil {
 		return Unmatched
 	}
-	reversedMetric, err := graphiteConverter.ToGraphiteName(taggedMetric)
+	reversedMetric, err := graphiteConverter.ToUntagged(taggedMetric)
 	if err != nil {
 		return ReverseFailed
 	}

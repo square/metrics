@@ -29,8 +29,9 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
+	MetricConverter           api.MetricConverter                 // the metric converter
 	TimeseriesStorageAPI      api.TimeseriesStorageAPI            // the backend
-	MetricMetadataAPI         api.MetricMetadataAPI               // the api
+	MetricMetadataAPI         api.MetricMetadataAPI               // the metadata api
 	FetchLimit                int                                 // the maximum number of fetches
 	Timeout                   time.Duration                       // optional
 	Registry                  function.Registry                   // optional
@@ -225,7 +226,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		MetricMetadataAPI:         context.MetricMetadataAPI,
 		FetchLimit:                function.NewFetchCounter(context.FetchLimit),
 		TimeseriesStorageAPI:      context.TimeseriesStorageAPI,
-		MetricConverter:           nil, // TODO: set this to something
+		MetricConverter:           context.MetricConverter,
 		Predicate:                 cmd.predicate,
 		SampleMethod:              cmd.context.SampleMethod,
 		Timerange:                 chosenTimerange,

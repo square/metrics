@@ -27,7 +27,6 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
-	"github.com/square/metrics/util"
 )
 
 type Blueflood struct {
@@ -57,7 +56,6 @@ type Config struct {
 	Ttls                    map[string]int64 `yaml:"ttls"` // Ttl in days
 	Timeout                 time.Duration    `yaml:"timeout"`
 	FullResolutionOverlap   int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
-	GraphiteMetricConverter util.GraphiteConverter
 	HttpClient              httpClient
 	TimeSource              TimeSource
 	MaxSimultaneousRequests int `yaml:"simultaneous_requests"`
@@ -325,7 +323,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, fmt.Sprintf("error while fetching - http connection: %s", err.Error())}
 			return
 		}
 		defer resp.Body.Close()
