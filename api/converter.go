@@ -18,8 +18,8 @@ package api
 // Allowing it to act on arbitrary byte sequences gives a client greater freedom in representing their
 // metric names.
 type MetricConverter interface {
-	ToTagged([]byte) (TaggedMetric, error)
-	ToUntagged(TaggedMetric) ([]byte, error)
+	ToTagged(string) (TaggedMetric, error)
+	ToUntagged(TaggedMetric) (string, error)
 }
 
 /*

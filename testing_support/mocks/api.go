@@ -112,17 +112,17 @@ type FakeGraphiteConverter struct {
 
 var _ api.MetricConverter = (*FakeGraphiteConverter)(nil)
 
-func (fa *FakeGraphiteConverter) ToUntagged(metric api.TaggedMetric) ([]byte, error) {
+func (fa *FakeGraphiteConverter) ToUntagged(metric api.TaggedMetric) (string, error) {
 	for k, v := range fa.MetricMap {
 		if reflect.DeepEqual(v, metric) {
-			return []byte(k), nil
+			return k, nil
 		}
 	}
-	return nil, fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
+	return "", fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
 }
 
-func (fa *FakeGraphiteConverter) ToTagged(metric []byte) (api.TaggedMetric, error) {
-	tm, exists := fa.MetricMap[string(metric)]
+func (fa *FakeGraphiteConverter) ToTagged(metric string) (api.TaggedMetric, error) {
+	tm, exists := fa.MetricMap[metric]
 	if !exists {
 		return api.TaggedMetric{}, fmt.Errorf("No mapping for graphite metric %+s to graphite metric", string(metric))
 	}

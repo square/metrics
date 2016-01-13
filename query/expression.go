@@ -68,7 +68,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		return nil, err
 	}
 
-	metrics := make([][]byte, len(filtered))
+	metrics := make([]string, len(filtered))
 	for i := range metrics {
 		metric, err := context.MetricConverter.ToUntagged(api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]})
 		if err != nil {

@@ -369,7 +369,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	}
 
 	seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-		Metric:       []byte("some.key.value"), // TODO: get converter working with this
+		Metric:       "some.key.value", // TODO: get converter working with this
 		SampleMethod: api.SampleMean,
 		Timerange:    queryTimerange,
 		Cancellable:  api.NewCancellable(),

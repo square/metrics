@@ -144,7 +144,7 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *[]float64, wo
 			channel <- err
 		case <-cancellable.Done():
 			channel <- api.TimeseriesStorageError{
-				nil,
+				"",
 				api.FetchTimeoutError,
 				"",
 			}
@@ -177,7 +177,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() ([
 			}
 		case <-cancellable.Done():
 			return nil, api.TimeseriesStorageError{
-				nil,
+				"",
 				api.FetchTimeoutError,
 				"",
 			}
@@ -232,7 +232,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([
 		return nil, err
 	}
 
-	rawResults := make([][]byte, 1)
+	rawResults := make([]string, 1)
 	parsedResult, rawResult, err := b.fetch(request, queryUrl)
 	rawResults[0] = rawResult
 	if err != nil {
@@ -316,12 +316,12 @@ func (b *Blueflood) constructURL(
 }
 
 // fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
-func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, []byte, error) {
+func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, string, error) {
 	log.Debugf("Blueflood fetch: %s", queryUrl.String())
 	success := make(chan queryResponse, 1)
 	failure := make(chan error, 1)
 	timeout := time.After(b.config.Timeout)
-	var rawResponse []byte
+	var rawResponse string
 	go func() {
 		resp, err := b.client.Get(queryUrl.String())
 		if err != nil {
@@ -331,7 +331,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 		defer resp.Body.Close()
 
 		body, err := ioutil.ReadAll(resp.Body)
-		rawResponse = body
+		rawResponse = string(body)
 		if err != nil {
 			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - reading"}
 			return

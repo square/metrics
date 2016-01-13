@@ -28,7 +28,7 @@ type TimeseriesStorageAPI interface {
 }
 
 type FetchTimeseriesRequest struct {
-	Metric                []byte       // metric to fetch.
+	Metric                string       // metric to fetch.
 	SampleMethod          SampleMethod // up/downsampling behavior.
 	Timerange             Timerange    // time range to fetch data from.
 	Cancellable           Cancellable
@@ -37,7 +37,7 @@ type FetchTimeseriesRequest struct {
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics               [][]byte
+	Metrics               []string
 	SampleMethod          SampleMethod
 	Timerange             Timerange
 	Cancellable           Cancellable
@@ -60,7 +60,7 @@ const (
 )
 
 type TimeseriesStorageError struct {
-	Metric  []byte
+	Metric  string
 	Code    TimeseriesStorageErrorCode
 	Message string
 }
