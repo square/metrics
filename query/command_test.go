@@ -22,10 +22,7 @@ import (
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/util"
 )
-
-var emptyGraphiteName = util.GraphiteMetric("")
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
@@ -98,7 +95,6 @@ func TestCommand_DescribeAll(t *testing.T) {
 		a.EqString(command.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
 		rawResult, err := command.Execute(ExecutionContext{
-			MetricConverter:           &mocks.FakeGraphiteConverter{},
 			TimeseriesStorageAPI:      fakeMulti,
 			MetricMetadataAPI:         test.metricmetadata,
 			FetchLimit:                1000,

@@ -30,8 +30,8 @@ import (
 	"sync"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/convert/graphite_pattern"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/util"
 )
 
 var (
@@ -101,12 +101,12 @@ func main() {
 	//TODO(cchandler): Make a constructor for a graphite converter so we don't
 	//have to stich everything together outside of the package.
 
-	ruleset, err := util.LoadRules(*rulePath)
+	ruleset, err := graphite_pattern.LoadRules(*rulePath)
 	if err != nil {
 		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
 
-	graphiteConverter := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+	graphiteConverter := graphite_pattern.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	metrics, err := ReadMetricsFile(*metricsFile)
 	if err != nil {
@@ -130,9 +130,8 @@ const (
 	ReverseChanged
 )
 
-func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConverter) ConversionStatus {
-	graphiteMetric := metric
-	taggedMetric, err := graphiteConverter.ToTagged(graphiteMetric)
+func ClassifyMetric(metric string, graphiteConverter graphite_pattern.RuleBasedGraphiteConverter) ConversionStatus {
+	taggedMetric, err := graphiteConverter.ToTagged(metric)
 	if err != nil {
 		return Unmatched
 	}
@@ -140,13 +139,13 @@ func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConve
 	if err != nil {
 		return ReverseFailed
 	}
-	if reversedMetric != graphiteMetric {
+	if reversedMetric != metric {
 		return ReverseChanged
 	}
 	return Matched
 }
 
-func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConverter) map[ConversionStatus][]string {
+func DoAnalysis(metrics []string, graphiteConverter graphite_pattern.RuleBasedGraphiteConverter) map[ConversionStatus][]string {
 	graphiteConverter.EnableStats()
 
 	workQueue := make(chan string, 100)
@@ -228,7 +227,7 @@ func DoAnalysis(metrics []string, graphiteConverter util.RuleBasedGraphiteConver
 	return classifiedMetrics
 }
 
-func GenerateReport(unmatched []string, graphiteConverter util.RuleBasedGraphiteConverter) {
+func GenerateReport(unmatched []string, graphiteConverter graphite_pattern.RuleBasedGraphiteConverter) {
 	err := os.RemoveAll("report")
 	if err != nil {
 		panic("Can't delete the report directory")

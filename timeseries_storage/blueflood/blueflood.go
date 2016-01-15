@@ -141,11 +141,7 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *[]float64, wo
 			// Return the error (and sync up with the caller).
 			channel <- err
 		case <-cancellable.Done():
-			channel <- api.TimeseriesStorageError{
-				"",
-				api.FetchTimeoutError,
-				"",
-			}
+			channel <- api.TimeseriesStorageError{Code: api.FetchTimeoutError}
 		}
 	}()
 }
@@ -174,11 +170,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() ([
 				err = thisErr
 			}
 		case <-cancellable.Done():
-			return nil, api.TimeseriesStorageError{
-				"",
-				api.FetchTimeoutError,
-				"",
-			}
+			return nil, api.TimeseriesStorageError{Code: api.FetchTimeoutError}
 		}
 	}
 	if err != nil {
@@ -213,7 +205,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 }
 
 func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([]float64, error) {
-	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", string(request.Metric))()
+	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric)()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
 		return nil, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
@@ -295,9 +287,8 @@ func (b *Blueflood) constructURL(
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
-	graphiteName := string(request.Metric)
 
-	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, graphiteName))
+	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, request.Metric))
 	if err != nil {
 		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
 	}
@@ -352,7 +343,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 	case err := <-failure:
 		return queryResponse{}, rawResponse, err
 	case <-timeout:
-		return queryResponse{}, rawResponse, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
+		return queryResponse{}, rawResponse, api.TimeseriesStorageError{Metric: request.Metric, Code: api.FetchTimeoutError}
 	}
 }
 

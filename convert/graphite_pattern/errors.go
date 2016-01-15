@@ -1,4 +1,4 @@
-package util
+package graphite_pattern
 
 // List of errors returnd by the application
 

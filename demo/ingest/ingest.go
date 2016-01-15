@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/convert/graphite_pattern"
 	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/util"
 )
 
 // rulePath specifies the directory to look for the conversion rule files *.yaml
@@ -43,13 +43,13 @@ func main() {
 		flag.Usage()
 		return
 	}
-	rules, err := util.LoadRules(*rulePath)
+	rules, err := graphite_pattern.LoadRules(*rulePath)
 	if err != nil {
 		fmt.Printf("Error loading rules; %+v", err.Error())
 		return
 	}
 
-	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
+	converter := graphite_pattern.RuleBasedGraphiteConverter{Ruleset: rules}
 
 	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port

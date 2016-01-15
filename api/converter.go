@@ -21,15 +21,3 @@ type MetricConverter interface {
 	ToTagged(string) (TaggedMetric, error)
 	ToUntagged(TaggedMetric) (string, error)
 }
-
-/*
-Some notes:
-Having an abstract representation for conversion would be a good idea, since in practice it would be helpful
-to be able to easily switch to an alternate converter.
-
-But where exactly is it being used? We have TimeseriesStorageAPI for example:
-Blueflood needs a GraphiteConverter to know what it's doing with the Tagged metrics.
-Maybe it should be given pre-converted values instead?
-
-This would simplify the logic that Blueflood has to do, making its design a LOT more orthogonal to everything else.
-*/

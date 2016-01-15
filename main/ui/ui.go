@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/square/metrics/convert/graphite_pattern"
 	"github.com/square/metrics/log"
 
 	"github.com/square/metrics/api"
@@ -33,7 +34,6 @@ import (
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
-	"github.com/square/metrics/util"
 )
 
 func startServer(config ui.Config, context query.ExecutionContext) {
@@ -70,12 +70,12 @@ func main() {
 
 	apiInstance := common.NewMetricMetadataAPI(config.Cassandra)
 
-	ruleset, err := util.LoadRules(config.ConversionRulesPath)
+	ruleset, err := graphite_pattern.LoadRules(config.ConversionRulesPath)
 	if err != nil {
 		fmt.Printf("Error loading conversion rules: %s", err.Error())
 		return
 	}
-	graphite := &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
+	graphite := &graphite_pattern.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
