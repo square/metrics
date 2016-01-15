@@ -25,7 +25,7 @@ type CassandraMetricMetadataAPI struct {
 	db cassandraDatabase
 }
 
-var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
+var _ api.MetricMetadataInterface = (*CassandraMetricMetadataAPI)(nil)
 
 type Config struct {
 	Hosts    []string `yaml:"hosts"`
@@ -33,7 +33,7 @@ type Config struct {
 }
 
 // NewCassandraMetricMetadataAPI creates a new instance of API from the given configuration.
-func NewCassandraMetricMetadataAPI(config Config) (api.MetricMetadataAPI, error) {
+func NewMetricMetadataInterface(config Config) (api.MetricMetadataInterface, error) {
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Consistency = gocql.One
 	clusterConfig.Hosts = config.Hosts

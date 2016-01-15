@@ -30,7 +30,7 @@ func newCassandraAPI(t *testing.T) (*CassandraMetricMetadataAPI, api.MetricMetad
 		t.Fatalf("Attempted to create new database without cleaning up the old one.")
 	}
 	cassandraClean = false
-	cassandraInterface, err := NewCassandraMetricMetadataAPI(Config{
+	cassandraInterface, err := NewMetricMetadataInterface(Config{
 		Hosts:    []string{"localhost"},
 		Keyspace: "metrics_indexer_test",
 	})
