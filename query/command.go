@@ -319,12 +319,11 @@ type ProfilingCommand struct {
 	Command  Command
 }
 
-func NewProfilingCommand(command Command) (Command, *inspect.Profiler) {
-	profiler := inspect.New()
+func NewProfilingCommandWithProfiler(command Command, profiler *inspect.Profiler) Command {
 	return ProfilingCommand{
 		Profiler: profiler,
 		Command:  command,
-	}, profiler
+	}
 }
 
 func (cmd ProfilingCommand) Name() string {
