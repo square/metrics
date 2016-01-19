@@ -38,9 +38,6 @@ func NewConverter(conversionRulesPath string) (api.MetricConverter, error) {
 	return &RuleBasedGraphiteConverter{ruleset}, nil
 }
 
-// GraphiteMetric is a flat, dot-separated identifier to a series of metric.
-type GraphiteMetric string
-
 type RuleBasedGraphiteConverter struct {
 	Ruleset RuleSet
 }

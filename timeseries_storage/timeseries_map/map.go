@@ -21,19 +21,23 @@ import (
 	"github.com/square/metrics/api"
 )
 
+// Point is a single point of data in a time series.
 type Point struct {
 	Time  time.Time
 	Value float64
 }
 
+// PointMap is a collection of points belonging to a time series.
 type PointMap struct {
 	Points []Point
 }
 
+// PointDatabase is a collection of time series belonging to a given name.
 type PointDatabase struct {
 	Map map[string]PointMap
 }
 
+// ChooseResolution echoes whatever resolution was requested, since PointDatabase doesn't care.
 func (p PointDatabase) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
 	return requested.Resolution()
 }
