@@ -29,7 +29,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
@@ -37,8 +36,8 @@ import (
 	"github.com/square/metrics/util"
 )
 
-func startServer(config common.UIConfig, context query.ExecutionContext) {
-	httpMux := ui.NewMux(config.Config, context, ui.Hook{})
+func startServer(config ui.Config, context query.ExecutionContext) {
+	httpMux := ui.NewMux(config, context, ui.Hook{})
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
@@ -69,18 +68,15 @@ func main() {
 
 	config := common.LoadConfig()
 
-	cassandraConfig := cassandra.CassandraMetricMetadataConfig{
-		Hosts:    config.MetricMetadataConfig.Hosts,
-		Keyspace: config.MetricMetadataConfig.Keyspace,
-	}
-	apiInstance := common.NewMetricMetadataAPI(cassandraConfig)
+	apiInstance := common.NewMetricMetadataAPI(config.Cassandra)
 
-	ruleset, err := util.LoadRules(config.MetricMetadataConfig.ConversionRulesPath)
+	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {
-		//Blah
+		fmt.Printf("Error loading conversion rules: %s", err.Error())
+		return
 	}
-	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
-	config.Blueflood.GraphiteMetricConverter = &graphite
+
+	config.Blueflood.GraphiteMetricConverter = &util.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
@@ -92,7 +88,7 @@ func main() {
 		IncludeRawData: false,
 	}
 
-	startServer(config.UIConfig, query.ExecutionContext{
+	startServer(config.UI, query.ExecutionContext{
 		MetricMetadataAPI:         apiInstance,
 		TimeseriesStorageAPI:      blueflood,
 		FetchLimit:                1500,

@@ -25,19 +25,6 @@ type MetricMetadataAPIContext struct {
 	Profiler *inspect.Profiler
 }
 
-type MetricMetadataConfig struct {
-	// Location of conversion rules. All *.yaml files in here will be loaded.
-	//TODO(cchandler): Move this into the util package along with
-	//other rules + graphite stuff.
-	ConversionRulesPath string `yaml:"conversion_rules_path"`
-
-	// Database configurations
-	// mostly cassandra configurations from
-	// https://github.com/gocql/gocql/blob/master/cluster.go
-	Hosts    []string `yaml:"hosts"`
-	Keyspace string   `yaml:"keyspace"`
-}
-
 type MetricMetadataAPI interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric, context MetricMetadataAPIContext) error

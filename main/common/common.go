@@ -37,16 +37,11 @@ var (
 	Logger     = flag.String("logger", "glog", "Selects the logger to use")
 )
 
-type UIConfig struct {
-	Port      int `yaml:"port"`
-	Timeout   int `yaml:"timeout"`
-	ui.Config `yaml:"config"`
-}
-
 type Config struct {
-	Blueflood            blueflood.Config         `yaml:"blueflood"`
-	MetricMetadataConfig api.MetricMetadataConfig `yaml:"api"` // TODO: Probably rethink how we name this
-	UIConfig             UIConfig                 `yaml:"ui"`
+	ConversionRulesPath string           `yaml:"conversion_rules_path"`
+	Blueflood           blueflood.Config `yaml:"blueflood"`
+	Cassandra           cassandra.Config `yaml:"cassandra"`
+	UI                  ui.Config        `yaml:"ui"`
 }
 
 func LoadConfig() Config {
@@ -86,7 +81,7 @@ func ExitWithMessage(message string) {
 }
 
 // NewMetricMetadataAPI creates a new instance of the API.
-func NewMetricMetadataAPI(config cassandra.CassandraMetricMetadataConfig) api.MetricMetadataAPI {
+func NewMetricMetadataAPI(config cassandra.Config) api.MetricMetadataAPI {
 	apiInstance, err := cassandra.NewCassandraMetricMetadataAPI(config)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))

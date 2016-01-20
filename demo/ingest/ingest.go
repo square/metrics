@@ -51,7 +51,7 @@ func main() {
 
 	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
 
-	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.CassandraMetricMetadataConfig{
+	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port
 		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
 	})
