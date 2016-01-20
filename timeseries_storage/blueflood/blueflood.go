@@ -227,7 +227,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([
 		return nil, err
 	}
 	if request.UserSpecifiableConfig.IncludeRawData {
-		request.EvaluationNotes.AddNote(fmt.Sprintf("Blueflood query resolution %s : %s", request.Metric, rawResult))
+		request.EvaluationNotes.AddNote(fmt.Sprintf("Blueflood (query resolution) %s: %s", request.Metric, rawResult))
 	}
 
 	// combinedResult contains the requested data, along with higher-resolution data intended to fill in gaps.
@@ -260,7 +260,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([
 			return nil
 		}
 		if request.UserSpecifiableConfig.IncludeRawData {
-			request.EvaluationNotes.AddNote(fmt.Sprintf("Blueflood full resolution %s : %s", request.Metric, rawResult))
+			request.EvaluationNotes.AddNote(fmt.Sprintf("Blueflood (full resolution) %s: %s", request.Metric, rawResult))
 		}
 		// The higher-resolution data will likely overlap with the requested data.
 		// This isn't a problem - the requested, higher-resolution data will be downsampled by this code.
