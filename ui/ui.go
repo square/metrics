@@ -150,6 +150,8 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 }
 
 func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	profiler := inspect.New()
+	serveHTTPTimerCompletion := profiler.Record("Server HTTP")
 	err := request.ParseForm()
 	if err != nil {
 		errorResponse(writer, http.StatusBadRequest, err)
@@ -158,18 +160,23 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	parsedForm := parseQueryForm(request)
 	log.Infof("INPUT: %+v\n", parsedForm)
 
-	cmd, err := query.Parse(parsedForm.input)
+	parsingTimerCompletion := profiler.Record("Parsing Query")
+	rawCommand, err := query.Parse(parsedForm.input)
+	parsingTimerCompletion()
+
 	if err != nil {
 		errorResponse(writer, http.StatusBadRequest, err)
 		return
 	}
 
-	cmd, profiler := query.NewProfilingCommand(cmd)
+	cmd := query.NewProfilingCommandWithProfiler(rawCommand, profiler)
 	ctx := q.context
 	ctx.UserSpecifiableConfig = api.UserSpecifiableConfig{
 		IncludeRawData: parsedForm.includeRaw,
 	}
+	executionTimerCompletion := profiler.Record("Total Execution")
 	result, err := cmd.Execute(ctx)
+	executionTimerCompletion()
 	if err != nil {
 		errorResponse(writer, http.StatusInternalServerError, err)
 		return
@@ -179,6 +186,7 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		Metadata: result.Metadata,
 		Name:     cmd.Name(),
 	}
+	serveHTTPTimerCompletion()
 	if parsedForm.profile {
 		response.Profile = convertProfile(profiler)
 	}

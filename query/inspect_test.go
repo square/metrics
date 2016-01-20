@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/testing_support/mocks"
 )
@@ -137,7 +138,8 @@ func TestProfilerIntegration(t *testing.T) {
 			t.Error(err.Error())
 			continue
 		}
-		profilingCommand, profiler := NewProfilingCommand(cmd)
+		profiler := inspect.New()
+		profilingCommand := NewProfilingCommandWithProfiler(cmd, profiler)
 
 		_, err = profilingCommand.Execute(ExecutionContext{
 			TimeseriesStorageAPI:      fakeTimeStorage,
