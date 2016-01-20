@@ -212,13 +212,29 @@ module.run(function($http) {
     "to",
     "where"
   ];
-  autocom.options = keywords;
+  // Subset of keywords which can be suggested after "where" or "from" or "to" or "resolution" or "sample"
+  var latterKeywords = [
+    "from",
+    "match",
+    "now",
+    "resolution",
+    "sample",
+    "by",
+    "to",
+  ];
+  autocom.options = keywords.slice(0); // note: copies the array
   autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
   autocom.continuePattern = "[a-zA-Z_`.-]";
   autocom.tooltipX = 0;
   autocom.tooltipY = 20;
   autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
   autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
+  autocom.activeRegion = function(beforeText, afterText, candidate) {
+    if (beforeText.match(/\s(where|from|to|resolution|sample)\s/)) { // Note: only works 99% of the time.
+      return latterKeywords.indexOf(candidate) >= 0;
+    }
+    return true;
+  };
   $http.get("/token").success(function(data, status, headers, config) {
     if (!data.success || !data.body) {
       return;
