@@ -80,12 +80,13 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	valuelist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		api.FetchMultipleTimeseriesRequest{
-			metrics,
-			context.SampleMethod,
-			context.Timerange,
-			context.Cancellable,
-			context.Profiler,
-			context.UserSpecifiableConfig,
+			Metrics:               metrics,
+			SampleMethod:          context.SampleMethod,
+			Timerange:             context.Timerange,
+			Cancellable:           context.Cancellable,
+			Profiler:              context.Profiler,
+			EvaluationNotes:       context.EvaluationNotes,
+			UserSpecifiableConfig: context.UserSpecifiableConfig,
 		},
 	)
 	if err != nil {

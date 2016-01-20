@@ -43,7 +43,7 @@ func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
 	}
 }
 
-func (fa *FakeMetricMetadataAPI) InsertMetric(tm api.TaggedMetric) {
+func (fa *FakeMetricMetadataAPI) MockMetric(tm api.TaggedMetric) {
 	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
 	for key, value := range tm.TagSet {
 		index := struct {
@@ -132,7 +132,7 @@ func NewFakeGraphiteConverter(metrics []api.TaggedMetric) (FakeGraphiteConverter
 			name += "." + tag + "." + metric.TagSet[tag]
 		}
 		result.ConversionMap[name] = metric
-		fakeAPI.InsertMetric(metric)
+		fakeAPI.MockMetric(metric)
 	}
 	return result, fakeAPI
 }

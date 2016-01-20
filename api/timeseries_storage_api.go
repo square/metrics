@@ -33,6 +33,7 @@ type FetchTimeseriesRequest struct {
 	Timerange             Timerange    // time range to fetch data from.
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
+	EvaluationNotes       *inspect.EvaluationNotes
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 
@@ -42,6 +43,7 @@ type FetchMultipleTimeseriesRequest struct {
 	Timerange             Timerange
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
+	EvaluationNotes       *inspect.EvaluationNotes
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 
@@ -99,6 +101,7 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 			SampleMethod:          r.SampleMethod,
 			Timerange:             r.Timerange,
 			Profiler:              r.Profiler,
+			EvaluationNotes:       r.EvaluationNotes,
 			UserSpecifiableConfig: r.UserSpecifiableConfig,
 		}
 	}

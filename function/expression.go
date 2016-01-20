@@ -2,7 +2,6 @@ package function
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,32 +27,10 @@ type EvaluationContext struct {
 	FetchLimit                FetchCounter             // A limit on the number of fetches which may be performed
 	Cancellable               api.Cancellable
 	Registry                  Registry
-	Profiler                  *inspect.Profiler // A profiler pointer
+	Profiler                  *inspect.Profiler        // A profiler pointer
+	EvaluationNotes           *inspect.EvaluationNotes //Debug + numerical notes that can be added during evaluation
 	OptimizationConfiguration *optimize.OptimizationConfiguration
-	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
 	UserSpecifiableConfig     api.UserSpecifiableConfig
-}
-
-type EvaluationNotes struct {
-	mutex sync.Mutex
-	notes []string
-}
-
-func (notes *EvaluationNotes) AddNote(note string) {
-	if notes == nil {
-		return
-	}
-	notes.mutex.Lock()
-	defer notes.mutex.Unlock()
-	notes.notes = append(notes.notes, note)
-}
-func (notes *EvaluationNotes) Notes() []string {
-	if notes == nil {
-		return nil
-	}
-	notes.mutex.Lock()
-	defer notes.mutex.Unlock()
-	return notes.notes
 }
 
 type Registry interface {

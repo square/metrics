@@ -79,7 +79,6 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
-				Raw:    series.Raw,
 				Values: RollingMultiplicativeHoltWinters(series.Values, samples, levelLearningRate, trendLearningRate, seasonalLearningRate)[extraSlots:], // Slice to drop the first few extra slots from the result
 			}
 		}
@@ -135,7 +134,6 @@ var FunctionRollingSeasonal = function.MetricFunction{
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
-				Raw:    series.Raw,
 				Values: RollingSeasonal(series.Values, samples, seasonalLearningRate)[extraSlots:], // Slice to drop the first few extra slots from the result
 			}
 		}
@@ -179,7 +177,6 @@ var FunctionForecastLinear = function.MetricFunction{
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
-				Raw:    series.Raw,
 				Values: ForecastLinear(series.Values)[extraSlots:], // Slice to drop the first few extra slots from the result
 			}
 		}

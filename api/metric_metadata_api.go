@@ -22,7 +22,8 @@ package api
 import "github.com/square/metrics/inspect"
 
 type MetricMetadataAPIContext struct {
-	Profiler *inspect.Profiler
+	Profiler        *inspect.Profiler
+	EvaluationNotes *inspect.EvaluationNotes
 }
 
 type MetricMetadataModifier interface {

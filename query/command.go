@@ -234,7 +234,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		Registry:                  r,
 		Profiler:                  context.Profiler,
 		OptimizationConfiguration: context.OptimizationConfiguration,
-		EvaluationNotes:           new(function.EvaluationNotes),
+		EvaluationNotes:           &inspect.EvaluationNotes{},
 		UserSpecifiableConfig:     context.UserSpecifiableConfig,
 	}
 
