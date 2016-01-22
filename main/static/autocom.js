@@ -54,6 +54,11 @@ window.Autocom = (function(){
 	// Alternative spellings that you shouldn't suggest, but treat as finished.
 	colorCom.tolerate = ["grey"];
 
+	// Allow comments, where the autocomplete stops suggesting words, except for "green"
+	colorCom.activeRegion = function(before, after, candidate) {
+	  return !before.match(/#[^\n]*$/) || candidate == "green";
+  };
+
 */
 
 /*
@@ -83,6 +88,8 @@ Fields:
 
 	tooltipX: (default 0) the X offset for the tooltip (relative to the cursor)
 	tooltipY: (default 0) the Y offset for the tooltip (relative to the cursor)
+
+	activeRegion: a function (or null) which tells whether to disable the autocompletion in a region of text
 
 Methods:
 
@@ -200,24 +207,29 @@ function predictReady(input, prefixPattern, continuePattern) {
 		return null;
 	}
 	var at = input.selectionStart;
-	if (input.value.substring(at).match("^(" + continuePattern + ")")) {
+	var beforeText = input.value.substring(0, at);
+	var afterText = input.value.substring(at);
+	if (afterText.match("^(" + continuePattern + ")")) {
 		// Can't be going from the middle of a word.
 		return null;
 	}
 	// Must be a word prior to the cursor.
-	var before = input.value.substring(0, at).match("(" + prefixPattern + ")$");
-	if (before && before.length > 0) {
-		return {from: at - before[0].length, word: before[0], to: at};
+	var before = beforeText.match("(" + prefixPattern + ")$");
+	if (!before || before.length == 0) {
+		return null;
 	}
-	return null;
+	return {from: at - before[0].length, word: before[0], to: at, beforeText: beforeText, afterText: afterText };
 }
 
 // filterCandidates finds a list of candidates, pursuant to the config, among the options
 // from the given prefix `word`.
-function filterCandidates(word, givenOptions, config) {
+function filterCandidates(word, givenOptions, config, activeRegion, beforeText, afterText) {
 	// Compute the scores for each word.
 	var options = [];
 	for (var i = 0; i < givenOptions.length; i++) {
+		if (activeRegion && !activeRegion(beforeText, afterText, givenOptions[i])) {
+			continue;
+		}
 		options[i] = { word: givenOptions[i], score: scoreAgainst(word, givenOptions[i], config) };
 	}
 	options.sort(function(a, b) {
@@ -237,8 +249,8 @@ function filterCandidates(word, givenOptions, config) {
 }
 
 // Predicts the possible autocompletions based on `at` which includes the word we want, and our options.
-function predict(at, options, config) {
-	var words = filterCandidates(at.word, options, config);
+function predict(at, options, config, activeRegion) {
+	var words = filterCandidates(at.word, options, config, activeRegion, at.beforeText, at.afterText);
 	if (words.length === 0) {
 		return null;
 	}
@@ -312,6 +324,8 @@ function Autocom(input) {
 		count: 8
 	};
 
+	self.activeRegion = null;
+
 	var tooltipState = {active: false, index: 0};
 	var tooltipSuppress = false;
 
@@ -368,8 +382,13 @@ function Autocom(input) {
 	function renderTooltip() {
 		moveTooltip(elements, self.tooltipX, self.tooltipY);
 		var predictionData = predictReady(input, self.prefixPattern, self.continuePattern);
-		var result = predictionData && predict(predictionData, self.options.slice(0), self.config);
-		if (predictionData && (self.tolerate || []).indexOf(predictionData.word) < 0 && result && !tooltipSuppress && document.activeElement === input) {
+		var result = predictionData && predict(predictionData, self.options.slice(0), self.config, self.activeRegion);
+		if (predictionData &&
+			(self.tolerate || []).indexOf(predictionData.word) < 0 &&
+			result &&
+			!tooltipSuppress &&
+			document.activeElement === input
+		) {
 			// If it's not currently active, then become active.
 			tooltipState = {
 				active: true,
