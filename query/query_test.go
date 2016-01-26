@@ -237,12 +237,6 @@ func TestCompile(t *testing.T) {
 // ================
 
 func testParserResult(a assert.Assert, p Parser) {
-	a.EqInt(len(p.assertions), 0)
-	if len(p.assertions) != 0 {
-		for _, err := range p.assertions {
-			a.Errorf("assertion error: %s", err.Error())
-		}
-	}
 	if len(p.nodeStack) != 0 {
 		for _, node := range p.nodeStack {
 			a.Errorf("node error:\n%s", PrintNode(node))

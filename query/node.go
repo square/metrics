@@ -24,6 +24,8 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/util"
 )
 
 // PrintNode prints the given node.
@@ -43,26 +45,9 @@ type Node interface {
 // Predicates
 // ----------
 
-type andPredicate struct {
-	predicates []api.Predicate
-}
-
-type orPredicate struct {
-	predicates []api.Predicate
-}
-
-type notPredicate struct {
-	predicate api.Predicate
-}
-
-type listMatcher struct {
-	tag    string
-	values []string
-}
-
-type regexMatcher struct {
-	tag   string
-	regex *regexp.Regexp
+// predicateNode is a node wrapping an actual predicate.Predicate value.
+type predicateNode struct {
+	predicate.Predicate
 }
 
 // Expressions
@@ -111,24 +96,15 @@ func (s stringExpression) Name() string {
 // metricFetchExpression represents a reference to a metric embedded within the expression.
 type metricFetchExpression struct {
 	metricName string
-	predicate  api.Predicate
-}
-
-var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)*$`)
-
-func EscapeIdentifier(identifier string) string {
-	if !OrdinaryIdentifierRegex.MatchString(identifier) {
-		return fmt.Sprintf("`%s`", identifier)
-	}
-	return identifier
+	predicate  predicate.Predicate
 }
 
 // TODO: QueryString should indicate the associated predicate
 func (m metricFetchExpression) QueryString() string {
-	query := EscapeIdentifier(m.metricName)
+	query := util.EscapeIdentifier(m.metricName)
 	if m.predicate != nil {
 		predicateString := m.predicate.Query()
-		if predicateString != "" {
+		if predicateString != "true" {
 			query = fmt.Sprintf("%s[%s]", query, predicateString)
 		}
 	}
@@ -165,7 +141,7 @@ func functionFormatString(argumentStrings []string, f functionExpression) string
 		}
 		escapedGroupBy := []string{}
 		for _, group := range f.groupBy {
-			escapedGroupBy = append(escapedGroupBy, EscapeIdentifier(group))
+			escapedGroupBy = append(escapedGroupBy, util.EscapeIdentifier(group))
 		}
 		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(escapedGroupBy, ", "))
 	}
@@ -298,39 +274,9 @@ func printUnknown(buffer *bytes.Buffer, indent int, object interface{}) {
 
 // Predicates
 
-func (node *andPredicate) Print(buffer *bytes.Buffer, indent int) {
+func (node *predicateNode) Print(buffer *bytes.Buffer, indent int) {
 	printType(buffer, indent, node)
-	for _, pred := range node.predicates {
-		printUnknown(buffer, indent+1, pred)
-	}
-}
-
-func (node *orPredicate) Print(buffer *bytes.Buffer, indent int) {
-	printType(buffer, indent, node)
-	for _, pred := range node.predicates {
-		printUnknown(buffer, indent+1, pred)
-	}
-}
-
-func (node *notPredicate) Print(buffer *bytes.Buffer, indent int) {
-	printType(buffer, indent, node)
-	printUnknown(buffer, indent+1, node.predicate)
-}
-
-func (node *listMatcher) Print(buffer *bytes.Buffer, indent int) {
-	printType(buffer, indent, node)
-	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
-		node.tag,
-		strings.Join(node.values, ","),
-	))
-}
-
-func (node *regexMatcher) Print(buffer *bytes.Buffer, indent int) {
-	printType(buffer, indent, node)
-	printHelper(buffer, indent+1, fmt.Sprintf("%s=%s",
-		node.tag,
-		node.regex.String(),
-	))
+	printUnknown(buffer, indent+1, node.Predicate)
 }
 
 func (node *stringLiteral) Print(buffer *bytes.Buffer, indent int) {

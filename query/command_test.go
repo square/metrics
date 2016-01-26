@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/util"
@@ -51,10 +52,7 @@ func TestCommand_Describe(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)
-		if err != nil {
-			a.Errorf("Unexpected error while parsing")
-			continue
-		}
+		a.CheckError(err)
 
 		a.EqString(command.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
@@ -67,6 +65,20 @@ func TestCommand_Describe(t *testing.T) {
 		a.CheckError(err)
 		a.Eq(rawResult.Body, test.expected)
 	}
+
+	// Test AdditionalConstraints with describe commands.
+	a := assert.New(t).Contextf("Checking AdditionalConstraints")
+	command, err := Parse(`describe series_0`)
+	a.CheckError(err)
+	rawResult, err := command.Execute(ExecutionContext{
+		TimeseriesStorageAPI:  mocks.FakeTimeseriesStorageAPI{},
+		MetricMetadataAPI:     fakeAPI,
+		FetchLimit:            1000,
+		Timeout:               0,
+		AdditionalConstraints: predicate.ListMatcher{"dc", []string{"west"}},
+	})
+	a.CheckError(err)
+	a.Eq(rawResult.Body, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}})
 }
 
 func TestCommand_DescribeAll(t *testing.T) {
@@ -87,10 +99,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		command, err := Parse(test.query)
-		if err != nil {
-			a.Errorf("Unexpected error while parsing")
-			continue
-		}
+		a.CheckError(err)
 
 		a.EqString(command.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}

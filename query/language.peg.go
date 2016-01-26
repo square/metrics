@@ -600,7 +600,6 @@ type Parser struct {
 
 	// programming errors accumulated during the AST traversal.
 	// a non-empty list at the finish time implies a programming error.
-	assertions []error
 
 	// final result
 	command Command

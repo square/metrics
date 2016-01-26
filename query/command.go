@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/query/natural_sort"
+	"github.com/square/metrics/query/predicate"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
@@ -36,6 +37,7 @@ type ExecutionContext struct {
 	SlotLimit             int                       // optional (0 => default 1000)
 	Profiler              *inspect.Profiler         // optional
 	UserSpecifiableConfig api.UserSpecifiableConfig // optional. User tunable parameters for execution.
+	AdditionalConstraints predicate.Predicate       // optional. Additional contrains for describe and select commands
 }
 
 type CommandResult struct {
@@ -55,7 +57,7 @@ type Command interface {
 // DescribeCommand describes the tag set managed by the given metric indexer.
 type DescribeCommand struct {
 	metricName api.MetricKey
-	predicate  api.Predicate
+	predicate  predicate.Predicate
 }
 
 // DescribeAllCommand returns all the metrics available in the system.
@@ -72,7 +74,7 @@ type DescribeMetricsCommand struct {
 // SelectCommand is the bread and butter of the metrics query engine.
 // It actually performs the query against the underlying metrics system.
 type SelectCommand struct {
-	predicate   api.Predicate
+	predicate   predicate.Predicate
 	expressions []function.Expression
 	context     *evaluationContextNode
 }
@@ -91,9 +93,10 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 	}
 
 	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
+	predicate := predicate.All(cmd.predicate, context.AdditionalConstraints)
 	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
 	for _, tagset := range tagsets {
-		if cmd.predicate.Apply(tagset) {
+		if predicate.Apply(tagset) {
 			// Add each key as needed
 			for key, value := range tagset {
 				if keyValueSets[key] == nil {
@@ -223,7 +226,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		MetricMetadataAPI:     context.MetricMetadataAPI,
 		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
 		TimeseriesStorageAPI:  context.TimeseriesStorageAPI,
-		Predicate:             cmd.predicate,
+		Predicate:             predicate.All(cmd.predicate, context.AdditionalConstraints),
 		SampleMethod:          cmd.context.SampleMethod,
 		Timerange:             chosenTimerange,
 		Cancellable:           cancellable,
@@ -333,19 +336,6 @@ type profileJSON struct {
 	Finish int64  `json:"finish"` // ms since Unix epoch
 }
 
-func convertProfile(profiler *inspect.Profiler) []profileJSON {
-	profiles := profiler.All()
-	result := make([]profileJSON, len(profiles))
-	for i, p := range profiles {
-		result[i] = profileJSON{
-			Name:   p.Name(),
-			Start:  p.Start().UnixNano() / int64(time.Millisecond),
-			Finish: p.Finish().UnixNano() / int64(time.Millisecond),
-		}
-	}
-	return result
-}
-
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
@@ -355,18 +345,10 @@ func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, er
 	}
 	profiles := cmd.Profiler.All()
 	if len(profiles) != 0 {
-		jsonProfiles := []profileJSON{}
-		for _, profile := range profiles {
-			jsonProfiles = append(jsonProfiles, profileJSON{
-				Name:   profile.Name(),
-				Start:  profile.Start().UnixNano() / int64(time.Millisecond),
-				Finish: profile.Finish().UnixNano() / int64(time.Millisecond),
-			})
-		}
 		if result.Metadata == nil {
 			result.Metadata = map[string]interface{}{}
 		}
-		result.Metadata["profile"] = jsonProfiles
+		result.Metadata["profile"] = profiles
 	}
 	return result, nil
 }

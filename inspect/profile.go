@@ -22,16 +22,25 @@ import (
 // Profiler contains a sequence of profiles which are collected over the course of a query execution.
 type Profiler struct {
 	now      func() time.Time
-	mutex    *sync.Mutex
+	mutex    sync.Mutex // Since profilers are only ever used as pointers, the mutex is not a pointer.
 	profiles []Profile
 }
 
 func New() *Profiler {
 	return &Profiler{
 		now:      time.Now,
-		mutex:    &sync.Mutex{},
+		mutex:    sync.Mutex{},
 		profiles: []Profile{},
 	}
+}
+
+func (p *Profiler) AddProfile(profile Profile) {
+	if p == nil {
+		return
+	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.profiles = append(p.profiles, profile)
 }
 
 // Record will create a profile of the given name from `start` until the current time.
@@ -43,10 +52,31 @@ func (p *Profiler) Record(name string) func() {
 	}
 	start := p.now()
 	return func() {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-		p.profiles = append(p.profiles, Profile{name: name, startTime: start, finishTime: p.now()})
+		p.AddProfile(Profile{
+			Name:   name,
+			Start:  start,
+			Finish: p.now(),
+		})
 	}
+}
+
+// Do will perform and time the action given.
+// It behaves in a threadsafe manner.
+// If the profiler is nil, the action will be performed, but no profile will be recorded.
+func (p *Profiler) Do(name string, action func()) {
+	if p == nil {
+		// If the profiler instance doesn't exist, then don't attempt to operate on it.
+		// Make sure that you still run the action
+		action()
+		return
+	}
+	start := p.now()
+	action()
+	p.AddProfile(Profile{
+		Name:   name,
+		Start:  start,
+		Finish: p.now(),
+	})
 }
 
 func (p *Profiler) RecordWithDescription(name string, description string) func() {
@@ -56,9 +86,12 @@ func (p *Profiler) RecordWithDescription(name string, description string) func()
 	}
 	start := p.now()
 	return func() {
-		p.mutex.Lock()
-		defer p.mutex.Unlock()
-		p.profiles = append(p.profiles, Profile{name: name, description: description, startTime: start, finishTime: p.now()})
+		p.AddProfile(Profile{
+			Name:        name,
+			Description: description,
+			Start:       start,
+			Finish:      p.now(),
+		})
 	}
 }
 
@@ -73,6 +106,8 @@ func (p *Profiler) All() []Profile {
 	return p.profiles
 }
 
+// Flush provides a safe way to clear the profiles from its list.
+// It's guaranteed that no profiles will be lost by calling this method.
 func (p *Profiler) Flush() []Profile {
 	if p == nil {
 		return []Profile{}
@@ -86,32 +121,13 @@ func (p *Profiler) Flush() []Profile {
 
 // A Profile is a single data point collected by the profiler.
 type Profile struct {
-	name        string // name identifies the measured quantity ("fetchSingle() or api.GetAllMetrics()")
-	description string
-	startTime   time.Time // the start time of the task
-	finishTime  time.Time // the end time of the task
-}
-
-// Name is the name of the profile.
-func (p Profile) Name() string {
-	return p.name
-}
-
-func (p Profile) Description() string {
-	return p.description
-}
-
-// Start is the start time of the profile.
-func (p Profile) Start() time.Time {
-	return p.startTime
-}
-
-// Finish is the finish time of the profile.
-func (p Profile) Finish() time.Time {
-	return p.finishTime
+	Name        string    `json:"name"` // name identifies the measured quantity ("fetchSingle() or api.GetAllMetrics()")
+	Description string    `json:"description,omitempty"`
+	Start       time.Time `json:"start"`  // the start time of the task
+	Finish      time.Time `json:"finish"` // the end time of the task
 }
 
 // Duration is the duration of the profile (Finish - Start).
 func (p Profile) Duration() time.Duration {
-	return p.finishTime.Sub(p.startTime)
+	return p.Finish.Sub(p.Start)
 }
