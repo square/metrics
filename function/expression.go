@@ -66,6 +66,29 @@ func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	return e
 }
 
+func (e EvaluationContext) FetchSingleMetric(metric string) api.FetchTimeseriesRequest {
+	return api.FetchTimeseriesRequest{
+		Metric:                metric,
+		SampleMethod:          e.SampleMethod,
+		Timerange:             e.Timerange,
+		Cancellable:           e.Cancellable,
+		Profiler:              e.Profiler,
+		EvaluationNotes:       e.EvaluationNotes,
+		UserSpecifiableConfig: e.UserSpecifiableConfig,
+	}
+}
+func (e EvaluationContext) FetchMultipleRequest(metrics []string) api.FetchMultipleTimeseriesRequest {
+	return api.FetchMultipleTimeseriesRequest{
+		Metrics:               metrics,
+		SampleMethod:          e.SampleMethod,
+		Timerange:             e.Timerange,
+		Cancellable:           e.Cancellable,
+		Profiler:              e.Profiler,
+		EvaluationNotes:       e.EvaluationNotes,
+		UserSpecifiableConfig: e.UserSpecifiableConfig,
+	}
+}
+
 // Evaluate the given metric function.
 func (f MetricFunction) Evaluate(context EvaluationContext,
 	arguments []Expression, groupBy []string, collapses bool) (Value, error) {

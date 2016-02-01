@@ -513,7 +513,7 @@ func TestTag(t *testing.T) {
 			OptimizationConfiguration: optimize.NewOptimizationConfiguration(),
 		})
 		if err != nil {
-			t.Errorf("Unexpected error while exucting query %q: %s", test.query, err.Error())
+			t.Errorf("Unexpected error while executing query %q: %s", test.query, err.Error())
 			continue
 		}
 		seriesListList, ok := rawResult.Body.([]QuerySeriesList)

@@ -273,7 +273,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) ([
 	values := processResult(combinedResult, request.Timerange, sampler, queryResolution)
 	log.Debugf("Constructed timeseries from result: %v", values)
 
-	return values, nil // TODO: include raw results
+	return values, nil
 
 }
 
