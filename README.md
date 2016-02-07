@@ -24,7 +24,13 @@ where service match 'blueflood'
 from -10m to now
 ```
 
+Or you want to see how many cumulative seconds have been spent serving an API request.
 
+```
+transform.integral(aggregate.sum(transform.rate(`framework.actions.service-api.response_codes.X00`[type='200']) * `framework.actions.service-api.response_times.histogram`[distribution='mean'])) where app = 'secretapp' and service = 'SecretService' and api = 'GetSecret'
+
+from -1w to now
+```
 
 ##### Why
 Square collects millions of signals every few seconds from application servers and datacenters. The large volume of unstructured metric names makes it difficult to search for and discover metrics relevant to a particular host, app, service, connection type, or data center. Metrics Query Engine uses tagged metrics as a way to structure metric names so that they can be more easily queried and discovered.
