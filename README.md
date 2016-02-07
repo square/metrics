@@ -1,83 +1,22 @@
 [![license](https://img.shields.io/badge/license-apache_2.0-red.svg?style=flat)](https://raw.githubusercontent.com/square/metrics/master/LICENSE)
 [![Build Status](https://travis-ci.org/square/metrics.svg?branch=master)](https://travis-ci.org/square/metrics)
 
-Metrics
-=======
+#### Metrics Query Engine
 
-Indexer & Query Engine for Square's metrics.
+Metrics Query Engine(MQE) provides SQL-like interface to time series data with powerful functions.
 
-**This project is still under development and should not be used for anything in production yet. We are not seeking external contributors at this time**
-
-We currently support Go 1.4 and Go 1.5.
-
-Development
-===========
-
-Check out the project to the development directory.
-
-Project Structure
------------------
-```
-Main packages:
-├── api                 # core type and function definitions
-├── function            # MQE function definition interface
-│   └── registry        # registry for custom MQE functions
-├── main
-│   └── ui              # the UI executable
-├── metric_metadata     # interface for storing metric metadata
-│   └── cassandra       # Cassandra backend for metric metadata
-├── query               # query language and parsing
-├── timeseries_storage  # interface for storing time series data
-
-Miscellaneous packages:
-├── compress            # experimental metrics-compression protocol
-├── inspect             # profiling to measure MQE query performance
-├── log                 # custom logging
-├── optimize            # MQE optimization interface
-├── schema              # example Cassandra schema configurations
-├── testing_support     # mocks for interfaces
-├── ui                  # webserver for UI interface
-├── util                # conversion rules for graphite metrics
-```
-
-Cassandra
----------
-
-We're currently using Cassandra 2.0.X. 2.1.X is unstable and is not
-recommended.
-
-Download it from: http://cassandra.apache.org/download/
-
-* To setup schema
+For example, to find which 10 endpoints have the highest HTTP latency on your web application farm:
 
 ```
-# Production schema
-$CASSANDRA/bin/cqlsh -f schema/schema.cql
-# Testing Schema
-$CASSANDRA/bin/cqlsh -f schema/schema_test.cql
+select connection.http.latency
+| aggregate.sum(group by endpoint)
+| filter.highest_mean(10)
+where application = 'httpd'
+from -2hr to now
 ```
 
-Dependencies
-------------
+##### Why
+Square generates approximately 2.5 million metrics (as of July 2015). The large volume of unstructured metric names makes it difficult to search for and discover metrics relevant to a particular host, app, service, connection type, or data center. Metrics Query Engine uses tagged metrics as a way to structure metric names so that they can be more easily queried and discovered.
 
-```
-go get github.com/gocql/gocql
-go get github.com/pointlander/peg
-go get gopkg.in/yaml.v2
-```
 
-Testing
--------
-
-```
-go test ./...
-```
-
-Committing code
----------------
-
-Please ensure the code is correctly formatted and passes the linter.
-
-```
-go fmt ./...
-```
+###### See wiki for installation, setup and development. 
