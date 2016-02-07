@@ -15,7 +15,7 @@ where application = 'httpd'
 from -2hr to now
 ```
 
-Or maybe you want to find application CPU usage vs allocated across your cluster.
+Or maybe you want to compare cpus used vs allocated across your cluster for a particular application
 
 ```
 inspect.cgroup.cpustat.usage | aggregate.sum,
