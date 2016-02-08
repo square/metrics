@@ -32,6 +32,6 @@ type TaggedMetric struct {
 	TagSet    TagSet
 }
 
-func (t *TaggedMetric) String() string {
+func (t TaggedMetric) String() string {
 	return fmt.Sprintf("%+v [%s]\n", t.MetricKey, t.TagSet.Serialize())
 }

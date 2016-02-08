@@ -82,7 +82,7 @@ func ExitWithMessage(message string) {
 
 // NewMetricMetadataAPI creates a new instance of the API.
 func NewMetricMetadataAPI(config cassandra.Config) api.MetricMetadataAPI {
-	apiInstance, err := cassandra.NewCassandraMetricMetadataAPI(config)
+	apiInstance, err := cassandra.NewMetricMetadataInterface(config)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))
 	}

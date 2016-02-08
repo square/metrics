@@ -2,7 +2,6 @@ package function
 
 import (
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,38 +20,17 @@ import (
 type EvaluationContext struct {
 	TimeseriesStorageAPI      api.TimeseriesStorageAPI // Backend to fetch data from
 	MetricMetadataAPI         api.MetricMetadataAPI    // Api to obtain metadata from
+	MetricConverter           api.MetricConverter      // API to convert metrics
 	Timerange                 api.Timerange            // Timerange to fetch data from
 	SampleMethod              api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate                 api.Predicate            // Predicate to apply to TagSets prior to fetching
 	FetchLimit                FetchCounter             // A limit on the number of fetches which may be performed
 	Cancellable               api.Cancellable
 	Registry                  Registry
-	Profiler                  *inspect.Profiler // A profiler pointer
+	Profiler                  *inspect.Profiler        // A profiler pointer
+	EvaluationNotes           *inspect.EvaluationNotes //Debug + numerical notes that can be added during evaluation
 	OptimizationConfiguration *optimize.OptimizationConfiguration
-	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
 	UserSpecifiableConfig     api.UserSpecifiableConfig
-}
-
-type EvaluationNotes struct {
-	mutex sync.Mutex
-	notes []string
-}
-
-func (notes *EvaluationNotes) AddNote(note string) {
-	if notes == nil {
-		return
-	}
-	notes.mutex.Lock()
-	defer notes.mutex.Unlock()
-	notes.notes = append(notes.notes, note)
-}
-func (notes *EvaluationNotes) Notes() []string {
-	if notes == nil {
-		return nil
-	}
-	notes.mutex.Lock()
-	defer notes.mutex.Unlock()
-	return notes.notes
 }
 
 type Registry interface {
@@ -86,6 +64,29 @@ func (e EvaluationContext) Notes() []string {
 func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	e.Timerange = t
 	return e
+}
+
+func (e EvaluationContext) FetchSingleMetric(metric string) api.FetchTimeseriesRequest {
+	return api.FetchTimeseriesRequest{
+		Metric:                metric,
+		SampleMethod:          e.SampleMethod,
+		Timerange:             e.Timerange,
+		Cancellable:           e.Cancellable,
+		Profiler:              e.Profiler,
+		EvaluationNotes:       e.EvaluationNotes,
+		UserSpecifiableConfig: e.UserSpecifiableConfig,
+	}
+}
+func (e EvaluationContext) FetchMultipleRequest(metrics []string) api.FetchMultipleTimeseriesRequest {
+	return api.FetchMultipleTimeseriesRequest{
+		Metrics:               metrics,
+		SampleMethod:          e.SampleMethod,
+		Timerange:             e.Timerange,
+		Cancellable:           e.Cancellable,
+		Profiler:              e.Profiler,
+		EvaluationNotes:       e.EvaluationNotes,
+		UserSpecifiableConfig: e.UserSpecifiableConfig,
+	}
 }
 
 // Evaluate the given metric function.

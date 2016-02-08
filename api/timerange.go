@@ -164,3 +164,7 @@ func (tr Timerange) ExtendBefore(length time.Duration) Timerange {
 func (tr Timerange) Slots() int {
 	return int((tr.end-tr.start)/tr.resolution) + 1
 }
+
+func (tr Timerange) Index(t time.Time) int {
+	return int(t.Sub(tr.StartTime()) / tr.Resolution())
+}

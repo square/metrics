@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/convert/graphite_pattern"
 	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/util"
 )
 
 // rulePath specifies the directory to look for the conversion rule files *.yaml
@@ -43,15 +43,15 @@ func main() {
 		flag.Usage()
 		return
 	}
-	rules, err := util.LoadRules(*rulePath)
+	rules, err := graphite_pattern.LoadRules(*rulePath)
 	if err != nil {
 		fmt.Printf("Error loading rules; %+v", err.Error())
 		return
 	}
 
-	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
+	converter := graphite_pattern.RuleBasedGraphiteConverter{Ruleset: rules}
 
-	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.Config{
+	cassandra, err := cassandra.NewMetricMetadataInterface(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port
 		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
 	})
@@ -87,10 +87,10 @@ func main() {
 		}
 
 		// Split the body into lines, and trim whitespace for each metric.
-		metrics := []util.GraphiteMetric{}
+		metrics := []string{}
 		for _, metric := range strings.Split(string(bytes), "\n") {
 			if metric := strings.TrimSpace(metric); metric != "" {
-				metrics = append(metrics, util.GraphiteMetric(metric))
+				metrics = append(metrics, metric)
 			}
 		}
 
@@ -106,7 +106,7 @@ func main() {
 
 		for _, metric := range metrics {
 			// If conversion fails because no rule is applicable, then err will be non-nil.
-			result, err := converter.ToTaggedName(metric)
+			result, err := converter.ToTagged(metric)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(fmt.Sprintf("Error converting metric `%s`; %s\n", metric, err.Error())))

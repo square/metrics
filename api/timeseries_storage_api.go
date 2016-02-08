@@ -23,25 +23,27 @@ import (
 
 type TimeseriesStorageAPI interface {
 	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
-	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
-	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	FetchSingleTimeseries(request FetchTimeseriesRequest) ([]float64, error)
+	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) ([][]float64, error)
 }
 
 type FetchTimeseriesRequest struct {
-	Metric                TaggedMetric // metric to fetch.
+	Metric                string       // metric to fetch.
 	SampleMethod          SampleMethod // up/downsampling behavior.
 	Timerange             Timerange    // time range to fetch data from.
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
+	EvaluationNotes       *inspect.EvaluationNotes
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics               []TaggedMetric
+	Metrics               []string
 	SampleMethod          SampleMethod
 	Timerange             Timerange
 	Cancellable           Cancellable
 	Profiler              *inspect.Profiler
+	EvaluationNotes       *inspect.EvaluationNotes
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 
@@ -60,32 +62,32 @@ const (
 )
 
 type TimeseriesStorageError struct {
-	Metric  TaggedMetric
+	Metric  string
 	Code    TimeseriesStorageErrorCode
 	Message string
 }
 
 func (err TimeseriesStorageError) Error() string {
-	message := "[%s %+v] unknown error"
+	message := "unknown error"
 	switch err.Code {
 	case FetchTimeoutError:
-		message = "[%s %+v] timeout"
+		message = "timeout"
 	case InvalidSeriesError:
-		message = "[%s %+v] invalid series"
+		message = "invalid series"
 	case LimitError:
-		message = "[%s %+v] limit reached"
+		message = "limit reached"
 	case Unsupported:
-		message = "[%s %+v] unsupported operation"
+		message = "unsupported operation"
 	}
-	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey), err.Metric.TagSet)
+	formatted := fmt.Sprintf("metric [%s] %s", string(err.Metric), message)
 	if err.Message != "" {
-		formatted = formatted + " - " + err.Message
+		formatted += " - " + err.Message
 	}
 	return formatted
 }
 
 func (err TimeseriesStorageError) TokenName() string {
-	return string(err.Metric.MetricKey)
+	return string(err.Metric)
 }
 
 // ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single
@@ -99,6 +101,7 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 			SampleMethod:          r.SampleMethod,
 			Timerange:             r.Timerange,
 			Profiler:              r.Profiler,
+			EvaluationNotes:       r.EvaluationNotes,
 			UserSpecifiableConfig: r.UserSpecifiableConfig,
 		}
 	}

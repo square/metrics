@@ -68,21 +68,38 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 		return nil, err
 	}
 
-	metrics := make([]api.TaggedMetric, len(filtered))
+	metrics := make([]string, len(filtered))
 	for i := range metrics {
-		metrics[i] = api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]}
+		metric, err := context.MetricConverter.ToUntagged(api.TaggedMetric{api.MetricKey(expr.metricName), filtered[i]})
+		if err != nil {
+			// TODO: evaluate if this is a good idea- otherwise persisted entries that cannot be converted will be an error
+			return nil, err
+		}
+		metrics[i] = metric
 	}
 
-	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
-		api.FetchMultipleTimeseriesRequest{
-			metrics,
-			context.SampleMethod,
-			context.Timerange,
-			context.Cancellable,
-			context.Profiler,
-			context.UserSpecifiableConfig,
-		},
-	)
+	valuelist, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(context.FetchMultipleRequest(metrics))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(valuelist) != len(filtered) {
+		return nil, fmt.Errorf("Internal Server Error: Attempted to fetch %d time-series but received only %d (without any indicated error).", len(filtered), len(valuelist))
+	}
+
+	serieslist := api.SeriesList{
+		Series:    make([]api.Timeseries, len(filtered)),
+		Timerange: context.Timerange,
+	}
+
+	for i := range serieslist.Series {
+		serieslist.Series[i] = api.Timeseries{
+			Values: valuelist[i],
+			TagSet: filtered[i],
+		}
+	}
+
+	return serieslist, nil
 }
 
 func (expr *functionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {

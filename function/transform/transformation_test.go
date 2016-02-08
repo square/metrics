@@ -21,6 +21,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/testing_support/assert"
 )
 
@@ -267,7 +268,7 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
+		ctx := function.EvaluationContext{EvaluationNotes: &inspect.EvaluationNotes{}}
 		_, err := ApplyTransform(ctx, list, test.transform, test.parameter)
 		if err != nil {
 			t.Error(err)

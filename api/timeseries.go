@@ -21,7 +21,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -33,7 +32,6 @@ import (
 type Timeseries struct {
 	Values []float64
 	TagSet TagSet
-	Raw    [][]byte
 }
 
 // MarshalJSON exists to manually encode floats.
@@ -48,27 +46,6 @@ func (ts Timeseries) MarshalJSON() ([]byte, error) {
 	}
 	buffer.Write(tagset)
 	buffer.WriteByte(',')
-
-	if ts.Raw != nil {
-		buffer.WriteString("\"raw\":")
-		buffer.WriteByte('[')
-		first := true
-		for _, raw := range ts.Raw {
-			if !first {
-				buffer.WriteByte(',')
-			}
-			buffer.WriteByte('[')
-			buffer.WriteByte('"')
-			base64Wrapped := base64.StdEncoding.EncodeToString(raw)
-			buffer.WriteString(base64Wrapped)
-			buffer.WriteByte('"')
-			buffer.WriteByte(']')
-			first = false
-		}
-		// raw, _ := json.Marshal(ts.Raw)
-		buffer.WriteByte(']')
-		buffer.WriteByte(',')
-	}
 
 	// buffer.WriteByte(',')
 	buffer.WriteString("\"values\":")

@@ -22,16 +22,20 @@ package api
 import "github.com/square/metrics/inspect"
 
 type MetricMetadataAPIContext struct {
-	Profiler *inspect.Profiler
+	Profiler        *inspect.Profiler
+	EvaluationNotes *inspect.EvaluationNotes
 }
 
-type MetricMetadataAPI interface {
+type MetricMetadataModifier interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
 	// Bulk metrics addition
 	AddMetrics(metric []TaggedMetric, context MetricMetadataAPIContext) error
 	// RemoveMetric removes the metric from the system.
 	RemoveMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
+}
+
+type MetricMetadataAPI interface {
 	// For a given MetricKey, retrieve all the tagsets associated with it.
 	GetAllTags(metricKey MetricKey, context MetricMetadataAPIContext) ([]TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.
@@ -39,4 +43,9 @@ type MetricMetadataAPI interface {
 	// For a given tag key-value pair, obtain the list of all the MetricKeys
 	// associated with them.
 	GetMetricsForTag(tagKey, tagValue string, context MetricMetadataAPIContext) ([]MetricKey, error)
+}
+
+type MetricMetadataInterface interface {
+	MetricMetadataModifier
+	MetricMetadataAPI
 }

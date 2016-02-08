@@ -20,10 +20,10 @@ import (
 	"fmt"
 
 	"github.com/peterh/liner"
+	"github.com/square/metrics/convert/graphite_pattern"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
-	"github.com/square/metrics/util"
 )
 
 func main() {
@@ -34,12 +34,11 @@ func main() {
 
 	apiInstance := common.NewMetricMetadataAPI(config.Cassandra)
 
-	ruleset, err := util.LoadRules(config.ConversionRulesPath)
+	ruleset, err := graphite_pattern.LoadRules(config.ConversionRulesPath)
 	if err != nil {
 		//Blah
 	}
-	graphite := util.RuleBasedGraphiteConverter{Ruleset: ruleset}
-	config.Blueflood.GraphiteMetricConverter = &graphite
+	graphite := &graphite_pattern.RuleBasedGraphiteConverter{Ruleset: ruleset}
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
@@ -66,7 +65,12 @@ func main() {
 		}
 		fmt.Println(query.PrintNode(n))
 
-		result, err := cmd.Execute(query.ExecutionContext{TimeseriesStorageAPI: blueflood, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
+		result, err := cmd.Execute(query.ExecutionContext{
+			MetricConverter:      graphite,
+			TimeseriesStorageAPI: blueflood,
+			MetricMetadataAPI:    apiInstance,
+			FetchLimit:           1000,
+		})
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

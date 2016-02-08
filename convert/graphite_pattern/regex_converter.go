@@ -17,7 +17,7 @@
 // https://docs.google.com/a/squareup.com/document/d/1k0Wgi2wnJPQoyDyReb9dyIqRrD8-v0u8hz37S282ii4/edit
 // for the terminology.
 
-package util
+package graphite_pattern
 
 import (
 	"fmt"
@@ -30,14 +30,13 @@ import (
 	"github.com/square/metrics/log"
 )
 
-// GraphiteMetric is a flat, dot-separated identifier to a series of metric.
-type GraphiteMetric string
-
-type GraphiteConverterConfig struct {
-	ConversionRulesPath string `yaml:"conversion_rules_path"`
+func NewConverter(conversionRulesPath string) (api.MetricConverter, error) {
+	ruleset, err := LoadRules(conversionRulesPath)
+	if err != nil {
+		return nil, err
+	}
+	return &RuleBasedGraphiteConverter{ruleset}, nil
 }
-
-var _ GraphiteConverter = (*RuleBasedGraphiteConverter)(nil)
 
 type RuleBasedGraphiteConverter struct {
 	Ruleset RuleSet
@@ -47,12 +46,12 @@ func (g *RuleBasedGraphiteConverter) EnableStats() {
 	g.Ruleset.EnableStats()
 }
 
-func (g *RuleBasedGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (GraphiteMetric, error) {
+func (g *RuleBasedGraphiteConverter) ToUntagged(metric api.TaggedMetric) (string, error) {
 	return g.Ruleset.ToGraphiteName(metric)
 }
 
-func (g *RuleBasedGraphiteConverter) ToTaggedName(metric GraphiteMetric) (api.TaggedMetric, error) {
-	match, matched := g.Ruleset.MatchRule(string(metric))
+func (g *RuleBasedGraphiteConverter) ToTagged(metric string) (api.TaggedMetric, error) {
+	match, matched := g.Ruleset.MatchRule(metric)
 	if matched {
 		return match, nil
 	}
@@ -97,13 +96,4 @@ func LoadRules(conversionRulesPath string) (RuleSet, error) {
 	}
 
 	return ruleSet, nil
-}
-
-type GraphiteConverter interface {
-	// Convert the given tag-based metric name to graphite metric name,
-	// using the configured rules. May error out.
-	ToGraphiteName(metric api.TaggedMetric) (GraphiteMetric, error)
-	// Converts the given graphite metric to the tag-based meric,
-	// using the configured rules. May error out.
-	ToTaggedName(metric GraphiteMetric) (api.TaggedMetric, error)
 }
