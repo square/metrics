@@ -63,11 +63,6 @@ func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context a
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
-	defer context.Profiler.Record("Mock RemoveMetric")()
-	return nil
-}
-
 func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Mock GetAllTags")()
 	if len(fa.metricTagSets[metricKey]) == 0 {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
-	"github.com/square/metrics/optimize"
 )
 
 // EvaluationContext is the central piece of logic, providing
@@ -19,18 +18,17 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	TimeseriesStorageAPI      api.TimeseriesStorageAPI // Backend to fetch data from
-	MetricMetadataAPI         api.MetricMetadataAPI    // Api to obtain metadata from
-	Timerange                 api.Timerange            // Timerange to fetch data from
-	SampleMethod              api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate                 api.Predicate            // Predicate to apply to TagSets prior to fetching
-	FetchLimit                FetchCounter             // A limit on the number of fetches which may be performed
-	Cancellable               api.Cancellable
-	Registry                  Registry
-	Profiler                  *inspect.Profiler // A profiler pointer
-	OptimizationConfiguration *optimize.OptimizationConfiguration
-	EvaluationNotes           *EvaluationNotes //Debug + numerical notes that can be added during evaluation
-	UserSpecifiableConfig     api.UserSpecifiableConfig
+	TimeseriesStorageAPI  api.TimeseriesStorageAPI // Backend to fetch data from
+	MetricMetadataAPI     api.MetricMetadataAPI    // Api to obtain metadata from
+	Timerange             api.Timerange            // Timerange to fetch data from
+	SampleMethod          api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
+	Predicate             api.Predicate            // Predicate to apply to TagSets prior to fetching
+	FetchLimit            FetchCounter             // A limit on the number of fetches which may be performed
+	Cancellable           api.Cancellable
+	Registry              Registry
+	Profiler              *inspect.Profiler // A profiler pointer
+	EvaluationNotes       *EvaluationNotes  //Debug + numerical notes that can be added during evaluation
+	UserSpecifiableConfig api.UserSpecifiableConfig
 }
 
 type EvaluationNotes struct {

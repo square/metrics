@@ -92,19 +92,6 @@ func (a *CassandraMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPI
 	return a.db.GetAllMetrics()
 }
 
-func (a *CassandraMetricMetadataAPI) RemoveMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
-	defer context.Profiler.Record("Cassandra RemoveMetric")()
-	if err := a.db.RemoveMetricName(metric.MetricKey, metric.TagSet); err != nil {
-		return err
-	}
-	for tagKey, tagValue := range metric.TagSet {
-		if err := a.db.RemoveFromTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // ensure interface
 var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
 
@@ -226,14 +213,6 @@ func (db *cassandraDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 		return nil, err
 	}
 	return keys, nil
-}
-
-func (db *cassandraDatabase) RemoveMetricName(metricKey api.MetricKey, tagSet api.TagSet) error {
-	return db.session.Query(
-		"DELETE FROM metric_names WHERE metric_key = ? AND tag_set = ?",
-		metricKey,
-		tagSet.Serialize(),
-	).Exec()
 }
 
 func (db *cassandraDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
