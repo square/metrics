@@ -30,8 +30,6 @@ type MetricMetadataAPI interface {
 	AddMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
 	// Bulk metrics addition
 	AddMetrics(metric []TaggedMetric, context MetricMetadataAPIContext) error
-	// RemoveMetric removes the metric from the system.
-	RemoveMetric(metric TaggedMetric, context MetricMetadataAPIContext) error
 	// For a given MetricKey, retrieve all the tagsets associated with it.
 	GetAllTags(metricKey MetricKey, context MetricMetadataAPIContext) ([]TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.

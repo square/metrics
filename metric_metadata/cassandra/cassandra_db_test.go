@@ -68,7 +68,7 @@ func Test_MetricName_GetTagSet_DB(t *testing.T) {
 
 	metricNamesTests := []struct {
 		addTest      bool
-		metricName   string
+		metricName   api.MetricKey
 		tagString    string
 		expectedTags map[string][]string // { metricName: [ tags ] }
 	}{
@@ -92,9 +92,9 @@ func Test_MetricName_GetTagSet_DB(t *testing.T) {
 
 	for _, c := range metricNamesTests {
 		if c.addTest {
-			a.CheckError(db.AddMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
+			a.CheckError(db.AddMetricName(c.metricName, api.ParseTagSet(c.tagString)))
 		} else {
-			a.CheckError(db.RemoveMetricName(api.MetricKey(c.metricName), api.ParseTagSet(c.tagString)))
+			clearCassandraInstance(t, db, c.metricName, c.tagString)
 		}
 
 		for k, v := range c.expectedTags {

@@ -23,6 +23,14 @@ import (
 	"github.com/square/metrics/testing_support/assert"
 )
 
+func clearCassandraInstance(t *testing.T, db *cassandraDatabase, metricName api.MetricKey, tagString string) {
+	assert.New(t).Contextf("clearing DB").CheckError(db.session.Query(
+		"DELETE FROM metric_names WHERE metric_key = ? AND tag_set = ?",
+		metricName,
+		tagString,
+	).Exec())
+}
+
 var cassandraClean = true
 
 func newCassandraAPI(t *testing.T) (*CassandraMetricMetadataAPI, api.MetricMetadataAPIContext) {
@@ -65,7 +73,7 @@ func Test_MetricName_GetTagSet_API(t *testing.T) {
 
 	metricNamesTests := []struct {
 		addTest      bool
-		metricName   string
+		metricName   api.MetricKey
 		tagString    string
 		expectedTags map[string][]string // { metricName: [ tags ] }
 	}{
@@ -94,11 +102,9 @@ func Test_MetricName_GetTagSet_API(t *testing.T) {
 				api.ParseTagSet(c.tagString),
 			}, context))
 		} else {
-			a.CheckError(cassandra.RemoveMetric(api.TaggedMetric{
 
-				api.MetricKey(c.metricName),
-				api.ParseTagSet(c.tagString),
-			}, context))
+			clearCassandraInstance(t, &cassandra.db, c.metricName, c.tagString)
+
 		}
 
 		for k, v := range c.expectedTags {
@@ -196,18 +202,5 @@ func Test_TagIndex_API(t *testing.T) {
 		a.CheckError(err)
 	} else {
 		a.EqInt(len(rows), 2)
-	}
-
-	a.CheckError(cassandra.RemoveMetric(api.TaggedMetric{
-		"a.b.c",
-		api.TagSet{
-			"environment": "production",
-		},
-	}, context))
-	if rows, err := cassandra.GetMetricsForTag("environment", "production", context); err != nil {
-		a.CheckError(err)
-	} else {
-		a.EqInt(len(rows), 1)
-		a.EqString(string(rows[0]), "d.e.f")
 	}
 }

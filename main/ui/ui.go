@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/metric_metadata/cached_metadata"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/optimize"
 	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
@@ -68,7 +68,7 @@ func main() {
 
 	config := common.LoadConfig()
 
-	apiInstance := common.NewMetricMetadataAPI(config.Cassandra)
+	metadataAPI := common.NewMetricMetadataAPI(config.Cassandra)
 
 	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {
@@ -80,8 +80,10 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	optimizer := optimize.NewOptimizationConfiguration()
-	optimizer.EnableMetricMetadataCaching = true
+	optimizedMetadataAPI := cached_metadata.NewCachedMetricMetadataAPI(metadataAPI, cached_metadata.Config{
+		TimeToLive:   time.Minute * 5, // Cache items invalidated after 5 minutes.
+		RequestLimit: 500,
+	})
 
 	//Defaults
 	userConfig := api.UserSpecifiableConfig{
@@ -89,12 +91,11 @@ func main() {
 	}
 
 	startServer(config.UI, query.ExecutionContext{
-		MetricMetadataAPI:         apiInstance,
-		TimeseriesStorageAPI:      blueflood,
-		FetchLimit:                1500,
-		SlotLimit:                 5000,
-		Registry:                  registry.Default(),
-		OptimizationConfiguration: optimizer,
-		UserSpecifiableConfig:     userConfig,
+		MetricMetadataAPI:     optimizedMetadataAPI,
+		TimeseriesStorageAPI:  blueflood,
+		FetchLimit:            1500,
+		SlotLimit:             5000,
+		Registry:              registry.Default(),
+		UserSpecifiableConfig: userConfig,
 	})
 }
