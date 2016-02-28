@@ -37,6 +37,11 @@ func (expr stringExpression) Evaluate(context function.EvaluationContext) (funct
 }
 
 func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// If there's too many points, reject the query.
+	if context.Timerange.Slots() > context.SlotLimit && context.SlotLimit != 0 {
+		return nil, function.NewLimitError("fetch slot limit exceeded", context.Timerange.Slots(), context.SlotLimit)
+	}
+
 	// Merge predicates appropriately
 	var predicate api.Predicate
 	if context.Predicate == nil && expr.predicate == nil {

@@ -24,6 +24,7 @@ type EvaluationContext struct {
 	SampleMethod          api.SampleMethod         // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate             api.Predicate            // Predicate to apply to TagSets prior to fetching
 	FetchLimit            FetchCounter             // A limit on the number of fetches which may be performed
+	SlotLimit             int                      // A limit on the number of slots in one fetched metric
 	Cancellable           api.Cancellable
 	Registry              Registry
 	Profiler              *inspect.Profiler // A profiler pointer

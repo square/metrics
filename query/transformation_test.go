@@ -80,6 +80,7 @@ func TestMovingAverage(t *testing.T) {
 			Timerange:            timerange,
 			SampleMethod:         api.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
+			SlotLimit:            28800,
 			Registry:             registry.Default(),
 			Cancellable:          api.NewCancellable(),
 		})
