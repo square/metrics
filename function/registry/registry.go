@@ -286,6 +286,10 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 					if errLeftDuration == nil && errRightDuration == nil {
 						return function.ScalarValue(operator(float64(leftDuration), float64(rightDuration))), nil
 					}
+					// Or, the right is a scalar
+					if errLeftDuration == nil && errRightScalar == nil {
+						return function.DurationValue(time.Duration(operator(float64(leftDuration), rightScalar))), nil
+					}
 				}
 			}
 
