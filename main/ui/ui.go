@@ -26,17 +26,17 @@ import (
 
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/metric_metadata/cached_metadata"
+	"github.com/square/metrics/query/command"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/query"
 	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
 	"github.com/square/metrics/util"
 )
 
-func startServer(config ui.Config, context query.ExecutionContext) {
+func startServer(config ui.Config, context command.ExecutionContext) {
 	httpMux := ui.NewMux(config, context, ui.Hook{})
 
 	server := &http.Server{
@@ -100,7 +100,7 @@ func main() {
 		IncludeRawData: false,
 	}
 
-	startServer(config.UI, query.ExecutionContext{
+	startServer(config.UI, command.ExecutionContext{
 		MetricMetadataAPI:     optimizedMetadataAPI,
 		TimeseriesStorageAPI:  blueflood,
 		FetchLimit:            1500,

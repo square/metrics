@@ -20,12 +20,12 @@ import (
 	"strconv"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/query"
+	"github.com/square/metrics/query/command"
 )
 
 // tokenHandler function and metric name tokens available in the system for the autocomplete.
 type tokenHandler struct {
-	context query.ExecutionContext
+	context command.ExecutionContext
 }
 
 func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {

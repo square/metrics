@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
+	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/mocks"
 )
@@ -63,12 +64,12 @@ func TestMovingAverage(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	expression := &functionExpression{
-		functionName: "transform.moving_average",
-		groupBy:      []string{},
-		arguments: []function.Expression{
-			&metricFetchExpression{"series", predicate.TruePredicate{}},
-			durationExpression{"300ms", 300 * time.Millisecond},
+	expression := &expression.FunctionExpression{
+		FunctionName: "transform.moving_average",
+		GroupBy:      []string{},
+		Arguments: []function.Expression{
+			&expression.MetricFetchExpression{"series", predicate.TruePredicate{}},
+			expression.DurationExpression{"300ms", 300 * time.Millisecond},
 		},
 	}
 

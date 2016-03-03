@@ -20,6 +20,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
+	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/testing_support/assert"
 )
 
@@ -66,12 +67,12 @@ func Test_ScalarExpression(t *testing.T) {
 		return
 	}
 	for _, test := range []struct {
-		expr           scalarExpression
+		expr           expression.ScalarExpression
 		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
-			scalarExpression{5},
+			expression.ScalarExpression{5},
 			timerangeA,
 			[]api.Timeseries{
 				{

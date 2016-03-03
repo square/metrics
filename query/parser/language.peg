@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package query
+package parser
+
+import "github.com/square/metrics/query/command"
 
 type Parser Peg {
   // temporary variables
@@ -20,7 +22,7 @@ type Parser Peg {
 
   // stack of nodes used during the AST traversal.
   // a non-empty stack at the finish implies a programming error.
-  nodeStack  []Node
+  nodeStack  []any
 
   // user errors accumulated during the AST traversal.
   // a non-empty list at the finish time means an invalid query is provided.
@@ -30,7 +32,7 @@ type Parser Peg {
   // a non-empty list at the finish time implies a programming error.
 
   // final result
-  command    Command
+  command    command.Command
 }
 
 # The following queries are support
@@ -64,7 +66,7 @@ matchClause <- _ "match" KEY literalString { p.addMatchClause() }
 describeMetrics <- _ "metrics" KEY _ "where" KEY tagName _ "=" literalString { p.makeDescribeMetrics() }
 
 describeSingleStmt <-
-  _ <METRIC_NAME> { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
+  _ <METRIC_NAME> { p.pushNode(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
   { p.makeDescribe() }
 
@@ -110,7 +112,7 @@ expression_product <-
 add_one_pipe <-
   _ OP_PIPE
   _ <IDENTIFIER>
-  { p.addStringLiteral(unescapeLiteral(buffer[begin:end])) }
+  { p.pushNode(unescapeLiteral(buffer[begin:end])) }
   (
     (
     _ PAREN_OPEN
@@ -154,7 +156,7 @@ expression_function  <-
   # func(expr_a, expr_b, expr_c group by column_a, column_b, column_c)
   # a single optional group-by clause.
   _ <IDENTIFIER> {
-    p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
+    p.pushNode(unescapeLiteral(buffer[begin:end]))
   }
   _ PAREN_OPEN
     expressionList optionalGroupBy
@@ -164,7 +166,7 @@ expression_function  <-
 
 expression_metric <-
   _ <IDENTIFIER> {
-    p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
+    p.pushNode(unescapeLiteral(buffer[begin:end]))
   }
   (_ "[" predicate_1 _ "]" / { p.addNullPredicate() })? {
     p.addMetricExpression()
@@ -225,7 +227,7 @@ tagMatcher <-
   }
 
 literalString <- _ STRING {
-  p.addStringLiteral(unescapeLiteral(buffer[begin:end]))
+  p.pushNode(unescapeLiteral(buffer[begin:end]))
 }
 
 literalList <- { p.addLiteralList() }

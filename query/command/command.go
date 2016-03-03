@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package command
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
@@ -56,27 +57,34 @@ type Command interface {
 
 // DescribeCommand describes the tag set managed by the given metric indexer.
 type DescribeCommand struct {
-	metricName api.MetricKey
-	predicate  predicate.Predicate
+	MetricName api.MetricKey
+	Predicate  predicate.Predicate
 }
 
 // DescribeAllCommand returns all the metrics available in the system.
 type DescribeAllCommand struct {
-	matcher *matcherClause
+	Matcher *regexp.Regexp
 }
 
 // DescribeMetricsCommand returns all metrics that use a particular key-value pair.
 type DescribeMetricsCommand struct {
-	tagKey   string
-	tagValue string
+	TagKey   string
+	TagValue string
+}
+
+type SelectContext struct {
+	Start        int64            // Start of data timerange
+	End          int64            // End of data timerange
+	Resolution   int64            // Resolution of data timerange
+	SampleMethod api.SampleMethod // to use when up/downsampling to match requested resolution
 }
 
 // SelectCommand is the bread and butter of the metrics query engine.
 // It actually performs the query against the underlying metrics system.
 type SelectCommand struct {
-	predicate   predicate.Predicate
-	expressions []function.Expression
-	context     *evaluationContextNode
+	Predicate   predicate.Predicate
+	Expressions []function.Expression
+	Context     SelectContext
 }
 
 // Execute returns the list of tags satisfying the provided predicate.
@@ -85,7 +93,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
 
-	tagsets, err := context.MetricMetadataAPI.GetAllTags(cmd.metricName, api.MetricMetadataAPIContext{
+	tagsets, err := context.MetricMetadataAPI.GetAllTags(cmd.MetricName, api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
 	if err != nil {
@@ -93,7 +101,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 	}
 
 	// Splitting each tag key into its own set of values is helpful for discovering actual metrics.
-	predicate := predicate.All(cmd.predicate, context.AdditionalConstraints)
+	predicate := predicate.All(cmd.Predicate, context.AdditionalConstraints)
 	keyValueSets := map[string]map[string]bool{} // a map of tag_key => Set{tag_value}.
 	for _, tagset := range tagsets {
 		if predicate.Apply(tagset) {
@@ -131,7 +139,7 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult,
 	if err == nil {
 		filtered := make([]api.MetricKey, 0, len(result))
 		for _, row := range result {
-			if cmd.matcher.regex.MatchString(string(row)) {
+			if cmd.Matcher.MatchString(string(row)) {
 				filtered = append(filtered, row)
 			}
 		}
@@ -152,7 +160,7 @@ func (cmd *DescribeAllCommand) Name() string {
 
 // Execute asks for all metrics with the given name.
 func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.tagKey, cmd.tagValue, api.MetricMetadataAPIContext{
+	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.TagKey, cmd.TagValue, api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
 	})
 	if err != nil {
@@ -178,7 +186,7 @@ type QuerySeriesList struct {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	userTimerange, err := api.NewSnappedTimerange(cmd.context.Start, cmd.context.End, cmd.context.Resolution)
+	userTimerange, err := api.NewSnappedTimerange(cmd.Context.Start, cmd.Context.End, cmd.Context.Resolution)
 	if err != nil {
 		return CommandResult{}, err
 	}
@@ -226,8 +234,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		MetricMetadataAPI:     context.MetricMetadataAPI,
 		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
 		TimeseriesStorageAPI:  context.TimeseriesStorageAPI,
-		Predicate:             predicate.All(cmd.predicate, context.AdditionalConstraints),
-		SampleMethod:          cmd.context.SampleMethod,
+		Predicate:             predicate.All(cmd.Predicate, context.AdditionalConstraints),
+		SampleMethod:          cmd.Context.SampleMethod,
 		Timerange:             chosenTimerange,
 		Cancellable:           cancellable,
 		Registry:              r,
@@ -247,7 +255,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
 	go func() {
 		// Evaluate the result, and send it along the goroutines.
-		result, err := function.EvaluateMany(evaluationContext, cmd.expressions)
+		result, err := function.EvaluateMany(evaluationContext, cmd.Expressions)
 		if err != nil {
 			errors <- err
 			return
@@ -263,7 +271,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	case result := <-results:
 		lists := make([]api.SeriesList, len(result))
 		for i := range result {
-			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange, cmd.expressions[i].QueryString())
+			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange, cmd.Expressions[i].QueryString())
 			if err != nil {
 				return CommandResult{}, err
 			}
@@ -294,8 +302,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		for i := range body {
 			body[i] = QuerySeriesList{
 				SeriesList: lists[i],
-				Query:      cmd.expressions[i].QueryString(),
-				Name:       cmd.expressions[i].Name(),
+				Query:      cmd.Expressions[i].QueryString(),
+				Name:       cmd.Expressions[i].Name(),
 			}
 		}
 
