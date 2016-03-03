@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
 )
@@ -162,7 +161,7 @@ func TestQueryNaming(t *testing.T) {
 			t.Errorf("Expected select command but got %s", testCommand.Name())
 			continue
 		}
-		rawResult, err := testCommand.Execute(command.ExecutionContext{
+		rawResult, err := testCommand.Execute(ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
@@ -172,9 +171,9 @@ func TestQueryNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]command.QuerySeriesList)
+		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []command.QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
+			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
 		actualQuery := seriesListList[0].Query
