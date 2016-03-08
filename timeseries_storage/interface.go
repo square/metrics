@@ -22,10 +22,10 @@ import (
 	"github.com/square/metrics/inspect"
 )
 
-type TimeseriesStorageAPI interface {
+type API interface {
 	ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration
-	FetchSingleTimeseries(request FetchTimeseriesRequest) (api.Timeseries, error)
-	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (api.SeriesList, error)
+	FetchSingleTimeseries(request FetchRequest) (api.Timeseries, error)
+	FetchMultipleTimeseries(request FetchMultipleRequest) (api.SeriesList, error)
 }
 
 type RequestDetails struct {
@@ -36,12 +36,12 @@ type RequestDetails struct {
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 
-type FetchTimeseriesRequest struct {
+type FetchRequest struct {
 	Metric api.TaggedMetric // metric to fetch.
 	RequestDetails
 }
 
-type FetchMultipleTimeseriesRequest struct {
+type FetchMultipleRequest struct {
 	Metrics []api.TaggedMetric
 	RequestDetails
 }
@@ -50,23 +50,23 @@ type UserSpecifiableConfig struct {
 	IncludeRawData bool
 }
 
-type TimeseriesStorageErrorCode int
+type ErrorCode int
 
 const (
-	FetchTimeoutError  TimeseriesStorageErrorCode = iota + 1 // error while fetching - timeout.
-	FetchIOError                                             // error while fetching - general IO.
-	InvalidSeriesError                                       // the given series is not well-defined.
-	LimitError                                               // the fetch limit is reached.
-	Unsupported                                              // the given fetch operation is unsupported by the backend.
+	FetchTimeoutError  ErrorCode = iota + 1 // error while fetching - timeout.
+	FetchIOError                            // error while fetching - general IO.
+	InvalidSeriesError                      // the given series is not well-defined.
+	LimitError                              // the fetch limit is reached.
+	Unsupported                             // the given fetch operation is unsupported by the backend.
 )
 
-type TimeseriesStorageError struct {
+type Error struct {
 	Metric  api.TaggedMetric
-	Code    TimeseriesStorageErrorCode
+	Code    ErrorCode
 	Message string
 }
 
-func (err TimeseriesStorageError) Error() string {
+func (err Error) Error() string {
 	message := "[%s %+v] unknown error"
 	switch err.Code {
 	case FetchTimeoutError:
@@ -85,16 +85,12 @@ func (err TimeseriesStorageError) Error() string {
 	return formatted
 }
 
-func (err TimeseriesStorageError) TokenName() string {
-	return string(err.Metric.MetricKey)
-}
-
 // ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single
 // fetch requests (for now).
-func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
-	fetchSingleRequests := make([]FetchTimeseriesRequest, len(r.Metrics))
+func (r FetchMultipleRequest) ToSingle() []FetchRequest {
+	fetchSingleRequests := make([]FetchRequest, len(r.Metrics))
 	for i, metric := range r.Metrics {
-		fetchSingleRequests[i] = FetchTimeseriesRequest{
+		fetchSingleRequests[i] = FetchRequest{
 			Metric:         metric,
 			RequestDetails: r.RequestDetails,
 		}

@@ -105,7 +105,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	}
 
 	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
-		timeseries_storage.FetchMultipleTimeseriesRequest{
+		timeseries_storage.FetchMultipleRequest{
 			metrics,
 			timeseries_storage.RequestDetails{context.SampleMethod,
 				context.Timerange,

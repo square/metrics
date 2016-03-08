@@ -26,7 +26,7 @@ import (
 )
 
 type FakeBackend struct {
-	timeseries_storage.TimeseriesStorageAPI
+	timeseries_storage.API
 }
 
 type LiteralExpression struct {
@@ -375,6 +375,6 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
-var _ timeseries_storage.TimeseriesStorageAPI = (*FakeBackend)(nil)
+var _ timeseries_storage.API = (*FakeBackend)(nil)
 var _ function.Expression = (*LiteralExpression)(nil)
 var _ function.Expression = (*LiteralSeriesExpression)(nil)

@@ -31,7 +31,7 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	TimeseriesStorageAPI  timeseries_storage.TimeseriesStorageAPI  // the backend
+	TimeseriesStorageAPI  timeseries_storage.API                   // the backend
 	MetricMetadataAPI     api.MetricMetadataAPI                    // the api
 	FetchLimit            int                                      // the maximum number of fetches
 	Timeout               time.Duration                            // optional

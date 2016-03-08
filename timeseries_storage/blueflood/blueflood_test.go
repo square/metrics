@@ -65,7 +65,7 @@ func Test_Blueflood(t *testing.T) {
 		queryResponse      string
 		queryResponseCode  int
 		queryDelay         time.Duration
-		expectedErrorCode  timeseries_storage.TimeseriesStorageErrorCode
+		expectedErrorCode  timeseries_storage.ErrorCode
 		expectedSeriesList api.Timeseries
 	}{
 		{
@@ -158,7 +158,7 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
 		b.client = fakeHTTPClient
 
-		seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
+		seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchRequest{
 			Metric: test.queryMetric,
 			RequestDetails: timeseries_storage.RequestDetails{
 				SampleMethod: test.sampleMethod,
@@ -172,7 +172,7 @@ func Test_Blueflood(t *testing.T) {
 				a.Errorf("Expected error, but was successful.")
 				continue
 			}
-			berr, ok := err.(timeseries_storage.TimeseriesStorageError)
+			berr, ok := err.(timeseries_storage.Error)
 			if !ok {
 				a.Errorf("Failed to cast error to TimeseriesStorageError")
 				continue
@@ -278,7 +278,7 @@ func TestIncludeRawPayload(t *testing.T) {
 		IncludeRawData: true,
 	}
 
-	timeSeries, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
+	timeSeries, err := b.FetchSingleTimeseries(timeseries_storage.FetchRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
@@ -480,7 +480,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		t.Fatalf("timerange error: %s", err.Error())
 	}
 
-	seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
+	seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
