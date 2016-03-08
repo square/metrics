@@ -21,12 +21,12 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/timeseries_storage"
 )
 
 type Response struct {
@@ -201,7 +201,7 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 
 	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
 
-	context.UserSpecifiableConfig = api.UserSpecifiableConfig{
+	context.UserSpecifiableConfig = timeseries_storage.UserSpecifiableConfig{
 		IncludeRawData: parsedForm.IncludeRaw,
 	}
 

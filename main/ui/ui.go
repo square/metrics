@@ -27,8 +27,8 @@ import (
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/metric_metadata/cached_metadata"
 	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/timeseries_storage"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/timeseries_storage/blueflood"
@@ -96,7 +96,7 @@ func main() {
 	}
 
 	//Defaults
-	userConfig := api.UserSpecifiableConfig{
+	userConfig := timeseries_storage.UserSpecifiableConfig{
 		IncludeRawData: false,
 	}
 

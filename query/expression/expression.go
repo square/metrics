@@ -22,6 +22,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
 )
 
@@ -104,13 +105,14 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	}
 
 	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
-		api.FetchMultipleTimeseriesRequest{
+		timeseries_storage.FetchMultipleTimeseriesRequest{
 			metrics,
-			context.SampleMethod,
-			context.Timerange,
-			context.Cancellable,
-			context.Profiler,
-			context.UserSpecifiableConfig,
+			timeseries_storage.RequestDetails{context.SampleMethod,
+				context.Timerange,
+				context.Cancellable,
+				context.Profiler,
+				context.UserSpecifiableConfig,
+			},
 		},
 	)
 }

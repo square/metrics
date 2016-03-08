@@ -22,10 +22,11 @@ import (
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/testing_support/assert"
+	"github.com/square/metrics/timeseries_storage"
 )
 
 type FakeBackend struct {
-	api.TimeseriesStorageAPI
+	timeseries_storage.TimeseriesStorageAPI
 }
 
 type LiteralExpression struct {
@@ -86,7 +87,7 @@ func Test_ScalarExpression(t *testing.T) {
 		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
 			Timerange:            test.timerange,
-			SampleMethod:         api.SampleMean,
+			SampleMethod:         timeseries_storage.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
 		})
@@ -108,7 +109,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		TimeseriesStorageAPI: FakeBackend{},
 		MetricMetadataAPI:    nil,
 		Timerange:            api.Timerange{},
-		SampleMethod:         api.SampleMean,
+		SampleMethod:         timeseries_storage.SampleMean,
 		Predicate:            nil,
 		FetchLimit:           function.NewFetchCounter(1000),
 		Cancellable:          api.NewCancellable(),
@@ -374,6 +375,6 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
-var _ api.TimeseriesStorageAPI = (*FakeBackend)(nil)
+var _ timeseries_storage.TimeseriesStorageAPI = (*FakeBackend)(nil)
 var _ function.Expression = (*LiteralExpression)(nil)
 var _ function.Expression = (*LiteralSeriesExpression)(nil)

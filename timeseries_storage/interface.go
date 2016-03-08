@@ -12,37 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package timeseries_storage
 
 import (
 	"fmt"
 	"time"
 
+	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 )
 
 type TimeseriesStorageAPI interface {
-	ChooseResolution(requested Timerange, smallestResolution time.Duration) time.Duration
-	FetchSingleTimeseries(request FetchTimeseriesRequest) (Timeseries, error)
-	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (SeriesList, error)
+	ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration
+	FetchSingleTimeseries(request FetchTimeseriesRequest) (api.Timeseries, error)
+	FetchMultipleTimeseries(request FetchMultipleTimeseriesRequest) (api.SeriesList, error)
+}
+
+type RequestDetails struct {
+	SampleMethod          SampleMethod  // up/downsampling behavior.
+	Timerange             api.Timerange // time range to fetch data from.
+	Cancellable           api.Cancellable
+	Profiler              *inspect.Profiler
+	UserSpecifiableConfig UserSpecifiableConfig
 }
 
 type FetchTimeseriesRequest struct {
-	Metric                TaggedMetric // metric to fetch.
-	SampleMethod          SampleMethod // up/downsampling behavior.
-	Timerange             Timerange    // time range to fetch data from.
-	Cancellable           Cancellable
-	Profiler              *inspect.Profiler
-	UserSpecifiableConfig UserSpecifiableConfig
+	Metric api.TaggedMetric // metric to fetch.
+	RequestDetails
 }
 
 type FetchMultipleTimeseriesRequest struct {
-	Metrics               []TaggedMetric
-	SampleMethod          SampleMethod
-	Timerange             Timerange
-	Cancellable           Cancellable
-	Profiler              *inspect.Profiler
-	UserSpecifiableConfig UserSpecifiableConfig
+	Metrics []api.TaggedMetric
+	RequestDetails
 }
 
 type UserSpecifiableConfig struct {
@@ -60,7 +61,7 @@ const (
 )
 
 type TimeseriesStorageError struct {
-	Metric  TaggedMetric
+	Metric  api.TaggedMetric
 	Code    TimeseriesStorageErrorCode
 	Message string
 }
@@ -94,12 +95,8 @@ func (r FetchMultipleTimeseriesRequest) ToSingle() []FetchTimeseriesRequest {
 	fetchSingleRequests := make([]FetchTimeseriesRequest, len(r.Metrics))
 	for i, metric := range r.Metrics {
 		fetchSingleRequests[i] = FetchTimeseriesRequest{
-			Metric:                metric,
-			Cancellable:           r.Cancellable,
-			SampleMethod:          r.SampleMethod,
-			Timerange:             r.Timerange,
-			Profiler:              r.Profiler,
-			UserSpecifiableConfig: r.UserSpecifiableConfig,
+			Metric:         metric,
+			RequestDetails: r.RequestDetails,
 		}
 	}
 	return fetchSingleRequests

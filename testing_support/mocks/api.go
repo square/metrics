@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
 )
 
@@ -138,7 +139,7 @@ func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smal
 	return requested.Resolution()
 }
 
-func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries_storage.FetchTimeseriesRequest) (api.Timeseries, error) {
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}},
@@ -165,7 +166,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 	return api.Timeseries{}, errors.New("internal error")
 }
 
-func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries_storage.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
 	timeseries := make([]api.Timeseries, 0)
 

@@ -27,11 +27,12 @@ import (
 	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/timeseries_storage"
 )
 
 type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
 
-func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (b movingAverageBackend) FetchSingleTimeseries(r timeseries_storage.FetchTimeseriesRequest) (api.Timeseries, error) {
 	t := r.Timerange
 	values := []float64{9, 2, 1, 6, 4, 5}
 	startIndex := t.Start()/100 - 10
@@ -42,7 +43,7 @@ func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest
 	return api.Timeseries{Values: values, TagSet: api.NewTagSet()}, nil
 }
 
-func (b movingAverageBackend) FetchMultipleTimeseries(r api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (b movingAverageBackend) FetchMultipleTimeseries(r timeseries_storage.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	timeseries := make([]api.Timeseries, 0)
 	singleRequests := r.ToSingle()
 	for _, request := range singleRequests {
@@ -80,7 +81,7 @@ func TestMovingAverage(t *testing.T) {
 			MetricMetadataAPI:    fakeAPI,
 			TimeseriesStorageAPI: backend,
 			Timerange:            timerange,
-			SampleMethod:         api.SampleMean,
+			SampleMethod:         timeseries_storage.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
 			Cancellable:          api.NewCancellable(),

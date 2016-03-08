@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package timeseries_storage
 
 // SeriesType is a different aspect of data.
 // For example, Blueflood may stores (min / max / average / count) during rollups,

@@ -27,6 +27,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
 )
 
@@ -38,7 +39,7 @@ type Blueflood struct {
 }
 
 //Implements TimeseriesStorageAPI
-var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
+var _ timeseries_storage.TimeseriesStorageAPI = (*Blueflood)(nil)
 
 type BluefloodParallelRequest struct {
 	limit   int
@@ -103,7 +104,7 @@ var Resolutions = []Resolution{
 	Resolution1440Min,
 }
 
-func NewBlueflood(c Config) api.TimeseriesStorageAPI {
+func NewBlueflood(c Config) timeseries_storage.TimeseriesStorageAPI {
 	if c.HTTPClient == nil {
 		c.HTTPClient = http.DefaultClient
 	}
@@ -145,11 +146,7 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeserie
 			// Return the error (and sync up with the caller).
 			channel <- err
 		case <-cancellable.Done():
-			channel <- api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
+			channel <- timeseries_storage.TimeseriesStorageError{Code: timeseries_storage.FetchTimeoutError}
 		}
 	}()
 }
@@ -178,11 +175,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 				err = thisErr
 			}
 		case <-cancellable.Done():
-			return nil, api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
+			return nil, timeseries_storage.TimeseriesStorageError{Code: timeseries_storage.FetchTimeoutError}
 		}
 	}
 	if err != nil {
@@ -191,7 +184,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 	return results, nil
 }
 
-func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (b *Blueflood) FetchMultipleTimeseries(request timeseries_storage.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
 	if request.Cancellable == nil {
 		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
@@ -219,7 +212,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 	}, nil
 }
 
-func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (b *Blueflood) FetchSingleTimeseries(request timeseries_storage.FetchTimeseriesRequest) (api.Timeseries, error) {
 	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
@@ -305,18 +298,18 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
 func (b *Blueflood) constructURL(
-	request api.FetchTimeseriesRequest,
+	request timeseries_storage.FetchTimeseriesRequest,
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
 	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
 	if err != nil {
-		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
+		return nil, timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.InvalidSeriesError, "cannot convert to graphite name"}
 	}
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseURL, b.config.TenantID, graphiteName))
 	if err != nil {
-		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
+		return nil, timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.InvalidSeriesError, "cannot generate URL"}
 	}
 
 	params := url.Values{}
@@ -330,8 +323,7 @@ func (b *Blueflood) constructURL(
 	return result, nil
 }
 
-// fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
-func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL) (queryResponse, []byte, error) {
+func (b *Blueflood) fetch(request timeseries_storage.FetchTimeseriesRequest, queryURL *url.URL) (queryResponse, []byte, error) {
 	log.Debugf("Blueflood fetch: %s", queryURL.String())
 	success := make(chan queryResponse, 1)
 	failure := make(chan error, 1)
@@ -340,7 +332,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 	go func() {
 		resp, err := b.client.Get(queryURL.String())
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			failure <- timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.FetchIOError, "error while fetching - http connection"}
 			return
 		}
 		defer resp.Body.Close()
@@ -348,7 +340,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 		body, err := ioutil.ReadAll(resp.Body)
 		rawResponse = body
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - reading"}
+			failure <- timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.FetchIOError, "error while fetching - reading"}
 			return
 		}
 
@@ -358,7 +350,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 		err = json.Unmarshal(body, &parsedJSON)
 		// Construct a Timeseries from the result:
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
+			failure <- timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
 			return
 		}
 		success <- parsedJSON
@@ -369,7 +361,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 	case err := <-failure:
 		return queryResponse{}, rawResponse, err
 	case <-timeout:
-		return queryResponse{}, rawResponse, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
+		return queryResponse{}, rawResponse, timeseries_storage.TimeseriesStorageError{request.Metric, timeseries_storage.FetchTimeoutError, ""}
 	}
 }
 
@@ -416,8 +408,8 @@ func bucketsFromMetricPoints(metricPoints []metricPoint, resultField func(metric
 	return buckets
 }
 
-var samplerMap = map[api.SampleMethod]sampler{
-	api.SampleMean: {
+var samplerMap = map[timeseries_storage.SampleMethod]sampler{
+	timeseries_storage.SampleMean: {
 		fieldName:     "average",
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
 		bucketSampler: func(bucket []float64) float64 {
@@ -432,7 +424,7 @@ var samplerMap = map[api.SampleMethod]sampler{
 			return value / float64(count)
 		},
 	},
-	api.SampleMin: {
+	timeseries_storage.SampleMin: {
 		fieldName:     "min",
 		fieldSelector: func(point metricPoint) float64 { return point.Min },
 		bucketSampler: func(bucket []float64) float64 {
@@ -450,7 +442,7 @@ var samplerMap = map[api.SampleMethod]sampler{
 			return smallest
 		},
 	},
-	api.SampleMax: {
+	timeseries_storage.SampleMax: {
 		fieldName:     "max",
 		fieldSelector: func(point metricPoint) float64 { return point.Max },
 		bucketSampler: func(bucket []float64) float64 {

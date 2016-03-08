@@ -23,6 +23,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
 )
 
@@ -57,14 +58,14 @@ func Test_Blueflood(t *testing.T) {
 		name               string
 		metricMap          map[util.GraphiteMetric]api.TaggedMetric
 		queryMetric        api.TaggedMetric
-		sampleMethod       api.SampleMethod
+		sampleMethod       timeseries_storage.SampleMethod
 		timerange          api.Timerange
 		clientConfig       Config
 		queryURL           string
 		queryResponse      string
 		queryResponseCode  int
 		queryDelay         time.Duration
-		expectedErrorCode  api.TimeseriesStorageErrorCode
+		expectedErrorCode  timeseries_storage.TimeseriesStorageErrorCode
 		expectedSeriesList api.Timeseries
 	}{
 		{
@@ -73,7 +74,7 @@ func Test_Blueflood(t *testing.T) {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
-			sampleMethod: api.SampleMean,
+			sampleMethod: timeseries_storage.SampleMean,
 			timerange:    timerange,
 			queryURL:     defaultQueryURL,
 			clientConfig: defaultClientConfig,
@@ -109,12 +110,12 @@ func Test_Blueflood(t *testing.T) {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
-			sampleMethod:      api.SampleMean,
+			sampleMethod:      timeseries_storage.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
 			queryURL:          defaultQueryURL,
 			queryResponse:     `{invalid}`,
-			expectedErrorCode: api.FetchIOError,
+			expectedErrorCode: timeseries_storage.FetchIOError,
 		},
 		{
 			name: "Failure case - HTTP error",
@@ -122,13 +123,13 @@ func Test_Blueflood(t *testing.T) {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
-			sampleMethod:      api.SampleMean,
+			sampleMethod:      timeseries_storage.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
 			queryURL:          defaultQueryURL,
 			queryResponse:     `{}`,
 			queryResponseCode: 400,
-			expectedErrorCode: api.FetchIOError,
+			expectedErrorCode: timeseries_storage.FetchIOError,
 		},
 		{
 			name: "Failure case - timeout",
@@ -136,13 +137,13 @@ func Test_Blueflood(t *testing.T) {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
-			sampleMethod:      api.SampleMean,
+			sampleMethod:      timeseries_storage.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
 			queryURL:          defaultQueryURL,
 			queryResponse:     `{}`,
 			queryDelay:        1 * time.Second,
-			expectedErrorCode: api.FetchTimeoutError,
+			expectedErrorCode: timeseries_storage.FetchTimeoutError,
 		},
 	} {
 		a := assert.New(t).Contextf("%s", test.name)
@@ -157,11 +158,13 @@ func Test_Blueflood(t *testing.T) {
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
 		b.client = fakeHTTPClient
 
-		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
-			Metric:       test.queryMetric,
-			SampleMethod: test.sampleMethod,
-			Timerange:    test.timerange,
-			Cancellable:  api.NewCancellable(),
+		seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
+			Metric: test.queryMetric,
+			RequestDetails: timeseries_storage.RequestDetails{
+				SampleMethod: test.sampleMethod,
+				Timerange:    test.timerange,
+				Cancellable:  api.NewCancellable(),
+			},
 		})
 
 		if test.expectedErrorCode != 0 {
@@ -169,7 +172,7 @@ func Test_Blueflood(t *testing.T) {
 				a.Errorf("Expected error, but was successful.")
 				continue
 			}
-			berr, ok := err.(api.TimeseriesStorageError)
+			berr, ok := err.(timeseries_storage.TimeseriesStorageError)
 			if !ok {
 				a.Errorf("Failed to cast error to TimeseriesStorageError")
 				continue
@@ -271,19 +274,21 @@ func TestIncludeRawPayload(t *testing.T) {
 		t.Fatalf("timerange error: %s", err.Error())
 	}
 
-	userConfig := api.UserSpecifiableConfig{
+	userConfig := timeseries_storage.UserSpecifiableConfig{
 		IncludeRawData: true,
 	}
 
-	timeSeries, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
+	timeSeries, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
 		},
-		SampleMethod:          api.SampleMean,
-		Timerange:             queryTimerange,
-		Cancellable:           api.NewCancellable(),
-		UserSpecifiableConfig: userConfig,
+		RequestDetails: timeseries_storage.RequestDetails{
+			SampleMethod:          timeseries_storage.SampleMean,
+			Timerange:             queryTimerange,
+			Cancellable:           api.NewCancellable(),
+			UserSpecifiableConfig: userConfig,
+		},
 	})
 	if err != nil {
 		t.Fatalf("Expected success, but got error: %s", err.Error())
@@ -475,14 +480,16 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		t.Fatalf("timerange error: %s", err.Error())
 	}
 
-	seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
+	seriesList, err := b.FetchSingleTimeseries(timeseries_storage.FetchTimeseriesRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
 			TagSet:    api.ParseTagSet("tag=value"),
 		},
-		SampleMethod: api.SampleMean,
-		Timerange:    queryTimerange,
-		Cancellable:  api.NewCancellable(),
+		RequestDetails: timeseries_storage.RequestDetails{
+			SampleMethod: timeseries_storage.SampleMean,
+			Timerange:    queryTimerange,
+			Cancellable:  api.NewCancellable(),
+		},
 	})
 	if err != nil {
 		t.Fatalf("Expected success, but got error: %s", err.Error())
