@@ -1,4 +1,4 @@
-#/usr/bin/env bash 
+#/usr/bin/env bash
 
 # a flag used to tell if the build failed
 fails=""
@@ -15,15 +15,15 @@ fi
 
 #Lastly, make sure calling ./query/build.sh doesn't cause ./query/language.peg.go to change
 
-before=$(cat ./query/language.peg.go)
+before=$(cat ./query/parser/language.peg.go)
 ./query/build.sh
 # we have to reformat in case peg.go produces unformatted code
-gofmt -w ./query/language.peg.go
-after=$(cat ./query/language.peg.go)
+gofmt -w ./query/parser/language.peg.go
+after=$(cat ./query/parser/language.peg.go)
 
 if [ "$before" != "$after" ]; then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
-	echo "THERE WERE CHANGES TO query/language.peg AND NO CHANGES TO query/language.peg.go"
+	echo "THERE WERE CHANGES TO query/language.peg AND NO CHANGES TO query/parser/language.peg.go"
 	echo "Make sure you ran the build file, and that your version of peg is up to date."
 	echo "To get the latest version of peg, run:"
 	echo "> go get -u github.com/pointlander/peg"
