@@ -13,13 +13,14 @@
 // limitations under the License.
 
 // Integration test for the query execution.
-package query
+package tests
 
 import (
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
@@ -335,7 +336,7 @@ func TestCommand_Select(t *testing.T) {
 			continue
 		}
 		a.EqString(testCommand.Name(), "select")
-		rawResult, err := testCommand.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
@@ -347,7 +348,7 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			a.CheckError(err)
-			actual := rawResult.Body.([]QuerySeriesList)
+			actual := rawResult.Body.([]command.QuerySeriesList)
 			a.EqInt(len(actual), len(expected))
 			if len(actual) == len(expected) {
 				for i := range actual {
@@ -368,7 +369,7 @@ func TestCommand_Select(t *testing.T) {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
-	context := ExecutionContext{
+	context := command.ExecutionContext{
 		TimeseriesStorageAPI: fakeBackend,
 		MetricMetadataAPI:    fakeAPI,
 		FetchLimit:           3,
@@ -406,7 +407,7 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success but got %s", err.Error())
 	}
-	queries := result.Body.([]QuerySeriesList)[0].Series
+	queries := result.Body.([]command.QuerySeriesList)[0].Series
 
 	assert.New(t).Eq(queries, []api.Timeseries{
 		{
@@ -499,7 +500,7 @@ func TestTag(t *testing.T) {
 			t.Errorf("Expected select command but got %s", testCommand.Name())
 			continue
 		}
-		rawResult, err := testCommand.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
@@ -509,7 +510,7 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
+		seriesListList, ok := rawResult.Body.([]command.QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
 			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue

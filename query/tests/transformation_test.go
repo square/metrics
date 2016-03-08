@@ -14,7 +14,7 @@
 
 // TODO - remove this file in future.
 // this tests moving average which is a very special logic.
-package query
+package tests
 
 import (
 	"math"

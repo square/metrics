@@ -14,12 +14,13 @@
 
 // Integration test for the query execution.
 
-package query
+package tests
 
 import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
@@ -58,7 +59,7 @@ func TestCommand_Describe(t *testing.T) {
 
 		a.EqString(testCommand.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := testCommand.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeTimeseriesStorage,
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,
@@ -72,7 +73,7 @@ func TestCommand_Describe(t *testing.T) {
 	a := assert.New(t).Contextf("Checking AdditionalConstraints")
 	testCommand, err := parser.Parse(`describe series_0`)
 	a.CheckError(err)
-	rawResult, err := testCommand.Execute(ExecutionContext{
+	rawResult, err := testCommand.Execute(command.ExecutionContext{
 		TimeseriesStorageAPI:  mocks.FakeTimeseriesStorageAPI{},
 		MetricMetadataAPI:     fakeAPI,
 		FetchLimit:            1000,
@@ -105,7 +106,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 
 		a.EqString(testCommand.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := testCommand.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeMulti,
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,
