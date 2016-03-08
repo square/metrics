@@ -547,17 +547,20 @@ function convertProfileResponse(object) {
   dataTable.addColumn({ type: 'number', id: 'Start' });
   dataTable.addColumn({ type: 'number', id: 'End' });
   var minValue = Number.POSITIVE_INFINITY;
+  function epoch(timestamp) {
+    return new Date(timestamp).getTime();
+  }
   for (var i = 0; i < object.profile.length; i++) {
     var profile = object.profile[i];
-    minValue = Math.min(profile.start, minValue);
-    minValue = Math.min(profile.finish, minValue);
+    minValue = Math.min(epoch(profile.start), minValue);
+    minValue = Math.min(epoch(profile.finish), minValue);
   };
   function normalize(value) {
     return value - minValue;
   };
   for (var i = 0; i < object.profile.length; i++) {
     var profile = object.profile[i];
-    var row = [ profile.name + " - " + profile.description , normalize(profile.start), normalize(profile.finish) ];
+    var row = [ profile.name + (profile.description ? " - " + profile.description : ""), normalize(epoch(profile.start)), normalize(epoch(profile.finish)) ];
     dataTable.addRows([row]);
   }
   return dataTable;

@@ -19,6 +19,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/query/predicate"
 )
 
 // Implementations
@@ -38,16 +39,7 @@ func (expr stringExpression) Evaluate(context function.EvaluationContext) (funct
 
 func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	// Merge predicates appropriately
-	var predicate api.Predicate
-	if context.Predicate == nil && expr.predicate == nil {
-		predicate = api.TruePredicate
-	} else if context.Predicate == nil {
-		predicate = expr.predicate
-	} else if expr.predicate == nil {
-		predicate = context.Predicate
-	} else {
-		predicate = &andPredicate{[]api.Predicate{expr.predicate, context.Predicate}}
-	}
+	p := predicate.All(expr.predicate, context.Predicate)
 
 	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.metricName), api.MetricMetadataAPIContext{
 		Profiler: context.Profiler,
@@ -56,7 +48,7 @@ func (expr *metricFetchExpression) Evaluate(context function.EvaluationContext) 
 	if err != nil {
 		return nil, err
 	}
-	filtered := applyPredicates(metricTagSets, predicate)
+	filtered := applyPredicates(metricTagSets, p)
 
 	if err := context.FetchLimit.Consume(len(filtered)); err != nil {
 		return nil, err
@@ -91,7 +83,7 @@ func (expr *functionExpression) Evaluate(context function.EvaluationContext) (fu
 // Auxiliary functions
 // ===================
 
-func applyPredicates(tagSets []api.TagSet, predicate api.Predicate) []api.TagSet {
+func applyPredicates(tagSets []api.TagSet, predicate predicate.Predicate) []api.TagSet {
 	output := []api.TagSet{}
 	for _, ts := range tagSets {
 		if predicate.Apply(ts) {

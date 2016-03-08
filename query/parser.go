@@ -29,6 +29,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/query/predicate"
 )
 
 // Parse is the entry point of the parser.
@@ -128,9 +129,22 @@ func parseDate(date string, now time.Time) (int64, error) {
 	return -1, errors.New(errorMessage)
 }
 
-func Parse(query string) (Command, error) {
+type ParserAssert struct {
+	error
+}
+
+func Parse(query string) (commandResult Command, finalErr error) {
 	p := Parser{Buffer: query}
 	p.Init()
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if message, ok := r.(ParserAssert); ok {
+			finalErr = message
+		}
+	}()
 	if err := p.Parse(); err != nil {
 		// Parsing error - invalid syntax.
 		// TODO - return the token where the error is occurring.
@@ -145,11 +159,6 @@ func Parse(query string) (Command, error) {
 		}
 	}
 	p.Execute()
-	if len(p.assertions) > 0 {
-		// logic error - an internal constraint is violated.
-		// TODO - log this error internally.
-		return nil, AssertionError{"Programming error"}
-	}
 	if len(p.nodeStack) > 0 {
 		return nil, AssertionError{"Node stack is not empty"}
 	}
@@ -173,44 +182,59 @@ func (p *Parser) flagSyntaxError(err SyntaxError) {
 	p.errors = append(p.errors, err)
 }
 
-func (p *Parser) flagAssert(err error) {
-	p.assertions = append(p.assertions, err)
-}
-
-func (p *Parser) flagTypeAssertion() {
-	p.flagAssert(fmt.Errorf("[%s] type assertion failure", functionName(1)))
-}
-
 // Generic Stack Operation
 // =======================
-func (p *Parser) popNode(expected reflect.Type) Node {
+func (p *Parser) popNodeInto(target interface{}) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Type().Kind() != reflect.Ptr {
+		panic(ParserAssert{ // Will unwind until it comes to "p.Parse()" which has a recover.
+			fmt.Errorf("[%s] popNodeInto() given a non-pointer target", functionName(1)),
+		})
+	}
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagAssert(fmt.Errorf("[%s] popNode() on an empty stack", functionName(1)))
-		return nil
+		panic(ParserAssert{fmt.Errorf("[%s] popNodeInto() on an empty stack", functionName(1))})
 	}
 	node := p.nodeStack[l-1]
 	p.nodeStack = p.nodeStack[:l-1]
-	actualType := reflect.ValueOf(node).Type()
-	if !actualType.ConvertibleTo(expected) {
-		p.flagAssert(fmt.Errorf("[%s] popNode() - expected %s, got %s",
+
+	nodeValue := reflect.ValueOf(node)
+	actualType := nodeValue.Type()
+	expectedType := targetValue.Elem().Type()
+	if !actualType.ConvertibleTo(expectedType) {
+		panic(ParserAssert{fmt.Errorf("[%s] popNodeInto() - expected %s, got off the stack %s",
 			functionName(1),
-			expected.String(),
-			reflect.ValueOf(node).Type().String()),
-		)
-		return nil
+			expectedType.String(),
+			actualType.String()),
+		})
 	}
-	return node
+	targetValue.Elem().Set(nodeValue)
 }
 
-func (p *Parser) peekNode() Node {
+func (p *Parser) peekNodeInto(target interface{}) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Type().Kind() != reflect.Ptr {
+		panic(ParserAssert{
+			fmt.Errorf("[%s] peekNodeInto() given a non-pointer target", functionName(1)),
+		})
+	}
 	l := len(p.nodeStack)
 	if l == 0 {
-		p.flagAssert(errors.New("peekNode() on an empty stack"))
-		return nil
+		panic(ParserAssert{fmt.Errorf("[%s] peekNodeInto() on an empty stack", functionName(1))})
 	}
-	node := p.nodeStack[l-1]
-	return node
+
+	nodeValue := reflect.ValueOf(p.nodeStack[l-1])
+
+	expectedType := targetValue.Elem().Type()
+	actualType := nodeValue.Type()
+	if !actualType.ConvertibleTo(expectedType) {
+		panic(ParserAssert{fmt.Errorf("[%s] peekNodeInto() - expected %s, got off the stack %s",
+			functionName(1),
+			expectedType.String(),
+			actualType.String()),
+		})
+	}
+	targetValue.Elem().Set(nodeValue)
 }
 
 func (p *Parser) pushNode(node Node) {
@@ -221,37 +245,25 @@ func (p *Parser) pushNode(node Node) {
 // =======================
 // These operations are used by the embedded code snippets in language.peg
 func (p *Parser) makeDescribe() {
-	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var node *predicateNode
+	p.popNodeInto(&node)
 	literal := p.popStringLiteral()
 	p.command = &DescribeCommand{
 		metricName: api.MetricKey(literal),
-		predicate:  predicateNode,
+		predicate:  node.Predicate,
 	}
 }
 
 func (p *Parser) makeSelect() {
-	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var contextNode *evaluationContextNode
+	p.popNodeInto(&contextNode)
+	var predicate *predicateNode
+	p.popNodeInto(&predicate)
+	var list *expressionList
+	p.popNodeInto(&list)
 	p.command = &SelectCommand{
-		predicate:   predicateNode,
-		expressions: expressionList.expressions,
+		predicate:   predicate,
+		expressions: list.expressions,
 		context:     contextNode,
 	}
 }
@@ -266,23 +278,17 @@ func (p *Parser) addMatchClause() {
 }
 
 func (p *Parser) makeDescribeAll() {
-	matcherClause, ok := p.popNode(matcherClausePointer).(*matcherClause)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.command = &DescribeAllCommand{matcher: matcherClause}
+	var matcher *matcherClause
+	p.popNodeInto(&matcher)
+	p.command = &DescribeAllCommand{matcher: matcher}
 }
 
 func (p *Parser) makeDescribeMetrics() {
 	// Pop off the value.
 	literal := p.popStringLiteral()
 	// Pop of the tag name.
-	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var tagLiteral *tagLiteral
+	p.popNodeInto(&tagLiteral)
 	p.command = &DescribeMetricsCommand{tagKey: tagLiteral.tag, tagValue: literal}
 }
 
@@ -291,21 +297,13 @@ func (p *Parser) addOperatorLiteral(operator string) {
 }
 
 func (p *Parser) addOperatorFunction() {
-	right, ok := p.popNode(expressionType).(function.Expression)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	operatorNode, ok := p.popNode(operatorLiteralPointer).(*operatorLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	left, ok := p.popNode(expressionType).(function.Expression)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var right function.Expression
+
+	p.popNodeInto(&right)
+	var operatorNode *operatorLiteral
+	p.popNodeInto(&operatorNode)
+	var left function.Expression
+	p.popNodeInto(&left)
 	p.pushNode(&functionExpression{
 		functionName: operatorNode.operator,
 		arguments:    []function.Expression{left, right},
@@ -329,21 +327,12 @@ func (p *Parser) addEvaluationContext() {
 }
 
 func (p *Parser) insertPropertyKeyValue() {
-	valueNode, ok := p.popNode(evaluationContextValuePointer).(*evaluationContextValue)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	keyNode, ok := p.popNode(evaluationContextKeyPointer).(*evaluationContextKey)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var valueNode *evaluationContextValue
+	p.popNodeInto(&valueNode)
+	var keyNode *evaluationContextKey
+	p.popNodeInto(&keyNode)
+	var contextNode *evaluationContextNode
+	p.popNodeInto(&contextNode)
 
 	key := keyNode.key
 	value := valueNode.value
@@ -414,11 +403,8 @@ func (p *Parser) insertPropertyKeyValue() {
 
 // makePropertyClause verifies that all mandatory fields have been assigned in the evaluation context.
 func (p *Parser) checkPropertyClause() {
-	contextNode, ok := p.popNode(evaluationContextNodePointer).(*evaluationContextNode)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var contextNode *evaluationContextNode
+	p.popNodeInto(&contextNode)
 	mandatoryFields := []string{"from", "to"} // Sample, resolution is optional (default to mean, 30s)
 	for _, field := range mandatoryFields {
 		if !contextNode.assigned[field] {
@@ -432,22 +418,13 @@ func (p *Parser) checkPropertyClause() {
 }
 
 func (p *Parser) addPipeExpression() {
-	groupBy, ok := p.popNode(groupByListPointer).(*groupByList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var groupBy *groupByList
+	p.popNodeInto(&groupBy)
+	var expressionList *expressionList
+	p.popNodeInto(&expressionList)
 	literal := p.popStringLiteral()
-	expressionNode, ok := p.popNode(expressionType).(function.Expression)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var expressionNode function.Expression
+	p.popNodeInto(&expressionNode)
 	p.pushNode(&functionExpression{
 		functionName:     literal,
 		arguments:        append([]function.Expression{expressionNode}, expressionList.expressions...),
@@ -457,16 +434,10 @@ func (p *Parser) addPipeExpression() {
 }
 
 func (p *Parser) addFunctionInvocation() {
-	groupBy, ok := p.popNode(groupByListPointer).(*groupByList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	expressionList, ok := p.popNode(expressionListPointer).(*expressionList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var groupBy *groupByList
+	p.popNodeInto(&groupBy)
+	var expressionList *expressionList
+	p.popNodeInto(&expressionList)
 	literal := p.popStringLiteral()
 	// user-level error generation here.
 	p.pushNode(&functionExpression{
@@ -478,11 +449,8 @@ func (p *Parser) addFunctionInvocation() {
 }
 
 func (p *Parser) addAnnotationExpression(annotation string) {
-	content, ok := p.popNode(expressionType).(function.Expression)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var content function.Expression
+	p.popNodeInto(&content)
 	p.pushNode(&annotationExpression{
 		content:    content,
 		annotation: annotation,
@@ -490,11 +458,8 @@ func (p *Parser) addAnnotationExpression(annotation string) {
 }
 
 func (p *Parser) addMetricExpression() {
-	predicateNode, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var predicateNode *predicateNode
+	p.popNodeInto(&predicateNode)
 	literal := p.popStringLiteral()
 	p.pushNode(&metricFetchExpression{
 		metricName: literal,
@@ -509,59 +474,49 @@ func (p *Parser) addExpressionList() {
 }
 
 func (p *Parser) appendExpression() {
-	expressionNode, ok := p.popNode(expressionType).(function.Expression)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	listNode, ok := p.peekNode().(*expressionList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var expressionNode function.Expression
+	p.popNodeInto(&expressionNode)
+	var listNode *expressionList
+	p.peekNodeInto(&listNode)
 	listNode.expressions = append(listNode.expressions, expressionNode)
 }
 
 func (p *Parser) addLiteralMatcher() {
 	literal := p.popStringLiteral()
-	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.pushNode(&listMatcher{
-		tag:    tagLiteral.tag,
-		values: []string{literal},
+	var tagLiteral *tagLiteral
+
+	p.popNodeInto(&tagLiteral)
+	p.pushNode(&predicateNode{
+		predicate.ListMatcher{
+			Tag:    tagLiteral.tag,
+			Values: []string{literal},
+		},
 	})
 }
 
 func (p *Parser) addListMatcher() {
-	stringLiteral, ok := p.popNode(stringLiteralListPointer).(*stringLiteralList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.pushNode(&listMatcher{
-		tag:    tagLiteral.tag,
-		values: stringLiteral.literals,
+	var stringLiteral *stringLiteralList
+
+	p.popNodeInto(&stringLiteral)
+	var tagLiteral *tagLiteral
+	p.popNodeInto(&tagLiteral)
+	p.pushNode(&predicateNode{
+		predicate.ListMatcher{
+			Tag:    tagLiteral.tag,
+			Values: stringLiteral.literals,
+		},
 	})
 }
 
 func (p *Parser) addRegexMatcher() {
 	compiled := p.popRegex()
-	tagLiteral, ok := p.popNode(tagLiteralPointer).(*tagLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.pushNode(&regexMatcher{
-		tag:   tagLiteral.tag,
-		regex: compiled,
+	var tagLiteral *tagLiteral
+	p.popNodeInto(&tagLiteral)
+	p.pushNode(&predicateNode{
+		predicate.RegexMatcher{
+			Tag:   tagLiteral.tag,
+			Regex: compiled,
+		},
 	})
 }
 
@@ -578,11 +533,8 @@ func (p *Parser) addLiteralList() {
 }
 
 func (p *Parser) appendLiteral(literal string) {
-	listNode, ok := p.peekNode().(*stringLiteralList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var listNode *stringLiteralList
+	p.peekNodeInto(&listNode)
 	listNode.literals = append(listNode.literals, literal)
 }
 
@@ -591,73 +543,49 @@ func (p *Parser) addGroupBy() {
 }
 
 func (p *Parser) appendGroupBy(literal string) {
-	listNode, ok := p.peekNode().(*groupByList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var listNode *groupByList
+	p.peekNodeInto(&listNode)
 	listNode.list = append(listNode.list, literal)
 }
 
 func (p *Parser) appendCollapseBy(literal string) {
-	listNode, ok := p.peekNode().(*groupByList)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
+	var listNode *groupByList
+	p.peekNodeInto(&listNode)
 	listNode.collapses = true // Switch to collapsing mode
 	listNode.list = append(listNode.list, literal)
 }
 
 func (p *Parser) addNotPredicate() {
-	predicate, ok := p.popNode(predicateType).(api.Predicate)
-	if ok {
-		p.pushNode(&notPredicate{predicate})
-	} else {
-		p.flagTypeAssertion()
-		return
-	}
+	var original *predicateNode
+	p.popNodeInto(&original)
+	p.pushNode(&predicateNode{
+		predicate.NotPredicate{original},
+	})
 }
 
 func (p *Parser) addOrPredicate() {
-	rightPredicate, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	leftPredicate, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.pushNode(&orPredicate{
-		predicates: []api.Predicate{
-			leftPredicate,
-			rightPredicate,
-		},
+	var rightPredicate *predicateNode
+	p.popNodeInto(&rightPredicate)
+	var leftPredicate *predicateNode
+	p.popNodeInto(&leftPredicate)
+	p.pushNode(&predicateNode{
+		predicate.Any(leftPredicate, rightPredicate),
 	})
 }
 
 func (p *Parser) addNullPredicate() {
-	p.pushNode(&andPredicate{predicates: []api.Predicate{}})
+	p.pushNode(&predicateNode{
+		predicate.All(),
+	})
 }
 
 func (p *Parser) addAndPredicate() {
-	rightPredicate, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	leftPredicate, ok := p.popNode(predicateType).(api.Predicate)
-	if !ok {
-		p.flagTypeAssertion()
-		return
-	}
-	p.pushNode(&andPredicate{
-		predicates: []api.Predicate{
-			leftPredicate,
-			rightPredicate,
-		},
+	var rightPredicate *predicateNode
+	p.popNodeInto(&rightPredicate)
+	var leftPredicate *predicateNode
+	p.popNodeInto(&leftPredicate)
+	p.pushNode(&predicateNode{
+		predicate.All(leftPredicate, rightPredicate),
 	})
 }
 
@@ -702,11 +630,8 @@ func (p *Parser) popRegex() *regexp.Regexp {
 }
 
 func (p *Parser) popStringLiteral() string {
-	stringLiteral, ok := p.popNode(stringLiteralPointer).(*stringLiteral)
-	if !ok {
-		p.flagTypeAssertion()
-		return ""
-	}
+	var stringLiteral *stringLiteral
+	p.popNodeInto(&stringLiteral)
 	return stringLiteral.literal
 }
 
@@ -831,19 +756,3 @@ func max(x, y int) int {
 	}
 	return y
 }
-
-// utility type variables
-var (
-	predicateType                 = reflect.TypeOf((*api.Predicate)(nil)).Elem()
-	expressionType                = reflect.TypeOf((*function.Expression)(nil)).Elem()
-	expressionListPointer         = reflect.TypeOf((*expressionList)(nil))
-	groupByListPointer            = reflect.TypeOf((*groupByList)(nil))
-	operatorLiteralPointer        = reflect.TypeOf((*operatorLiteral)(nil))
-	stringLiteralListPointer      = reflect.TypeOf((*stringLiteralList)(nil))
-	stringLiteralPointer          = reflect.TypeOf((*stringLiteral)(nil))
-	matcherClausePointer          = reflect.TypeOf((*matcherClause)(nil))
-	tagLiteralPointer             = reflect.TypeOf((*tagLiteral)(nil))
-	evaluationContextValuePointer = reflect.TypeOf((*evaluationContextValue)(nil))
-	evaluationContextKeyPointer   = reflect.TypeOf((*evaluationContextKey)(nil))
-	evaluationContextNodePointer  = reflect.TypeOf((*evaluationContextNode)(nil))
-)

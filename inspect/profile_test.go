@@ -33,7 +33,7 @@ func TestProfilerSimple(t *testing.T) {
 		now: func() time.Time {
 			return now
 		},
-		mutex:    &sync.Mutex{},
+		mutex:    sync.Mutex{},
 		profiles: []Profile{},
 	}
 	// It's now possible to manipulate the internal now of the Profiler
@@ -46,12 +46,12 @@ func TestProfilerSimple(t *testing.T) {
 
 	list := profiler.All()
 	a.EqInt(len(list), 1)
-	a.EqString(list[0].Name(), "metricA")
-	if list[0].Start() != start {
-		t.Fatalf("expected to start at %+v but started at %+v", start, list[0].Start())
+	a.EqString(list[0].Name, "metricA")
+	if list[0].Start != start {
+		t.Fatalf("expected to start at %+v but started at %+v", start, list[0].Start)
 	}
-	if list[0].Finish() != now {
-		t.Fatalf("expected to finish at %+v but finished at %+v", now, list[0].Finish())
+	if list[0].Finish != now {
+		t.Fatalf("expected to finish at %+v but finished at %+v", now, list[0].Finish)
 	}
 
 	// Changing the value of `now` shouldn't change the list.
@@ -59,12 +59,12 @@ func TestProfilerSimple(t *testing.T) {
 
 	list = profiler.All()
 	a.EqInt(len(list), 1)
-	a.EqString(list[0].Name(), "metricA")
-	if list[0].Start() != start {
-		t.Fatalf("expected to start at %+v but started at %+v", start, list[0].Start())
+	a.EqString(list[0].Name, "metricA")
+	if list[0].Start != start {
+		t.Fatalf("expected to start at %+v but started at %+v", start, list[0].Start)
 	}
-	if list[0].Finish() != old {
-		t.Fatalf("expected to finish at %+v but finished at %+v", old, list[0].Finish())
+	if list[0].Finish != old {
+		t.Fatalf("expected to finish at %+v but finished at %+v", old, list[0].Finish)
 	}
 
 	count := 2000

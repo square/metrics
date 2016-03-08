@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 )
@@ -392,6 +393,26 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success with limit = 2 but got '%s'", err.Error())
 	}
+
+	// Add an additional constraint and select.
+
+	command, err = Parse("select series_2 from 0 to 120 resolution 30ms")
+	if err != nil {
+		t.Fatalf("Unexpected error while parsing")
+	}
+	context.AdditionalConstraints = predicate.ListMatcher{"dc", []string{"east"}}
+	result, err := command.Execute(context)
+	if err != nil {
+		t.Fatalf("expected success but got %s", err.Error())
+	}
+	queries := result.Body.([]QuerySeriesList)[0].Series
+
+	assert.New(t).Eq(queries, []api.Timeseries{
+		{
+			Values: []float64{3, 0, 3, 6, 2},
+			TagSet: api.TagSet{"dc": "east"},
+		},
+	})
 }
 
 func TestTag(t *testing.T) {

@@ -153,7 +153,7 @@ func TestProfilerIntegration(t *testing.T) {
 		list := profiler.All()
 		counts := map[string]int{}
 		for _, node := range list {
-			counts[node.Name()]++
+			counts[node.Name]++
 		}
 
 		if len(test.expected) != len(counts) {

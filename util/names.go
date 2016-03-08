@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ui
+package util
 
-import "github.com/square/metrics/inspect"
+import (
+	"fmt"
+	"regexp"
+)
 
-type Config struct {
-	Port          int    `yaml:"port"`
-	Timeout       int    `yaml:"timeout"`
-	StaticDir     string `yaml:"static_dir"`
-	JSONIngestion bool   `yaml:"json_ingestion"`
-}
+var OrdinaryIdentifierRegex = regexp.MustCompile(`^[A-Za-z_][A-Za-z_0-9]*(\.[A-Za-z_][A-Za-z_0-9]*)*$`)
 
-type Hook struct {
-	OnQuery chan<- *inspect.Profiler
+func EscapeIdentifier(identifier string) string {
+	if !OrdinaryIdentifierRegex.MatchString(identifier) {
+		return fmt.Sprintf("`%s`", identifier)
+	}
+	return identifier
 }
