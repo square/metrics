@@ -24,8 +24,7 @@ import (
 
 type testAPI struct {
 	count    int
-	proceed  chan struct{}
-	finished chan struct{}
+	finished chan string
 	data     map[api.MetricKey]string
 }
 
@@ -50,9 +49,8 @@ func (c *testAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMe
 }
 
 func (c *testAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+	defer func() { c.finished <- string(metricKey) }()
 	// Wait for permission to proceed before returning.
-	<-c.proceed
-	defer func() { c.finished <- struct{}{} }()
 
 	c.count++
 
@@ -66,8 +64,7 @@ func TestCached(t *testing.T) {
 
 	underlying := &testAPI{
 		count:    0,
-		proceed:  make(chan struct{}, 10),
-		finished: make(chan struct{}, 10),
+		finished: make(chan string, 10),
 		data: map[api.MetricKey]string{
 			"metric_one": "one",
 			"metric_two": "two",
@@ -75,73 +72,84 @@ func TestCached(t *testing.T) {
 	}
 	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 1000})
 
-	// Ask for metric_one
-	{
-		underlying.proceed <- struct{}{} // give it permission to go
-		answer, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+
+	a.CheckError(err)
+	a.Eq(tags, []api.TagSet{{"foo": "one"}})
+
+	underlying.data["metric_one"] = "new one"
+
+	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // read from cache
+
+	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // still read from cache
+
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+
+	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.Eq(tags, []api.TagSet{{"foo": "new one"}}) // still read from cache
+
+	a.EqInt(cached.CurrentLiveRequests(), 2)
+
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+
+	a.EqInt(cached.CurrentLiveRequests(), 1)
+
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+
+	a.EqInt(cached.CurrentLiveRequests(), 0)
+
+	underlying.data["metric_one"] = "ignore"
+
+	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.Eq(tags, []api.TagSet{{"foo": "new one"}})
+}
+
+func TestQueueSize(t *testing.T) {
+	a := assert.New(t)
+
+	underlying := &testAPI{
+		count:    0,
+		finished: make(chan string, 10),
+		data: map[api.MetricKey]string{
+			"metric_one": "one",
+			"metric_two": "two",
+		},
+	}
+	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 3})
+
+	_, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+
+	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+
+	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.EqInt(cached.CurrentLiveRequests(), 2)
+
+	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	a.CheckError(err)
+	a.EqInt(cached.CurrentLiveRequests(), 3)
+
+	// Adding another one should not increase the number of requests,
+	// and it shouldn't cause this call to block.
+
+	for i := 0; i < 100; i++ {
+		_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
 		a.CheckError(err)
-		a.Eq(answer[0]["foo"], "one")
-		a.Contextf("underlying count").Eq(underlying.count, 1)
-		<-underlying.finished
+		a.EqInt(cached.CurrentLiveRequests(), 3)
 	}
 
-	// Ask for metric_two
-	{
-		underlying.proceed <- struct{}{} // give it permission to go
-		answer, err := cached.GetAllTags("metric_two", api.MetricMetadataAPIContext{})
-		a.CheckError(err)
-		a.Eq(answer[0]["foo"], "two")
-		a.Contextf("underlying count").Eq(underlying.count, 2)
-		<-underlying.finished
-	}
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
+	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
 
-	// Ask for metric_one again, but do not give permission to go.
-	// Trying to verify that it's returning from the cache and not by querying the database.
-	{
-		answer, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
-		a.CheckError(err)
-		a.Eq(answer[0]["foo"], "one")
-		a.Contextf("underlying count").Eq(underlying.count, 2)
-	}
-
-	// Now give the underlying permission to go:
-	underlying.proceed <- struct{}{}
-	// Now wait for it to finish
-	<-underlying.finished
-
-	a.Contextf("underlying count").Eq(underlying.count, 3)
-
-	// Again on metric_two, but this time we'll update the original.
-	underlying.data["metric_two"] = "new_two"
-	{
-		// It's in the cache- so it will return immediately
-		answer, err := cached.GetAllTags("metric_two", api.MetricMetadataAPIContext{})
-		a.CheckError(err)
-		a.Eq(answer[0]["foo"], "two")
-
-		a.Contextf("underlying count").Eq(underlying.count, 3)
-
-		// Let the background update run.
-		underlying.proceed <- struct{}{}
-		<-underlying.finished
-
-		a.Contextf("underlying count").Eq(underlying.count, 4)
-	}
-
-	// And again, but it should now be updated- even though the cache has yet to expire.
-	// Again on metric_two, but this time we'll update the original.
-	{
-		// It's in the cache- so it will return immediately
-		answer, err := cached.GetAllTags("metric_two", api.MetricMetadataAPIContext{})
-		a.CheckError(err)
-		a.Eq(answer[0]["foo"], "new_two")
-		a.Contextf("underlying count").Eq(underlying.count, 4)
-
-		// Let the background update run.
-		underlying.proceed <- struct{}{}
-		<-underlying.finished
-
-		a.Contextf("underlying count").Eq(underlying.count, 5)
-	}
+	a.EqInt(cached.CurrentLiveRequests(), 0)
 
 }

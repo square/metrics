@@ -15,7 +15,6 @@
 package cached_metadata
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -31,7 +30,7 @@ type CachedMetricMetadataAPI struct {
 	timeToLive        time.Duration                      // Time for cache entries to survive.
 	mutex             sync.Mutex                         // Synchronizing mutex
 
-	requestQueue chan struct{} // A channel that synchronizes the in-flight requests.
+	getAllTagsQueue chan api.MetricKey // A channel that synchronizes the in-flight requests.
 }
 
 // Config stores data needed to instantiate a CachedMetricMetadataAPI.
@@ -42,16 +41,12 @@ type Config struct {
 
 // NewCachedMetricMetadataAPI creates a cached API given configuration and an underlying API object.
 func NewCachedMetricMetadataAPI(metadata api.MetricMetadataAPI, config Config) *CachedMetricMetadataAPI {
-	requests := make(chan struct{}, config.RequestLimit)
-	// Fill the requests
-	for i := 0; i < config.RequestLimit; i++ {
-		requests <- struct{}{}
-	}
+	requests := make(chan api.MetricKey, config.RequestLimit)
 	return &CachedMetricMetadataAPI{
 		metricMetadataAPI: metadata,
 		getAllTagsCache:   map[api.MetricKey]CachedTagSetList{},
 		timeToLive:        config.TimeToLive,
-		requestQueue:      requests,
+		getAllTagsQueue:   requests,
 	}
 }
 
@@ -66,46 +61,45 @@ func (c CachedTagSetList) Expired() bool {
 	return c.Expiry.IsZero() || c.Expiry.Before(time.Now())
 }
 
-// startRequest waits until a slot is open to make a request to the underlying API.
-func (c *CachedMetricMetadataAPI) startRequest() {
-	<-c.requestQueue // Wait for a request to open.
+func (c *CachedMetricMetadataAPI) addBackgroundGetAllTagsRequest(metric api.MetricKey) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if len(c.getAllTagsQueue) < cap(c.getAllTagsQueue) {
+		c.getAllTagsQueue <- metric
+	}
 }
 
-// finishRequest signals that the request to the underlying API is done,
-// which allows another request to be performed.
-func (c *CachedMetricMetadataAPI) finishRequest() {
-	c.requestQueue <- struct{}{}
+// PerformBackgroundRequest is a blocking method that runs one queued cache update.
+// It will block until an update is available.
+func (c *CachedMetricMetadataAPI) PerformBackgroundRequest(context api.MetricMetadataAPIContext) error {
+	defer context.Profiler.Record("CachedMetricMetadataAPI_PerformBackgroundRequest")()
+	metric := <-c.getAllTagsQueue
+	startTime := time.Now()
+	tagsets, err := c.metricMetadataAPI.GetAllTags(metric, context)
+	if err != nil {
+		return err
+	}
+	c.replaceCachedTagSet(metric, tagsets, startTime)
+	return nil
 }
 
 // AddMetric waits for a slot to be open, then queries the underlying API.
 func (c *CachedMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
-	c.startRequest()
-	defer c.finishRequest()
-
 	return c.metricMetadataAPI.AddMetric(metric, context)
 }
 
 // AddMetrics waits for a slot to be open, then queries the underlying API.
 func (c *CachedMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
-	c.startRequest()
-	defer c.finishRequest()
-
 	return c.metricMetadataAPI.AddMetrics(metrics, context)
 }
 
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
 func (c *CachedMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
-	c.startRequest()
-	defer c.finishRequest()
-
 	return c.metricMetadataAPI.GetAllMetrics(context)
 }
 
 // GetMetricsForTag wwaits for a slot to be open, then queries the underlying API.
 func (c *CachedMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
-	c.startRequest()
-	defer c.finishRequest()
-
 	return c.metricMetadataAPI.GetMetricsForTag(tagKey, tagValue, context)
 }
 
@@ -118,7 +112,11 @@ func (c *CachedMetricMetadataAPI) getCachedTagSet(metricKey api.MetricKey) Cache
 
 // setCachedTagSet is a thread-safe way to assign cached data (protected by a mutex).
 // if the given value is less recent than the stored value, nothing happens.
-func (c *CachedMetricMetadataAPI) replaceCachedTagSet(metricKey api.MetricKey, value CachedTagSetList) {
+func (c *CachedMetricMetadataAPI) replaceCachedTagSet(metricKey api.MetricKey, tagsets []api.TagSet, startTime time.Time) {
+	value := CachedTagSetList{
+		TagSets: tagsets,
+		Expiry:  startTime.Add(c.timeToLive),
+	}
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if c.getAllTagsCache[metricKey].Expiry.Before(value.Expiry) {
@@ -130,36 +128,13 @@ func (c *CachedMetricMetadataAPI) replaceCachedTagSet(metricKey api.MetricKey, v
 // Then it returns the result to the caller.
 // Note that getAllTagsRaw does not respect the request limit behavior- this must be enforced by the caller.
 func (c *CachedMetricMetadataAPI) getAllTagsRaw(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+	startTime := time.Now()
 	tagsets, err := c.metricMetadataAPI.GetAllTags(metricKey, context)
 	if err != nil {
 		return nil, err
 	}
-	c.replaceCachedTagSet(metricKey, CachedTagSetList{
-		TagSets: tagsets,
-		Expiry:  time.Now().Add(c.timeToLive),
-	})
+	c.replaceCachedTagSet(metricKey, tagsets, startTime)
 	return tagsets, nil
-}
-
-// getAllTagsAndUpdateCache performs a fetch and updates the cache correspondingly.
-// If `mandatory` is false and the request limit has been reached, getAllTagsAndUpdateCache will return an error
-// without performing a query on the underlying API.
-// This gives priority to updating out-of-date entries at the expense of sometimes discarding background updates to the cache.
-func (c *CachedMetricMetadataAPI) getAllTagsAndUpdateCache(metricKey api.MetricKey, context api.MetricMetadataAPIContext, mandatory bool) ([]api.TagSet, error) {
-	if mandatory {
-		c.startRequest()
-		defer c.finishRequest()
-	} else {
-		select {
-		case <-c.requestQueue:
-			// A request is available, so run but make sure to put it back.
-			defer c.finishRequest() // Once this function finishes, restore request state.
-		default:
-			return nil, fmt.Errorf("Pressure on API through cache is too high (%d simultaneous requests allowed)- dropping non-mandatory request.", cap(c.requestQueue))
-		}
-	}
-
-	return c.getAllTagsRaw(metricKey, context)
 }
 
 // GetAllTags uses the cache to serve tag data for the given metric.
@@ -171,23 +146,27 @@ func (c *CachedMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context ap
 	item := c.getCachedTagSet(metricKey)
 
 	if item.Expired() {
-		defer context.Profiler.Record("CachedMetricMetadataAPI_Miss")()
-		// The item was expired, so query the metadata API.
-		return c.getAllTagsAndUpdateCache(metricKey, context, true)
+		defer context.Profiler.Record("CachedMetricMetadataAPI_GetAllTags_Expired")()
+		startTime := time.Now()
+		tagsets, err := c.metricMetadataAPI.GetAllTags(metricKey, context)
+		if err != nil {
+			return nil, err
+		}
+		c.replaceCachedTagSet(metricKey, tagsets, startTime)
+		return tagsets, nil
 	}
 
 	defer context.Profiler.Record("CachedMetricMetadataAPI_Hit")()
 
-	// Update the cache in the background,
-	go c.getAllTagsAndUpdateCache(metricKey, context, false)
+	c.addBackgroundGetAllTagsRequest(metricKey)
 
 	// but return the cached result immediately.
 	return item.TagSets, nil
 }
 
 func (c *CachedMetricMetadataAPI) CurrentLiveRequests() int {
-	return cap(c.requestQueue) - len(c.requestQueue)
+	return len(c.getAllTagsQueue)
 }
 func (c *CachedMetricMetadataAPI) MaximumLiveRequests() int {
-	return cap(c.requestQueue)
+	return cap(c.getAllTagsQueue)
 }

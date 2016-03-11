@@ -84,6 +84,16 @@ func main() {
 		TimeToLive:   time.Minute * 5, // Cache items invalidated after 5 minutes.
 		RequestLimit: 500,
 	})
+	for i := 0; i < 10; i++ {
+		go func() {
+			for {
+				err := optimizedMetadataAPI.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
+				if err != nil {
+					log.Errorf("Error performing background cache-update: %s", err.Error())
+				}
+			}
+		}()
+	}
 
 	//Defaults
 	userConfig := api.UserSpecifiableConfig{
