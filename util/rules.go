@@ -164,7 +164,7 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		return api.TaggedMetric{}, false
 	}
 	// Do not output tags appearing in both graphite metric & metric key.
-	// for exmaple, if graphite metric is
+	// for example, if graphite metric is
 	//   `foo.%a%.%b%`
 	// and metric key is
 	//   `bar.%b%`
