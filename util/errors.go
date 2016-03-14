@@ -1,6 +1,6 @@
 package util
 
-// List of errors returnd by the application
+// List of errors returned by the application
 
 import (
 	"fmt"
