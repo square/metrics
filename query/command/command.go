@@ -27,6 +27,7 @@ import (
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries_storage"
 )
 
@@ -220,18 +221,16 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			chosenTimerange.Slots(), slotLimit)
 	}
 	hasTimeout := context.Timeout != 0
-	var cancellable api.Cancellable
+	var timeoutOwner tasks.TimeoutOwner
 	if hasTimeout {
-		cancellable = api.NewTimeoutCancellable(time.Now().Add(context.Timeout))
-	} else {
-		cancellable = api.NewCancellable()
+		timeoutOwner = tasks.NewTimeout(time.Now().Add(context.Timeout))
 	}
 	r := context.Registry
 	if r == nil {
 		r = registry.Default()
 	}
 
-	defer close(cancellable.Done()) // broadcast the finish - this ensures that the future work is cancelled.
+	defer timeoutOwner.Finish() // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
 		MetricMetadataAPI:     context.MetricMetadataAPI,
 		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
@@ -239,7 +238,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		Predicate:             predicate.All(cmd.Predicate, context.AdditionalConstraints),
 		SampleMethod:          cmd.Context.SampleMethod,
 		Timerange:             chosenTimerange,
-		Cancellable:           cancellable,
+		Timeout:               timeoutOwner.Timeout,
 		Registry:              r,
 		Profiler:              context.Profiler,
 		EvaluationNotes:       new(function.EvaluationNotes),

@@ -84,7 +84,6 @@ func TestMovingAverage(t *testing.T) {
 			SampleMethod:         timeseries_storage.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
-			Cancellable:          api.NewCancellable(),
 		})
 	if err != nil {
 		t.Errorf(err.Error())

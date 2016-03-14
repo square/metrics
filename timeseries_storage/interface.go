@@ -20,6 +20,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/tasks"
 )
 
 type API interface {
@@ -31,7 +32,7 @@ type API interface {
 type RequestDetails struct {
 	SampleMethod          SampleMethod  // up/downsampling behavior.
 	Timerange             api.Timerange // time range to fetch data from.
-	Cancellable           api.Cancellable
+	Timeout               tasks.Timeout
 	Profiler              *inspect.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
 }

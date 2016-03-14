@@ -27,6 +27,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
 )
@@ -134,7 +135,7 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
+func (b *Blueflood) fetchLazy(timeout tasks.Timeout, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
 	go func() {
 		select {
 		case ticket := <-ctx.tickets:
@@ -145,13 +146,13 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeserie
 			*result = series
 			// Return the error (and sync up with the caller).
 			channel <- err
-		case <-cancellable.Done():
+		case <-timeout.Done():
 			channel <- timeseries_storage.Error{Code: timeseries_storage.FetchTimeoutError}
 		}
 	}()
 }
 
-func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+func (b *Blueflood) fetchManyLazy(timeout tasks.Timeout, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 
@@ -164,7 +165,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 		tickets: tickets,
 	}
 	for i := range results {
-		b.fetchLazy(cancellable, &results[i], works[i], channel, ctx)
+		b.fetchLazy(timeout, &results[i], works[i], channel, ctx)
 	}
 
 	var err error
@@ -174,7 +175,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 			if thisErr != nil {
 				err = thisErr
 			}
-		case <-cancellable.Done():
+		case <-timeout.Done():
 			return nil, timeseries_storage.Error{Code: timeseries_storage.FetchTimeoutError}
 		}
 	}
@@ -186,9 +187,6 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 
 func (b *Blueflood) FetchMultipleTimeseries(request timeseries_storage.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
-	if request.Cancellable == nil {
-		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
-	}
 	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
@@ -201,7 +199,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries_storage.FetchMult
 		}
 	}
 
-	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
+	resultSeries, err := b.fetchManyLazy(request.Timeout, works)
 	if err != nil {
 		return api.SeriesList{}, err
 	}

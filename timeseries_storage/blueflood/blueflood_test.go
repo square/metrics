@@ -163,7 +163,6 @@ func Test_Blueflood(t *testing.T) {
 			RequestDetails: timeseries_storage.RequestDetails{
 				SampleMethod: test.sampleMethod,
 				Timerange:    test.timerange,
-				Cancellable:  api.NewCancellable(),
 			},
 		})
 
@@ -286,7 +285,6 @@ func TestIncludeRawPayload(t *testing.T) {
 		RequestDetails: timeseries_storage.RequestDetails{
 			SampleMethod:          timeseries_storage.SampleMean,
 			Timerange:             queryTimerange,
-			Cancellable:           api.NewCancellable(),
 			UserSpecifiableConfig: userConfig,
 		},
 	})
@@ -488,7 +486,6 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		RequestDetails: timeseries_storage.RequestDetails{
 			SampleMethod: timeseries_storage.SampleMean,
 			Timerange:    queryTimerange,
-			Cancellable:  api.NewCancellable(),
 		},
 	})
 	if err != nil {

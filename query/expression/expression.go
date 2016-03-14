@@ -110,7 +110,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 			metrics,
 			timeseries_storage.RequestDetails{context.SampleMethod,
 				context.Timerange,
-				context.Cancellable,
+				context.Timeout,
 				context.Profiler,
 				context.UserSpecifiableConfig,
 			},

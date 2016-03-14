@@ -183,7 +183,7 @@ func (db *cassandraDatabase) GetTagSet(metricKey api.MetricKey) ([]api.TagSet, e
 	}
 	if len(tags) == 0 {
 		//
-		return nil, api.NewNoSuchMetricError(string(metricKey))
+		return nil, metadata.NewNoSuchMetricError(string(metricKey))
 	}
 	return tags, nil
 }

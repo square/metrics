@@ -12,38 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package tasks
 
 import (
 	"time"
 )
 
-type Cancellable interface {
-	Done() chan struct{}         // returns a channel that is closed when the work is done.
-	Deadline() (time.Time, bool) // deadline for the request.
+type TimeoutOwner struct {
+	Timeout
 }
 
-type DefaultCancellable struct {
+func (to TimeoutOwner) Finish() {
+	if to.Timeout.done == nil {
+		return
+	}
+	close(to.Timeout.done)
+}
+
+type Timeout struct {
+	done     chan struct{}
+	deadline time.Time
+}
+
+func (t Timeout) Done() <-chan struct{} {
+	return t.done
+}
+
+func (t Timeout) Deadline() (time.Time, bool) {
+	if t.done == nil {
+		return time.Time{}, false
+	}
+	return t.deadline, true
+}
+
+type timeout struct {
 	done     chan struct{}
 	deadline *time.Time
 }
 
-func (c DefaultCancellable) Done() chan struct{} {
-	return c.done
-}
-
-func (c DefaultCancellable) Deadline() (time.Time, bool) {
-	if c.deadline == nil {
-		return time.Time{}, false
-	} else {
-		return *c.deadline, true
+func NewTimeout(deadline time.Time) TimeoutOwner {
+	return TimeoutOwner{
+		Timeout{
+			done:     make(chan struct{}),
+			deadline: deadline,
+		},
 	}
-}
-
-func NewTimeoutCancellable(t time.Time) Cancellable {
-	return DefaultCancellable{make(chan struct{}), &t}
-}
-
-func NewCancellable() Cancellable {
-	return DefaultCancellable{make(chan struct{}), nil}
 }
