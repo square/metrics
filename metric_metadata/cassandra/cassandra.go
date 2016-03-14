@@ -21,11 +21,11 @@ import (
 	"github.com/square/metrics/api"
 )
 
-type CassandraMetricMetadataAPI struct {
+type MetricMetadataAPI struct {
 	db cassandraDatabase
 }
 
-var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
+var _ api.MetricMetadataAPI = (*MetricMetadataAPI)(nil)
 
 type Config struct {
 	Hosts    []string `yaml:"hosts"`
@@ -33,29 +33,29 @@ type Config struct {
 }
 
 // NewCassandraMetricMetadataAPI creates a new instance of API from the given configuration.
-func NewCassandraMetricMetadataAPI(config Config) (api.MetricMetadataAPI, error) {
+func NewMetricMetadataAPI(config Config) (api.MetricMetadataAPI, error) {
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Consistency = gocql.One
 	clusterConfig.Hosts = config.Hosts
 	clusterConfig.Keyspace = config.Keyspace
 	clusterConfig.Timeout = time.Second * 30
-	db, err := NewCassandraDatabase(clusterConfig)
+	db, err := newCassandraDatabase(clusterConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &CassandraMetricMetadataAPI{
+	return &MetricMetadataAPI{
 		db: db,
 	}, nil
 }
 
-func (a *CassandraMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
 	defer context.Profiler.Record("Cassandra AddMetric")()
 	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
 	}
 	return a.AddMetricTagsToTagIndex(metric, context)
 }
-func (a *CassandraMetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
 	defer context.Profiler.Record("Cassandra AddMetricTagsToTagIndex")()
 	for tagKey, tagValue := range metric.TagSet {
 		if err := a.db.AddToTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
@@ -65,7 +65,7 @@ func (a *CassandraMetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMe
 	return nil
 }
 
-func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
 	defer context.Profiler.Record("Cassandra AddMetrics")()
 	// Add each of the metrics to the tag index
 	for _, metric := range metrics {
@@ -77,30 +77,27 @@ func (a *CassandraMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, cont
 	return a.db.AddMetricNames(metrics)
 }
 
-func (a *CassandraMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (a *MetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Cassandra GetAllTags")()
 	return a.db.GetTagSet(metricKey)
 }
 
-func (a *CassandraMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (a *MetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Cassandra GetMetricsForTag")()
 	return a.db.GetMetricKeys(tagKey, tagValue)
 }
 
-func (a *CassandraMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (a *MetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Cassandra GetAllMetrics")()
 	return a.db.GetAllMetrics()
 }
-
-// ensure interface
-var _ api.MetricMetadataAPI = (*CassandraMetricMetadataAPI)(nil)
 
 type cassandraDatabase struct {
 	session *gocql.Session
 }
 
 // NewCassandraDatabase creates an instance of database, backed by Cassandra.
-func NewCassandraDatabase(clusterConfig *gocql.ClusterConfig) (cassandraDatabase, error) {
+func newCassandraDatabase(clusterConfig *gocql.ClusterConfig) (cassandraDatabase, error) {
 	session, err := clusterConfig.CreateSession()
 	if err != nil {
 		return cassandraDatabase{}, err
