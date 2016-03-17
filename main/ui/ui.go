@@ -26,13 +26,13 @@ import (
 
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/metric_metadata/cached_metadata"
+	"github.com/square/metrics/metric_metadata/cached"
 	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/timeseries_storage"
+	"github.com/square/metrics/timeseries"
 
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/timeseries_storage/blueflood"
+	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/ui"
 	"github.com/square/metrics/util"
 )
@@ -81,7 +81,7 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	optimizedMetadataAPI := cached_metadata.NewCachedMetricMetadataAPI(metadataAPI, cached_metadata.Config{
+	optimizedMetadataAPI := cached.NewCachedMetricMetadataAPI(metadataAPI, cached.Config{
 		TimeToLive:   time.Minute * 5, // Cache items invalidated after 5 minutes.
 		RequestLimit: 500,
 	})
@@ -97,7 +97,7 @@ func main() {
 	}
 
 	//Defaults
-	userConfig := timeseries_storage.UserSpecifiableConfig{
+	userConfig := timeseries.UserSpecifiableConfig{
 		IncludeRawData: false,
 	}
 

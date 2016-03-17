@@ -26,7 +26,7 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/timeseries_storage"
+	"github.com/square/metrics/timeseries"
 )
 
 type Response struct {
@@ -201,7 +201,7 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 
 	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
 
-	context.UserSpecifiableConfig = timeseries_storage.UserSpecifiableConfig{
+	context.UserSpecifiableConfig = timeseries.UserSpecifiableConfig{
 		IncludeRawData: parsedForm.IncludeRaw,
 	}
 

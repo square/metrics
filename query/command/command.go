@@ -28,20 +28,20 @@ import (
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/tasks"
-	"github.com/square/metrics/timeseries_storage"
+	"github.com/square/metrics/timeseries"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	TimeseriesStorageAPI  timeseries_storage.API                   // the backend
-	MetricMetadataAPI     metadata.MetricAPI                       // the api
-	FetchLimit            int                                      // the maximum number of fetches
-	Timeout               time.Duration                            // optional
-	Registry              function.Registry                        // optional
-	SlotLimit             int                                      // optional (0 => default 1000)
-	Profiler              *inspect.Profiler                        // optional
-	UserSpecifiableConfig timeseries_storage.UserSpecifiableConfig // optional. User tunable parameters for execution.
-	AdditionalConstraints predicate.Predicate                      // optional. Additional contrains for describe and select commands
+	TimeseriesStorageAPI  timeseries.StorageAPI            // the backend
+	MetricMetadataAPI     metadata.MetricAPI               // the api
+	FetchLimit            int                              // the maximum number of fetches
+	Timeout               time.Duration                    // optional
+	Registry              function.Registry                // optional
+	SlotLimit             int                              // optional (0 => default 1000)
+	Profiler              *inspect.Profiler                // optional
+	UserSpecifiableConfig timeseries.UserSpecifiableConfig // optional. User tunable parameters for execution.
+	AdditionalConstraints predicate.Predicate              // optional. Additional contrains for describe and select commands
 }
 
 type CommandResult struct {
@@ -76,10 +76,10 @@ type DescribeMetricsCommand struct {
 }
 
 type SelectContext struct {
-	Start        int64                           // Start of data timerange
-	End          int64                           // End of data timerange
-	Resolution   int64                           // Resolution of data timerange
-	SampleMethod timeseries_storage.SampleMethod // to use when up/downsampling to match requested resolution
+	Start        int64                   // Start of data timerange
+	End          int64                   // End of data timerange
+	Resolution   int64                   // Resolution of data timerange
+	SampleMethod timeseries.SampleMethod // to use when up/downsampling to match requested resolution
 }
 
 // SelectCommand is the bread and butter of the metrics query engine.

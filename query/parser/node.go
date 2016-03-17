@@ -14,7 +14,7 @@
 
 package parser
 
-import "github.com/square/metrics/timeseries_storage"
+import "github.com/square/metrics/timeseries"
 
 type any interface{} // fixes a bug in gopeg
 
@@ -63,9 +63,9 @@ type evaluationContextValue struct {
 
 // evaluationContextMap represents a collection of key-value pairs that form the evaluation context.
 type evaluationContextNode struct {
-	Start        int64                           // Start of data timerange
-	End          int64                           // End of data timerange
-	Resolution   int64                           // Resolution of data timerange
-	SampleMethod timeseries_storage.SampleMethod // to use when up/downsampling to match requested resolution
-	assigned     map[string]bool                 // a map for knowing which elements of the context have been assigned
+	Start        int64                   // Start of data timerange
+	End          int64                   // End of data timerange
+	Resolution   int64                   // Resolution of data timerange
+	SampleMethod timeseries.SampleMethod // to use when up/downsampling to match requested resolution
+	assigned     map[string]bool         // a map for knowing which elements of the context have been assigned
 }

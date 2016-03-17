@@ -31,7 +31,7 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/timeseries_storage"
+	"github.com/square/metrics/timeseries"
 )
 
 // Parse is the entry point of the parser.
@@ -333,7 +333,7 @@ func (p *Parser) addPropertyValue(value string) {
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
 		0, 0, 30000,
-		timeseries_storage.SampleMean,
+		timeseries.SampleMean,
 		make(map[string]bool),
 	})
 }
@@ -366,11 +366,11 @@ func (p *Parser) insertPropertyKeyValue() {
 		// Only three possible sample methods are defined: min, max, or mean.
 		switch value {
 		case "max":
-			contextNode.SampleMethod = timeseries_storage.SampleMax
+			contextNode.SampleMethod = timeseries.SampleMax
 		case "min":
-			contextNode.SampleMethod = timeseries_storage.SampleMin
+			contextNode.SampleMethod = timeseries.SampleMin
 		case "mean":
-			contextNode.SampleMethod = timeseries_storage.SampleMean
+			contextNode.SampleMethod = timeseries.SampleMean
 		default:
 			p.flagSyntaxError(SyntaxError{
 				token:   value,

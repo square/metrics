@@ -26,7 +26,7 @@ import (
 	"github.com/square/metrics/log/standard"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/timeseries_storage/blueflood"
+	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/ui"
 	"gopkg.in/yaml.v2"
 )

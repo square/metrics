@@ -23,7 +23,7 @@ import (
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
-	"github.com/square/metrics/timeseries_storage/blueflood"
+	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
 )
 
