@@ -61,7 +61,7 @@ func main() {
 	signal.Notify(sigs, syscall.SIGUSR2)
 
 	go func() {
-		for _ = range sigs {
+		for range sigs {
 			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 		}
 	}()

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Integration test for the query execution.
+
 package query
 
 import (

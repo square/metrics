@@ -28,7 +28,7 @@ const epsilon = 1e-10 // epsilon is a constant for the maximum allowable error b
 func Test_groupBy(t *testing.T) {
 	var listA = api.SeriesList{
 		Series: []api.Timeseries{
-			api.Timeseries{
+			{
 				Values: []float64{0, 0, 0},
 				TagSet: map[string]string{
 					"dc":   "A",
@@ -36,7 +36,7 @@ func Test_groupBy(t *testing.T) {
 					"host": "#1",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{1, 1, 1},
 				TagSet: map[string]string{
 					"dc":   "B",
@@ -44,7 +44,7 @@ func Test_groupBy(t *testing.T) {
 					"host": "#1",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{2, 2, 2},
 				TagSet: map[string]string{
 					"dc":   "C",
@@ -52,7 +52,7 @@ func Test_groupBy(t *testing.T) {
 					"host": "#1",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{3, 3, 3},
 				TagSet: map[string]string{
 					"dc":   "B",
@@ -60,7 +60,7 @@ func Test_groupBy(t *testing.T) {
 					"host": "#2",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{4, 4, 4},
 				TagSet: map[string]string{
 					"dc":   "C",
@@ -179,28 +179,28 @@ func Test_groupBy(t *testing.T) {
 func Test_applyAggregation(t *testing.T) {
 	var testGroup = group{
 		List: []api.Timeseries{
-			api.Timeseries{
+			{
 				Values: []float64{0, 1, 2, 3},
 				TagSet: api.TagSet{
 					"env": "production",
 					"dc":  "A",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{4, 0, 4, 4},
 				TagSet: api.TagSet{
 					"env": "production",
 					"dc":  "A",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{-1, -1, 2, 2},
 				TagSet: api.TagSet{
 					"env": "production",
 					"dc":  "A",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{0, 2, 0, 2},
 				TagSet: api.TagSet{
 					"env": "production",
@@ -264,7 +264,7 @@ func Test_AggregateBy(t *testing.T) {
 
 	var testList = api.SeriesList{
 		[]api.Timeseries{
-			api.Timeseries{
+			{
 				Values: []float64{0, 1, 2},
 				TagSet: api.TagSet{
 					"env":  "staging",
@@ -272,7 +272,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "q77",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{4, 4, 4},
 				TagSet: api.TagSet{
 					"env":  "staging",
@@ -280,7 +280,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "r53",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{-1, -1, 2},
 				TagSet: api.TagSet{
 					"env":  "production",
@@ -288,7 +288,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "y1",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{0, 2, 0},
 				TagSet: api.TagSet{
 					"env":  "production",
@@ -296,7 +296,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "w20",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{2, 0, 0},
 				TagSet: api.TagSet{
 					"env":  "production",
@@ -304,7 +304,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "t8",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{0, 0, 1},
 				TagSet: api.TagSet{
 					"env":  "production",
@@ -312,7 +312,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "b38",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{math.NaN(), math.NaN(), math.NaN()},
 				TagSet: api.TagSet{
 					"env":  "staging",
@@ -320,7 +320,7 @@ func Test_AggregateBy(t *testing.T) {
 					"host": "n44",
 				},
 			},
-			api.Timeseries{
+			{
 				Values: []float64{math.NaN(), 10, math.NaN()},
 				TagSet: api.TagSet{
 					"env":  "production",
@@ -343,13 +343,13 @@ func Test_AggregateBy(t *testing.T) {
 			Sum,
 			false,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{1, 11, 3},
 					TagSet: map[string]string{
 						"env": "production",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{4, 5, 6},
 					TagSet: map[string]string{
 						"env": "staging",
@@ -362,19 +362,19 @@ func Test_AggregateBy(t *testing.T) {
 			Max,
 			false,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{0, 2, 2},
 					TagSet: map[string]string{
 						"dc": "A",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{4, 10, 4},
 					TagSet: map[string]string{
 						"dc": "B",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{0, 0, 1},
 					TagSet: map[string]string{
 						"dc": "C",
@@ -387,35 +387,35 @@ func Test_AggregateBy(t *testing.T) {
 			Mean,
 			false,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{0, 1, 2},
 					TagSet: map[string]string{
 						"dc":  "A",
 						"env": "staging",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{-1.0 / 2.0, 1.0 / 2.0, 1.0},
 					TagSet: map[string]string{
 						"dc":  "A",
 						"env": "production",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{4, 4, 4},
 					TagSet: map[string]string{
 						"dc":  "B",
 						"env": "staging",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{2, 5, 0},
 					TagSet: map[string]string{
 						"dc":  "B",
 						"env": "production",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{0, 0, 1},
 					TagSet: map[string]string{
 						"dc":  "C",
@@ -429,7 +429,7 @@ func Test_AggregateBy(t *testing.T) {
 			Sum,
 			false,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{5, 16, 9},
 					TagSet: map[string]string{},
 				},
@@ -554,49 +554,49 @@ func Test_AggregateBy(t *testing.T) {
 			Sum,
 			false,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{0, 1, 2},
 					TagSet: api.TagSet{
 						"host": "q77",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{4, 4, 4},
 					TagSet: api.TagSet{
 						"host": "r53",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{-1, -1, 2},
 					TagSet: api.TagSet{
 						"host": "y1",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{0, 2, 0},
 					TagSet: api.TagSet{
 						"host": "w20",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{2, 0, 0},
 					TagSet: api.TagSet{
 						"host": "t8",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{0, 0, 1},
 					TagSet: api.TagSet{
 						"host": "b38",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{math.NaN(), math.NaN(), math.NaN()},
 					TagSet: api.TagSet{
 						"host": "n44",
 					},
 				},
-				api.Timeseries{
+				{
 					Values: []float64{math.NaN(), 10, math.NaN()},
 					TagSet: api.TagSet{
 						"host": "n10",
@@ -633,7 +633,7 @@ func Test_AggregateBy(t *testing.T) {
 			}
 		}
 		// Next, each series will do the reverse-lookup and check that its values match the expected results.
-		// (It is neccesary to check both ways [see above] to ensure that the result doesn't contain just one of the series repeatedly)
+		// (It is necessary to check both ways [see above] to ensure that the result doesn't contain just one of the series repeatedly)
 		for _, aggregate := range aggregated.Series {
 			// Any of the testCase results which it matches are candidates
 			for _, correct := range testCase.Results {

@@ -53,13 +53,13 @@ type httpClient interface {
 type TimeSource func() time.Time
 
 type Config struct {
-	BaseUrl                 string           `yaml:"base_url"`
-	TenantId                string           `yaml:"tenant_id"`
+	BaseURL                 string           `yaml:"base_url"`
+	TenantID                string           `yaml:"tenant_id"`
 	Ttls                    map[string]int64 `yaml:"ttls"` // Ttl in days
 	Timeout                 time.Duration    `yaml:"timeout"`
 	FullResolutionOverlap   int64            `yaml:"full_resolution_overlap"` // overlap to draw full resolution in seconds
 	GraphiteMetricConverter util.GraphiteConverter
-	HttpClient              httpClient
+	HTTPClient              httpClient
 	TimeSource              TimeSource
 	MaxSimultaneousRequests int `yaml:"simultaneous_requests"`
 }
@@ -87,14 +87,14 @@ func (r Resolution) String() string {
 }
 
 var (
-	ResolutionFull    Resolution = Resolution{"FULL", time.Second * 30}
-	Resolution5Min               = Resolution{"MIN5", time.Minute * 5}
-	Resolution20Min              = Resolution{"MIN20", time.Minute * 20}
-	Resolution60Min              = Resolution{"MIN60", time.Minute * 60}
-	Resolution240Min             = Resolution{"MIN240", time.Minute * 240}
-	Resolution1440Min            = Resolution{"MIN1440", time.Minute * 1440}
+	ResolutionFull    = Resolution{"FULL", time.Second * 30}
+	Resolution5Min    = Resolution{"MIN5", time.Minute * 5}
+	Resolution20Min   = Resolution{"MIN20", time.Minute * 20}
+	Resolution60Min   = Resolution{"MIN60", time.Minute * 60}
+	Resolution240Min  = Resolution{"MIN240", time.Minute * 240}
+	Resolution1440Min = Resolution{"MIN1440", time.Minute * 1440}
 )
-var Resolutions []Resolution = []Resolution{
+var Resolutions = []Resolution{
 	ResolutionFull,
 	Resolution5Min,
 	Resolution20Min,
@@ -104,8 +104,8 @@ var Resolutions []Resolution = []Resolution{
 }
 
 func NewBlueflood(c Config) api.TimeseriesStorageAPI {
-	if c.HttpClient == nil {
-		c.HttpClient = http.DefaultClient
+	if c.HTTPClient == nil {
+		c.HTTPClient = http.DefaultClient
 	}
 	if c.TimeSource == nil {
 		c.TimeSource = time.Now
@@ -116,7 +116,7 @@ func NewBlueflood(c Config) api.TimeseriesStorageAPI {
 
 	b := Blueflood{
 		config:            c,
-		client:            c.HttpClient,
+		client:            c.HTTPClient,
 		graphiteConverter: c.GraphiteMetricConverter,
 		timeSource:        c.TimeSource,
 	}
@@ -170,8 +170,8 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 		b.fetchLazy(cancellable, &results[i], works[i], channel, ctx)
 	}
 
-	var err error = nil
-	for _ = range works {
+	var err error
+	for range works {
 		select {
 		case thisErr := <-channel:
 			if thisErr != nil {
@@ -232,13 +232,13 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	log.Debugf("Blueflood resolution: %s\n", queryResolution.String())
 
 	// Sample the data at the given `queryResolution`
-	queryUrl, err := b.constructURL(request, sampler, queryResolution)
+	queryURL, err := b.constructURL(request, sampler, queryResolution)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
 
 	rawResults := make([][]byte, 1)
-	parsedResult, rawResult, err := b.fetch(request, queryUrl)
+	parsedResult, rawResult, err := b.fetch(request, queryURL)
 	rawResults[0] = rawResult
 	if err != nil {
 		return api.Timeseries{}, err
@@ -314,7 +314,7 @@ func (b *Blueflood) constructURL(
 		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
 	}
 
-	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseUrl, b.config.TenantId, graphiteName))
+	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseURL, b.config.TenantID, graphiteName))
 	if err != nil {
 		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
 	}
@@ -331,14 +331,14 @@ func (b *Blueflood) constructURL(
 }
 
 // fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
-func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL) (queryResponse, []byte, error) {
-	log.Debugf("Blueflood fetch: %s", queryUrl.String())
+func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL) (queryResponse, []byte, error) {
+	log.Debugf("Blueflood fetch: %s", queryURL.String())
 	success := make(chan queryResponse, 1)
 	failure := make(chan error, 1)
 	timeout := time.After(b.config.Timeout)
 	var rawResponse []byte
 	go func() {
-		resp, err := b.client.Get(queryUrl.String())
+		resp, err := b.client.Get(queryURL.String())
 		if err != nil {
 			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
 			return
@@ -354,14 +354,14 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryUrl *url.URL)
 
 		log.Debugf("Fetch result: %s", string(body))
 
-		var parsedJson queryResponse
-		err = json.Unmarshal(body, &parsedJson)
+		var parsedJSON queryResponse
+		err = json.Unmarshal(body, &parsedJSON)
 		// Construct a Timeseries from the result:
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryUrl.String()}
+			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
 			return
 		}
-		success <- parsedJson
+		success <- parsedJSON
 	}()
 	select {
 	case response := <-success:
@@ -416,7 +416,7 @@ func bucketsFromMetricPoints(metricPoints []metricPoint, resultField func(metric
 	return buckets
 }
 
-var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
+var samplerMap = map[api.SampleMethod]sampler{
 	api.SampleMean: {
 		fieldName:     "average",
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
@@ -470,11 +470,11 @@ var samplerMap map[api.SampleMethod]sampler = map[api.SampleMethod]sampler{
 	},
 }
 
-// Blueflood will use the finest-grained resolution which doesn't exceed the slot limit.
+// ChooseResolution will use the finest-grained resolution which doesn't exceed the slot limit.
 // Thus, if you request too many points, it will automatically reduce the resolution.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
 	// In some cases, coarser-resolution data may have a shorter TTL.
-	// To accomodate these cases, it must be verified that the requested timerange will
+	// To accommodate these cases, it must be verified that the requested timerange will
 	// actually be present for the chosen resolution.
 	// TODO: figure out how to make this work with moving averages and timeshifts
 

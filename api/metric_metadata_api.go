@@ -13,7 +13,6 @@
 // limitations under the License.
 
 // Package api holds common data types and public interface exposed by the indexer library.
-
 package api
 
 import "github.com/square/metrics/inspect"

@@ -32,13 +32,13 @@ func TestPredicateFromConstraint(t *testing.T) {
 		{
 			constraint: Constraint{
 				All: []Constraint{
-					Constraint{
+					{
 						KeyIs: &KeyIs{
 							Key:   "dc",
 							Value: "west",
 						},
 					},
-					Constraint{
+					{
 						KeyMatch: &KeyMatch{
 							Key:   "host",
 							Regex: `server_a[0-9]+`,
@@ -61,7 +61,7 @@ func TestPredicateFromConstraint(t *testing.T) {
 			constraint: Constraint{
 				Not: &Constraint{
 					Any: []Constraint{
-						Constraint{
+						{
 							Not: &Constraint{
 								KeyIn: &KeyIn{
 									Key:    "host",
@@ -69,22 +69,22 @@ func TestPredicateFromConstraint(t *testing.T) {
 								},
 							},
 						},
-						Constraint{
+						{
 							KeyIs: &KeyIs{
 								Key:   "app",
 								Value: "mqe",
 							},
 						},
-						Constraint{
+						{
 							Not: &Constraint{
 								All: []Constraint{
-									Constraint{
+									{
 										KeyMatch: &KeyMatch{
 											Key:   "test1",
 											Regex: `blah\+`,
 										},
 									},
-									Constraint{
+									{
 										KeyIs: &KeyIs{
 											Key:   "test2",
 											Value: "blah",
@@ -132,7 +132,7 @@ func TestPredicateFromConstraint(t *testing.T) {
 			constraint: Constraint{
 				Not: &Constraint{
 					Any: []Constraint{
-						Constraint{
+						{
 							Not: &Constraint{
 								KeyIn: &KeyIn{
 									Key:    "host",
@@ -140,7 +140,7 @@ func TestPredicateFromConstraint(t *testing.T) {
 								},
 							},
 						},
-						Constraint{
+						{
 							KeyIs: &KeyIs{
 								Key:   "app",
 								Value: "mqe",
@@ -150,16 +150,16 @@ func TestPredicateFromConstraint(t *testing.T) {
 								Values: []string{"mqe"},
 							},
 						},
-						Constraint{
+						{
 							Not: &Constraint{
 								All: []Constraint{
-									Constraint{
+									{
 										KeyMatch: &KeyMatch{
 											Key:   "test1",
 											Regex: `blah\+`,
 										},
 									},
-									Constraint{
+									{
 										KeyIs: &KeyIs{
 											Key:   "test2",
 											Value: "blah",

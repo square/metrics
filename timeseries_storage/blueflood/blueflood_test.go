@@ -35,7 +35,7 @@ func Test_Blueflood(t *testing.T) {
 
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.graphite"): api.TaggedMetric{
+			util.GraphiteMetric("some.key.graphite"): {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
@@ -43,15 +43,15 @@ func Test_Blueflood(t *testing.T) {
 	}
 
 	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
+		BaseURL:                 "https://blueflood.url",
+		TenantID:                "square",
 		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
 		FullResolutionOverlap:   0,
 		GraphiteMetricConverter: &graphite,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
-	defaultQueryUrl := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
+	defaultQueryURL := "https://blueflood.url/v2.0/square/views/some.key.graphite?from=12000&resolution=MIN1440&select=numPoints%2Caverage&to=14000"
 
 	for _, test := range []struct {
 		name               string
@@ -60,7 +60,7 @@ func Test_Blueflood(t *testing.T) {
 		sampleMethod       api.SampleMethod
 		timerange          api.Timerange
 		clientConfig       Config
-		queryUrl           string
+		queryURL           string
 		queryResponse      string
 		queryResponseCode  int
 		queryDelay         time.Duration
@@ -75,7 +75,7 @@ func Test_Blueflood(t *testing.T) {
 			},
 			sampleMethod: api.SampleMean,
 			timerange:    timerange,
-			queryUrl:     defaultQueryUrl,
+			queryURL:     defaultQueryURL,
 			clientConfig: defaultClientConfig,
 			queryResponse: `{
         "unit": "unknown",
@@ -112,7 +112,7 @@ func Test_Blueflood(t *testing.T) {
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
-			queryUrl:          defaultQueryUrl,
+			queryURL:          defaultQueryURL,
 			queryResponse:     `{invalid}`,
 			expectedErrorCode: api.FetchIOError,
 		},
@@ -125,7 +125,7 @@ func Test_Blueflood(t *testing.T) {
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
-			queryUrl:          defaultQueryUrl,
+			queryURL:          defaultQueryURL,
 			queryResponse:     `{}`,
 			queryResponseCode: 400,
 			expectedErrorCode: api.FetchIOError,
@@ -139,7 +139,7 @@ func Test_Blueflood(t *testing.T) {
 			sampleMethod:      api.SampleMean,
 			timerange:         timerange,
 			clientConfig:      defaultClientConfig,
-			queryUrl:          defaultQueryUrl,
+			queryURL:          defaultQueryURL,
 			queryResponse:     `{}`,
 			queryDelay:        1 * time.Second,
 			expectedErrorCode: api.FetchTimeoutError,
@@ -147,15 +147,15 @@ func Test_Blueflood(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("%s", test.name)
 
-		fakeHttpClient := mocks.NewFakeHttpClient()
+		fakeHTTPClient := mocks.NewFakeHTTPClient()
 		code := test.queryResponseCode
 		if code == 0 {
 			code = http.StatusOK
 		}
-		fakeHttpClient.SetResponse(test.queryUrl, mocks.Response{test.queryResponse, test.queryDelay, code})
+		fakeHTTPClient.SetResponse(test.queryURL, mocks.Response{test.queryResponse, test.queryDelay, code})
 
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
-		b.client = fakeHttpClient
+		b.client = fakeHTTPClient
 
 		seriesList, err := b.FetchSingleTimeseries(api.FetchTimeseriesRequest{
 			Metric:       test.queryMetric,
@@ -188,7 +188,7 @@ func Test_Blueflood(t *testing.T) {
 func TestIncludeRawPayload(t *testing.T) {
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
+			util.GraphiteMetric("some.key.value"): {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
@@ -208,8 +208,8 @@ func TestIncludeRawPayload(t *testing.T) {
 
 	// The queries have to be relative to "now"
 	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
+		BaseURL:                 "https://blueflood.url",
+		TenantID:                "square",
 		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
 		FullResolutionOverlap:   14400,
@@ -260,10 +260,10 @@ func TestIncludeRawPayload(t *testing.T) {
 		baseTime-300*1000*7,  // 35 minutes ago
 	)
 
-	fakeHttpClient := mocks.NewFakeHttpClient()
-	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
-	// fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
-	defaultClientConfig.HttpClient = fakeHttpClient
+	fakeHTTPClient := mocks.NewFakeHTTPClient()
+	fakeHTTPClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
+	// fakeHTTPClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
+	defaultClientConfig.HTTPClient = fakeHTTPClient
 	defaultClientConfig.TimeSource = timeSource
 
 	b := NewBlueflood(defaultClientConfig)
@@ -349,7 +349,7 @@ func TestSeriesFromMetricPoints(t *testing.T) {
 func TestFullResolutionDataFilling(t *testing.T) {
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
-			util.GraphiteMetric("some.key.value"): api.TaggedMetric{
+			util.GraphiteMetric("some.key.value"): {
 				MetricKey: api.MetricKey("some.key"),
 				TagSet:    api.ParseTagSet("tag=value"),
 			},
@@ -369,8 +369,8 @@ func TestFullResolutionDataFilling(t *testing.T) {
 
 	// The queries have to be relative to "now"
 	defaultClientConfig := Config{
-		BaseUrl:                 "https://blueflood.url",
-		TenantId:                "square",
+		BaseURL:                 "https://blueflood.url",
+		TenantID:                "square",
 		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
 		FullResolutionOverlap:   14400,
@@ -463,10 +463,10 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		baseTime-300*1000*3,      // 15m ago
 	)
 
-	fakeHttpClient := mocks.NewFakeHttpClient()
-	fakeHttpClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
-	fakeHttpClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
-	defaultClientConfig.HttpClient = fakeHttpClient
+	fakeHTTPClient := mocks.NewFakeHTTPClient()
+	fakeHTTPClient.SetResponse(regularQueryURL, mocks.Response{regularResponse, 0, http.StatusOK})
+	fakeHTTPClient.SetResponse(fullResolutionQueryURL, mocks.Response{fullResolutionResponse, 0, http.StatusOK})
+	defaultClientConfig.HTTPClient = fakeHTTPClient
 	defaultClientConfig.TimeSource = timeSource
 
 	b := NewBlueflood(defaultClientConfig)

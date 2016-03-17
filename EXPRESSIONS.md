@@ -157,7 +157,7 @@ we can instead write
 
 `cpu | transform.moving_average(10m)`
 
-If the function takes only one argument, then the parentheses can be ommitted when using pipes:
+If the function takes only one argument, then the parentheses can be omitted when using pipes:
 
 `cpu | aggregate.sum`
 
