@@ -225,6 +225,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	evaluationContext := function.EvaluationContext{
 		MetricMetadataAPI:     context.MetricMetadataAPI,
 		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
+		SlotLimit:             context.SlotLimit * 10, // 10x buffer for intermediate requests
 		TimeseriesStorageAPI:  context.TimeseriesStorageAPI,
 		Predicate:             predicate.All(cmd.predicate, context.AdditionalConstraints),
 		SampleMethod:          cmd.context.SampleMethod,

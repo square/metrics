@@ -87,6 +87,7 @@ func Test_ScalarExpression(t *testing.T) {
 			Timerange:            test.timerange,
 			SampleMethod:         api.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
+			SlotLimit:            28800,
 			Registry:             registry.Default(),
 		})
 
@@ -110,6 +111,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		SampleMethod:         api.SampleMean,
 		Predicate:            nil,
 		FetchLimit:           function.NewFetchCounter(1000),
+		SlotLimit:            28800,
 		Cancellable:          api.NewCancellable(),
 	}
 	for _, test := range []struct {
