@@ -153,7 +153,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 				weight *= alpha
 				sum *= alpha
 				if !math.IsNaN(series.Values[i]) {
-					weight += 1
+					weight++
 					sum += series.Values[i]
 				}
 				results[i-limit+1] = sum / weight

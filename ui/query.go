@@ -165,7 +165,6 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 			Tag:   c.KeyMatch.Key,
 			Regex: regex,
 		}, nil
-		return nil, nil
 	default:
 		panic(fmt.Sprintf("internal error: unknown constraint name: %q", only.name))
 	}

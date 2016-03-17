@@ -62,7 +62,7 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange, description strin
 	}
 
 	return api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{Values: series, TagSet: api.NewTagSet()}},
+		Series:    []api.Timeseries{{Values: series, TagSet: api.NewTagSet()}},
 		Timerange: timerange,
 	}, nil
 }

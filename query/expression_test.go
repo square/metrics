@@ -40,7 +40,7 @@ func (le LiteralExpression) Name() string {
 
 func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return api.SeriesList{
-		Series:    []api.Timeseries{api.Timeseries{Values: expr.Values, TagSet: api.NewTagSet()}},
+		Series:    []api.Timeseries{{Values: expr.Values, TagSet: api.NewTagSet()}},
 		Timerange: api.Timerange{},
 	}, nil
 }
@@ -74,7 +74,7 @@ func Test_ScalarExpression(t *testing.T) {
 			scalarExpression{5},
 			timerangeA,
 			[]api.Timeseries{
-				api.Timeseries{
+				{
 					Values: []float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
 					TagSet: api.NewTagSet(),
 				},
@@ -174,21 +174,21 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			"add",
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{
 							"env":  "production",
 							"host": "#1",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{7, 7, 7},
 						TagSet: api.TagSet{
 							"env":  "staging",
 							"host": "#2",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{1, 0, 2},
 						TagSet: api.TagSet{
 							"env":  "staging",
@@ -200,13 +200,13 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{5, 5, 5},
 						TagSet: api.TagSet{
 							"env": "staging",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{10, 100, 1000},
 						TagSet: api.TagSet{
 							"env": "production",
@@ -224,21 +224,21 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			"add",
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{
 							"env":  "production",
 							"host": "#1",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{4, 5, 6},
 						TagSet: api.TagSet{
 							"env":  "staging",
 							"host": "#2",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{7, 8, 9},
 						TagSet: api.TagSet{
 							"env":  "staging",
@@ -250,13 +250,13 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{2, 2, 2},
 						TagSet: api.TagSet{
 							"env": "staging",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{3, 3, 3},
 						TagSet: api.TagSet{
 							"env": "staging",
@@ -274,21 +274,21 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			"add",
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{103, 103, 103},
 						TagSet: api.TagSet{
 							"env":  "production",
 							"host": "#1",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{203, 203, 203},
 						TagSet: api.TagSet{
 							"env":  "staging",
 							"host": "#2",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{303, 303, 303},
 						TagSet: api.TagSet{
 							"env":  "staging",
@@ -300,13 +300,13 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			},
 			api.SeriesList{
 				[]api.Timeseries{
-					api.Timeseries{
+					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{
 							"env": "staging",
 						},
 					},
-					api.Timeseries{
+					{
 						Values: []float64{3, 0, 3},
 						TagSet: api.TagSet{
 							"env": "production",

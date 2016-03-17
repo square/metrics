@@ -34,26 +34,26 @@ func TestTagSet_Serialize(t *testing.T) {
 
 func TestTagSetEquals(t *testing.T) {
 	sets := []TagSet{
-		TagSet{ // Case 0
+		{ // Case 0
 			"A": "x",
 			"B": "y",
 			"C": "z",
 		},
-		TagSet{ // Case 1
+		{ // Case 1
 			"A": "x",
 			"B": "y",
 			"C": "z",
 		},
-		TagSet{ // Case 2
+		{ // Case 2
 			"A": "q",
 			"B": "y",
 			"C": "z",
 		},
-		TagSet{ // Case 3
+		{ // Case 3
 			"A": "x",
 			"C": "z",
 		},
-		TagSet{ // Case 4
+		{ // Case 4
 			"A": "x",
 			"C": "z",
 		},

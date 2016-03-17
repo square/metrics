@@ -73,20 +73,20 @@ func Test_MetricName_GetTagSet_DB(t *testing.T) {
 		expectedTags map[string][]string // { metricName: [ tags ] }
 	}{
 		{true, "sample", "foo=bar1", map[string][]string{
-			"sample": []string{"foo=bar1"},
+			"sample": {"foo=bar1"},
 		}},
 		{true, "sample", "foo=bar2", map[string][]string{
-			"sample": []string{"foo=bar1", "foo=bar2"},
+			"sample": {"foo=bar1", "foo=bar2"},
 		}},
 		{true, "sample2", "foo=bar2", map[string][]string{
-			"sample":  []string{"foo=bar1", "foo=bar2"},
-			"sample2": []string{"foo=bar2"},
+			"sample":  {"foo=bar1", "foo=bar2"},
+			"sample2": {"foo=bar2"},
 		}},
 		{false, "sample2", "foo=bar2", map[string][]string{
-			"sample": []string{"foo=bar1", "foo=bar2"},
+			"sample": {"foo=bar1", "foo=bar2"},
 		}},
 		{false, "sample", "foo=bar1", map[string][]string{
-			"sample": []string{"foo=bar2"},
+			"sample": {"foo=bar2"},
 		}},
 	}
 

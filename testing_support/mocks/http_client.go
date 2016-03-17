@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-type FakeHttpClient struct {
+type FakeHTTPClient struct {
 	responses map[string]Response
 }
 
@@ -33,17 +33,17 @@ type Response struct {
 	StatusCode int
 }
 
-func NewFakeHttpClient() *FakeHttpClient {
-	return &FakeHttpClient{
+func NewFakeHTTPClient() *FakeHTTPClient {
+	return &FakeHTTPClient{
 		responses: make(map[string]Response),
 	}
 }
 
-func (c *FakeHttpClient) SetResponse(url string, r Response) {
+func (c *FakeHTTPClient) SetResponse(url string, r Response) {
 	c.responses[url] = r
 }
 
-func (c *FakeHttpClient) Get(url string) (*http.Response, error) {
+func (c *FakeHTTPClient) Get(url string) (*http.Response, error) {
 	r, exists := c.responses[url]
 	if !exists {
 		return nil, fmt.Errorf("Get() received unexpected url %s, mappings: %+v", url, c.responses)

@@ -50,7 +50,7 @@ func NewCachedMetricMetadataAPI(metadata api.MetricMetadataAPI, config Config) *
 	}
 }
 
-// An item in the cache.
+// CachedTagSetList is an item in the cache.
 type CachedTagSetList struct {
 	TagSets []api.TagSet // The tagsets for this metric
 	Expiry  time.Time    // The time at which the cache entry expires

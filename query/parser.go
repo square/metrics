@@ -69,7 +69,7 @@ import (
 // The dateFormats are tried in sequence until one of them succeeds.
 // This is the best way that I can see to allow multiple formats (which is reasonable for human input).
 // Keep in mind that the format is YEAR-MONTH-DAY.
-// Time zones are ommitted where only the date is given (perhaps this should be changed)
+// Time zones are omitted where only the date is given (perhaps this should be changed)
 var dateFormats = []string{
 	"2006-1-2 15:04:05 MST",
 	"2006-1-2 15:04 MST",

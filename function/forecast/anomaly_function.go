@@ -22,8 +22,10 @@ import (
 	"github.com/square/metrics/function"
 )
 
-// FunctionAnomalyMaker makes anomaly-measurement functions that return simple p-values for deviations from the predicted model.
-// In order to make this procedure mostly automatic, it performs a join on the original tagsets to match them up with their predictions.
+// FunctionPeriodicAnomalyMaker makes anomaly-measurement functions that return
+// simple p-values for deviations from the predicted model. In order to make this
+// procedure mostly automatic, it performs a join on the original tagsets to
+// match them up with their predictions.
 func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
 	if model.MinArguments < 2 {
 		panic("FunctionAnomalyMaker requires that the model argument take at least two parameters; series and period.")
