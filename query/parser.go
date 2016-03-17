@@ -683,7 +683,7 @@ func customParseError(parser *Parser) string {
 		positions[p], p = int(token.begin), p+1
 		positions[p], p = int(token.end), p+1
 	}
-	translations := translatePositions(parser.Buffer, positions)
+	translations := translatePositions(parser.buffer, positions)
 	printedPositions := make(map[pair]bool)
 	for _, token := range tokens {
 		begin, end := int(token.begin), int(token.end)
