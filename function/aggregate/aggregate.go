@@ -203,10 +203,10 @@ func applyAggregation(group group, aggregator func([]float64) float64) api.Times
 	return result
 }
 
-// AggregateBy takes a series list, an aggregator, and a set of tags.
+// By takes a series list, an aggregator, and a set of tags.
 // It produces a SeriesList which is the result of grouping by the tags and then aggregating each group
 // into a single Series.
-func AggregateBy(list api.SeriesList, aggregator func([]float64) float64, tags []string, collapses bool) api.SeriesList {
+func By(list api.SeriesList, aggregator func([]float64) float64, tags []string, collapses bool) api.SeriesList {
 	// Begin by grouping the input:
 	groups := groupBy(list, tags, collapses)
 

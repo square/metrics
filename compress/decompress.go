@@ -21,6 +21,7 @@ import (
 	"math"
 )
 
+// DecompressionBuffer holds compressed data and provides methods for decompressing it.
 type DecompressionBuffer struct {
 	data             []byte
 	current          byte
@@ -33,6 +34,7 @@ type DecompressionBuffer struct {
 	expectedSize            int
 }
 
+// NewDecompressionBuffer creates a buffer with the given compressed contents.
 func NewDecompressionBuffer(data []byte, expectedSize int) DecompressionBuffer {
 	dbuf := DecompressionBuffer{
 		data:         data,
@@ -71,6 +73,7 @@ func (d *DecompressionBuffer) hasMore() bool {
 	return !d.eof
 }
 
+// ReadBit returns a single bit from the buffer.
 func (d *DecompressionBuffer) ReadBit() bool {
 	if d.eof {
 		panic("Tried reading an invalid bit")
@@ -93,6 +96,7 @@ func (d *DecompressionBuffer) ReadBit() bool {
 	return bit
 }
 
+// ReadBits returns several bits (up to 64) from the buffer in a uint64.
 func (d *DecompressionBuffer) ReadBits(n uint32) uint64 {
 	value := uint64(0)
 	for n != MaxUint32 {
@@ -129,6 +133,7 @@ func (d *DecompressionBuffer) readFullXOR(previous float64) float64 {
 	return math.Float64frombits(rebuiltNumber)
 }
 
+// Decompress uses the compressed buffer contents to create a []float64.
 func (d *DecompressionBuffer) Decompress() []float64 {
 	first := d.readFloat()
 	result := []float64{first}

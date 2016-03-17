@@ -35,11 +35,13 @@ type EvaluationContext struct {
 	UserSpecifiableConfig timeseries_storage.UserSpecifiableConfig
 }
 
+// EvaluationNotes holds notes that occurred during evaluation.
 type EvaluationNotes struct {
 	mutex sync.Mutex
 	notes []string
 }
 
+// AddNote adds a new note to the collection in a threadsafe manner.
 func (notes *EvaluationNotes) AddNote(note string) {
 	if notes == nil {
 		return
@@ -48,6 +50,8 @@ func (notes *EvaluationNotes) AddNote(note string) {
 	defer notes.mutex.Unlock()
 	notes.notes = append(notes.notes, note)
 }
+
+// Notes returns the current collection of notes in a threadsafe manner.
 func (notes *EvaluationNotes) Notes() []string {
 	if notes == nil {
 		return nil
@@ -57,6 +61,8 @@ func (notes *EvaluationNotes) Notes() []string {
 	return notes.notes
 }
 
+// The Registry interface defines a mapping from names to MetricFunctions
+// and provides a way to get the full list of functions defined.
 type Registry interface {
 	GetFunction(string) (MetricFunction, bool) // returns an instance of MetricFunction
 	All() []string                             // all the registered functions
@@ -64,8 +70,8 @@ type Registry interface {
 
 // Groups holds grouping information - which tags to group by (if any), and whether to `collapse` (Collapses = true) or `group` (Collapses = false)
 type Groups struct {
-	List      []string
-	Collapses bool
+	List      []string // the tags to group by
+	Collapses bool     // whether to "collapse by" instead of "group by"
 }
 
 // MetricFunction defines a common logic to dispatch a function in MQE.
@@ -77,14 +83,7 @@ type MetricFunction struct {
 	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
 }
 
-func (e EvaluationContext) AddNote(note string) {
-	e.EvaluationNotes.AddNote(note)
-}
-
-func (e EvaluationContext) Notes() []string {
-	return e.EvaluationNotes.Notes()
-}
-
+// WithTimerange duplicates the EvaluationContext but with a new timerange.
 func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	e.Timerange = t
 	return e
@@ -111,6 +110,7 @@ type FetchCounter struct {
 	limit int
 }
 
+// NewFetchCounter creates a FetchCounter with n as the limit.
 func NewFetchCounter(n int) FetchCounter {
 	n32 := int32(n)
 	return FetchCounter{
@@ -124,6 +124,7 @@ func (c FetchCounter) Limit() int {
 	return c.limit
 }
 
+// Current returns the current number of fetches remaining for the counter.
 func (c FetchCounter) Current() int {
 	return c.limit - int(atomic.LoadInt32(c.count))
 }
@@ -151,6 +152,7 @@ type Expression interface {
 	QueryString() string
 }
 
+// EvaluateToScalar is a helper function that takes an Expression and makes it a scalar.
 func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) {
 	scalarValue, err := e.Evaluate(context)
 	if err != nil {
@@ -159,6 +161,7 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	return scalarValue.ToScalar(e.QueryString())
 }
 
+// EvaluateToDuration is a helper function that takes an Expression and makes it a duration.
 func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration, error) {
 	durationValue, err := e.Evaluate(context)
 	if err != nil {
@@ -166,6 +169,8 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	}
 	return durationValue.ToDuration(e.QueryString())
 }
+
+// EvaluateToDuration is a helper function that takes an Expression and makes it a series list.
 func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
 	seriesValue, err := e.Evaluate(context)
 	if err != nil {
@@ -173,6 +178,8 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	}
 	return seriesValue.ToSeriesList(context.Timerange, e.QueryString())
 }
+
+// EvaluateToDuration is a helper function that takes an Expression and makes it a string.
 func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	stringValue, err := e.Evaluate(context)
 	if err != nil {
@@ -193,30 +200,31 @@ func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value,
 	length := len(expressions)
 	if length == 0 {
 		return []Value{}, nil
-	} else if length == 1 {
+	}
+	if length == 1 {
 		result, err := expressions[0].Evaluate(context)
 		if err != nil {
 			return nil, err
 		}
 		return []Value{result}, nil
-	} else {
-		// concurrent evaluations
-		results := make(chan result, length)
-		for i, expr := range expressions {
-			go func(i int, expr Expression) {
-				value, err := expr.Evaluate(context)
-				results <- result{i, err, value}
-			}(i, expr)
-		}
-		array := make([]Value, length)
-		for i := 0; i < length; i++ {
-			result := <-results
-			if result.err != nil {
-				return nil, result.err
-			} else {
-				array[result.index] = result.value
-			}
-		}
-		return array, nil
 	}
+	// concurrent evaluations
+	results := make(chan result, length)
+	for i, expr := range expressions {
+		go func(i int, expr Expression) {
+			value, err := expr.Evaluate(context)
+			results <- result{i, err, value}
+		}(i, expr)
+	}
+	array := make([]Value, length)
+	for i := 0; i < length; i++ {
+		result := <-results
+		if result.err != nil {
+			return nil, result.err
+		} else {
+			array[result.index] = result.value
+		}
+	}
+	return array, nil
+
 }

@@ -25,12 +25,14 @@ type ExecutionError interface {
 	TokenName() string // name of the token / expression which have caused it.
 }
 
+// LimitError is returned if an error occurs where limits are surpassed.
 type LimitError interface {
 	Actual() interface{} // actual from the system which triggered this error.
 	Limit() interface{}  // configured limit
 	error
 }
 
+// NewLimitError uses its parameters to create a LimitError.
 func NewLimitError(message string, actual interface{}, limit interface{}) LimitError {
 	return defaultLimitError{
 		message: message,
@@ -45,18 +47,22 @@ type defaultLimitError struct {
 	limit   interface{}
 }
 
+// Error returns a nicely-formatted error message for the default limit error.
 func (err defaultLimitError) Error() string {
 	return fmt.Sprintf("%s (actual=%v limit=%v)", err.message, err.actual, err.limit)
 }
 
+// Actual returns the actual value in the limit comparison.
 func (err defaultLimitError) Actual() interface{} {
 	return err.actual
 }
 
+// Limit returns the limit value in the comparison (maximum or minimum).
 func (err defaultLimitError) Limit() interface{} {
 	return err.limit
 }
 
+// ArgumentLengthError is a kind of error that describes when a function is given too many or too few arguments.
 type ArgumentLengthError struct {
 	Name        string
 	ExpectedMin int
@@ -64,10 +70,12 @@ type ArgumentLengthError struct {
 	Actual      int
 }
 
+// TokenName decribes where the error occurs.
 func (err ArgumentLengthError) TokenName() string {
 	return err.Name
 }
 
+// Error gives a detailed description of the error.
 func (err ArgumentLengthError) Error() string {
 	if err.ExpectedMin == err.ExpectedMax {
 		return fmt.Sprintf(
