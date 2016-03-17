@@ -35,7 +35,7 @@ type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
 func (b movingAverageBackend) FetchSingleTimeseries(r timeseries_storage.FetchRequest) (api.Timeseries, error) {
 	t := r.Timerange
 	values := []float64{9, 2, 1, 6, 4, 5}
-	startIndex := t.Start()/100 - 10
+	startIndex := t.StartMillis()/100 - 10
 	result := make([]float64, t.Slots())
 	for i := range result {
 		result[i] = values[i+int(startIndex)]

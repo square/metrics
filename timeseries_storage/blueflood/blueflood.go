@@ -218,7 +218,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries_storage.FetchReques
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
-		request.Timerange.Start(),
+		request.Timerange.StartMillis(),
 	)
 	log.Debugf("Blueflood resolution: %s\n", queryResolution.String())
 
@@ -245,9 +245,9 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries_storage.FetchReques
 		// If an error occurs, we just return nothing. We don't return the error.
 		// This is so that errors while fetching the FULL-resolution data don't impact the requested data.
 		fullResolutionRequest := request // Copy the request
-		if request.Timerange.End()-request.Timerange.Start() > b.config.FullResolutionOverlap*1000 {
+		if request.Timerange.EndMillis()-request.Timerange.StartMillis() > b.config.FullResolutionOverlap*1000 {
 			// Clip the timerange
-			newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
+			newTimerange, err := api.NewSnappedTimerange(request.Timerange.EndMillis()-b.config.FullResolutionOverlap*1000, request.Timerange.EndMillis(), request.Timerange.ResolutionMillis())
 			if err != nil {
 				log.Infof("FULL resolution data errored while building timerange: %s", err.Error())
 				return nil
@@ -311,10 +311,10 @@ func (b *Blueflood) constructURL(
 	}
 
 	params := url.Values{}
-	params.Set("from", strconv.FormatInt(request.Timerange.Start(), 10))
+	params.Set("from", strconv.FormatInt(request.Timerange.StartMillis(), 10))
 	// Pull a bit outside of the requested range from blueflood so we
 	// have enough data to generate all snapped values
-	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.ResolutionMillis(), 10))
+	params.Set("to", strconv.FormatInt(request.Timerange.EndMillis()+request.Timerange.ResolutionMillis(), 10))
 	params.Set("resolution", queryResolution.bluefloodEnum)
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
 	result.RawQuery = params.Encode()
@@ -391,7 +391,7 @@ func addMetricPoint(metricPoint metricPoint, field func(metricPoint) float64, ti
 	value := field(metricPoint)
 	// The index to assign within the array is computed using the timestamp.
 	// It floors to the nearest index.
-	index := (metricPoint.Timestamp - timerange.Start()) / timerange.ResolutionMillis()
+	index := (metricPoint.Timestamp - timerange.StartMillis()) / timerange.ResolutionMillis()
 	if index < 0 || index >= int64(timerange.Slots()) {
 		return false
 	}
@@ -469,7 +469,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, smallestResolution
 	// actually be present for the chosen resolution.
 	// TODO: figure out how to make this work with moving averages and timeshifts
 
-	requiredAge := b.timeSource().Sub(requested.StartTime())
+	requiredAge := b.timeSource().Sub(requested.Start())
 
 	for _, resolution := range Resolutions {
 		survivesFor := b.config.oldestViableDataForResolution(resolution)

@@ -241,12 +241,12 @@ func TestTimerange_Later(t *testing.T) {
 	for _, offset := range offsets {
 		for _, timerange := range ranges {
 			later := timerange.Shift(time.Duration(offset) * time.Millisecond)
-			if later.End()-later.Start() != timerange.End()-timerange.Start() || later.ResolutionMillis() != timerange.ResolutionMillis() {
+			if later.EndMillis()-later.StartMillis() != timerange.EndMillis()-timerange.StartMillis() || later.ResolutionMillis() != timerange.ResolutionMillis() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", timerange, offset, later)
 				continue
 			}
 			later = timerange.Shift(-time.Duration(offset) * time.Millisecond)
-			if later.End()-later.Start() != timerange.End()-timerange.Start() || later.ResolutionMillis() != timerange.ResolutionMillis() {
+			if later.EndMillis()-later.StartMillis() != timerange.EndMillis()-timerange.StartMillis() || later.ResolutionMillis() != timerange.ResolutionMillis() {
 				t.Errorf("Range %+v on offset %d fails; produces %+v", timerange, -offset, later)
 				continue
 			}

@@ -221,8 +221,8 @@ func TestIncludeRawPayload(t *testing.T) {
 
 	regularQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
-		queryTimerange.Start(),
-		queryTimerange.End()+queryTimerange.ResolutionMillis(),
+		queryTimerange.StartMillis(),
+		queryTimerange.EndMillis()+queryTimerange.ResolutionMillis(),
 	)
 
 	regularResponse := fmt.Sprintf(`{
@@ -383,8 +383,8 @@ func TestFullResolutionDataFilling(t *testing.T) {
 
 	regularQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=MIN5&select=numPoints%%2Caverage&to=%d",
-		queryTimerange.Start(),
-		queryTimerange.End()+queryTimerange.ResolutionMillis(),
+		queryTimerange.StartMillis(),
+		queryTimerange.EndMillis()+queryTimerange.ResolutionMillis(),
 	)
 
 	regularResponse := fmt.Sprintf(`{
@@ -426,8 +426,8 @@ func TestFullResolutionDataFilling(t *testing.T) {
 
 	fullResolutionQueryURL := fmt.Sprintf(
 		"https://blueflood.url/v2.0/square/views/some.key.value?from=%d&resolution=FULL&select=numPoints%%2Caverage&to=%d",
-		queryTimerange.Start(),
-		queryTimerange.End()+queryTimerange.ResolutionMillis(),
+		queryTimerange.StartMillis(),
+		queryTimerange.EndMillis()+queryTimerange.ResolutionMillis(),
 	)
 	fullResolutionResponse := fmt.Sprintf(`{
 	  "unit": "unknown",
@@ -610,7 +610,7 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 		smallestResolution := test.input.Duration() / time.Duration(test.slotLimit-2)
 		result := b.ChooseResolution(test.input, smallestResolution)
 		// This is mostly a sanity check:
-		_, err := api.NewSnappedTimerange(test.input.Start(), test.input.End(), int64(result/time.Millisecond))
+		_, err := api.NewSnappedTimerange(test.input.StartMillis(), test.input.EndMillis(), int64(result/time.Millisecond))
 		if err != nil {
 			t.Errorf("Test %+v:\nEncountered error when building timerange: %s", test, err.Error())
 		}

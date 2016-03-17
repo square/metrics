@@ -55,7 +55,7 @@ var MovingAverage = function.MetricFunction{
 		}
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +120,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 		}
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}

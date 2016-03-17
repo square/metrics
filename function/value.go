@@ -32,11 +32,25 @@ type Value interface {
 	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
 }
 
+type ConversionError struct {
+	From  string // the original data type
+	To    string // the type that attempted to convert to
+	Value string // a short string representation of the value
+}
+
+func (e ConversionError) Error() string {
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Value, e.From, e.To)
+}
+
+func (e ConversionError) TokenName() string {
+	return fmt.Sprintf("%+v (type %s)", e.Value, e.From)
+}
+
 // A StringValue holds a string
 type StringValue string
 
 func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", description}
+	return api.SeriesList{}, ConversionError{"string", "SeriesList", description}
 }
 
 func (value StringValue) ToString(description string) (string, error) {
@@ -44,11 +58,11 @@ func (value StringValue) ToString(description string) (string, error) {
 }
 
 func (value StringValue) ToScalar(description string) (float64, error) {
-	return 0, api.ConversionError{"string", "scalar", description}
+	return 0, ConversionError{"string", "scalar", description}
 }
 
 func (value StringValue) ToDuration(description string) (time.Duration, error) {
-	return 0, api.ConversionError{"string", "duration", description}
+	return 0, ConversionError{"string", "duration", description}
 }
 
 // A ScalarValue holds a float and can be converted to a serieslist
@@ -68,7 +82,7 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange, description strin
 }
 
 func (value ScalarValue) ToString(description string) (string, error) {
-	return "", api.ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
+	return "", ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
 func (value ScalarValue) ToScalar(description string) (float64, error) {
@@ -76,7 +90,7 @@ func (value ScalarValue) ToScalar(description string) (float64, error) {
 }
 
 func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
-	return 0, api.ConversionError{"scalar", "duration", description}
+	return 0, ConversionError{"scalar", "duration", description}
 }
 
 type DurationValue struct {
@@ -89,15 +103,15 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 }
 
 func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", description}
+	return api.SeriesList{}, ConversionError{"duration", "SeriesList", description}
 }
 
 func (value DurationValue) ToString(description string) (string, error) {
-	return "", api.ConversionError{"duration", "string", description}
+	return "", ConversionError{"duration", "string", description}
 }
 
 func (value DurationValue) ToScalar(description string) (float64, error) {
-	return 0, api.ConversionError{"duration", "scalar", description}
+	return 0, ConversionError{"duration", "scalar", description}
 }
 
 func (value DurationValue) ToDuration(description string) (time.Duration, error) {

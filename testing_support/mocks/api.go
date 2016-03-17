@@ -159,7 +159,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries_stora
 			// Cut the values based on the Timerange.
 			values := make([]float64, request.Timerange.Slots())
 			for i := range values {
-				values[i] = series.Values[i+int(request.Timerange.Start())/30]
+				values[i] = series.Values[i+int(request.Timerange.StartMillis())/30]
 			}
 			return api.Timeseries{Values: values, TagSet: series.TagSet}, nil
 		}
