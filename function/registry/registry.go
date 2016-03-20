@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -251,6 +252,47 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 			}
 			leftValue := evaluated[0]
 			rightValue := evaluated[1]
+
+			leftScalar, errLeftScalar := leftValue.ToScalar("left operand scalar")
+			rightScalar, errRightScalar := rightValue.ToScalar("right operand scalar")
+
+			leftDuration, errLeftDuration := leftValue.ToDuration("left operand duration")
+			rightDuration, errRightDuration := rightValue.ToDuration("right operand duration")
+
+			// Handles the two-scalar case.
+			if errLeftScalar == nil && errRightScalar == nil {
+				return function.ScalarValue(operator(leftScalar, rightScalar)), nil
+			}
+
+			if (errLeftScalar == nil || errLeftDuration == nil) && (errRightScalar == nil || errRightDuration == nil) {
+				// both are number-types
+				switch op {
+				case "+", "-":
+					// Input units must match, output has the same units.
+					if errLeftDuration == nil && errRightDuration == nil {
+						// Convert to floats, then convert back.
+						return function.DurationValue(time.Duration(operator(float64(leftDuration), float64(rightDuration)))), nil
+					}
+				case "*":
+					// One of the input units must be a scalar, output has units of the other.
+					if errLeftScalar == nil && errRightDuration == nil {
+						return function.DurationValue(time.Duration(operator(leftScalar, float64(rightDuration)))), nil
+					}
+					if errLeftDuration == nil && errRightScalar == nil {
+						return function.DurationValue(time.Duration(operator(float64(leftDuration), rightScalar))), nil
+					}
+				case "/":
+					// Input units must match, output is scalar.
+					if errLeftDuration == nil && errRightDuration == nil {
+						return function.ScalarValue(operator(float64(leftDuration), float64(rightDuration))), nil
+					}
+					// Or, the right is a scalar
+					if errLeftDuration == nil && errRightScalar == nil {
+						return function.DurationValue(time.Duration(operator(float64(leftDuration), rightScalar))), nil
+					}
+				}
+			}
+
 			leftList, err := leftValue.ToSeriesList(context.Timerange, args[0].QueryString())
 			if err != nil {
 				return nil, err

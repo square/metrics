@@ -79,14 +79,7 @@ func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
 	return 0, api.ConversionError{"scalar", "duration", description}
 }
 
-type DurationValue struct {
-	name     string
-	duration time.Duration
-}
-
-func NewDurationValue(name string, duration time.Duration) DurationValue {
-	return DurationValue{name, duration}
-}
+type DurationValue time.Duration
 
 func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
 	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", description}
@@ -101,7 +94,7 @@ func (value DurationValue) ToScalar(description string) (float64, error) {
 }
 
 func (value DurationValue) ToDuration(description string) (time.Duration, error) {
-	return time.Duration(value.duration), nil
+	return time.Duration(value), nil
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
