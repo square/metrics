@@ -87,7 +87,7 @@ func main() {
 	for i := 0; i < 10; i++ {
 		go func() {
 			for {
-				err := optimizedMetadataAPI.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
+				err := optimizedMetadataAPI.GetBackgroundAction()(api.MetricMetadataAPIContext{})
 				if err != nil {
 					log.Errorf("Error performing background cache-update: %s", err.Error())
 				}
