@@ -30,7 +30,7 @@ type CachedMetricMetadataAPI struct {
 	timeToLive        time.Duration                      // Time for cache entries to survive.
 	mutex             sync.Mutex                         // Synchronizing mutex
 
-	getAllTagsQueue chan api.MetricKey // A channel that synchronizes the in-flight requests.
+	backgroundQueue chan func(api.MetricMetadataAPIContext) error // A channel that holds background requests.
 }
 
 // Config stores data needed to instantiate a CachedMetricMetadataAPI.
@@ -41,12 +41,12 @@ type Config struct {
 
 // NewCachedMetricMetadataAPI creates a cached API given configuration and an underlying API object.
 func NewCachedMetricMetadataAPI(metadata api.MetricMetadataAPI, config Config) *CachedMetricMetadataAPI {
-	requests := make(chan api.MetricKey, config.RequestLimit)
+	requests := make(chan func(api.MetricMetadataAPIContext) error, config.RequestLimit)
 	return &CachedMetricMetadataAPI{
 		metricMetadataAPI: metadata,
 		getAllTagsCache:   map[api.MetricKey]CachedTagSetList{},
 		timeToLive:        config.TimeToLive,
-		getAllTagsQueue:   requests,
+		backgroundQueue:   requests,
 	}
 }
 
@@ -64,23 +64,25 @@ func (c CachedTagSetList) Expired() bool {
 func (c *CachedMetricMetadataAPI) addBackgroundGetAllTagsRequest(metric api.MetricKey) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if len(c.getAllTagsQueue) < cap(c.getAllTagsQueue) {
-		c.getAllTagsQueue <- metric
+	if len(c.backgroundQueue) < cap(c.backgroundQueue) {
+		// Add this function to the background queue.
+		c.backgroundQueue <- func(context api.MetricMetadataAPIContext) error {
+			defer context.Profiler.Record("CachedMetricMetadataAPI_BackgroundAction_GetAllTags")()
+			startTime := time.Now()
+			tagsets, err := c.metricMetadataAPI.GetAllTags(metric, context)
+			if err != nil {
+				return err
+			}
+			c.replaceCachedTagSet(metric, tagsets, startTime)
+			return nil
+		}
 	}
 }
 
-// PerformBackgroundRequest is a blocking method that runs one queued cache update.
+// GetBackgroundAction is a blocking method that runs one queued cache update.
 // It will block until an update is available.
-func (c *CachedMetricMetadataAPI) PerformBackgroundRequest(context api.MetricMetadataAPIContext) error {
-	defer context.Profiler.Record("CachedMetricMetadataAPI_PerformBackgroundRequest")()
-	metric := <-c.getAllTagsQueue
-	startTime := time.Now()
-	tagsets, err := c.metricMetadataAPI.GetAllTags(metric, context)
-	if err != nil {
-		return err
-	}
-	c.replaceCachedTagSet(metric, tagsets, startTime)
-	return nil
+func (c *CachedMetricMetadataAPI) GetBackgroundAction() func(api.MetricMetadataAPIContext) error {
+	return <-c.backgroundQueue
 }
 
 // AddMetric waits for a slot to be open, then queries the underlying API.
@@ -165,8 +167,8 @@ func (c *CachedMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context ap
 }
 
 func (c *CachedMetricMetadataAPI) CurrentLiveRequests() int {
-	return len(c.getAllTagsQueue)
+	return len(c.backgroundQueue)
 }
 func (c *CachedMetricMetadataAPI) MaximumLiveRequests() int {
-	return cap(c.getAllTagsQueue)
+	return cap(c.backgroundQueue)
 }

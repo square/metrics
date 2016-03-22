@@ -87,7 +87,7 @@ func TestCached(t *testing.T) {
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // still read from cache
 
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
 
 	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
 	a.CheckError(err)
@@ -95,11 +95,11 @@ func TestCached(t *testing.T) {
 
 	a.EqInt(cached.CurrentLiveRequests(), 2)
 
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
 
 	a.EqInt(cached.CurrentLiveRequests(), 1)
 
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{}) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
 
 	a.EqInt(cached.CurrentLiveRequests(), 0)
 
@@ -146,9 +146,9 @@ func TestQueueSize(t *testing.T) {
 		a.EqInt(cached.CurrentLiveRequests(), 3)
 	}
 
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
-	cached.PerformBackgroundRequest(api.MetricMetadataAPIContext{})
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
+	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
 
 	a.EqInt(cached.CurrentLiveRequests(), 0)
 
