@@ -46,8 +46,7 @@ func (tr Timerange) StartMillis() int64 {
 // Start always divides evenly into Duration().
 func (tr Timerange) Start() time.Time {
 	seconds := tr.start / 1000
-	milliseconds := tr.start % 1000
-	nanoseconds := milliseconds * 1000000
+	nanoseconds := (tr.start % 1000) * 1000000
 	return time.Unix(seconds, nanoseconds)
 }
 
