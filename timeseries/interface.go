@@ -68,18 +68,20 @@ type Error struct {
 }
 
 func (err Error) Error() string {
-	message := "[%s %+v] unknown error"
+	message := "unknown error"
 	switch err.Code {
 	case FetchTimeoutError:
-		message = "[%s %+v] timeout"
+		message = "timeout"
+	case FetchIOError:
+		message = "IO error"
 	case InvalidSeriesError:
-		message = "[%s %+v] invalid series"
+		message = "invalid series"
 	case LimitError:
-		message = "[%s %+v] limit reached"
+		message = "limit reached"
 	case Unsupported:
-		message = "[%s %+v] unsupported operation"
+		message = "unsupported operation"
 	}
-	formatted := fmt.Sprintf(message, string(err.Metric.MetricKey), err.Metric.TagSet)
+	formatted := fmt.Sprintf("[%s %+v] %s", string(err.Metric.MetricKey), err.Metric.TagSet, message)
 	if err.Message != "" {
 		formatted = formatted + " - " + err.Message
 	}
