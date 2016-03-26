@@ -20,11 +20,12 @@ import (
 	"net/http"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 )
 
 // tokenHandler exposes all the tokens available in the system for the autocomplete.
 type ingestHandler struct {
-	metricMetadataAPI api.MetricMetadataAPI
+	metricMetadataAPI metadata.MetricAPI
 }
 
 type IngestRequest struct {
@@ -52,7 +53,7 @@ func (h ingestHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 			TagSet:    metrics[i].Tags,
 		}
 	}
-	err := h.metricMetadataAPI.AddMetrics(taggedMetrics, api.MetricMetadataAPIContext{})
+	err := h.metricMetadataAPI.AddMetrics(taggedMetrics, metadata.Context{})
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write(encodeError(err))

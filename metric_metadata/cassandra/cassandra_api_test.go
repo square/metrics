@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/testing_support/assert"
 )
 
@@ -33,7 +34,7 @@ func clearCassandraInstance(t *testing.T, db *cassandraDatabase, metricName api.
 
 var cassandraClean = true
 
-func newCassandraAPI(t *testing.T) (*MetricMetadataAPI, api.MetricMetadataAPIContext) {
+func newCassandraAPI(t *testing.T) (*MetricMetadataAPI, metadata.Context) {
 	if !cassandraClean {
 		t.Fatalf("Attempted to create new database without cleaning up the old one.")
 	}
@@ -54,7 +55,7 @@ func newCassandraAPI(t *testing.T) (*MetricMetadataAPI, api.MetricMetadataAPICon
 			t.Fatalf("Cannot truncate %s: %s", table, err.Error())
 		}
 	}
-	return cassandra, api.MetricMetadataAPIContext{}
+	return cassandra, metadata.Context{}
 }
 
 func cleanAPI(t *testing.T, c *MetricMetadataAPI) {

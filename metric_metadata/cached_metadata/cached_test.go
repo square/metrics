@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/testing_support/assert"
 )
 
@@ -29,27 +30,28 @@ type testAPI struct {
 }
 
 // AddMetric waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (c *testAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
 	panic("unimplemented")
 }
 
 // AddMetrics waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (c *testAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
 	panic("unimplemented")
 }
 
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (c *testAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	panic("unimplemented")
 }
 
 // GetMetricsForTag wwaits for a slot to be open, then queries the underlying API.
-func (c *testAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (c *testAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
 	panic("unimplemented")
 }
 
-func (c *testAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (c *testAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer func() { c.finished <- string(metricKey) }()
+
 	// Wait for permission to proceed before returning.
 
 	c.count++
@@ -72,40 +74,40 @@ func TestCached(t *testing.T) {
 	}
 	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 1000})
 
-	tags, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err := cached.GetAllTags("metric_one", metadata.Context{})
 
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "one"}})
 
 	underlying.data["metric_one"] = "new one"
 
-	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // read from cache
 
-	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // still read from cache
 
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{})) // updates cache
 
-	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "new one"}}) // still read from cache
 
 	a.EqInt(cached.CurrentLiveRequests(), 2)
 
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{})) // updates cache
 
 	a.EqInt(cached.CurrentLiveRequests(), 1)
 
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{})) // updates cache
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{})) // updates cache
 
 	a.EqInt(cached.CurrentLiveRequests(), 0)
 
 	underlying.data["metric_one"] = "ignore"
 
-	tags, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.Eq(tags, []api.TagSet{{"foo": "new one"}})
 }
@@ -123,17 +125,17 @@ func TestQueueSize(t *testing.T) {
 	}
 	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 3})
 
-	_, err := cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	_, err := cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 
-	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	_, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 
-	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	_, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.EqInt(cached.CurrentLiveRequests(), 2)
 
-	_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+	_, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
 	a.EqInt(cached.CurrentLiveRequests(), 3)
 
@@ -141,14 +143,14 @@ func TestQueueSize(t *testing.T) {
 	// and it shouldn't cause this call to block.
 
 	for i := 0; i < 100; i++ {
-		_, err = cached.GetAllTags("metric_one", api.MetricMetadataAPIContext{})
+		_, err = cached.GetAllTags("metric_one", metadata.Context{})
 		a.CheckError(err)
 		a.EqInt(cached.CurrentLiveRequests(), 3)
 	}
 
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
-	a.CheckError(cached.GetBackgroundAction()(api.MetricMetadataAPIContext{}))
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{}))
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{}))
+	a.CheckError(cached.GetBackgroundAction()(metadata.Context{}))
 
 	a.EqInt(cached.CurrentLiveRequests(), 0)
 

@@ -19,13 +19,14 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 )
 
 type MetricMetadataAPI struct {
 	db cassandraDatabase
 }
 
-var _ api.MetricMetadataAPI = (*MetricMetadataAPI)(nil)
+var _ metadata.MetricAPI = (*MetricMetadataAPI)(nil)
 
 type Config struct {
 	Hosts    []string `yaml:"hosts"`
@@ -33,7 +34,7 @@ type Config struct {
 }
 
 // NewCassandraMetricMetadataAPI creates a new instance of API from the given configuration.
-func NewMetricMetadataAPI(config Config) (api.MetricMetadataAPI, error) {
+func NewMetricMetadataAPI(config Config) (metadata.MetricAPI, error) {
 	clusterConfig := gocql.NewCluster()
 	clusterConfig.Consistency = gocql.One
 	clusterConfig.Hosts = config.Hosts
@@ -48,14 +49,14 @@ func NewMetricMetadataAPI(config Config) (api.MetricMetadataAPI, error) {
 	}, nil
 }
 
-func (a *MetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
 	defer context.Profiler.Record("Cassandra AddMetric")()
 	if err := a.db.AddMetricName(metric.MetricKey, metric.TagSet); err != nil {
 		return err
 	}
 	return a.AddMetricTagsToTagIndex(metric, context)
 }
-func (a *MetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, context metadata.Context) error {
 	defer context.Profiler.Record("Cassandra AddMetricTagsToTagIndex")()
 	for tagKey, tagValue := range metric.TagSet {
 		if err := a.db.AddToTagIndex(tagKey, tagValue, metric.MetricKey); err != nil {
@@ -65,7 +66,7 @@ func (a *MetricMetadataAPI) AddMetricTagsToTagIndex(metric api.TaggedMetric, con
 	return nil
 }
 
-func (a *MetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (a *MetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
 	defer context.Profiler.Record("Cassandra AddMetrics")()
 	// Add each of the metrics to the tag index
 	for _, metric := range metrics {
@@ -77,17 +78,17 @@ func (a *MetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.M
 	return a.db.AddMetricNames(metrics)
 }
 
-func (a *MetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (a *MetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Cassandra GetAllTags")()
 	return a.db.GetTagSet(metricKey)
 }
 
-func (a *MetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (a *MetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Cassandra GetMetricsForTag")()
 	return a.db.GetMetricKeys(tagKey, tagValue)
 }
 
-func (a *MetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (a *MetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Cassandra GetAllMetrics")()
 	return a.db.GetAllMetrics()
 }

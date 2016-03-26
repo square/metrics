@@ -21,6 +21,7 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries_storage"
 	"github.com/square/metrics/util"
@@ -86,7 +87,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	// Merge predicates appropriately
 	p := predicate.All(expr.Predicate, context.Predicate)
 
-	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.MetricName), api.MetricMetadataAPIContext{
+	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.MetricName), metadata.Context{
 		Profiler: context.Profiler,
 	})
 

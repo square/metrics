@@ -21,10 +21,10 @@ import (
 	standard_log "log"
 	"os"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/log/glog"
 	"github.com/square/metrics/log/standard"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/timeseries_storage/blueflood"
 	"github.com/square/metrics/ui"
@@ -81,7 +81,7 @@ func ExitWithMessage(message string) {
 }
 
 // NewMetricMetadataAPI creates a new instance of the API.
-func NewMetricMetadataAPI(config cassandra.Config) api.MetricMetadataAPI {
+func NewMetricMetadataAPI(config cassandra.Config) metadata.MetricAPI {
 	apiInstance, err := cassandra.NewMetricMetadataAPI(config)
 	if err != nil {
 		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))

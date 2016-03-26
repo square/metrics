@@ -19,18 +19,19 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 )
 
 // CachedMetricMetadataAPI caches some of the metadata associated with the API to reduce latency.
 // However, it does not reduce total QPS: whenever it reads from the cache, it performs an update
 // in the background by launching a new goroutine.
 type CachedMetricMetadataAPI struct {
-	metricMetadataAPI api.MetricMetadataAPI              // The internal MetricMetadataAPI that performs the actual queries.
+	metricMetadataAPI metadata.MetricAPI                 // The internal MetricMetadataAPI that performs the actual queries.
 	getAllTagsCache   map[api.MetricKey]CachedTagSetList // The cache of "tags from metric name"
 	timeToLive        time.Duration                      // Time for cache entries to survive.
 	mutex             sync.Mutex                         // Synchronizing mutex
 
-	backgroundQueue chan func(api.MetricMetadataAPIContext) error // A channel that holds background requests.
+	backgroundQueue chan func(metadata.Context) error // A channel that holds background requests.
 }
 
 // Config stores data needed to instantiate a CachedMetricMetadataAPI.
@@ -40,10 +41,10 @@ type Config struct {
 }
 
 // NewCachedMetricMetadataAPI creates a cached API given configuration and an underlying API object.
-func NewCachedMetricMetadataAPI(metadata api.MetricMetadataAPI, config Config) *CachedMetricMetadataAPI {
-	requests := make(chan func(api.MetricMetadataAPIContext) error, config.RequestLimit)
+func NewCachedMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) *CachedMetricMetadataAPI {
+	requests := make(chan func(metadata.Context) error, config.RequestLimit)
 	return &CachedMetricMetadataAPI{
-		metricMetadataAPI: metadata,
+		metricMetadataAPI: apiInstance,
 		getAllTagsCache:   map[api.MetricKey]CachedTagSetList{},
 		timeToLive:        config.TimeToLive,
 		backgroundQueue:   requests,
@@ -66,7 +67,7 @@ func (c *CachedMetricMetadataAPI) addBackgroundGetAllTagsRequest(metric api.Metr
 	defer c.mutex.Unlock()
 	if len(c.backgroundQueue) < cap(c.backgroundQueue) {
 		// Add this function to the background queue.
-		c.backgroundQueue <- func(context api.MetricMetadataAPIContext) error {
+		c.backgroundQueue <- func(context metadata.Context) error {
 			defer context.Profiler.Record("CachedMetricMetadataAPI_BackgroundAction_GetAllTags")()
 			startTime := time.Now()
 			tagsets, err := c.metricMetadataAPI.GetAllTags(metric, context)
@@ -81,27 +82,27 @@ func (c *CachedMetricMetadataAPI) addBackgroundGetAllTagsRequest(metric api.Metr
 
 // GetBackgroundAction is a blocking method that runs one queued cache update.
 // It will block until an update is available.
-func (c *CachedMetricMetadataAPI) GetBackgroundAction() func(api.MetricMetadataAPIContext) error {
+func (c *CachedMetricMetadataAPI) GetBackgroundAction() func(metadata.Context) error {
 	return <-c.backgroundQueue
 }
 
 // AddMetric waits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (c *CachedMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
 	return c.metricMetadataAPI.AddMetric(metric, context)
 }
 
 // AddMetrics waits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (c *CachedMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
 	return c.metricMetadataAPI.AddMetrics(metrics, context)
 }
 
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (c *CachedMetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	return c.metricMetadataAPI.GetAllMetrics(context)
 }
 
 // GetMetricsForTag wwaits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (c *CachedMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
 	return c.metricMetadataAPI.GetMetricsForTag(tagKey, tagValue, context)
 }
 
@@ -129,7 +130,7 @@ func (c *CachedMetricMetadataAPI) replaceCachedTagSet(metricKey api.MetricKey, t
 // getAllTagsRaw performs a request to the underlying API and updates the cached values with whatever is returned.
 // Then it returns the result to the caller.
 // Note that getAllTagsRaw does not respect the request limit behavior- this must be enforced by the caller.
-func (c *CachedMetricMetadataAPI) getAllTagsRaw(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (c *CachedMetricMetadataAPI) getAllTagsRaw(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	startTime := time.Now()
 	tagsets, err := c.metricMetadataAPI.GetAllTags(metricKey, context)
 	if err != nil {
@@ -142,7 +143,7 @@ func (c *CachedMetricMetadataAPI) getAllTagsRaw(metricKey api.MetricKey, context
 // GetAllTags uses the cache to serve tag data for the given metric.
 // If the cache entry is missing or out of date, it uses the results of a query to the underlying API to return to the caller.
 // Even if the cache entry is up-to-date, this method performs a background request to the underlying API to keep the cache fresh.
-func (c *CachedMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (c *CachedMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("CachedMetricMetadataAPI_GetAllTags")()
 	// Get the cached result for this metric.
 	item := c.getCachedTagSet(metricKey)

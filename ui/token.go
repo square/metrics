@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
 )
 
@@ -31,7 +31,7 @@ type tokenHandler struct {
 func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
-	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{}) // no profiling used
+	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics(metadata.Context{}) // no profiling used
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write(encodeError(err))

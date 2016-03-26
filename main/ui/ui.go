@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cached_metadata"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/timeseries_storage"
@@ -87,7 +88,7 @@ func main() {
 	for i := 0; i < 10; i++ {
 		go func() {
 			for {
-				err := optimizedMetadataAPI.GetBackgroundAction()(api.MetricMetadataAPIContext{})
+				err := optimizedMetadataAPI.GetBackgroundAction()(metadata.Context{})
 				if err != nil {
 					log.Errorf("Error performing background cache-update: %s", err.Error())
 				}

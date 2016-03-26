@@ -24,6 +24,7 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries_storage"
@@ -32,7 +33,7 @@ import (
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
 	TimeseriesStorageAPI  timeseries_storage.API                   // the backend
-	MetricMetadataAPI     api.MetricMetadataAPI                    // the api
+	MetricMetadataAPI     metadata.MetricAPI                       // the api
 	FetchLimit            int                                      // the maximum number of fetches
 	Timeout               time.Duration                            // optional
 	Registry              function.Registry                        // optional
@@ -94,7 +95,7 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
 
-	tagsets, err := context.MetricMetadataAPI.GetAllTags(cmd.MetricName, api.MetricMetadataAPIContext{
+	tagsets, err := context.MetricMetadataAPI.GetAllTags(cmd.MetricName, metadata.Context{
 		Profiler: context.Profiler,
 	})
 	if err != nil {
@@ -134,7 +135,7 @@ func (cmd *DescribeCommand) Name() string {
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	result, err := context.MetricMetadataAPI.GetAllMetrics(api.MetricMetadataAPIContext{
+	result, err := context.MetricMetadataAPI.GetAllMetrics(metadata.Context{
 		Profiler: context.Profiler,
 	})
 	if err == nil {
@@ -161,7 +162,7 @@ func (cmd *DescribeAllCommand) Name() string {
 
 // Execute asks for all metrics with the given name.
 func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
-	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.TagKey, cmd.TagValue, api.MetricMetadataAPIContext{
+	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.TagKey, cmd.TagValue, metadata.Context{
 		Profiler: context.Profiler,
 	})
 	if err != nil {

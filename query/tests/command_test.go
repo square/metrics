@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
@@ -39,7 +40,7 @@ func TestCommand_Describe(t *testing.T) {
 
 	for _, test := range []struct {
 		query          string
-		metricmetadata api.MetricMetadataAPI
+		metricmetadata metadata.MetricAPI
 		expected       map[string][]string
 	}{
 		{"describe series_0", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
@@ -93,7 +94,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 
 	for _, test := range []struct {
 		query          string
-		metricmetadata api.MetricMetadataAPI
+		metricmetadata metadata.MetricAPI
 		expected       []api.MetricKey
 	}{
 		{"describe all", fakeAPI, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
