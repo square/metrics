@@ -35,7 +35,7 @@ type EvaluationContext struct {
 	UserSpecifiableConfig timeseries.UserSpecifiableConfig
 }
 
-// EvaluationNotes holds notes that occurred during evaluation.
+// EvaluationNotes holds notes that were recorded during evaluation.
 type EvaluationNotes struct {
 	mutex sync.Mutex
 	notes []string

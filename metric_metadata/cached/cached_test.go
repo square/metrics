@@ -72,7 +72,7 @@ func TestCached(t *testing.T) {
 			"metric_two": "two",
 		},
 	}
-	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 1000})
+	cached := NewMetricMetadataAPI(underlying, Config{time.Second, 1000})
 
 	tags, err := cached.GetAllTags("metric_one", metadata.Context{})
 
@@ -123,7 +123,7 @@ func TestQueueSize(t *testing.T) {
 			"metric_two": "two",
 		},
 	}
-	cached := NewCachedMetricMetadataAPI(underlying, Config{time.Second, 3})
+	cached := NewMetricMetadataAPI(underlying, Config{time.Second, 3})
 
 	_, err := cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)

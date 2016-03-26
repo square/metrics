@@ -81,7 +81,7 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	optimizedMetadataAPI := cached.NewCachedMetricMetadataAPI(metadataAPI, cached.Config{
+	optimizedMetadataAPI := cached.NewMetricMetadataAPI(metadataAPI, cached.Config{
 		TimeToLive:   time.Minute * 5, // Cache items invalidated after 5 minutes.
 		RequestLimit: 500,
 	})

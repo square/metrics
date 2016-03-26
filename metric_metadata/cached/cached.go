@@ -40,8 +40,8 @@ type Config struct {
 	RequestLimit int
 }
 
-// NewCachedMetricMetadataAPI creates a cached API given configuration and an underlying API object.
-func NewCachedMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) *CachedMetricMetadataAPI {
+// NewMetricMetadataAPI creates a cached API given configuration and an underlying API object.
+func NewMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) *CachedMetricMetadataAPI {
 	requests := make(chan func(metadata.Context) error, config.RequestLimit)
 	return &CachedMetricMetadataAPI{
 		metricMetadataAPI: apiInstance,
