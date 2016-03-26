@@ -223,7 +223,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	hasTimeout := context.Timeout != 0
 	var timeoutOwner tasks.TimeoutOwner
 	if hasTimeout {
-		timeoutOwner = tasks.NewTimeout(time.Now().Add(context.Timeout))
+		timeoutOwner = tasks.NewTimeout(context.Timeout)
 	}
 	r := context.Registry
 	if r == nil {
@@ -238,7 +238,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		Predicate:             predicate.All(cmd.Predicate, context.AdditionalConstraints),
 		SampleMethod:          cmd.Context.SampleMethod,
 		Timerange:             chosenTimerange,
-		Timeout:               timeoutOwner.Timeout,
+		Timeout:               timeoutOwner.Timeout(),
 		Registry:              r,
 		Profiler:              context.Profiler,
 		EvaluationNotes:       new(function.EvaluationNotes),

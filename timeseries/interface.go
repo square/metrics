@@ -32,7 +32,7 @@ type StorageAPI interface {
 type RequestDetails struct {
 	SampleMethod          SampleMethod  // up/downsampling behavior.
 	Timerange             api.Timerange // time range to fetch data from.
-	Timeout               tasks.Timeout
+	Timeout               *tasks.Timeout
 	Profiler              *inspect.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
 }

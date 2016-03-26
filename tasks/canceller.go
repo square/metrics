@@ -15,46 +15,57 @@
 package tasks
 
 import (
+	"sync"
 	"time"
 )
 
+// TimeoutOwner holds a Timeout object which it can cancel.
 type TimeoutOwner struct {
-	Timeout
+	timeout *Timeout
 }
 
+// Timeout returns the Timeout object from the TimeoutOwner.
+func (t TimeoutOwner) Timeout() *Timeout {
+	return t.timeout
+}
+
+// Finish tells a TimeoutOwner to stop.
+// If the TimeoutOwner is the zero value, this has no effect.
 func (to TimeoutOwner) Finish() {
-	if to.Timeout.done == nil {
+	if to.timeout == nil {
+		return // No effect
+	}
+	to.timeout.mutex.Lock()
+	defer to.timeout.mutex.Unlock()
+	if to.timeout.done == nil {
 		return
 	}
-	close(to.Timeout.done)
+	close(to.timeout.done)
+	to.timeout.done = nil
 }
 
+// A Timeout is an object which can alert that an event should be cancelled.
 type Timeout struct {
-	done     chan struct{}
-	deadline time.Time
+	mutex sync.Mutex
+	done  chan struct{}
 }
 
-func (t Timeout) Done() <-chan struct{} {
+// Done returns a receive-only channel, which will close when the timeout ends.
+func (t *Timeout) Done() <-chan struct{} {
 	return t.done
 }
 
-func (t Timeout) Deadline() (time.Time, bool) {
-	if t.done == nil {
-		return time.Time{}, false
-	}
-	return t.deadline, true
-}
-
-type timeout struct {
-	done     chan struct{}
-	deadline *time.Time
-}
-
-func NewTimeout(deadline time.Time) TimeoutOwner {
-	return TimeoutOwner{
-		Timeout{
-			done:     make(chan struct{}),
-			deadline: deadline,
+// NewTimeout returns a TimeoutOwner and spawns a goroutine to cancel the timeout.
+func NewTimeout(duration time.Duration) TimeoutOwner {
+	owner := TimeoutOwner{
+		&Timeout{
+			mutex: sync.Mutex{},
+			done:  make(chan struct{}),
 		},
 	}
+	go func() {
+		<-time.After(duration)
+		owner.Finish()
+	}()
+	return owner
 }

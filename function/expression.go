@@ -28,7 +28,7 @@ type EvaluationContext struct {
 	SampleMethod          timeseries.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate             predicate.Predicate     // Predicate to apply to TagSets prior to fetching
 	FetchLimit            FetchCounter            // A limit on the number of fetches which may be performed
-	Timeout               tasks.Timeout
+	Timeout               *tasks.Timeout
 	Registry              Registry
 	Profiler              *inspect.Profiler // A profiler pointer
 	EvaluationNotes       *EvaluationNotes  // Debug + numerical notes that can be added during evaluation

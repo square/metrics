@@ -135,7 +135,7 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *Blueflood) fetchLazy(timeout tasks.Timeout, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
+func (b *Blueflood) fetchLazy(timeout *tasks.Timeout, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
 	go func() {
 		select {
 		case ticket := <-ctx.tickets:
@@ -152,7 +152,7 @@ func (b *Blueflood) fetchLazy(timeout tasks.Timeout, result *api.Timeseries, wor
 	}()
 }
 
-func (b *Blueflood) fetchManyLazy(timeout tasks.Timeout, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+func (b *Blueflood) fetchManyLazy(timeout *tasks.Timeout, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 
