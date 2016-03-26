@@ -221,24 +221,3 @@ func TestParse_syntaxError(t *testing.T) {
 		}
 	}
 }
-
-/*
-func TestCompile(t *testing.T) {
-	for _, row := range inputs {
-		a := assert.New(t).Contextf(row)
-		p := parser.Parser{Buffer: row}
-		p.Init()
-		a.CheckError(p.Parse())
-		p.Execute()
-		testParserResult(a, p)
-	}
-}
-
-// Helper functions
-// ================
-
-func testParserResult(a assert.Assert, p parser.Parser) {
-	if len(p.nodeStack) != 0 {
-		a.Errorf("stack is not empty: %+v", p.nodeStack)
-	}
-}*/
