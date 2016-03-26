@@ -30,51 +30,51 @@ import (
 // Implementations
 // ===============
 
-type DurationExpression struct {
+type Duration struct {
 	Literal  string
 	Duration time.Duration
 }
 
-func (expr DurationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr Duration) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.NewDurationValue(expr.Literal, expr.Duration), nil
 }
 
-func (expr DurationExpression) Name() string {
+func (expr Duration) Name() string {
 	return expr.Literal
 }
-func (expr DurationExpression) QueryString() string {
+func (expr Duration) QueryString() string {
 	return expr.Literal
 }
 
-type ScalarExpression struct {
+type Scalar struct {
 	Value float64
 }
 
-func (expr ScalarExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr Scalar) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.Value), nil
 }
 
-func (expr ScalarExpression) Name() string {
+func (expr Scalar) Name() string {
 	return fmt.Sprintf("%+v", expr.Value)
 }
 
-func (expr ScalarExpression) QueryString() string {
+func (expr Scalar) QueryString() string {
 	return fmt.Sprintf("%+v", expr.Value)
 }
 
-type StringExpression struct {
+type String struct {
 	Value string
 }
 
-func (expr StringExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr String) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.StringValue(expr.Value), nil
 }
 
-func (expr StringExpression) Name() string {
+func (expr String) Name() string {
 	return fmt.Sprintf("%q", expr.Value)
 }
 
-func (expr StringExpression) QueryString() string {
+func (expr String) QueryString() string {
 	return fmt.Sprintf("%q", expr.Value)
 }
 
@@ -180,7 +180,7 @@ func (expr *FunctionExpression) QueryString() string {
 func (expr *FunctionExpression) Name() string {
 	// TODO: deprecate (and remove) this behavior before it becomes permanent
 	if expr.FunctionName == "transform.alias" && len(expr.Arguments) == 2 {
-		if alias, ok := expr.Arguments[1].(StringExpression); ok {
+		if alias, ok := expr.Arguments[1].(String); ok {
 			return alias.Value
 		}
 	}

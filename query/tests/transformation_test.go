@@ -70,7 +70,7 @@ func TestMovingAverage(t *testing.T) {
 		GroupBy:      []string{},
 		Arguments: []function.Expression{
 			&expression.MetricFetchExpression{"series", predicate.TruePredicate{}},
-			expression.DurationExpression{"300ms", 300 * time.Millisecond},
+			expression.Duration{"300ms", 300 * time.Millisecond},
 		},
 	}
 

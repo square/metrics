@@ -68,12 +68,12 @@ func Test_ScalarExpression(t *testing.T) {
 		return
 	}
 	for _, test := range []struct {
-		expr           expression.ScalarExpression
+		expr           expression.Scalar
 		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
-			expression.ScalarExpression{5},
+			expression.Scalar{5},
 			timerangeA,
 			[]api.Timeseries{
 				{
