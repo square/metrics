@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api holds common data types and public interface exposed by the indexer library.
+// Package metadata holds the interface for accessing metadata for indexing metrics.
 package metadata
 
 import (
@@ -20,20 +20,23 @@ import (
 	"github.com/square/metrics/inspect"
 )
 
+// Context holds contextual information for performing MetricAPI queries.
 type Context struct {
+	// Profiler is used to record execution time for metadata queries.
 	Profiler *inspect.Profiler
 }
 
+// MetricAPI is an interface for obtaining metric metadata for indexing in MQE.
 type MetricAPI interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric api.TaggedMetric, context Context) error
-	// Bulk metrics addition
+	// AddMetrics adds several metrics (possibly more efficiently than one at a time)
 	AddMetrics(metric []api.TaggedMetric, context Context) error
-	// For a given MetricKey, retrieve all the tagsets associated with it.
+	// GetAllTags takes a MetricKey and retrieves all the tagsets associated with it.
 	GetAllTags(metricKey api.MetricKey, context Context) ([]api.TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.
 	GetAllMetrics(context Context) ([]api.MetricKey, error)
-	// For a given tag key-value pair, obtain the list of all the MetricKeys
-	// associated with them.
+	// GetMetricsForTag takes a tag key-value pair and returnsthe list of all the
+	// MetricKeys associated with them.
 	GetMetricsForTag(tagKey, tagValue string, context Context) ([]api.MetricKey, error)
 }
