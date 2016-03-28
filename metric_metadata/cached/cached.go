@@ -106,6 +106,11 @@ func (c *CachedMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, cont
 	return c.metricMetadataAPI.GetMetricsForTag(tagKey, tagValue, context)
 }
 
+// CheckHealthy checks if the underlying MetricAPI is healthy
+func (c *CachedMetricMetadataAPI) CheckHealthy() error {
+	return c.metricMetadataAPI.CheckHealthy()
+}
+
 // getCachedTagSet is a thread-safe way to get the cached data for a metric (protected by a mutex)
 func (c *CachedMetricMetadataAPI) getCachedTagSet(metricKey api.MetricKey) CachedTagSetList {
 	c.mutex.Lock()
