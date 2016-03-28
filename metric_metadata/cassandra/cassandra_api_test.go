@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/testing_support/assert"
 )
 
@@ -33,19 +34,19 @@ func clearCassandraInstance(t *testing.T, db *cassandraDatabase, metricName api.
 
 var cassandraClean = true
 
-func newCassandraAPI(t *testing.T) (*CassandraMetricMetadataAPI, api.MetricMetadataAPIContext) {
+func newCassandraAPI(t *testing.T) (*MetricMetadataAPI, metadata.Context) {
 	if !cassandraClean {
 		t.Fatalf("Attempted to create new database without cleaning up the old one.")
 	}
 	cassandraClean = false
-	cassandraInterface, err := NewCassandraMetricMetadataAPI(Config{
+	cassandraInterface, err := NewMetricMetadataAPI(Config{
 		Hosts:    []string{"localhost"},
 		Keyspace: "metrics_indexer_test",
 	})
 	if err != nil {
 		t.Fatalf("Cannot instantiate Cassandra API: %s", err.Error())
 	}
-	cassandra := cassandraInterface.(*CassandraMetricMetadataAPI)
+	cassandra := cassandraInterface.(*MetricMetadataAPI)
 
 	tables := []string{"metric_names", "tag_index", "metric_name_set"}
 	for _, table := range tables {
@@ -54,10 +55,10 @@ func newCassandraAPI(t *testing.T) (*CassandraMetricMetadataAPI, api.MetricMetad
 			t.Fatalf("Cannot truncate %s: %s", table, err.Error())
 		}
 	}
-	return cassandra, api.MetricMetadataAPIContext{}
+	return cassandra, metadata.Context{}
 }
 
-func cleanAPI(t *testing.T, c *CassandraMetricMetadataAPI) {
+func cleanAPI(t *testing.T, c *MetricMetadataAPI) {
 	cleanDatabase(t, &c.db)
 	cassandraClean = true
 }

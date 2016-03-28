@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
+	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
 )
 
@@ -32,7 +34,7 @@ type FakeMetricMetadataAPI struct {
 	}][]api.MetricKey
 }
 
-var _ api.MetricMetadataAPI = (*FakeMetricMetadataAPI)(nil)
+var _ metadata.MetricAPI = (*FakeMetricMetadataAPI)(nil)
 
 func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
 	return &FakeMetricMetadataAPI{
@@ -53,17 +55,17 @@ func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
 	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
 	defer context.Profiler.Record("Mock AddMetric")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context api.MetricMetadataAPIContext) error {
+func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context metadata.Context) error {
 	defer context.Profiler.Record("Mock AddMetrics")()
 	return nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api.MetricMetadataAPIContext) ([]api.TagSet, error) {
+func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Mock GetAllTags")()
 	if len(fa.metricTagSets[metricKey]) == 0 {
 		// This matches the behavior of the Cassandra API
@@ -72,7 +74,7 @@ func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context api
 	return fa.metricTagSets[metricKey], nil
 }
 
-func (fa *FakeMetricMetadataAPI) GetAllMetrics(context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (fa *FakeMetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Mock GetAllMetrics")()
 	array := []api.MetricKey{}
 	for key := range fa.metricTagSets {
@@ -91,7 +93,7 @@ func (fa *FakeMetricMetadataAPI) AddMetricsForTag(key string, value string, metr
 	fa.metricsForTags[pair] = append(fa.metricsForTags[pair], api.MetricKey(metric))
 }
 
-func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context api.MetricMetadataAPIContext) ([]api.MetricKey, error) {
+func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
 	defer context.Profiler.Record("Mock GetMetricsForTag")()
 	list := []api.MetricKey{}
 MetricLoop:
@@ -138,7 +140,7 @@ func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smal
 	return requested.Resolution()
 }
 
-func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.ParseTagSet("dc=west")}},
@@ -157,7 +159,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 			// Cut the values based on the Timerange.
 			values := make([]float64, request.Timerange.Slots())
 			for i := range values {
-				values[i] = series.Values[i+int(request.Timerange.Start())/30]
+				values[i] = series.Values[i+int(request.Timerange.StartMillis())/30]
 			}
 			return api.Timeseries{Values: values, TagSet: series.TagSet}, nil
 		}
@@ -165,7 +167,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request api.FetchTimeser
 	return api.Timeseries{}, errors.New("internal error")
 }
 
-func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
 	timeseries := make([]api.Timeseries, 0)
 

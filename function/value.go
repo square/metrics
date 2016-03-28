@@ -32,30 +32,52 @@ type Value interface {
 	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
 }
 
+// ConversionError represents an error converting between two items of different types.
+type ConversionError struct {
+	From  string // the original data type
+	To    string // the type that attempted to convert to
+	Value string // a short string representation of the value
+}
+
+// Error gives a readable description of the error.
+func (e ConversionError) Error() string {
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Value, e.From, e.To)
+}
+
+// TokenName gives the token name where the error occurred.
+func (e ConversionError) TokenName() string {
+	return fmt.Sprintf("%+v (type %s)", e.Value, e.From)
+}
+
 // A StringValue holds a string
 type StringValue string
 
+// ToSeriesList is a conversion function.
 func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"string", "SeriesList", description}
+	return api.SeriesList{}, ConversionError{"string", "SeriesList", description}
 }
 
+// ToString is a conversion function.
 func (value StringValue) ToString(description string) (string, error) {
 	return string(value), nil
 }
 
+// ToScalar is a conversion function.
 func (value StringValue) ToScalar(description string) (float64, error) {
-	return 0, api.ConversionError{"string", "scalar", description}
+	return 0, ConversionError{"string", "scalar", description}
 }
 
+// ToDuration is a conversion function.
 func (value StringValue) ToDuration(description string) (time.Duration, error) {
-	return 0, api.ConversionError{"string", "duration", description}
+	return 0, ConversionError{"string", "duration", description}
 }
 
 // A ScalarValue holds a float and can be converted to a serieslist
 type ScalarValue float64
 
+// ToSeriesList is a conversion function.
+// The scalar becomes a constant value for the timerange.
 func (value ScalarValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
-
 	series := make([]float64, timerange.Slots())
 	for i := range series {
 		series[i] = float64(value)
@@ -67,45 +89,56 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange, description strin
 	}, nil
 }
 
+// ToString is a conversion function. Numbers become formatted.
 func (value ScalarValue) ToString(description string) (string, error) {
-	return "", api.ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
+	return "", ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
+// ToScalar is a conversion function.
 func (value ScalarValue) ToScalar(description string) (float64, error) {
 	return float64(value), nil
 }
 
+// ToDuration is a conversion function.
+// Scalars cannot be converted to durations.
 func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
-	return 0, api.ConversionError{"scalar", "duration", description}
+	return 0, ConversionError{"scalar", "duration", description}
 }
 
+// DurationValue is a duration with a (usually) human-written name.
 type DurationValue struct {
 	name     string
 	duration time.Duration
 }
 
+// NewDurationValue creates a duration value with the given name and duration.
 func NewDurationValue(name string, duration time.Duration) DurationValue {
 	return DurationValue{name, duration}
 }
 
+// ToSeriesList is a conversion function.
 func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, api.ConversionError{"duration", "SeriesList", description}
+	return api.SeriesList{}, ConversionError{"duration", "SeriesList", description}
 }
 
+// ToString is a conversion function.
 func (value DurationValue) ToString(description string) (string, error) {
-	return "", api.ConversionError{"duration", "string", description}
+	return "", ConversionError{"duration", "string", description}
 }
 
+// ToScalar is a conversion function.
 func (value DurationValue) ToScalar(description string) (float64, error) {
-	return 0, api.ConversionError{"duration", "scalar", description}
+	return 0, ConversionError{"duration", "scalar", description}
 }
 
+// ToDuration is a conversion function.
 func (value DurationValue) ToDuration(description string) (time.Duration, error) {
 	return time.Duration(value.duration), nil
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
 
+// StringToDuration parses strings into timesdurations by examining their suffixes.
 func StringToDuration(timeString string) (time.Duration, error) {
 	matches := durationRegexp.FindStringSubmatch(timeString)
 	if matches == nil {

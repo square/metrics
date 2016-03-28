@@ -17,10 +17,10 @@ package ui
 import (
 	"net/http"
 
-	"github.com/square/metrics/query"
+	"github.com/square/metrics/query/command"
 )
 
-func NewMux(config Config, context query.ExecutionContext, hook Hook) *http.ServeMux {
+func NewMux(config Config, context command.ExecutionContext, hook Hook) *http.ServeMux {
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {

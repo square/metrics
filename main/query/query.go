@@ -21,8 +21,9 @@ import (
 
 	"github.com/peterh/liner"
 	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/query"
-	"github.com/square/metrics/timeseries_storage/blueflood"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/parser"
+	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
 )
 
@@ -53,20 +54,13 @@ func main() {
 
 		l.AppendHistory(input)
 
-		cmd, err := query.Parse(input)
+		cmd, err := parser.Parse(input)
 		if err != nil {
 			fmt.Println("parsing error", err.Error())
 			continue
 		}
 
-		n, ok := cmd.(query.Node)
-		if !ok {
-			fmt.Printf("error: %#v doesn't implement Node\n", cmd)
-			continue
-		}
-		fmt.Println(query.PrintNode(n))
-
-		result, err := cmd.Execute(query.ExecutionContext{TimeseriesStorageAPI: blueflood, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
+		result, err := cmd.Execute(command.ExecutionContext{TimeseriesStorageAPI: blueflood, MetricMetadataAPI: apiInstance, FetchLimit: 1000})
 		if err != nil {
 			fmt.Println("execution error:", err.Error())
 			continue

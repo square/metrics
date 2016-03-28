@@ -273,15 +273,15 @@ func TestApplyNotes(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		if len(test.expected) != len(ctx.Notes()) {
-			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.Notes()))
+		if len(test.expected) != len(ctx.EvaluationNotes.Notes()) {
+			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.EvaluationNotes.Notes()))
 		}
 		for i, note := range test.expected {
-			if i >= len(ctx.Notes()) {
+			if i >= len(ctx.EvaluationNotes.Notes()) {
 				break
 			}
-			if ctx.Notes()[i] != note {
-				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.Notes()[i])
+			if ctx.EvaluationNotes.Notes()[i] != note {
+				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.EvaluationNotes.Notes()[i])
 			}
 		}
 

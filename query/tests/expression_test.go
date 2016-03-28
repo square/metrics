@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package tests
 
 import (
 	"testing"
@@ -20,11 +20,13 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
+	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/testing_support/assert"
+	"github.com/square/metrics/timeseries"
 )
 
 type FakeBackend struct {
-	api.TimeseriesStorageAPI
+	timeseries.StorageAPI
 }
 
 type LiteralExpression struct {
@@ -66,12 +68,12 @@ func Test_ScalarExpression(t *testing.T) {
 		return
 	}
 	for _, test := range []struct {
-		expr           scalarExpression
+		expr           expression.Scalar
 		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
-			scalarExpression{5},
+			expression.Scalar{5},
 			timerangeA,
 			[]api.Timeseries{
 				{
@@ -85,7 +87,7 @@ func Test_ScalarExpression(t *testing.T) {
 		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
 			Timerange:            test.timerange,
-			SampleMethod:         api.SampleMean,
+			SampleMethod:         timeseries.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
 		})
@@ -107,10 +109,9 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 		TimeseriesStorageAPI: FakeBackend{},
 		MetricMetadataAPI:    nil,
 		Timerange:            api.Timerange{},
-		SampleMethod:         api.SampleMean,
+		SampleMethod:         timeseries.SampleMean,
 		Predicate:            nil,
 		FetchLimit:           function.NewFetchCounter(1000),
-		Cancellable:          api.NewCancellable(),
 	}
 	for _, test := range []struct {
 		context              function.EvaluationContext
@@ -373,6 +374,6 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 	}
 }
 
-var _ api.TimeseriesStorageAPI = (*FakeBackend)(nil)
+var _ timeseries.StorageAPI = (*FakeBackend)(nil)
 var _ function.Expression = (*LiteralExpression)(nil)
 var _ function.Expression = (*LiteralSeriesExpression)(nil)

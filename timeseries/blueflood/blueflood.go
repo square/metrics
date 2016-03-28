@@ -27,6 +27,8 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/tasks"
+	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
 )
 
@@ -38,7 +40,7 @@ type Blueflood struct {
 }
 
 //Implements TimeseriesStorageAPI
-var _ api.TimeseriesStorageAPI = (*Blueflood)(nil)
+var _ timeseries.StorageAPI = (*Blueflood)(nil)
 
 type BluefloodParallelRequest struct {
 	limit   int
@@ -103,7 +105,7 @@ var Resolutions = []Resolution{
 	Resolution1440Min,
 }
 
-func NewBlueflood(c Config) api.TimeseriesStorageAPI {
+func NewBlueflood(c Config) timeseries.StorageAPI {
 	if c.HTTPClient == nil {
 		c.HTTPClient = http.DefaultClient
 	}
@@ -133,7 +135,7 @@ type sampler struct {
 	bucketSampler func([]float64) float64
 }
 
-func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
+func (b *Blueflood) fetchLazy(timeout *tasks.Timeout, result *api.Timeseries, work func() (api.Timeseries, error), channel chan error, ctx BluefloodParallelRequest) {
 	go func() {
 		select {
 		case ticket := <-ctx.tickets:
@@ -144,17 +146,13 @@ func (b *Blueflood) fetchLazy(cancellable api.Cancellable, result *api.Timeserie
 			*result = series
 			// Return the error (and sync up with the caller).
 			channel <- err
-		case <-cancellable.Done():
-			channel <- api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
+		case <-timeout.Done():
+			channel <- timeseries.Error{Code: timeseries.FetchTimeoutError}
 		}
 	}()
 }
 
-func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
+func (b *Blueflood) fetchManyLazy(timeout *tasks.Timeout, works []func() (api.Timeseries, error)) ([]api.Timeseries, error) {
 	results := make([]api.Timeseries, len(works))
 	channel := make(chan error, len(works)) // Buffering the channel means the goroutines won't need to wait.
 
@@ -167,7 +165,7 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 		tickets: tickets,
 	}
 	for i := range results {
-		b.fetchLazy(cancellable, &results[i], works[i], channel, ctx)
+		b.fetchLazy(timeout, &results[i], works[i], channel, ctx)
 	}
 
 	var err error
@@ -177,12 +175,8 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 			if thisErr != nil {
 				err = thisErr
 			}
-		case <-cancellable.Done():
-			return nil, api.TimeseriesStorageError{
-				api.TaggedMetric{},
-				api.FetchTimeoutError,
-				"",
-			}
+		case <-timeout.Done():
+			return nil, timeseries.Error{Code: timeseries.FetchTimeoutError}
 		}
 	}
 	if err != nil {
@@ -191,11 +185,8 @@ func (b *Blueflood) fetchManyLazy(cancellable api.Cancellable, works []func() (a
 	return results, nil
 }
 
-func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
-	if request.Cancellable == nil {
-		panic("The cancellable component of a FetchMultipleTimeseriesRequest cannot be nil")
-	}
 	works := make([]func() (api.Timeseries, error), len(request.Metrics))
 
 	singleRequests := request.ToSingle()
@@ -208,7 +199,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 		}
 	}
 
-	resultSeries, err := b.fetchManyLazy(request.Cancellable, works)
+	resultSeries, err := b.fetchManyLazy(request.Timeout, works)
 	if err != nil {
 		return api.SeriesList{}, err
 	}
@@ -219,7 +210,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request api.FetchMultipleTimeseriesR
 	}, nil
 }
 
-func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
 	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
 	sampler, ok := samplerMap[request.SampleMethod]
 	if !ok {
@@ -227,7 +218,7 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 	}
 	queryResolution := b.config.bluefloodResolution(
 		request.Timerange.Resolution(),
-		request.Timerange.Start(),
+		request.Timerange.StartMillis(),
 	)
 	log.Debugf("Blueflood resolution: %s\n", queryResolution.String())
 
@@ -254,9 +245,9 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 		// If an error occurs, we just return nothing. We don't return the error.
 		// This is so that errors while fetching the FULL-resolution data don't impact the requested data.
 		fullResolutionRequest := request // Copy the request
-		if request.Timerange.End()-request.Timerange.Start() > b.config.FullResolutionOverlap*1000 {
+		if request.Timerange.EndMillis()-request.Timerange.StartMillis() > b.config.FullResolutionOverlap*1000 {
 			// Clip the timerange
-			newTimerange, err := api.NewSnappedTimerange(request.Timerange.End()-b.config.FullResolutionOverlap*1000, request.Timerange.End(), request.Timerange.ResolutionMillis())
+			newTimerange, err := api.NewSnappedTimerange(request.Timerange.EndMillis()-b.config.FullResolutionOverlap*1000, request.Timerange.EndMillis(), request.Timerange.ResolutionMillis())
 			if err != nil {
 				log.Infof("FULL resolution data errored while building timerange: %s", err.Error())
 				return nil
@@ -305,33 +296,33 @@ func (b *Blueflood) FetchSingleTimeseries(request api.FetchTimeseriesRequest) (a
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
 func (b *Blueflood) constructURL(
-	request api.FetchTimeseriesRequest,
+	request timeseries.FetchRequest,
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
 	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
 	if err != nil {
-		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot convert to graphite name"}
+		return nil, timeseries.Error{request.Metric, timeseries.InvalidSeriesError, "cannot convert to graphite name"}
 	}
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseURL, b.config.TenantID, graphiteName))
 	if err != nil {
-		return nil, api.TimeseriesStorageError{request.Metric, api.InvalidSeriesError, "cannot generate URL"}
+		return nil, timeseries.Error{request.Metric, timeseries.InvalidSeriesError, "cannot generate URL"}
 	}
 
 	params := url.Values{}
-	params.Set("from", strconv.FormatInt(request.Timerange.Start(), 10))
+	params.Set("from", strconv.FormatInt(request.Timerange.StartMillis(), 10))
 	// Pull a bit outside of the requested range from blueflood so we
 	// have enough data to generate all snapped values
-	params.Set("to", strconv.FormatInt(request.Timerange.End()+request.Timerange.ResolutionMillis(), 10))
+	params.Set("to", strconv.FormatInt(request.Timerange.EndMillis()+request.Timerange.ResolutionMillis(), 10))
 	params.Set("resolution", queryResolution.bluefloodEnum)
 	params.Set("select", fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName)))
 	result.RawQuery = params.Encode()
 	return result, nil
 }
 
-// fetches from the backend. on error, it returns an instance of api.TimeseriesStorageError
-func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL) (queryResponse, []byte, error) {
+// fetches from the backend. on error, it returns an instance of timeseries.Error
+func (b *Blueflood) fetch(request timeseries.FetchRequest, queryURL *url.URL) (queryResponse, []byte, error) {
 	log.Debugf("Blueflood fetch: %s", queryURL.String())
 	success := make(chan queryResponse, 1)
 	failure := make(chan error, 1)
@@ -340,7 +331,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 	go func() {
 		resp, err := b.client.Get(queryURL.String())
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - http connection"}
+			failure <- timeseries.Error{request.Metric, timeseries.FetchIOError, "error while fetching - http connection"}
 			return
 		}
 		defer resp.Body.Close()
@@ -348,7 +339,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 		body, err := ioutil.ReadAll(resp.Body)
 		rawResponse = body
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - reading"}
+			failure <- timeseries.Error{request.Metric, timeseries.FetchIOError, "error while fetching - reading"}
 			return
 		}
 
@@ -358,7 +349,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 		err = json.Unmarshal(body, &parsedJSON)
 		// Construct a Timeseries from the result:
 		if err != nil {
-			failure <- api.TimeseriesStorageError{request.Metric, api.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
+			failure <- timeseries.Error{request.Metric, timeseries.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
 			return
 		}
 		success <- parsedJSON
@@ -369,7 +360,7 @@ func (b *Blueflood) fetch(request api.FetchTimeseriesRequest, queryURL *url.URL)
 	case err := <-failure:
 		return queryResponse{}, rawResponse, err
 	case <-timeout:
-		return queryResponse{}, rawResponse, api.TimeseriesStorageError{request.Metric, api.FetchTimeoutError, ""}
+		return queryResponse{}, rawResponse, timeseries.Error{request.Metric, timeseries.FetchTimeoutError, ""}
 	}
 }
 
@@ -400,7 +391,7 @@ func addMetricPoint(metricPoint metricPoint, field func(metricPoint) float64, ti
 	value := field(metricPoint)
 	// The index to assign within the array is computed using the timestamp.
 	// It floors to the nearest index.
-	index := (metricPoint.Timestamp - timerange.Start()) / timerange.ResolutionMillis()
+	index := (metricPoint.Timestamp - timerange.StartMillis()) / timerange.ResolutionMillis()
 	if index < 0 || index >= int64(timerange.Slots()) {
 		return false
 	}
@@ -416,8 +407,8 @@ func bucketsFromMetricPoints(metricPoints []metricPoint, resultField func(metric
 	return buckets
 }
 
-var samplerMap = map[api.SampleMethod]sampler{
-	api.SampleMean: {
+var samplerMap = map[timeseries.SampleMethod]sampler{
+	timeseries.SampleMean: {
 		fieldName:     "average",
 		fieldSelector: func(point metricPoint) float64 { return point.Average },
 		bucketSampler: func(bucket []float64) float64 {
@@ -432,7 +423,7 @@ var samplerMap = map[api.SampleMethod]sampler{
 			return value / float64(count)
 		},
 	},
-	api.SampleMin: {
+	timeseries.SampleMin: {
 		fieldName:     "min",
 		fieldSelector: func(point metricPoint) float64 { return point.Min },
 		bucketSampler: func(bucket []float64) float64 {
@@ -450,7 +441,7 @@ var samplerMap = map[api.SampleMethod]sampler{
 			return smallest
 		},
 	},
-	api.SampleMax: {
+	timeseries.SampleMax: {
 		fieldName:     "max",
 		fieldSelector: func(point metricPoint) float64 { return point.Max },
 		bucketSampler: func(bucket []float64) float64 {
@@ -478,7 +469,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, smallestResolution
 	// actually be present for the chosen resolution.
 	// TODO: figure out how to make this work with moving averages and timeshifts
 
-	requiredAge := b.timeSource().Sub(requested.StartTime())
+	requiredAge := b.timeSource().Sub(requested.Start())
 
 	for _, resolution := range Resolutions {
 		survivesFor := b.config.oldestViableDataForResolution(resolution)

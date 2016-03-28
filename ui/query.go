@@ -21,11 +21,12 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/log"
-	"github.com/square/metrics/query"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/timeseries"
 )
 
 type Response struct {
@@ -43,7 +44,7 @@ type QueryResponse struct {
 
 type queryHandler struct {
 	hook    Hook
-	context query.ExecutionContext
+	context command.ExecutionContext
 }
 
 type KeyIs struct {
@@ -179,10 +180,10 @@ type QueryForm struct {
 
 func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) (QueryResponse, error) {
 	log.Infof("INPUT: %+v\n", parsedForm)
-	var rawCommand query.Command
+	var rawCommand command.Command
 	var err error
 	profiler.Do("Parsing Query", func() {
-		rawCommand, err = query.Parse(parsedForm.Input)
+		rawCommand, err = parser.Parse(parsedForm.Input)
 	})
 	if err != nil {
 		return QueryResponse{}, err
@@ -198,15 +199,15 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 		context.AdditionalConstraints = predicate // Attach the predicate to the context.
 	}
 
-	command := query.NewProfilingCommandWithProfiler(rawCommand, profiler)
+	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
 
-	context.UserSpecifiableConfig = api.UserSpecifiableConfig{
+	context.UserSpecifiableConfig = timeseries.UserSpecifiableConfig{
 		IncludeRawData: parsedForm.IncludeRaw,
 	}
 
-	result := query.CommandResult{}
+	result := command.CommandResult{}
 	profiler.Do("Total Execution", func() {
-		result, err = command.Execute(context)
+		result, err = profiledCommand.Execute(context)
 	})
 	if err != nil {
 		return QueryResponse{}, err
@@ -215,7 +216,7 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 	return QueryResponse{
 		Body:     result.Body,
 		Metadata: result.Metadata,
-		Name:     command.Name(),
+		Name:     profiledCommand.Name(),
 	}, nil
 }
 

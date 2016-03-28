@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/util"
 )
@@ -51,7 +52,7 @@ func main() {
 
 	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
 
-	cassandra, err := cassandra.NewCassandraMetricMetadataAPI(cassandra.Config{
+	cassandra, err := cassandra.NewMetricMetadataAPI(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port
 		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
 	})
@@ -116,7 +117,7 @@ func main() {
 		}
 
 		// All of the metrics that were successfully converted will be placed into the Cassandra store by MQE.
-		err = cassandra.AddMetrics(converted, api.MetricMetadataAPIContext{})
+		err = cassandra.AddMetrics(converted, metadata.Context{})
 		if err != nil {
 			log.Printf("Error sending metrics to Cassandra: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)

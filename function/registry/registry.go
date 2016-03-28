@@ -209,7 +209,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 			if err != nil {
 				return nil, err
 			}
-			return aggregate.AggregateBy(seriesList, aggregator, groups.List, groups.Collapses), nil
+			return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses), nil
 		},
 	}
 }

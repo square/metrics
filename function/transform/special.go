@@ -55,7 +55,7 @@ var MovingAverage = function.MetricFunction{
 		}
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +120,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 		}
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.Start()-int64(limit-1)*timerange.ResolutionMillis(), timerange.End(), timerange.ResolutionMillis())
+		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +170,7 @@ var Alias = function.MetricFunction{
 	MaxArguments: 2,
 	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 		// TODO: delete this function
-		context.AddNote("transform.alias is deprecated")
+		context.EvaluationNotes.AddNote("transform.alias is deprecated")
 		return arguments[0].Evaluate(context)
 	},
 }
@@ -214,7 +214,7 @@ func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []fu
 		if i+1 < len(values) && values[i-1] > values[i] && values[i] <= values[i+1] {
 			// Downsampling may cause a drop from 1000 to 0 to look like [1000, 500, 0] instead of [1000, 1001, 0].
 			// So we check the next, in addition to the previous.
-			ctx.AddNote(fmt.Sprintf("Rate(%v): The underlying counter reset between %f, %f\n", series.TagSet, values[i-1], values[i]))
+			ctx.EvaluationNotes.AddNote(fmt.Sprintf("Rate(%v): The underlying counter reset between %f, %f\n", series.TagSet, values[i-1], values[i]))
 			// values[i] is our best approximatation of the delta between i-1 and i
 			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 			// the counter has reset, and we know *at least* v[i] increments have happened

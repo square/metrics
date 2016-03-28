@@ -13,13 +13,15 @@
 // limitations under the License.
 
 // Integration test for the query execution.
-package query
+package tests
 
 import (
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
@@ -328,13 +330,13 @@ func TestCommand_Select(t *testing.T) {
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
-		command, err := Parse(test.query)
+		testCommand, err := parser.Parse(test.query)
 		if err != nil {
 			a.Errorf("Unexpected error while parsing")
 			continue
 		}
-		a.EqString(command.Name(), "select")
-		rawResult, err := command.Execute(ExecutionContext{
+		a.EqString(testCommand.Name(), "select")
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
@@ -346,7 +348,7 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			a.CheckError(err)
-			actual := rawResult.Body.([]QuerySeriesList)
+			actual := rawResult.Body.([]command.QuerySeriesList)
 			a.EqInt(len(actual), len(expected))
 			if len(actual) == len(expected) {
 				for i := range actual {
@@ -362,50 +364,50 @@ func TestCommand_Select(t *testing.T) {
 	}
 
 	// Test that the limit is correct
-	command, err := Parse("select series_1, series_2 from 0 to 120 resolution 30ms")
+	testCommand, err := parser.Parse("select series_1, series_2 from 0 to 120 resolution 30ms")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
-	context := ExecutionContext{
+	context := command.ExecutionContext{
 		TimeseriesStorageAPI: fakeBackend,
 		MetricMetadataAPI:    fakeAPI,
 		FetchLimit:           3,
 		Timeout:              0,
 	}
-	_, err = command.Execute(context)
+	_, err = testCommand.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success with limit 3 but got err = %s", err.Error())
 		return
 	}
 	context.FetchLimit = 2
-	_, err = command.Execute(context)
+	_, err = testCommand.Execute(context)
 	if err == nil {
 		t.Fatalf("expected failure with limit = 2")
 		return
 	}
-	command, err = Parse("select series_2 from 0 to 120 resolution 30ms")
+	testCommand, err = parser.Parse("select series_2 from 0 to 120 resolution 30ms")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 		return
 	}
-	_, err = command.Execute(context)
+	_, err = testCommand.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success with limit = 2 but got '%s'", err.Error())
 	}
 
 	// Add an additional constraint and select.
 
-	command, err = Parse("select series_2 from 0 to 120 resolution 30ms")
+	testCommand, err = parser.Parse("select series_2 from 0 to 120 resolution 30ms")
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 	}
 	context.AdditionalConstraints = predicate.ListMatcher{"dc", []string{"east"}}
-	result, err := command.Execute(context)
+	result, err := testCommand.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success but got %s", err.Error())
 	}
-	queries := result.Body.([]QuerySeriesList)[0].Series
+	queries := result.Body.([]command.QuerySeriesList)[0].Series
 
 	assert.New(t).Eq(queries, []api.Timeseries{
 		{
@@ -489,16 +491,16 @@ func TestTag(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		command, err := Parse(test.query)
+		testCommand, err := parser.Parse(test.query)
 		if err != nil {
 			t.Fatalf("Unexpected error while parsing")
 			return
 		}
-		if command.Name() != "select" {
-			t.Errorf("Expected select command but got %s", command.Name())
+		if testCommand.Name() != "select" {
+			t.Errorf("Expected select command but got %s", testCommand.Name())
 			continue
 		}
-		rawResult, err := command.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeBackend,
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
@@ -508,7 +510,7 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]QuerySeriesList)
+		seriesListList, ok := rawResult.Body.([]command.QuerySeriesList)
 		if !ok || len(seriesListList) != 1 {
 			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue

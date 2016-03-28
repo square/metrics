@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package tests
 
 import (
 	"testing"
@@ -20,6 +20,8 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
 )
 
@@ -132,15 +134,15 @@ func TestProfilerIntegration(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		cmd, err := Parse(test.query)
+		cmd, err := parser.Parse(test.query)
 		if err != nil {
 			t.Error(err.Error())
 			continue
 		}
 		profiler := inspect.New()
-		profilingCommand := NewProfilingCommandWithProfiler(cmd, profiler)
+		profilingCommand := command.NewProfilingCommandWithProfiler(cmd, profiler)
 
-		_, err = profilingCommand.Execute(ExecutionContext{
+		_, err = profilingCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeTimeStorage,
 			MetricMetadataAPI:    myAPI,
 			FetchLimit:           10000,

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package tests
 
 // show all metrics
 // show tags WHERE predicate
@@ -20,7 +20,7 @@ package query
 import (
 	"testing"
 
-	"github.com/square/metrics/testing_support/assert"
+	"github.com/square/metrics/query/parser"
 )
 
 // these queries should successfully parse,
@@ -193,7 +193,7 @@ var syntaxErrorQuery = []string{
 
 func TestParse_success(t *testing.T) {
 	for _, row := range inputs {
-		_, err := Parse(row)
+		_, err := parser.Parse(row)
 		if err != nil {
 			t.Errorf("[%s] failed to parse: %s", row, err.Error())
 		}
@@ -202,7 +202,7 @@ func TestParse_success(t *testing.T) {
 	for _, row := range selects {
 		for _, prefix := range []string{"", "select "} {
 			query := prefix + row
-			_, err := Parse(query)
+			_, err := parser.Parse(query)
 			if err != nil {
 				t.Errorf("[%s] failed to parse: %s", query, err.Error())
 			}
@@ -212,34 +212,12 @@ func TestParse_success(t *testing.T) {
 
 func TestParse_syntaxError(t *testing.T) {
 	for _, row := range syntaxErrorQuery {
-		_, err := Parse(row)
+		_, err := parser.Parse(row)
 		if err == nil {
 			t.Errorf("[%s] should have failed to parse", row)
-		} else if _, ok := err.(SyntaxErrors); !ok {
+		} else if _, ok := err.(parser.SyntaxErrors); !ok {
 			t.Logf("[%s] Expected SyntaxErrors, got: %s", row, err.Error())
 			err.Error() // test that it does not panic.
-		}
-	}
-}
-
-func TestCompile(t *testing.T) {
-	for _, row := range inputs {
-		a := assert.New(t).Contextf(row)
-		p := Parser{Buffer: row}
-		p.Init()
-		a.CheckError(p.Parse())
-		p.Execute()
-		testParserResult(a, p)
-	}
-}
-
-// Helper functions
-// ================
-
-func testParserResult(a assert.Assert, p Parser) {
-	if len(p.nodeStack) != 0 {
-		for _, node := range p.nodeStack {
-			a.Errorf("node error:\n%s", PrintNode(node))
 		}
 	}
 }

@@ -14,6 +14,7 @@
 
 package compress
 
+// MaxUint32 is the largest unsigned integer.
 const MaxUint32 = ^uint32(0)
 
 func leadingZeros64(x uint64) uint32 {

@@ -607,7 +607,7 @@ func Test_AggregateBy(t *testing.T) {
 	}
 
 	for _, testCase := range aggregatedTests {
-		aggregated := AggregateBy(testList, testCase.Aggregator, testCase.Tags, testCase.Combines)
+		aggregated := By(testList, testCase.Aggregator, testCase.Tags, testCase.Combines)
 		// Check that aggregated looks correct.
 		// There should be two series
 		if aggregated.Timerange != testList.Timerange {

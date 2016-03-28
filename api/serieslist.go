@@ -14,7 +14,10 @@
 
 package api
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // SeriesList is a list of time series sharing the same time range.
 // this struct must satisfy the `function.Value` interface. However, a type assertion
@@ -24,29 +27,22 @@ type SeriesList struct {
 	Timerange Timerange    `json:"timerange"`
 }
 
-// IsValid determines whether the given time series is valid.
-func (list SeriesList) isValid() bool {
-	for _, series := range list.Series {
-		// # of slots per series must be valid.
-		if len(series.Values) != list.Timerange.Slots() {
-			return false
-		}
-	}
-	return true // validation is now successful.
-}
-
+// ToSeriesList is an identity function that allows SeriesList to implement the expression.Value interface.
 func (list SeriesList) ToSeriesList(time Timerange, description string) (SeriesList, error) {
 	return list, nil
 }
 
+// ToString is a conversion function to implement the expression.Value interface.
 func (list SeriesList) ToString(description string) (string, error) {
-	return "", ConversionError{"SeriesList", "string", description}
+	return "", fmt.Errorf("cannot convert %s (type SeriesList) to type string", description)
 }
 
+// ToScalar is a conversion function to implement the expression.Value interface.
 func (list SeriesList) ToScalar(description string) (float64, error) {
-	return 0, ConversionError{"SeriesList", "scalar", description}
+	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type scalar", description)
 }
 
+// ToDuration is a conversion function to implement the expression.Value interface.
 func (list SeriesList) ToDuration(description string) (time.Duration, error) {
-	return 0, ConversionError{"SeriesList", "duration", description}
+	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type duration", description)
 }

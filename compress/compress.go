@@ -20,6 +20,7 @@ import (
 	"math"
 )
 
+// CompressionBuffer holds compressed data and provides methods to compress it.
 type CompressionBuffer struct {
 	buffer                  *bytes.Buffer
 	current                 uint64
@@ -32,6 +33,7 @@ type CompressionBuffer struct {
 	previousXOR uint64 //The last float we compressed
 }
 
+// Bytes returns the remaining bytes from the buffer.
 func (c *CompressionBuffer) Bytes() []byte {
 	if !c.finalized {
 		panic("Attempted to read bytes from an unfinalized compression buffer")
@@ -50,6 +52,7 @@ func (c *CompressionBuffer) fixup() {
 	}
 }
 
+// NewCompressionBuffer creates a new empty compression buffer.
 func NewCompressionBuffer() CompressionBuffer {
 	return CompressionBuffer{
 		buffer:    &bytes.Buffer{},
@@ -141,6 +144,7 @@ func (c *CompressionBuffer) Finalize() {
 	c.finalized = true
 }
 
+// Compress takes data as input, compresses it, and puts it into the buffer.
 func (c *CompressionBuffer) Compress(data []float64) {
 	for _, value := range data {
 		current := math.Float64bits(value)

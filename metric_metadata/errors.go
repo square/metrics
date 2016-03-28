@@ -1,4 +1,4 @@
-// Copyright 2015 Square Inc.
+// Copyright 2016 Square Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package metadata
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type NoSuchMetricError struct {
 	name string
@@ -28,18 +26,4 @@ func NewNoSuchMetricError(name string) NoSuchMetricError {
 
 func (m NoSuchMetricError) Error() string {
 	return fmt.Sprintf("No such metric with name `%s`", m.name)
-}
-
-type ConversionError struct {
-	From  string // the original data type
-	To    string // the type that attempted to convert to
-	Value string // a short string representation of the value
-}
-
-func (e ConversionError) Error() string {
-	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Value, e.From, e.To)
-}
-
-func (e ConversionError) TokenName() string {
-	return fmt.Sprintf("%+v (type %s)", e.Value, e.From)
 }

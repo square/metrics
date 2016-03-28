@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package query contains all the logic to parse
-// and execute queries against the underlying metric system.
-package query
+// Package parser contains all the logic to parse
+package parser
 
 import (
 	"errors"
@@ -29,7 +28,10 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/timeseries"
 )
 
 // Parse is the entry point of the parser.
@@ -133,7 +135,7 @@ type ParserAssert struct {
 	error
 }
 
-func Parse(query string) (commandResult Command, finalErr error) {
+func Parse(query string) (commandResult command.Command, finalErr error) {
 	p := Parser{Buffer: query}
 	p.Init()
 	defer func() {
@@ -237,7 +239,7 @@ func (p *Parser) peekNodeInto(target interface{}) {
 	targetValue.Elem().Set(nodeValue)
 }
 
-func (p *Parser) pushNode(node Node) {
+func (p *Parser) pushNode(node interface{}) {
 	p.nodeStack = append(p.nodeStack, node)
 }
 
@@ -245,51 +247,61 @@ func (p *Parser) pushNode(node Node) {
 // =======================
 // These operations are used by the embedded code snippets in language.peg
 func (p *Parser) makeDescribe() {
-	var node *predicateNode
-	p.popNodeInto(&node)
-	literal := p.popStringLiteral()
-	p.command = &DescribeCommand{
-		metricName: api.MetricKey(literal),
-		predicate:  node.Predicate,
+	var condition predicate.Predicate
+	p.popNodeInto(&condition)
+	var literal string
+	p.popNodeInto(&literal)
+	p.command = &command.DescribeCommand{
+		MetricName: api.MetricKey(literal),
+		Predicate:  condition,
 	}
 }
 
 func (p *Parser) makeSelect() {
 	var contextNode *evaluationContextNode
 	p.popNodeInto(&contextNode)
-	var predicate *predicateNode
+	var predicate predicate.Predicate
 	p.popNodeInto(&predicate)
-	var list *expressionList
+	var list []function.Expression
 	p.popNodeInto(&list)
-	p.command = &SelectCommand{
-		predicate:   predicate,
-		expressions: list.expressions,
-		context:     contextNode,
+	p.command = &command.SelectCommand{
+		Predicate:   predicate,
+		Expressions: list,
+		Context: command.SelectContext{
+			Start:        contextNode.Start,
+			End:          contextNode.End,
+			Resolution:   contextNode.Resolution,
+			SampleMethod: contextNode.SampleMethod,
+		},
 	}
 }
 
 func (p *Parser) addNullMatchClause() {
-	p.pushNode(&matcherClause{regex: regexp.MustCompile("")})
+	p.pushNode(regexp.MustCompile(""))
 }
 
 func (p *Parser) addMatchClause() {
 	compiled := p.popRegex()
-	p.pushNode(&matcherClause{regex: compiled})
+	p.pushNode(compiled)
 }
 
 func (p *Parser) makeDescribeAll() {
-	var matcher *matcherClause
+	var matcher *regexp.Regexp
 	p.popNodeInto(&matcher)
-	p.command = &DescribeAllCommand{matcher: matcher}
+	p.command = &command.DescribeAllCommand{Matcher: matcher}
 }
 
 func (p *Parser) makeDescribeMetrics() {
 	// Pop off the value.
-	literal := p.popStringLiteral()
+	var literal string
+	p.popNodeInto(&literal)
 	// Pop of the tag name.
 	var tagLiteral *tagLiteral
 	p.popNodeInto(&tagLiteral)
-	p.command = &DescribeMetricsCommand{tagKey: tagLiteral.tag, tagValue: literal}
+	p.command = &command.DescribeMetricsCommand{
+		TagKey:   tagLiteral.tag,
+		TagValue: literal,
+	}
 }
 
 func (p *Parser) addOperatorLiteral(operator string) {
@@ -304,9 +316,9 @@ func (p *Parser) addOperatorFunction() {
 	p.popNodeInto(&operatorNode)
 	var left function.Expression
 	p.popNodeInto(&left)
-	p.pushNode(&functionExpression{
-		functionName: operatorNode.operator,
-		arguments:    []function.Expression{left, right},
+	p.pushNode(&expression.FunctionExpression{
+		FunctionName: operatorNode.operator,
+		Arguments:    []function.Expression{left, right},
 	})
 }
 
@@ -321,7 +333,7 @@ func (p *Parser) addPropertyValue(value string) {
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
 		0, 0, 30000,
-		api.SampleMean,
+		timeseries.SampleMean,
 		make(map[string]bool),
 	})
 }
@@ -354,11 +366,11 @@ func (p *Parser) insertPropertyKeyValue() {
 		// Only three possible sample methods are defined: min, max, or mean.
 		switch value {
 		case "max":
-			contextNode.SampleMethod = api.SampleMax
+			contextNode.SampleMethod = timeseries.SampleMax
 		case "min":
-			contextNode.SampleMethod = api.SampleMin
+			contextNode.SampleMethod = timeseries.SampleMin
 		case "mean":
-			contextNode.SampleMethod = api.SampleMean
+			contextNode.SampleMethod = timeseries.SampleMean
 		default:
 			p.flagSyntaxError(SyntaxError{
 				token:   value,
@@ -420,77 +432,77 @@ func (p *Parser) checkPropertyClause() {
 func (p *Parser) addPipeExpression() {
 	var groupBy *groupByList
 	p.popNodeInto(&groupBy)
-	var expressionList *expressionList
+	var expressionList []function.Expression
 	p.popNodeInto(&expressionList)
-	literal := p.popStringLiteral()
+	var literal string
+	p.popNodeInto(&literal)
 	var expressionNode function.Expression
 	p.popNodeInto(&expressionNode)
-	p.pushNode(&functionExpression{
-		functionName:     literal,
-		arguments:        append([]function.Expression{expressionNode}, expressionList.expressions...),
-		groupBy:          groupBy.list,
-		groupByCollapses: groupBy.collapses,
+	p.pushNode(&expression.FunctionExpression{
+		FunctionName:     literal,
+		Arguments:        append([]function.Expression{expressionNode}, expressionList...),
+		GroupBy:          groupBy.list,
+		GroupByCollapses: groupBy.collapses,
 	})
 }
 
 func (p *Parser) addFunctionInvocation() {
 	var groupBy *groupByList
 	p.popNodeInto(&groupBy)
-	var expressionList *expressionList
+	var expressionList []function.Expression
 	p.popNodeInto(&expressionList)
-	literal := p.popStringLiteral()
+	var literal string
+	p.popNodeInto(&literal)
 	// user-level error generation here.
-	p.pushNode(&functionExpression{
-		functionName:     literal,
-		arguments:        expressionList.expressions,
-		groupBy:          groupBy.list,
-		groupByCollapses: groupBy.collapses,
+	p.pushNode(&expression.FunctionExpression{
+		FunctionName:     literal,
+		Arguments:        expressionList,
+		GroupBy:          groupBy.list,
+		GroupByCollapses: groupBy.collapses,
 	})
 }
 
 func (p *Parser) addAnnotationExpression(annotation string) {
 	var content function.Expression
 	p.popNodeInto(&content)
-	p.pushNode(&annotationExpression{
-		content:    content,
-		annotation: annotation,
+	p.pushNode(&expression.AnnotationExpression{
+		Expression: content,
+		Annotation: annotation,
 	})
 }
 
 func (p *Parser) addMetricExpression() {
-	var predicateNode *predicateNode
+	var predicateNode predicate.Predicate
 	p.popNodeInto(&predicateNode)
-	literal := p.popStringLiteral()
-	p.pushNode(&metricFetchExpression{
-		metricName: literal,
-		predicate:  predicateNode,
+	var literal string
+	p.popNodeInto(&literal)
+	p.pushNode(&expression.MetricFetchExpression{
+		MetricName: literal,
+		Predicate:  predicateNode,
 	})
 }
 
 func (p *Parser) addExpressionList() {
-	p.pushNode(&expressionList{
-		make([]function.Expression, 0),
-	})
+	p.pushNode([]function.Expression{})
 }
 
 func (p *Parser) appendExpression() {
-	var expressionNode function.Expression
-	p.popNodeInto(&expressionNode)
-	var listNode *expressionList
-	p.peekNodeInto(&listNode)
-	listNode.expressions = append(listNode.expressions, expressionNode)
+	var expression function.Expression
+	p.popNodeInto(&expression)
+	var list []function.Expression
+	p.popNodeInto(&list)
+	p.pushNode(append(list, expression))
 }
 
 func (p *Parser) addLiteralMatcher() {
-	literal := p.popStringLiteral()
+	var literal string
+	p.popNodeInto(&literal)
 	var tagLiteral *tagLiteral
 
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(&predicateNode{
-		predicate.ListMatcher{
-			Tag:    tagLiteral.tag,
-			Values: []string{literal},
-		},
+	p.pushNode(predicate.ListMatcher{
+		Tag:    tagLiteral.tag,
+		Values: []string{literal},
 	})
 }
 
@@ -500,11 +512,9 @@ func (p *Parser) addListMatcher() {
 	p.popNodeInto(&stringLiteral)
 	var tagLiteral *tagLiteral
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(&predicateNode{
-		predicate.ListMatcher{
-			Tag:    tagLiteral.tag,
-			Values: stringLiteral.literals,
-		},
+	p.pushNode(predicate.ListMatcher{
+		Tag:    tagLiteral.tag,
+		Values: stringLiteral.literals,
 	})
 }
 
@@ -512,20 +522,14 @@ func (p *Parser) addRegexMatcher() {
 	compiled := p.popRegex()
 	var tagLiteral *tagLiteral
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(&predicateNode{
-		predicate.RegexMatcher{
-			Tag:   tagLiteral.tag,
-			Regex: compiled,
-		},
+	p.pushNode(predicate.RegexMatcher{
+		Tag:   tagLiteral.tag,
+		Regex: compiled,
 	})
 }
 
 func (p *Parser) addTagLiteral(tag string) {
 	p.pushNode(&tagLiteral{tag: tag})
-}
-
-func (p *Parser) addStringLiteral(literal string) {
-	p.pushNode(&stringLiteral{literal})
 }
 
 func (p *Parser) addLiteralList() {
@@ -556,42 +560,34 @@ func (p *Parser) appendCollapseBy(literal string) {
 }
 
 func (p *Parser) addNotPredicate() {
-	var original *predicateNode
+	var original predicate.Predicate
 	p.popNodeInto(&original)
-	p.pushNode(&predicateNode{
-		predicate.NotPredicate{original},
-	})
+	p.pushNode(predicate.NotPredicate{original})
 }
 
 func (p *Parser) addOrPredicate() {
-	var rightPredicate *predicateNode
+	var rightPredicate predicate.Predicate
 	p.popNodeInto(&rightPredicate)
-	var leftPredicate *predicateNode
+	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
-	p.pushNode(&predicateNode{
-		predicate.Any(leftPredicate, rightPredicate),
-	})
+	p.pushNode(predicate.Any(leftPredicate, rightPredicate))
 }
 
 func (p *Parser) addNullPredicate() {
-	p.pushNode(&predicateNode{
-		predicate.All(),
-	})
+	p.pushNode(predicate.All())
 }
 
 func (p *Parser) addAndPredicate() {
-	var rightPredicate *predicateNode
+	var rightPredicate predicate.Predicate
 	p.popNodeInto(&rightPredicate)
-	var leftPredicate *predicateNode
+	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
-	p.pushNode(&predicateNode{
-		predicate.All(leftPredicate, rightPredicate),
-	})
+	p.pushNode(predicate.All(leftPredicate, rightPredicate))
 }
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
-	p.pushNode(&durationExpression{value, duration})
+	p.pushNode(expression.Duration{value, duration})
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -602,7 +598,7 @@ func (p *Parser) addDurationNode(value string) {
 
 func (p *Parser) addNumberNode(value string) {
 	parsedValue, err := strconv.ParseFloat(value, 64)
-	p.pushNode(&scalarExpression{parsedValue})
+	p.pushNode(expression.Scalar{parsedValue})
 	if err != nil || math.IsNaN(parsedValue) {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -612,12 +608,13 @@ func (p *Parser) addNumberNode(value string) {
 }
 
 func (p *Parser) addStringNode(value string) {
-	p.pushNode(&stringExpression{value})
+	p.pushNode(expression.String{value})
 }
 
 // Utility Stack Operations
 func (p *Parser) popRegex() *regexp.Regexp {
-	literal := p.popStringLiteral()
+	var literal string
+	p.popNodeInto(&literal)
 	compiled, err := regexp.Compile(literal)
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
@@ -627,12 +624,6 @@ func (p *Parser) popRegex() *regexp.Regexp {
 		return nil
 	}
 	return compiled
-}
-
-func (p *Parser) popStringLiteral() string {
-	var stringLiteral *stringLiteral
-	p.popNodeInto(&stringLiteral)
-	return stringLiteral.literal
 }
 
 // Utility Functions

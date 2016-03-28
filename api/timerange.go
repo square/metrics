@@ -35,32 +35,43 @@ type Timerange struct {
 	resolution int64
 }
 
-// Start returns the .start field
-func (tr Timerange) Start() int64 {
+// StartMillis returns the number of milliseconds between the epoch and the start of the timerange.
+// The start is inclusive.
+// StartMillis() is always divisible by ResolutionMillis()
+func (tr Timerange) StartMillis() int64 {
 	return tr.start
 }
 
-func (tr Timerange) StartTime() time.Time {
-	seconds := tr.Start() / 1000
-	milliseconds := tr.Start() % 1000
-	nanoseconds := milliseconds * 1000000
+// Start returns the time.Time value corresponding to the start of the timerange (inclusive).
+// Start always divides evenly into Duration().
+func (tr Timerange) Start() time.Time {
+	seconds := tr.start / 1000
+	nanoseconds := (tr.start % 1000) * 1000000
 	return time.Unix(seconds, nanoseconds)
 }
 
-// End returns the .end field
-func (tr Timerange) End() int64 {
+// EndMillis returns the number of milliseconds between the epoch and the end of the timerange.
+// The end is inclusive.
+func (tr Timerange) EndMillis() int64 {
 	return tr.end
 }
 
-func (tr Timerange) EndTime() time.Time {
-	seconds := tr.End() / 1000
-	milliseconds := tr.Start() % 1000
+// End returns the time.Time value corresponding to the end of the timerange (inclusive).
+func (tr Timerange) End() time.Time {
+	seconds := tr.end / 1000
+	milliseconds := tr.start % 1000
 	nanoseconds := milliseconds * 1000000
 	return time.Unix(seconds, nanoseconds)
 }
 
+// DurationMillis returns the number of milliseconds in a timerange.
+func (tr Timerange) DurationMillis() int64 {
+	return tr.end - tr.start
+}
+
+// Duration returns a time.Duration value corresponding to the length of the timerange.
 func (tr Timerange) Duration() time.Duration {
-	return tr.EndTime().Sub(tr.StartTime())
+	return tr.End().Sub(tr.Start())
 }
 
 // MarshalJSON marshals the Timerange into a byte error

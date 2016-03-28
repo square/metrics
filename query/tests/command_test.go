@@ -14,12 +14,15 @@
 
 // Integration test for the query execution.
 
-package query
+package tests
 
 import (
 	"testing"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/metric_metadata"
+	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
@@ -37,7 +40,7 @@ func TestCommand_Describe(t *testing.T) {
 
 	for _, test := range []struct {
 		query          string
-		metricmetadata api.MetricMetadataAPI
+		metricmetadata metadata.MetricAPI
 		expected       map[string][]string
 	}{
 		{"describe series_0", fakeAPI, map[string][]string{"dc": {"east", "west"}, "env": {"production", "staging"}, "host": {"a", "b", "c", "d"}}},
@@ -52,12 +55,12 @@ func TestCommand_Describe(t *testing.T) {
 		{"describe series_0 where(dc='west' or env = 'production')and`doesnotexist` = ''", fakeAPI, map[string][]string{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
-		command, err := Parse(test.query)
+		testCommand, err := parser.Parse(test.query)
 		a.CheckError(err)
 
-		a.EqString(command.Name(), "describe")
+		a.EqString(testCommand.Name(), "describe")
 		fakeTimeseriesStorage := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := command.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeTimeseriesStorage,
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,
@@ -69,9 +72,9 @@ func TestCommand_Describe(t *testing.T) {
 
 	// Test AdditionalConstraints with describe commands.
 	a := assert.New(t).Contextf("Checking AdditionalConstraints")
-	command, err := Parse(`describe series_0`)
+	testCommand, err := parser.Parse(`describe series_0`)
 	a.CheckError(err)
-	rawResult, err := command.Execute(ExecutionContext{
+	rawResult, err := testCommand.Execute(command.ExecutionContext{
 		TimeseriesStorageAPI:  mocks.FakeTimeseriesStorageAPI{},
 		MetricMetadataAPI:     fakeAPI,
 		FetchLimit:            1000,
@@ -91,7 +94,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 
 	for _, test := range []struct {
 		query          string
-		metricmetadata api.MetricMetadataAPI
+		metricmetadata metadata.MetricAPI
 		expected       []api.MetricKey
 	}{
 		{"describe all", fakeAPI, []api.MetricKey{"series_0", "series_1", "series_2", "series_3"}},
@@ -99,12 +102,12 @@ func TestCommand_DescribeAll(t *testing.T) {
 		{"describe all match '_5'", fakeAPI, []api.MetricKey{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
-		command, err := Parse(test.query)
+		testCommand, err := parser.Parse(test.query)
 		a.CheckError(err)
 
-		a.EqString(command.Name(), "describe all")
+		a.EqString(testCommand.Name(), "describe all")
 		fakeMulti := mocks.FakeTimeseriesStorageAPI{}
-		rawResult, err := command.Execute(ExecutionContext{
+		rawResult, err := testCommand.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: fakeMulti,
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,

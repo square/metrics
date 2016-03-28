@@ -14,7 +14,7 @@
 
 // TODO - remove this file in future.
 // this tests moving average which is a very special logic.
-package query
+package tests
 
 import (
 	"math"
@@ -24,16 +24,18 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
+	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/timeseries"
 )
 
 type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
 
-func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest) (api.Timeseries, error) {
+func (b movingAverageBackend) FetchSingleTimeseries(r timeseries.FetchRequest) (api.Timeseries, error) {
 	t := r.Timerange
 	values := []float64{9, 2, 1, 6, 4, 5}
-	startIndex := t.Start()/100 - 10
+	startIndex := t.StartMillis()/100 - 10
 	result := make([]float64, t.Slots())
 	for i := range result {
 		result[i] = values[i+int(startIndex)]
@@ -41,7 +43,7 @@ func (b movingAverageBackend) FetchSingleTimeseries(r api.FetchTimeseriesRequest
 	return api.Timeseries{Values: values, TagSet: api.NewTagSet()}, nil
 }
 
-func (b movingAverageBackend) FetchMultipleTimeseries(r api.FetchMultipleTimeseriesRequest) (api.SeriesList, error) {
+func (b movingAverageBackend) FetchMultipleTimeseries(r timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	timeseries := make([]api.Timeseries, 0)
 	singleRequests := r.ToSingle()
 	for _, request := range singleRequests {
@@ -63,12 +65,12 @@ func TestMovingAverage(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	expression := &functionExpression{
-		functionName: "transform.moving_average",
-		groupBy:      []string{},
-		arguments: []function.Expression{
-			&metricFetchExpression{"series", predicate.TruePredicate{}},
-			durationExpression{"300ms", 300 * time.Millisecond},
+	expression := &expression.FunctionExpression{
+		FunctionName: "transform.moving_average",
+		GroupBy:      []string{},
+		Arguments: []function.Expression{
+			&expression.MetricFetchExpression{"series", predicate.TruePredicate{}},
+			expression.Duration{"300ms", 300 * time.Millisecond},
 		},
 	}
 
@@ -79,10 +81,9 @@ func TestMovingAverage(t *testing.T) {
 			MetricMetadataAPI:    fakeAPI,
 			TimeseriesStorageAPI: backend,
 			Timerange:            timerange,
-			SampleMethod:         api.SampleMean,
+			SampleMethod:         timeseries.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
-			Cancellable:          api.NewCancellable(),
 		})
 	if err != nil {
 		t.Errorf(err.Error())
