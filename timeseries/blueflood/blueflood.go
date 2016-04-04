@@ -288,7 +288,26 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 			TagSet: request.Metric.TagSet,
 		}, nil
 	}
+}
 
+// CheckHealthy checks if the blueflood server is available by querying /v2.0
+func (b *Blueflood) CheckHealthy() error {
+	resp, err := b.client.Get(fmt.Sprintf("%s/v2.0", b.config.BaseURL))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("Blueflood returned an unhealthy status of %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // Helper functions

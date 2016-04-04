@@ -93,6 +93,11 @@ func (a *MetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.Metri
 	return a.db.GetAllMetrics()
 }
 
+// CheckHealthy checks if the underlying connection to Cassandra is healthy
+func (a *MetricMetadataAPI) CheckHealthy() error {
+	return a.db.CheckHealthy()
+}
+
 type cassandraDatabase struct {
 	session *gocql.Session
 }
@@ -220,4 +225,9 @@ func (db *cassandraDatabase) RemoveFromTagIndex(tagKey string, tagValue string, 
 		tagKey,
 		tagValue,
 	).Exec()
+}
+
+// CheckHealthy checks if the connection to Cassandra is healthy
+func (db *cassandraDatabase) CheckHealthy() error {
+	return db.session.Query("SELECT now() FROM system.local").Exec()
 }

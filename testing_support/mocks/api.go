@@ -110,6 +110,11 @@ MetricLoop:
 	return list, nil
 }
 
+// CheckHealthy checks if the FakeMetricMetadataAPI is healthy
+func (fa *FakeMetricMetadataAPI) CheckHealthy() error {
+	return nil
+}
+
 type FakeGraphiteConverter struct {
 	MetricMap map[util.GraphiteMetric]api.TaggedMetric
 }
@@ -184,4 +189,8 @@ func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.Fet
 		Series:    timeseries,
 		Timerange: request.Timerange,
 	}, nil
+}
+
+func (f FakeTimeseriesStorageAPI) CheckHealthy() error {
+	return nil
 }

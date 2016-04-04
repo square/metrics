@@ -39,4 +39,6 @@ type MetricAPI interface {
 	// GetMetricsForTag takes a tag key-value pair and returnsthe list of all the
 	// MetricKeys associated with them.
 	GetMetricsForTag(tagKey, tagValue string, context Context) ([]api.MetricKey, error)
+	// CheckHealthy checks if this MetricAPI is healthy, returning a possible error
+	CheckHealthy() error
 }
