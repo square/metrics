@@ -150,7 +150,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
@@ -166,7 +166,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
@@ -178,7 +178,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
@@ -186,23 +186,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
-			Series: []api.Timeseries{
-				{
-					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
-				},
-				{
-					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
-				},
-				{
-					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
-				},
-			},
-		}}},
-		{"select series_3 | filter.recent_lowest_max(4, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(3, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -218,7 +202,23 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(4, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+			Series: []api.Timeseries{
+				{
+					Values: []float64{5, 5, 5, 2, 2},
+					TagSet: api.ParseTagSet("dc=east"),
+				},
+				{
+					Values: []float64{3, 3, 3, 3, 3},
+					TagSet: api.ParseTagSet("dc=north"),
+				},
+				{
+					Values: []float64{1, 1, 1, 4, 4},
+					TagSet: api.ParseTagSet("dc=west"),
+				},
+			},
+		}}},
+		{"select series_3 | filter.highest_max(70, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
@@ -234,7 +234,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(2, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -246,7 +246,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(1, 30ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -254,7 +254,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -270,7 +270,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -282,7 +282,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_highest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.highest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
@@ -290,7 +290,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(3, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},
@@ -306,7 +306,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(2, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},
@@ -318,7 +318,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_3 | filter.recent_lowest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
+		{"select series_3 | filter.lowest_max(1, 3000ms) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},

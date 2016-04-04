@@ -155,7 +155,7 @@ func TestFilter(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterBy(list, test.count, test.summary, test.lowest)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, list.Timerange.Duration()*10)
 		// Verify that every series in the result is from the original.
 		// Also verify that we only get the ones we expect.
 		if len(filtered.Series) != len(test.expect) {
@@ -175,7 +175,7 @@ func TestFilter(t *testing.T) {
 		}
 		for _, s := range filtered.Series {
 			if !names[s.TagSet["name"]] {
-				t.Fatalf("TagSets %+v aren't expected; %+v are", filtered.Series, test.expect)
+				t.Fatalf("TagSets %+v aren't expected; %+v are\nin test %+v", filtered.Series, test.expect, test)
 			}
 			names[s.TagSet["name"]] = false // Use up the name so that a seocnd Series can't also use it.
 		}
@@ -267,7 +267,7 @@ func TestFilterRecent(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterRecentBy(list, test.count, test.summary, test.lowest, test.duration)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, test.duration)
 		// Verify that they're all unique and expected and unchanged
 		a.EqInt(len(filtered.Series), len(test.expect))
 		// Next, verify that the names are the same.
