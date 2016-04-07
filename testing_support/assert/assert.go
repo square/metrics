@@ -62,24 +62,38 @@ func (assert Assert) Errorf(format string, a ...interface{}) {
 	assert.withCaller(format, a...)
 }
 
-// EqString fails the test if two strings aren't equal.
+// EqString errors the test if two strings aren't equal.
 func (assert Assert) EqString(actual, expected string) {
 	if actual != expected {
 		assert.withCaller("Expected=[%s], actual=[%s]", expected, actual)
 	}
 }
 
-// EqBool fails the test if two booleans aren't equal.
+// EqBool errors the test if two booleans aren't equal.
 func (assert Assert) EqBool(actual, expected bool) {
 	if actual != expected {
 		assert.withCaller("Expected=[%t], actual=[%t]", expected, actual)
 	}
 }
 
-// EqInt fails the test if two ints aren't equal.
+// MustEqBool fails the test if two booleans aren't equal.
+func (assert Assert) MustEqBool(actual, expected bool) {
+	if actual != expected {
+		assert.withCallerFatal("Expected=[%t], actual=[%t]", expected, actual)
+	}
+}
+
+// EqInt errors the test if two ints aren't equal.
 func (assert Assert) EqInt(actual, expected int) {
 	if actual != expected {
 		assert.withCaller("Expected=[%d], actual=[%d]", expected, actual)
+	}
+}
+
+// MustEqInt fails the test if two ints aren't equal.
+func (assert Assert) MustEqInt(actual, expected int) {
+	if actual != expected {
+		assert.withCallerFatal("Expected=[%d], actual=[%d]", expected, actual)
 	}
 }
 
@@ -104,7 +118,7 @@ func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
 	}
 }
 
-// EqFloat fails the test if two floats aren't equal. NaNs are considered equal.
+// EqFloat errors the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqFloat(actual, expected, epsilon float64) {
 	delta := math.Abs(actual - expected)
 	if (delta > epsilon && actual != expected) && !(math.IsNaN(actual) && math.IsNaN(expected)) {
@@ -112,7 +126,7 @@ func (assert Assert) EqFloat(actual, expected, epsilon float64) {
 	}
 }
 
-// EqApproximate fails the test if two floats aren't equal. NaNs are considered equal.
+// EqApproximate errors the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqApproximate(actual, expected, epsilon float64) {
 	delta := actual - expected
 	if !(-epsilon < delta && delta < epsilon) {
@@ -120,14 +134,14 @@ func (assert Assert) EqApproximate(actual, expected, epsilon float64) {
 	}
 }
 
-// Eq fails the test if two arguments are not equal.
+// Eq errors the test if two arguments are not equal.
 func (assert Assert) Eq(actual, expected interface{}) {
 	if !reflect.DeepEqual(actual, expected) {
 		assert.withCaller("\nExpected=%+v\nActual  =%+v", expected, actual)
 	}
 }
 
-// CheckError fails the test if a non-nil error is passed.
+// CheckError errors the test if a non-nil error is passed.
 func (assert Assert) CheckError(err error) {
 	if err != nil {
 		assert.withCaller("Unexpected error: %s", err.Error())
@@ -143,6 +157,15 @@ func (assert Assert) withCaller(format string, a ...interface{}) {
 		assert.t.Errorf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
 	} else {
 		assert.t.Errorf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
+	}
+}
+
+func (assert Assert) withCallerFatal(format string, a ...interface{}) {
+	file, line := caller(assert.stack)
+	if assert.context != "" {
+		assert.t.Fatalf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
+	} else {
+		assert.t.Fatalf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
 	}
 }
 
