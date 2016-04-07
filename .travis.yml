@@ -11,8 +11,9 @@ before_script:
   # peg
   - go get -u github.com/pointlander/peg
   - go get github.com/peterh/liner
+  - go get -u golang.org/x/tools/cmd/goimports
   - cqlsh -f schema/schema_test.cql
 
 script:
-  - ./build_verify.sh
+  - ./script/verify-build
   - go test -v ./...
