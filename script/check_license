@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'digest/sha1'
+
+def check_files(files)
+  hashes = {}
+  files.each do |f|
+    hash = Digest::SHA1.hexdigest(File.foreach(f).first(14).join(""))
+    hashes[hash] ||= []
+    hashes[hash].push(f)
+  end
+
+  if hashes.keys.length == 1
+    puts "All files identical"
+    return true
+  else
+    puts "Changes found"
+    hashes.each do |hash, files|
+      puts "#{hash}: #{files.join(", ")}"
+    end
+    puts
+    return false
+  end
+end
+
+okay = true
+
+print "Go Files: "
+okay &= check_files(Dir.glob("**/*.go") - ["query/parser/language.peg.go"])
+
+print "CSS Files: "
+okay &= check_files(Dir.glob("**/*.css"))
+
+print "JS Files: "
+okay &= check_files(Dir.glob("**/*.js"))
+
+exit okay ? 0 : 1

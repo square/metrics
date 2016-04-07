@@ -1,4 +1,4 @@
-// Copyright 2015 Square Inc.
+// Copyright 2015 - 2016 Square Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,11 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package api holds common data types and public interface exposed by the indexer library.
-// Refer to the doc
-// https://docs.google.com/a/squareup.com/document/d/1k0Wgi2wnJPQoyDyReb9dyIqRrD8-v0u8hz37S282ii4/edit
-// for the terminology.
 
 package util
 

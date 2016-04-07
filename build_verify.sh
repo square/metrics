@@ -13,7 +13,15 @@ if [ "$GOFMT_RESULTS" ]; then
 	fails="fails"
 fi
 
-#Lastly, make sure calling ./query/build.sh doesn't cause ./query/language.peg.go to change
+# Make sure every file has the same license
+LICENSE_RESULTS=`./script/check_license`
+if [ $? -ne 0 ]; then
+	echo "Not all files have the same license file: "
+	echo "$LICENSE_RESULTS"
+	fails="fails"
+fi
+
+# Lastly, make sure calling ./query/build.sh doesn't cause ./query/language.peg.go to change
 
 before=$(cat ./query/parser/language.peg.go)
 ./query/build.sh
