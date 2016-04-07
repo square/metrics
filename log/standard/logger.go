@@ -24,28 +24,28 @@ type Logger struct {
 	Logger *standard_logger.Logger
 }
 
-func (sl *Logger) logf(level string, format string, args ...interface{}) {
-	sl.Logger.Printf(level+" "+format, args)
+func (sl *Logger) logf(format string, level string, args ...interface{}) {
+	sl.Logger.Printf(level+" "+format, args...)
 }
 
 func (sl *Logger) Debugf(format string, args ...interface{}) {
-	sl.logf("DEBUG", format, args)
+	sl.logf(format, "DEBUG", args...)
 }
 
 func (sl *Logger) Infof(format string, args ...interface{}) {
-	sl.logf("INFO", format, args)
+	sl.logf(format, "INFO", args...)
 }
 
 func (sl *Logger) Warningf(format string, args ...interface{}) {
-	sl.logf("WARNING", format, args)
+	sl.logf(format, "WARNING", args...)
 }
 
 func (sl *Logger) Errorf(format string, args ...interface{}) {
-	sl.logf("ERROR", format, args)
+	sl.logf(format, "ERROR", args...)
 }
 
 func (sl *Logger) Fatalf(format string, args ...interface{}) {
-	sl.Logger.Fatalf(format, args)
+	sl.Logger.Fatalf(format, args...)
 }
 
 var _ log.Logger = (*Logger)(nil)
