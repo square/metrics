@@ -52,6 +52,10 @@ type Timeout struct {
 
 // Done returns a receive-only channel, which will close when the timeout ends.
 func (t *Timeout) Done() <-chan struct{} {
+	if t == nil {
+		return nil
+	}
+
 	return t.done
 }
 
