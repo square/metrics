@@ -32,6 +32,6 @@ print "CSS Files: "
 okay &= check_files(Dir.glob("**/*.css"))
 
 print "JS Files: "
-okay &= check_files(Dir.glob("**/*.js"))
+okay &= check_files(Dir.glob("**/*.js") - Dir.glob("main/static/js/*"))
 
 exit okay ? 0 : 1

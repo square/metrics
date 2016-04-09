@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*jshint -W117 */
 "use strict";
-
-var module = angular.module("main", []);
 
 var MAX_RENDERED = 200;
 
@@ -22,16 +21,82 @@ google.load("visualization", "1.0", {
   "packages": ["corechart", "timeline"]
 });
 
+var module = angular.module("main", ["ngMaterial", "ngMessages", "ngSanitize", "LocalStorageModule"])
+  .config(function ($mdThemingProvider) {
+    $mdThemingProvider.theme('default')
+      .primaryPalette('green');
+  });
+
 module.config(function ($locationProvider) {
   $locationProvider.html5Mode(true);
 });
+
+module.config(function (localStorageServiceProvider) {
+  localStorageServiceProvider.setPrefix('mqe');
+});
+
+module.config(['$compileProvider', function ($compileProvider) {
+  $compileProvider.debugInfoEnabled(false);
+}]);
 
 module.factory("$windowSize", function ($window) {
   return {
     height: $window.innerHeight,
     width: $window.innerWidth,
     version: 0 // updated whenever width or height is updated, so this object can be watched.
-  }
+  };
+});
+
+// enable autocomplete on query input text area.
+// TODO: reduce amount of magic and add tests
+module.directive('queryInput', function ($http) {
+  return {
+    restrict: 'A',
+    replace: 'false',
+    link: function (scope, elem, attrs) {
+      var autocom = new Autocom(elem[0]);
+      var keywords = [
+        "all", "by", "collapse", "describe", "from", "group", "match", "metrics",
+        "now", "resolution", "sample", "select", "to", "where"
+      ];
+      var latterKeywords = [
+        "from", "match", "now", "resolution", "sample", "by", "to",
+      ];
+      autocom.options = keywords.slice(0); // note: copies the array
+      autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
+      autocom.continuePattern = "[a-zA-Z_`.-]";
+      autocom.tooltipX = 0;
+      autocom.tooltipY = 20;
+      autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
+      autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
+      autocom.activeRegion = function (beforeText, afterText, candidate) {
+        if (beforeText.match(/\s(where|from|to|resolution|sample)\s/)) { // Note: only works 99% of the time.
+          return latterKeywords.indexOf(candidate) >= 0;
+        }
+        return true;
+      };
+      $http.get("/token").success(function (data, status, headers, config) {
+        if (!data.success || !data.body) {
+          return;
+        }
+        if (data.body.functions) {
+          autocom.options = autocom.options.concat(data.body.functions);
+        }
+        var tolerate = [];
+        if (data.body.metrics) {
+          autocom.options = autocom.options.concat(data.body.metrics.map(function (name) {
+            if (name.indexOf("-") >= 0) {
+              return "`" + name + "`";
+            } else {
+              tolerate.push("`" + name + "`");
+            }
+            return name;
+          }));
+        }
+        autocom.tolerate = tolerate;
+      });
+    }
+  };
 });
 
 module.directive("googleChart", function ($chartWaiting, $timeout, $windowSize) {
@@ -52,7 +117,7 @@ module.directive("googleChart", function ($chartWaiting, $timeout, $windowSize) 
         render();
       });
       scope.$watch(function () {
-        return $windowSize.version
+        return $windowSize.version;
       }, function (newValue) {
         render();
       });
@@ -92,7 +157,7 @@ module.directive("googleChart", function ($chartWaiting, $timeout, $windowSize) 
 
       function fixUnits(value, total) {
         var match = getUnits(value);
-        if (match == null) {
+        if (match === null) {
           return null;
         }
         switch (match.units) {
@@ -175,7 +240,7 @@ module.run(function ($window, $timeout, $windowSize) {
         $windowSize.version++;
       }
     }, DELAY_MS);
-  })
+  });
 });
 
 module.factory("$google", function ($rootScope) {
@@ -200,74 +265,7 @@ module.factory("$google", function ($rootScope) {
     } else {
       googleFunctions.push(func);
     }
-  }
-});
-
-// Autocompletion setup (depends on $http to perform request to /token).
-module.run(function ($http) {
-  if (!document.getElementById("query-input")) {
-    return;
-  }
-  var autocom = new Autocom(document.getElementById("query-input"));
-  var keywords = [
-    "all",
-    "by",
-    "collapse",
-    "describe",
-    "from",
-    "group",
-    "match",
-    "metrics",
-    "now",
-    "resolution",
-    "sample",
-    "select",
-    "to",
-    "where"
-  ];
-  // Subset of keywords which can be suggested after "where" or "from" or "to" or "resolution" or "sample"
-  var latterKeywords = [
-    "from",
-    "match",
-    "now",
-    "resolution",
-    "sample",
-    "by",
-    "to",
-  ];
-  autocom.options = keywords.slice(0); // note: copies the array
-  autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
-  autocom.continuePattern = "[a-zA-Z_`.-]";
-  autocom.tooltipX = 0;
-  autocom.tooltipY = 20;
-  autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
-  autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
-  autocom.activeRegion = function (beforeText, afterText, candidate) {
-    if (beforeText.match(/\s(where|from|to|resolution|sample)\s/)) { // Note: only works 99% of the time.
-      return latterKeywords.indexOf(candidate) >= 0;
-    }
-    return true;
   };
-  $http.get("/token").success(function (data, status, headers, config) {
-    if (!data.success || !data.body) {
-      return;
-    }
-    if (data.body.functions) {
-      autocom.options = autocom.options.concat(data.body.functions);
-    }
-    var tolerate = [];
-    if (data.body.metrics) {
-      autocom.options = autocom.options.concat(data.body.metrics.map(function (name) {
-        if (name.indexOf("-") >= 0) {
-          return "`" + name + "`";
-        } else {
-          tolerate.push("`" + name + "`");
-        }
-        return name;
-      }));
-    }
-    autocom.tolerate = tolerate;
-  });
 });
 
 // A counter is an object with .inc() and .dec() methods,
@@ -298,30 +296,10 @@ module.factory("$chartWaiting", function () {
   return new Counter();
 });
 
-// A ticket booth will give you a ticket with .next()
-// The ticket will be .valid() until another ticket has been asked for.
-function TicketBooth() {
-  var count = 0;
-
-  function Ticket(n) {
-    this.valid = function () {
-      return n === count;
-    }
-  }
-  this.next = function () {
-    return new Ticket(++count);
-  };
-}
-// A singleton ticketbooth for query counting
-module.factory("$queryTicketBooth", function () {
-  return new TicketBooth();
-});
-
-module.factory("$launchRequest", function ($google, $http, $queryTicketBooth, $launchedQueries, $q) {
+module.service("timedQuery", function ($http, $q, $launchedQueries) {
   return function (params) {
     var resultPromise = $q.defer(); // Will be resolved with received value.
     var start = new Date();
-    var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
       params: params
@@ -335,20 +313,16 @@ module.factory("$launchRequest", function ($google, $http, $queryTicketBooth, $l
 
     function resolve(data) {
       var elapsedMs = new Date().getTime() - start.getTime();
-      if (ticket.valid()) {
-        resultPromise.resolve({
-          elapsedMs: elapsedMs,
-          payload: data
-        });
-      } else {
-        resultPromise.reject(null);
-      }
+      resultPromise.resolve({
+        elapsedMs: elapsedMs,
+        payload: data
+      });
     }
     return resultPromise.promise;
   };
 });
 
-module.controller("commonCtrl", function (
+module.controller("CommonController", function (
   $chartWaiting,
   $launchedQueries,
   $location,
@@ -386,7 +360,7 @@ module.controller("commonCtrl", function (
       return $location.search()[name];
     }
     return value;
-  }
+  };
 
   $scope.selectOptions = {
     legend: {
@@ -422,10 +396,7 @@ module.controller("commonCtrl", function (
       return false;
     }
     for (var i = 0; i < result.body.length; i++) {
-      if (result.body[i].type == "scalars") {
-        continue;
-      }
-      if (result.body[i].series.length == 0) {
+      if (result.body[i].series.length === 0) {
         if (result.body.length == 1) {
           $scope.queryEmptyMessage = "the query resulted in 0 series";
         } else {
@@ -436,18 +407,6 @@ module.controller("commonCtrl", function (
     }
     return false;
   };
-  $scope.hasSeriesList = function () {
-    var result = $scope.queryResult;
-    if (!result || result.name != "select") {
-      return false;
-    }
-    for (var i = 0; i < result.body.length; i++) {
-      if (result.body[i].type == "series") {
-        return true;
-      }
-    }
-    return false;
-  }
   $scope.$watch("inputModel.renderType", function (newValue) {
     if (newValue === "area") {
       $scope.selectOptions.isStacked = true;
@@ -484,19 +443,167 @@ module.controller("commonCtrl", function (
   };
 });
 
-module.controller("mainCtrl", function (
+module.controller("DiscoverController", function (
+  $controller,
+  $location,
+  $scope,
+  timedQuery
+) {
+  $scope.tags = {};
+  $scope.metricSelected = false;
+  $scope.metrics = [];
+  $scope.models = {};
+  $scope.tagSearchText = {};
+  $scope.to = new Date();
+  $scope.from = new Date($scope.to.getTime() - 3600*1000); // -1h
+
+  $scope.getMetrics = function() {
+    if($scope.searchText) {
+      return _.filter($scope.metrics, function(metric) { return s(metric).include($scope.searchText); });
+    }
+    else {
+      return $scope.metrics;
+    }
+  };
+
+  $scope.getTags = function() {
+    return $scope.tags;
+  }
+
+  $scope.describe = function (metric) {
+    $scope.models = {};
+    $scope.metricSelected = true;
+    timedQuery({
+      profile: false,
+      query: "describe " + "`" + metric + "`"
+    }).then(
+      function (data) {
+        $scope.tags = data.payload.body;
+      },
+      function (error) {
+        console.log("MQE request failed: " + error);
+      }
+    );
+  };
+
+  $scope.onTagSelect = function() {
+    // Generate a query and update available tags
+    var whereClause = [];
+    _.each(_.pairs($scope.models), function(pair) {
+      if(pair[1]) {
+        whereClause.push(pair[0] + " = '" + pair[1] + "'");
+      }
+    });
+    var query = "describe " + "`" + $scope.metric + "`";
+    if(whereClause.length > 0) {
+      query += " where " + whereClause.join(" and ");
+    }
+    timedQuery({
+      profile: false,
+      query: query
+    }).then(
+      function (data) {
+          if(_.keys(data.payload.body).length > 0) {
+            $scope.tags = data.payload.body;
+          }
+      },
+      function (error) {
+        console.log("MQE request failed: " + error);
+      }
+    );
+  }
+
+  $scope.onSubmit = function() {
+    // Generate a query and call parent scope
+    var whereClause = [];
+    _.each(_.pairs($scope.models), function(pair) {
+      if(pair[1]) {
+        whereClause.push(pair[0] + " = '" + pair[1] + "'");
+      }
+    });
+    var query = "select " + "`" + $scope.metric + "`";
+    if(whereClause.length > 0) {
+      query += " where " + whereClause.join(" and ");
+    }
+    query += " from '" + $scope.from.getTime() + "' to '" + $scope.to.getTime() + "';";
+    $scope.onSubmitQuery(query);
+  };
+
+  timedQuery({
+    profile: false,
+    query: "describe all"
+  }).then(
+    function (data) {
+      $scope.metrics = data.payload.body;
+    },
+    function (error) {
+      console.log("MQE request failed: " + error);
+    }
+  );
+
+
+});
+
+module.controller("MainController", function (
   $chartWaiting,
   $controller,
   $google,
-  $launchRequest,
   $launchedQueries,
   $location,
-  $scope
+  $mdDialog,
+  $scope,
+  timedQuery,
+  $window,
+  localStorageService
 ) {
-  $controller("commonCtrl", {
+  $controller("CommonController", {
     $scope: $scope
   });
-  $scope.queryHistory = [];
+
+  $scope.localStorageService = localStorageService;
+
+  function DialogController($scope, $mdDialog, query, localStorageService) {
+    $scope.hide = function () {
+      $mdDialog.hide();
+    };
+    $scope.cancel = function () {
+      $mdDialog.cancel();
+    };
+    $scope.save = function (answer) {
+      localStorageService.set($scope.name, query);
+      $mdDialog.hide(answer);
+    };
+  }
+
+  $scope.showSaveDialog = function (ev) {
+    $mdDialog.show({
+        controller: DialogController,
+        template: '<md-dialog id="save-dialog">' +
+          '<md-dialog-content class="md-dialog-content">' +
+            '<h2 class="md-title">Save Query</h2>' +
+            '<md-input-container>' +
+              '<label>Name</label>' +
+              '<input ng-model="name"></input>' +
+            '</md-input-container>' +
+          '</md-dialog-content>' +
+          '<md-dialog-actions>' +
+            '<md-button class="md-raised" ng-click="cancel()">' +
+              'Cancel' +
+            '</md-button>' +
+            '<md-button class="md-raised md-primary" ng-click="save()">' +
+              'Save' +
+            '</md-button>' +
+            '</md-dialog-actions>' +
+          '</md-dialog>',
+        parent: angular.element(document.body),
+        targetEvent: ev,
+        clickOutsideToClose: true,
+        locals: {
+          query: $scope.query
+        },
+      });
+  };
+
   $scope.embedLink = "";
   $scope.queryResult = "";
 
@@ -511,8 +618,10 @@ module.controller("mainCtrl", function (
   }
 
   // Triggers when the button is clicked.
-  $scope.onSubmitQuery = function () {
-    $scope.inputModel.query = document.getElementById("query-input").value;
+  $scope.onSubmitQuery = function (query) {
+    if (query) {
+      $scope.inputModel.query = query;
+    }
     $location.search("query", $scope.inputModel.query);
     $location.search("renderType", $scope.inputModel.renderType);
     $location.search("profile", $scope.inputModel.profile.toString());
@@ -521,29 +630,25 @@ module.controller("mainCtrl", function (
   $scope.$on("$locationChangeSuccess", function () {
     // this triggers at least once (in the beginning).
     var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    $scope.inputModel.profile = queries["profile"] === "true";
-    // Add the query to the history, if it hasn't been seen before and it's non-empty
+    $scope.inputModel.query = queries.query || "";
+    $scope.inputModel.renderType = queries.renderType || "line";
+    $scope.inputModel.profile = queries.profile === "true";
     var trimmedQuery = $scope.inputModel.query.trim();
-    if (trimmedQuery !== "" && $scope.queryHistory.indexOf(trimmedQuery) === -1) {
-      $scope.queryHistory.push(trimmedQuery);
-    }
     if (trimmedQuery) {
-      $launchRequest({
+      timedQuery({
         profile: $scope.inputModel.profile,
         query: $scope.inputModel.query
       }).then(function (data) {
         $scope.setQueryResult(data.payload);
         $scope.elapsedMs = data.elapsedMs;
         updateEmbed();
-      });
+      }, function (error) { console.log(error); });
     }
   });
 
   $scope.historySelect = function (query) {
     $scope.inputModel.query = query;
-  }
+  };
 
   // true if the output should be tabular.
   $scope.isTabular = function () {
@@ -552,16 +657,20 @@ module.controller("mainCtrl", function (
   updateEmbed();
 });
 
-module.controller("embedCtrl", function (
+module.controller("QueryController", function() {
+
+});
+
+module.controller("EmbedController", function (
   $chartWaiting,
   $controller,
-  $launchRequest,
+  timedQuery,
   $launchedQueries,
   $location,
   $google,
   $scope
 ) {
-  $controller("commonCtrl", {
+  $controller("CommonController", {
     $scope: $scope
   });
   $scope.queryResult = null;
@@ -572,24 +681,23 @@ module.controller("embedCtrl", function (
   // Store the $inputModel so that the view can change it through inputs.
   $scope.inputModel.profile = false;
   $scope.inputModel.query = "";
-  $scope.inputModel.renderType = queries["renderType"] || "line";
-  $launchRequest({
+  $scope.inputModel.renderType = queries.renderType || "line";
+  timedQuery({
     profile: false,
-    query: queries["query"] || ""
+    query: queries.query || ""
   }).then(function (data) {
     $scope.setQueryResult(data.payload);
   });
 
   var url = $location.absUrl();
   var at = url.indexOf("?");
-  $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port() +
-    "/ui" + url.substring(at);
+  $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/ui" + url.substring(at);
 });
 
 // utility functions
 function convertProfileResponse(object) {
   if (!(object && object.profile)) {
-    return null
+    return null;
   }
   var dataTable = new google.visualization.DataTable();
   dataTable.addColumn({
@@ -605,7 +713,6 @@ function convertProfileResponse(object) {
     id: 'End'
   });
   var minValue = Number.POSITIVE_INFINITY;
-
   function epoch(timestamp) {
     return new Date(timestamp).getTime();
   }
@@ -613,14 +720,13 @@ function convertProfileResponse(object) {
     var profile = object.profile[i];
     minValue = Math.min(epoch(profile.start), minValue);
     minValue = Math.min(epoch(profile.finish), minValue);
-  };
-
+  }
   function normalize(value) {
     return value - minValue;
-  };
-  for (var i = 0; i < object.profile.length; i++) {
+  }
+  for (i = 0; i < object.profile.length; i++) {
     var profile = object.profile[i];
-    var row = [profile.name + (profile.description ? " - " + profile.description : ""), normalize(epoch(profile.start)), normalize(epoch(profile.finish))];
+    var row = [profile.name + " - " + profile.description, normalize(epoch(profile.start)), normalize(epoch(profile.finish))];
     dataTable.addRows([row]);
   }
   return dataTable;
@@ -630,7 +736,6 @@ function convertSelectResponse(object) {
   if (!(object && object.name == "select" &&
       object.body &&
       object.body.length &&
-      object.body[0].type == "series" && // don't display scalar values
       object.body[0].series &&
       object.body[0].series.length &&
       object.body[0].timerange)) {
@@ -673,7 +778,7 @@ function convertSelectResponse(object) {
   var timerange = object.body[0].timerange;
   for (var t = 0; t < series[0].values.length; t++) {
     var row = [dateFromIndex(t, timerange)];
-    for (var i = 0; i < series.length; i++) {
+    for (i = 0; i < series.length; i++) {
       var cell = series[i].values[t];
       if (cell === null) {
         row.push(NaN);
@@ -686,7 +791,7 @@ function convertSelectResponse(object) {
   return {
     dataTable: google.visualization.arrayToDataTable(table),
     seriesOptions: seriesOptions
-  }
+  };
 }
 
 
