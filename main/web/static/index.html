@@ -1,110 +1,155 @@
 <!doctype html>
 <html>
-<head>
-  <title>Metrics Query Engine</title>
-  <base href="/">
-  <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
-  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-  <script type="text/ecmascript" src="/static/autocom.js"></script>
-  <script type="text/ecmascript" src="/static/script.js"></script>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <head>
+    <title>Metrics Query Engine</title>
+    <base href="/">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <!-- Angular Material -->
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.0.0/angular-material.min.css">
+    <!-- MQE style -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Angular Material requires Angular.js Libraries -->
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-aria.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-messages.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-sanitize.min.js"></script>
+    <!-- Angular Material Library -->
+    <script src="http://ajax.googleapis.com/ajax/libs/angular_material/1.0.7/angular-material.min.js"></script>
+    <!-- MQE dependencies -->
+    <script src="https://www.google.com/jsapi"></script>
+    <script src="/static/js/angular-local-storage.min.js"></script>
+    <script src="/static/js/underscore-min.js"></script>
+    <script src="/static/js/underscore.string.min.js"></script>
+    <!-- MQE scripts -->
+    <script src="/static/autocom.js"></script>
+    <script src="/static/script.js"></script>
+  </head>
 
-</head>
-<div ng-app="main" class="container">
-  <div ng-controller="mainCtrl" class="row">
-    <form class="form-horizontal">
-      <div class="form-group">
-        <label class="col-sm-2 control-label">Query</label>
-        <div class="col-sm-10">
-          <textarea id="query-input" ng-model="inputModel.query" class="form-control queryinput"></textarea>
-          <div class="history-box">
-            <div ng-repeat="query in queryHistory track by $index" class="history-row" ng-click = "historySelect(query)">
-             {{ query }}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="col-sm-2 control-label">Render Options</label>
-        <div class="col-sm-2 radio">
-          <label>
-            <input type="radio" ng-model="inputModel.renderType" value="line"> Line
-          </label>
-          <label>
-            <input type="radio" ng-model="inputModel.renderType" value="area"> Area
-          </label>
-        </div>
-        <div class="col-sm-2 checkbox">
-          <label>
-            <input type="checkbox" ng-model="inputModel.profile">Profile
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <div class="col-sm-offset-2 col-sm-10">
-          <button ng-click="onSubmitQuery()" class="btn btn-default">Submit</button>
-        </div>
-      </div>
-    </form>
-    <div ng-show="screenState() != 'rendered'">
-      <div class="alert alert-info"   ng-show="screenState() == 'loading'">Waiting for response...</div>
-      <div class="alert alert-info"   ng-show="screenState() == 'rendering'">Rendering chart...</div>
-      <div class="alert alert-danger" ng-show="screenState() == 'error'">{{(queryResult.message || "").trim()}}</div>
-    </div>
-    <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
+  <body ng-app="main" ng-controller="MainController" layout="column">
+    <md-content layout="row" layout-padding flex id="query-content">
 
-    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
-      <div class="col-xs-10">
-        Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds.
-        <b>{{ totalSeriesCount }}</b> Series returned.
-        <span ng-show="totalScalarsCount > 0"><b>{{ totalScalarsCount }}</b> scalars returned. <b> At this time the web UI cannot display them.</b></span>
-        <b ng-show="totalSeriesCount > maxResult">UI is only rendering {{ maxResult }} results.</b>
-      </div>
-      <div class="col-xs-2">
-        <a ng-href="{{ embedLink }}" class="btn btn-default" target="_blank">Embed Link</a>
-      </div>
-    </div>
-    <div
-      ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty() && hasSeriesList()"
-      class="col-xs-12">
-      <google-chart
-        class="metric-chart"
-        data="selectResult"
-        option="selectOptions"
-        chart-type="inputModel.renderType"
-      >
-      </google-chart>
-    </div>
-    <div
-      ng-show="screenState() != 'loading' && screenState() != 'error' && hasProfiling(queryResult)"
-      class="col-xs-12">
-      <h1>Profiling Information</h1>
-      <google-chart
-        class="timeline-chart"
-        data="profileResult"
-        option="profileResult"
-        chart-type="'timeline'"
-      >
-      </google-chart>
-    </div>
+      <div flex="80" id="query-container">
+        <md-tabs  md-dynamic-height md-border-bottom>
+          <md-tab label="Query">
+            <div ng-controller="QueryController" id="query">
+              <form name="queryForm">
+                <div layout="column">
+                  <md-input-container>
+                    <label>Query</label>
+                    <textarea query-input ng-model="inputModel.query" id="query-input" class="queryinput"
+                      placeholder="Example: select cpu.percentage where host='host1' from -1h to now"
+                      ></textarea>
+                  </md-input-container>
+                </div>
+              </form>
+              <div layout="row">
+                <md-button ng-click="showSaveDialog($event)" class="md-raised">Save</md-button>
+                <md-button ng-click="onSubmitQuery(inputModel.query)" class="md-raised md-primary">Submit</md-button>
+                <div ng-show="screenState() != 'rendered' && screenState() != 'error'">
+                  <md-progress-circular md-mode="indeterminate"></md-progress-circular>
+                </div>
+              </div>
+            </div><!-- Query Controller -->
+          </md-tab>
 
-    <div>
-      <div class="col-xs-12">
-        <table ng-show="isTabular() && queryResult.name != 'describe'" class="table table-striped">
-          <tr ng-repeat="row in queryResult.body"><td>{{row}}</td></tr>
-        </table>
-        <div ng-show="isTabular() && queryResult.name == 'describe'" class='describe-container'>
-          <table ng-repeat="(key, list) in queryResult.body" class="table table-striped table-column">
-            <tr><th>{{key}}</th></tr>
-            <tr ng-repeat="value in list track by $index"><td>{{value}}</td></tr>
-          </table>
-          <div style="clear:both;"></div>
+          <md-tab label="Discover">
+            <div ng-controller="DiscoverController" id="discover">
+              <div flex layout="column">
+
+                <div layout="row">
+                  <div flex="noshrink">
+                    <md-autocomplete md-no-cache  md-selected-item="metric"
+                      md-floating-label="Metric"  md-selected-item-change="describe(item)"
+                      md-search-text="searchText" md-items="item in metrics | filter:searchText"
+                      md-item-text="item"
+                      md-min-length="0">
+                      <md-item-template>
+                        <span md-highlight-text="searchText" md-highlight-flags="^i">{{ item }}</span>
+                      </md-item-template>
+                    </md-autocomplete>
+                  </div>
+                </div>
+
+                <div layout="row" layout-wrap>
+                  <div flex="noshrink" ng-repeat="(tag, values) in tags" id="discover-tag-complete">
+                    <md-autocomplete md-no-cache md-menu-class="discover-autocomplete-values"
+                      ng-attr-md-floating-label="{{tag}}"
+                      md-selected-item="models[tag]"
+                      md-search-text="tagSearchText[tag]"
+                      md-selected-item-change="onTagSelect()"
+                      md-items="value in values | filter:tagSearchText[tag]"
+                      md-item-text="value" md-min-length="0">
+                        <md-item-template>
+                          <span md-highlight-text="tagSearchText[tag]" md-highlight-flags="^i">{{ value }}</span>
+                        </md-item-template>
+                      </md-autocomplete>
+                  </div>
+                </div>
+
+                <div layout="row">
+                  <md-input-container>
+                    <label>From</label>
+                    <input type="datetime-local" ng-model="from"></input>
+                  </md-input-container>
+                  <md-input-container>
+                    <label>To</label>
+                    <input type="datetime-local" ng-model="to"></input>
+                  </md-input-container>
+                </div>
+
+                <div layout="row">
+                  <md-button ng-click="showSaveDialog($event)" class="md-raised">Save</md-button>
+                  <md-button ng-click="onSubmit()" class="md-raised md-primary">Submit</md-button>
+                  <div ng-show="screenState() != 'rendered' && screenState() != 'error'">
+                    <md-progress-circular md-mode="indeterminate"></md-progress-circular>
+                  </div>
+                </div>
+
+              </div>
+            </div><!-- Discover controller -->
+          </md-tab>
+        </md-tabs>
+
+        <!-- Results section -->
+        <div ng-show="screenState() != 'loading' && screenState() == 'error'">
+          <md-content>
+            <h3>Error</h3>
+            <md-divider></md-divider>
+            <p>{{ queryResult.message }}</p>
+          </md-content>
         </div>
-        <div>{{ (queryResult || "").trim() }}</div>
+        <div ng-show="screenState() == 'rendered' && queryResultIsEmpty()">
+          <md-content>
+            <h3>Warning</h3>
+            <md-divider></md-divider>
+            <p>{{ queryEmptyMessage }}</p>
+          </md-content>
+        </div>
+        <div layout="row" ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+          <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
+          <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
+          <span flex></span>
+          <a ng-href="{{ embedLink }}" target="_blank">embed</a>
+        </div>
+        <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+          <google-chart class="metric-chart" data="selectResult" option="selectOptions" chart-type="inputModel.renderType"></google-chart>
+        </div>
+
+      </div><!-- end query/graph container -->
+
+      <div flex="20" id="savedQueryContainer"> <!-- Saved query display -->
+        <md-list>
+          <md-list-item id="saved-query-list-heading"><span> Saved queries</span></md-list-item>
+          <md-list-item ng-repeat="key in localStorageService.keys()">
+            <md-button ng-click="onSubmitQuery(localStorageService.get(key))" class="md-primary md-hue-2 saved-query-button">{{ key }}</md-button>
+            <span flex></span>
+            <i ng-click="localStorageService.remove(key)" class="material-icons">close</i>
+            <md-divider ng-if="!$last"></md-divider>
+          </md-list-item>
+        </md-list>
       </div>
-    </div>
-  </div>
-</div>
-</body>
+
+    </md-content>
+  </body>
 </html>
