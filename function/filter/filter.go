@@ -35,6 +35,9 @@ func (list filterList) Less(i, j int) bool {
 	if math.IsNaN(list.value[j]) && !math.IsNaN(list.value[i]) {
 		return true
 	}
+	if math.IsNaN(list.value[j]) {
+		return true
+	}
 	if list.ascending {
 		return list.value[i] < list.value[j]
 	} else {
@@ -62,7 +65,7 @@ func sortSeries(series []api.Timeseries, summary func([]float64) float64, lowest
 	weights := make([]float64, len(series))
 	for i, index := range array.index {
 		result[i] = series[index]
-		weights[i] = array.value[index]
+		weights[i] = array.value[i]
 	}
 	return result, weights
 }

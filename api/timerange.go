@@ -59,7 +59,7 @@ func (tr Timerange) EndMillis() int64 {
 // End returns the time.Time value corresponding to the end of the timerange (inclusive).
 func (tr Timerange) End() time.Time {
 	seconds := tr.end / 1000
-	nanoseconds := (tr.start % 1000) * 1000000
+	nanoseconds := (tr.end % 1000) * 1000000
 	return time.Unix(seconds, nanoseconds)
 }
 
