@@ -67,23 +67,32 @@ func sortSeries(series []api.Timeseries, summary func([]float64) float64, lowest
 	return result, weights
 }
 
-// FilterRecentBy reduces the number of things in the series `list` to at most the given `count`.
-// However, it only considered recent points when evaluating their ordering.
-func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
-	slots := int(duration / list.Timerange.Resolution())
-	if slots <= 0 {
+func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowest bool, duration time.Duration) ([]api.Timeseries, []float64) {
+	slots := int(duration/list.Timerange.Resolution()) + 1
+	if slots < 1 {
 		slots = 1
 	}
 	if slots > list.Timerange.Slots() {
 		slots = list.Timerange.Slots()
 	}
-	sorted, _ := sortSeries(list.Series, func(values []float64) float64 {
-		return summary(values[len(values)-slots:])
-	}, lowest)
+	return sortSeries(
+		list.Series,
+		func(values []float64) float64 {
+			return summary(values[len(values)-slots:])
+		},
+		lowest,
+	)
+}
 
-	if len(list.Series) < count {
+// FilterRecentBy reduces the number of things in the series `list` to at most the given `count`.
+// However, it only considered recent points when evaluating their ordering.
+func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
+	// Sort them by their recent points.
+	sorted, _ := sortSeriesRecent(list, summary, lowest, duration)
+
+	if len(sorted) < count {
 		// Limit the count to the number of available series
-		count = len(list.Series)
+		count = len(sorted)
 	}
 
 	return api.SeriesList{
@@ -95,13 +104,7 @@ func FilterByRecent(list api.SeriesList, count int, summary func([]float64) floa
 // FilterThresholdBy reduces the number of things in the series `list` to those whose `summar` is at at least/at most the threshold.
 // However, it only considers the data points as recent as the duration permits.
 func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, duration time.Duration) api.SeriesList {
-	slots := int(duration / list.Timerange.Resolution())
-	if slots > list.Timerange.Slots() {
-		slots = list.Timerange.Slots()
-	}
-	sorted, values := sortSeries(list.Series, func(values []float64) float64 {
-		return summary(values[len(values)-slots:])
-	}, below)
+	sorted, values := sortSeriesRecent(list, summary, below, duration)
 
 	result := []api.Timeseries{}
 	for i := range sorted {
