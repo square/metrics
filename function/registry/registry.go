@@ -145,91 +145,52 @@ func MustRegister(fun function.MetricFunction) {
 
 // Constructor Functions
 
-// NewFilterCount creates a new instance of a count filtering function.
+// NewFilter creates a new instance of a filtering function.
 func NewFilterCount(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: 2,
-		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			countFloat, err := function.EvaluateToScalar(arguments[1], context)
-			if err != nil {
-				return nil, err
-			}
-			recentDuration := context.Timerange.Duration()
-			if len(arguments) == 3 {
-				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
-				if err != nil {
-					return nil, err
-				}
-			}
-			// Round to the nearest integer.
+	return function.MakeFunction(
+		name,
+		func(list api.SeriesList, countFloat float64, optionalDuration *time.Duration, timerange api.Timerange) (function.Value, error) {
 			count := int(countFloat + 0.5)
 			if count < 0 {
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
-			if recentDuration < 0 {
-				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
+			duration := timerange.Duration()
+			if optionalDuration != nil {
+				if *optionalDuration < 0 {
+					return nil, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
+				}
+				duration = *optionalDuration
 			}
-			result := filter.FilterByRecent(list, count, summary, ascending, 1+int(recentDuration/context.Timerange.Resolution()))
-			return result, nil
+			return filter.FilterByRecent(list, count, summary, ascending, 1+int(duration/timerange.Resolution())), nil
 		},
-	}
+	)
 }
 
-// NewFilterThreshold creates a new instance of a threshold filtering function.
+// NewFilterThreshold creates a new instance of a filtering function.
 func NewFilterThreshold(name string, summary func([]float64) float64, below bool) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: 2,
-		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			threshold, err := function.EvaluateToScalar(arguments[1], context)
-			if err != nil {
-				return nil, err
-			}
-			recentDuration := context.Timerange.Duration()
-			if len(arguments) == 3 {
-				// Set the duration to the third argument.
-				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
-				if err != nil {
-					return nil, err
+	return function.MakeFunction(
+		name,
+		func(list api.SeriesList, threshold float64, optionalDuration *time.Duration, timerange api.Timerange) (function.Value, error) {
+			duration := timerange.Duration()
+			if optionalDuration != nil {
+				if *optionalDuration < 0 {
+					return nil, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
 				}
+				duration = *optionalDuration
 			}
-
-			if recentDuration < 0 {
-				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
+			if duration < 0 {
+				return nil, fmt.Errorf("expected positive recent duration but got %+v", duration)
 			}
-			result := filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(recentDuration/context.Timerange.Resolution()))
-			return result, nil
+			return filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(duration/timerange.Resolution())), nil
 		},
-	}
+	)
 }
 
 // NewAggregate takes a named aggregating function `[float64] => float64` and makes it into a MetricFunction.
 func NewAggregate(name string, aggregator func([]float64) float64) function.MetricFunction {
-	return function.MetricFunction{
-		Name:          name,
-		MinArguments:  1,
-		MaxArguments:  1,
-		AllowsGroupBy: true,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			argument := args[0]
-			seriesList, err := function.EvaluateToSeriesList(argument, context)
-			if err != nil {
-				return nil, err
-			}
-			return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses), nil
-		},
-	}
+	return function.MakeFunction(name, func(seriesList api.SeriesList, groups function.Groups) api.SeriesList {
+		return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses)
+	})
 }
 
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
@@ -258,22 +219,15 @@ func NewTransform(name string, parameterCount int, transformer func(function.Eva
 // NewOperator creates a new binary operator function.
 // the binary operators display a natural join semantic.
 func NewOperator(op string, operator func(float64, float64) float64) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         op,
-		MinArguments: 2,
-		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			evaluated, err := function.EvaluateMany(context, args)
+	return function.MakeFunction(
+		op,
+		func(leftValue function.Value, rightValue function.Value, timerange api.Timerange) (function.Value, error) {
+			// TODO: rewrite MakeFunction to evaluate these in parallel.
+			leftList, err := leftValue.ToSeriesList(timerange)
 			if err != nil {
 				return nil, err
 			}
-			leftValue := evaluated[0]
-			rightValue := evaluated[1]
-			leftList, err := leftValue.ToSeriesList(context.Timerange, args[0].QueryString())
-			if err != nil {
-				return nil, err
-			}
-			rightList, err := rightValue.ToSeriesList(context.Timerange, args[1].QueryString())
+			rightList, err := rightValue.ToSeriesList(timerange)
 			if err != nil {
 				return nil, err
 			}
@@ -296,5 +250,5 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 				Series: result,
 			}, nil
 		},
-	}
+	)
 }

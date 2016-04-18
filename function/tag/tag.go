@@ -65,43 +65,7 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 }
 
 // DropFunction wraps up DropTag into a MetricFunction called "tag.drop"
-var DropFunction = function.MetricFunction{
-	Name:         "tag.drop",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		list, err := function.EvaluateToSeriesList(arguments[0], context)
-		if err != nil {
-			return nil, err
-		}
-		dropTag, err := function.EvaluateToString(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		// Drop the tag from the list.
-		return DropTag(list, dropTag), nil
-	},
-}
+var DropFunction = function.MakeFunction("tag.drop", DropTag)
 
 // SetFunction wraps up SetTag into a MetricFunction called "tag.set"
-var SetFunction = function.MetricFunction{
-	Name:         "tag.set",
-	MinArguments: 3,
-	MaxArguments: 3,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		list, err := function.EvaluateToSeriesList(arguments[0], context)
-		if err != nil {
-			return nil, err
-		}
-		tag, err := function.EvaluateToString(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		set, err := function.EvaluateToString(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
-		// Set the tag for the list:
-		return SetTag(list, tag, set), nil
-	},
-}
+var SetFunction = function.MakeFunction("tag.set", SetTag)

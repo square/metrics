@@ -27,7 +27,7 @@ type SeriesList struct {
 }
 
 // ToSeriesList is an identity function that allows SeriesList to implement the expression.Value interface.
-func (list SeriesList) ToSeriesList(time Timerange, description string) (SeriesList, error) {
+func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
 	return list, nil
 }
 

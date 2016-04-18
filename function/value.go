@@ -26,7 +26,7 @@ import (
 // Value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
 type Value interface {
-	ToSeriesList(api.Timerange, string) (api.SeriesList, error)
+	ToSeriesList(api.Timerange) (api.SeriesList, error)
 	ToString(string) (string, error)          // takes a description of the object's expression
 	ToScalar(string) (float64, error)         // takes a description of the object's expression
 	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
@@ -53,8 +53,8 @@ func (e ConversionError) TokenName() string {
 type StringValue string
 
 // ToSeriesList is a conversion function.
-func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, ConversionError{"string", "SeriesList", description}
+func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList{}, ConversionError{"string", "SeriesList", "// TODO //"}
 }
 
 // ToString is a conversion function.
@@ -77,7 +77,7 @@ type ScalarValue float64
 
 // ToSeriesList is a conversion function.
 // The scalar becomes a constant value for the timerange.
-func (value ScalarValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
+func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
 	series := make([]float64, timerange.Slots())
 	for i := range series {
 		series[i] = float64(value)
@@ -116,8 +116,8 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 }
 
 // ToSeriesList is a conversion function.
-func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, ConversionError{"duration", "SeriesList", description}
+func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, error) {
+	return api.SeriesList{}, ConversionError{"duration", "SeriesList", "// TODO //"}
 }
 
 // ToString is a conversion function.

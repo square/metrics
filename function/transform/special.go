@@ -23,32 +23,18 @@ import (
 	"github.com/square/metrics/function"
 )
 
-var Timeshift = function.MetricFunction{
-	Name:         "transform.timeshift",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		duration, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-
+var Timeshift = function.MakeFunction(
+	"transform.timeshift",
+	func(expression function.Expression, duration time.Duration, context function.EvaluationContext) (function.Value, error) {
 		newContext := context.WithTimerange(context.Timerange.Shift(duration))
-		return arguments[0].Evaluate(newContext)
+		return expression.Evaluate(newContext)
 	},
-}
+)
 
-var MovingAverage = function.MetricFunction{
-	Name:         "transform.moving_average",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+var MovingAverage = function.MakeFunction(
+	"transform.moving_average",
+	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
-
-		size, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
 		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
 			// At least one value must be included at all times
@@ -62,7 +48,7 @@ var MovingAverage = function.MetricFunction{
 		}
 		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
-		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
+		list, err := function.EvaluateToSeriesList(listExpression, newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -98,19 +84,12 @@ var MovingAverage = function.MetricFunction{
 		}
 		return list, nil
 	},
-}
+)
 
-var ExponentialMovingAverage = function.MetricFunction{
-	Name:         "transform.exponential_moving_average",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+var ExponentialMovingAverage = function.MakeFunction(
+	"transform.exponential_moving_average",
+	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (function.Value, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
-
-		size, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
 		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
 			// At least one value must be included at all times
@@ -126,7 +105,7 @@ var ExponentialMovingAverage = function.MetricFunction{
 		newContext := context.WithTimerange(newTimerange)
 
 		// The new context has a timerange which is extended beyond the query's.
-		list, err := function.EvaluateToSeriesList(arguments[0], newContext)
+		list, err := function.EvaluateToSeriesList(listExpression, newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -157,18 +136,13 @@ var ExponentialMovingAverage = function.MetricFunction{
 		}
 		return list, nil
 	},
-}
+)
 
-var Alias = function.MetricFunction{
-	Name:         "transform.alias",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		// TODO: delete this function
-		context.EvaluationNotes.AddNote("transform.alias is deprecated")
-		return arguments[0].Evaluate(context)
-	},
-}
+// TODO: delete this function
+var Alias = function.MakeFunction("transform.alias", func(context function.EvaluationContext, value function.Value) function.Value {
+	context.EvaluationNotes.AddNote("transform.alias is deprecated")
+	return value
+})
 
 // Derivative is special because it needs to get one extra data point to the left
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
@@ -224,35 +198,28 @@ func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []fu
 // transform is expected to return an array of values whose length is 1 less
 // than the given series
 func newDerivativeBasedTransform(name string, transformer transform) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         "transform." + name,
-		MinArguments: 1,
-		MaxArguments: 1,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+	return function.MakeFunction("transform."+name, func(context function.EvaluationContext, listExpression function.Expression) (function.Value, error) {
+		newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 
-			// Calcuate the new timerange to include one extra point to the left.
-			newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
+		// The new context has a timerange which is extended beyond the query's.
+		list, err := function.EvaluateToSeriesList(listExpression, newContext)
+		if err != nil {
+			return nil, err
+		}
 
-			// The new context has a timerange which is extended beyond the query's.
-			list, err := function.EvaluateToSeriesList(arguments[0], newContext)
-			if err != nil {
-				return nil, err
+		// Apply the original context to the transform even though the list
+		// will include one additional data point.
+		result, err := ApplyTransform(context, list, transformer, []function.Value{}, context.Timerange.Resolution())
+		if err != nil {
+			return nil, err
+		}
+
+		// Validate our series are the correct length
+		for i := range result.Series {
+			if len(result.Series[i].Values) != len(list.Series[i].Values)-1 {
+				panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
 			}
-
-			//Apply the original context to the transform even though the list
-			//will include one additional data point.
-			result, err := ApplyTransform(context, list, transformer, []function.Value{}, context.Timerange.Resolution())
-			if err != nil {
-				return nil, err
-			}
-
-			// Validate our series are the correct length
-			for i := range result.Series {
-				if len(result.Series[i].Values) != len(list.Series[i].Values)-1 {
-					panic(fmt.Sprintf("Expected transform to return %d values, received %d", len(list.Series[i].Values)-1, len(result.Series[i].Values)))
-				}
-			}
-			return result, nil
-		},
-	}
+		}
+		return result, nil
+	})
 }
