@@ -331,7 +331,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		result, err := value.ToSeriesList(test.context.Timerange, "-test-")
+		result, err := value.ToSeriesList(test.context.Timerange)
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue

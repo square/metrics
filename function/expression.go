@@ -190,7 +190,7 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return seriesValue.ToSeriesList(context.Timerange, e.QueryString())
+	return seriesValue.ToSeriesList(context.Timerange)
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a string.
