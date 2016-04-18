@@ -48,15 +48,15 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 	if funcType.NumOut() > 2 {
 		panic("MetricFunction's argument function must return at most two values.")
 	}
-	// TODO: allow subtypes
 	if !funcType.Out(0).ConvertibleTo(valueType) {
-		panic("MetricFunction's argument function's first return type must be assignable to `function.Value`")
+		panic("MetricFunction's argument function's first return type must be convertible to `function.Value`.")
 	}
 	if funcType.NumOut() == 2 && !funcType.Out(1).ConvertibleTo(errorType) {
-		panic("MetricFunction's argument function's second return type must be `error`.")
+		panic("MakeFunction's argument function's second return type must convertible be `error`.")
 	}
 
 	formalArgumentCount := 0
+	optionalArgumentCount := 0
 	allowsGroupBy := false
 	for i := 0; i < funcType.NumIn(); i++ {
 		argType := funcType.In(i)
@@ -69,97 +69,108 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			allowsGroupBy = true
 			continue
 		}
+		if argType.Kind() == reflect.Ptr {
+			// Then this argument is optional (but everything else is the same).
+			argType = argType.Elem()
+			optionalArgumentCount++
+		} else {
+			// If an optional argument exists, this one must be optional too:
+			if optionalArgumentCount > 0 {
+				panic("MakeFunction's argument function has non-optional formal parameter after optional formal parameter.")
+			}
+		}
 		formalArgumentCount++ // The next thing is an actual argument.
-		if argType == stringType || argType == scalarType || argType == durationType || argType == timeseriesType {
-			// Everything is okay
-			continue
+		switch argType {
+		case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
+			// Do nothing: these are all okay.
+		default:
+			panic(fmt.Sprintf("MetricFunction function argument asks for unsupported type: cannot supply argument %d of type %+v.", i, argType))
 		}
-		if argType == valueType {
-			// It's untyped.
-			continue
-		}
-		if argType == expressionType {
-			// It's lazy.
-			continue
-		}
-		// TODO: handle optional arguments
-		panic(fmt.Sprintf("MetricFunction function argument asks for unsupported type: cannot supply argument %d of type %+v", i, argType))
 	}
 	// We've checked that everything is sound.
 	return MetricFunction{
 		Name:          name,
-		MinArguments:  formalArgumentCount,
+		MinArguments:  formalArgumentCount - optionalArgumentCount,
 		MaxArguments:  formalArgumentCount,
 		AllowsGroupBy: allowsGroupBy,
 		Compute: func(context EvaluationContext, arguments []Expression, groups Groups) (Value, error) {
 			argValues := make([]reflect.Value, funcType.NumIn())
 			// TODO: evaluate in parallel where possible.
+
 			formalArgument := 0
+			nextArgument := func() Expression {
+				if formalArgument >= len(arguments) {
+					return nil
+				}
+				arg := arguments[formalArgument]
+				formalArgument++
+				return arg
+			}
+
+			evalTo := func(expression Expression, result reflect.Type) (interface{}, error) {
+				value, err := expression.Evaluate(context)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				switch result {
+				case stringType:
+					return value.ToString("TODO: what goes here?")
+				case scalarType:
+					return value.ToScalar("TODO: what goes here?")
+				case durationType:
+					return value.ToDuration("TODO: what goes here?")
+				case timeseriesType:
+					return value.ToSeriesList(context.Timerange)
+				case valueType:
+					return value, nil
+				}
+				panic("Unknown type!!!")
+			}
+
+			// TODO: get pointers working for optional arguments
 			for i := 0; i < funcType.NumIn(); i++ {
 				argType := funcType.In(i)
-				if argType == contextType {
+				switch argType {
+				case contextType:
 					argValues[i] = reflect.ValueOf(context)
-					continue
-				}
-				if argType == timerangeType {
+				case timerangeType:
 					argValues[i] = reflect.ValueOf(context.Timerange)
-					continue
-				}
-				if argType == groupsType {
+				case groupsType:
 					argValues[i] = reflect.ValueOf(groups)
-					continue
-				}
-				if argType == stringType {
-					stringArg, err := EvaluateToString(arguments[formalArgument], context)
+				case stringType, scalarType, durationType, timeseriesType, valueType:
+					resultI, err := evalTo(nextArgument(), argType)
 					if err != nil {
 						return nil, err
 					}
-					argValues[i] = reflect.ValueOf(stringArg)
-					formalArgument++
-					continue
-				}
-				if argType == scalarType {
-					scalarArg, err := EvaluateToScalar(arguments[formalArgument], context)
-					if err != nil {
-						return nil, err
+					argValues[i] = reflect.ValueOf(resultI)
+				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType):
+					arg := nextArgument()
+					if arg != nil {
+						resultI, err := evalTo(nextArgument(), argType)
+						if err != nil {
+							return nil, err
+						}
+						// make a pointer to resultI:
+						ptrValue := reflect.New(argType)
+						ptrValue.Elem().Set(reflect.ValueOf(resultI))
+						argValues[i] = ptrValue
+					} else {
+						argValues[i] = reflect.Zero(argType)
 					}
-					argValues[i] = reflect.ValueOf(scalarArg)
-					formalArgument++
-					continue
-				}
-				if argType == durationType {
-					durationArg, err := EvaluateToDuration(arguments[formalArgument], context)
-					if err != nil {
-						return nil, err
+				case expressionType:
+					argValues[i] = reflect.ValueOf(nextArgument())
+				case reflect.PtrTo(expressionType):
+					arg := nextArgument()
+					if arg != nil {
+						ptrValue := reflect.New(argType)
+						ptrValue.Elem().Set(reflect.ValueOf(arg))
+						argValues[i] = ptrValue
+					} else {
+						argValues[i] = reflect.Zero(argType)
 					}
-					argValues[i] = reflect.ValueOf(durationArg)
-					formalArgument++
-					continue
+				default:
+					panic(fmt.Sprintf("Argument to MakeFunction requests invalid type %+v.", argType))
 				}
-				if argType == timeseriesType {
-					timeseriesArg, err := EvaluateToSeriesList(arguments[formalArgument], context)
-					if err != nil {
-						return nil, err
-					}
-					argValues[i] = reflect.ValueOf(timeseriesArg)
-					formalArgument++
-					continue
-				}
-				if argType == valueType {
-					valueArg, err := arguments[formalArgument].Evaluate(context)
-					if err != nil {
-						return nil, err
-					}
-					argValues[i] = reflect.ValueOf(valueArg)
-					formalArgument++
-					continue
-				}
-				if argType == expressionType {
-					argValues[i] = reflect.ValueOf(arguments[formalArgument])
-					formalArgument++
-					continue
-				}
-				panic(fmt.Sprintf("Argument to MakeFunction requests invalid type %+v", argType))
 			}
 			output := funcValue.Call(argValues)
 			if len(output) == 1 {
@@ -172,7 +183,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				}
 				return valueI.(Value), nil
 			}
-			panic("MakeFunction built with function that doesn't return 2 things.")
+			panic("MakeFunction built with function that doesn't return 1 or 2 things.")
 		},
 	}
 
