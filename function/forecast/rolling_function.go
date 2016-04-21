@@ -27,33 +27,12 @@ import (
 // The learning rates are interpreted as being "per period." For example, a value of 0.5 means that values in
 // this period are effectively weighted twice as much as those in the previous. A value of 0.9 means that values in
 // this period are weighted 1.0/(1.0 - 0.9) = 10 times as much as the previous.
-var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
-	Name:         "forecast.rolling_multiplicative_holt_winters",
-	MinArguments: 5, // Series, period, level learning rate,  trend learning rate, seasonal learning rate
-	MaxArguments: 6, // Series, period, level learning rate,  trend learning rate, seasonal learning rate, extra training time
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		levelLearningRate, err := function.EvaluateToScalar(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
-		trendLearningRate, err := function.EvaluateToScalar(arguments[3], context)
-		if err != nil {
-			return nil, err
-		}
-		seasonalLearningRate, err := function.EvaluateToScalar(arguments[4], context)
-		if err != nil {
-			return nil, err
-		}
+var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
+	"forecast.rolling_multiplicative_holt_winters",
+	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (function.Value, error) {
 		extraTrainingTime := time.Duration(0)
-		if len(arguments) == 6 {
-			extraTrainingTime, err = function.EvaluateToDuration(arguments[5], context)
-			if err != nil {
-				return nil, err
-			}
+		if optionalExtraTrainingTime != nil {
+			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
 			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
@@ -66,7 +45,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
+		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -85,30 +64,17 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 
 		return result, nil
 	},
-}
+)
 
 // FunctionRollingSeasonal is a forecasting MetricFunction that performs the rolling seasonal estimation.
 // It is designed for data which shows seasonality without trends, although which a high learning rate it can
 // perform tolerably well on data with trends as well.
-var FunctionRollingSeasonal = function.MetricFunction{
-	Name:         "forecast.rolling_seasonal",
-	MinArguments: 3, // Series, period, seasonal learning rate
-	MaxArguments: 4, // Series, period, seasonal learning rate, extra training time
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		period, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
-		seasonalLearningRate, err := function.EvaluateToScalar(arguments[2], context)
-		if err != nil {
-			return nil, err
-		}
+var FunctionRollingSeasonal = function.MakeFunction(
+	"forecast.rolling_seasonal",
+	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (function.Value, error) {
 		extraTrainingTime := time.Duration(0)
-		if len(arguments) == 4 {
-			extraTrainingTime, err = function.EvaluateToDuration(arguments[3], context)
-			if err != nil {
-				return nil, err
-			}
+		if optionalExtraTrainingTime != nil {
+			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
 			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
@@ -121,7 +87,7 @@ var FunctionRollingSeasonal = function.MetricFunction{
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
+		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -140,23 +106,17 @@ var FunctionRollingSeasonal = function.MetricFunction{
 
 		return result, nil
 	},
-}
+)
 
 // FunctionForecastLinear forecasts with a simple linear regression.
 // For data which is mostly just a linear trend up or down, this will provide a good model of current behavior,
 // as well as a good estimate of near-future behavior.
-var FunctionForecastLinear = function.MetricFunction{
-	Name:         "forecast.linear",
-	MinArguments: 1, // Series
-	MaxArguments: 2, // Series, extra training time
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+var FunctionForecastLinear = function.MakeFunction(
+	"forecast.linear",
+	func(context function.EvaluationContext, seriesExpression function.Expression, optionalTrainingTime *time.Duration) (function.Value, error) {
 		extraTrainingTime := time.Duration(0)
-		if len(arguments) == 2 {
-			var err error
-			extraTrainingTime, err = function.EvaluateToDuration(arguments[1], context)
-			if err != nil {
-				return nil, err
-			}
+		if optionalTrainingTime != nil {
+			extraTrainingTime = *optionalTrainingTime
 		}
 		if extraTrainingTime < 0 {
 			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
@@ -164,7 +124,7 @@ var FunctionForecastLinear = function.MetricFunction{
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
-		seriesList, err := function.EvaluateToSeriesList(arguments[0], newContext)
+		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
 			return nil, err
 		}
@@ -183,4 +143,4 @@ var FunctionForecastLinear = function.MetricFunction{
 
 		return result, nil
 	},
-}
+)
