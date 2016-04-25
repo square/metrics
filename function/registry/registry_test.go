@@ -28,12 +28,12 @@ var dummyCompute = func(function.EvaluationContext, []function.Expression, funct
 
 func Test_Registry_Default(t *testing.T) {
 	a := assert.New(t)
-	sr := StandardRegistry{mapping: make(map[string]function.MetricFunction)}
+	sr := StandardRegistry{mapping: make(map[string]function.Function)}
 	a.Eq(sr.All(), []string{})
-	if err := sr.Register(function.MetricFunction{Name: "foo", Compute: dummyCompute}); err != nil {
+	if err := sr.Register(function.MetricFunction{FunctionName: "foo", Compute: dummyCompute}); err != nil {
 		a.CheckError(err)
 	}
-	if err := sr.Register(function.MetricFunction{Name: "bar", Compute: dummyCompute}); err != nil {
+	if err := sr.Register(function.MetricFunction{FunctionName: "bar", Compute: dummyCompute}); err != nil {
 		a.CheckError(err)
 	}
 	a.Eq(sr.All(), []string{"bar", "foo"})
@@ -44,14 +44,14 @@ func Test_Registry_Error(t *testing.T) {
 		Name     string
 		Function function.MetricFunction
 	}{
-		{"empty name", function.MetricFunction{Name: "", Compute: dummyCompute}},
-		{"duplicate name", function.MetricFunction{Name: "existing", Compute: dummyCompute}},
-		{"no compute", function.MetricFunction{Name: "notexisting", Compute: nil}},
+		{"empty name", function.MetricFunction{FunctionName: "", Compute: dummyCompute}},
+		{"duplicate name", function.MetricFunction{FunctionName: "existing", Compute: dummyCompute}},
+		{"no compute", function.MetricFunction{FunctionName: "notexisting", Compute: nil}},
 	} {
 		a := assert.New(t).Contextf("%s", suite.Name)
 		// set up the standard registry
-		sr := StandardRegistry{mapping: make(map[string]function.MetricFunction)}
-		if err := sr.Register(function.MetricFunction{Name: "existing", Compute: dummyCompute}); err != nil {
+		sr := StandardRegistry{mapping: make(map[string]function.Function)}
+		if err := sr.Register(function.MetricFunction{FunctionName: "existing", Compute: dummyCompute}); err != nil {
 			a.CheckError(err)
 			return
 		}

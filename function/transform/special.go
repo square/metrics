@@ -199,11 +199,11 @@ func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []fu
 	return result, nil
 }
 
-// newDerivativeBasedTransform returns a function.MetricFunction that performs
+// newDerivativeBasedTransform returns a function.Function that performs
 // a delta between two data points. The transform parameter is a function of type
 // transform is expected to return an array of values whose length is 1 less
 // than the given series
-func newDerivativeBasedTransform(name string, transformer transform) function.MetricFunction {
+func newDerivativeBasedTransform(name string, transformer transform) function.Function {
 	return function.MakeFunction("transform."+name, func(context function.EvaluationContext, listExpression function.Expression) (function.Value, error) {
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 

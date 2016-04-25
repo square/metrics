@@ -59,17 +59,11 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 		panic("MakeFunction's argument function's second return type must convertible be `error`.")
 	}
 
-	// basicArgumentTypes will describe the types as they are.
-	basicArgumentTypes := make([]reflect.Type, funcType.NumIn())
-	basicArgumentWrappers := make([]func(interface{}) reflect.Value, funcType.NumIn())
-
 	requiredArgumentCount := 0
 	optionalArgumentCount := 0
 	allowsGroupBy := false
 	for i := 0; i < funcType.NumIn(); i++ {
 		argType := funcType.In(i)
-		basicArgumentTypes[i] = argType            // Note: this can be overwritten below
-		basicArgumentWrappers[i] = reflect.ValueOf // Note: this can be overwritten below
 		switch argType {
 		case contextType, timerangeType:
 		// Asks for part of context.
@@ -84,15 +78,6 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			requiredArgumentCount++
 		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 			// An optional argument
-			basicArgumentTypes[i] = argType.Elem()
-			basicArgumentWrappers[i] = func(x interface{}) reflect.Value {
-				if x == nil {
-					return reflect.Zero(argType)
-				}
-				ptr := reflect.New(argType)
-				ptr.Elem().Set(reflect.ValueOf(x))
-				return ptr
-			}
 			optionalArgumentCount++
 		default:
 			panic(fmt.Sprintf("MetricFunction function argument asks for unsupported type: cannot supply argument %d of type %+v.", i, argType))
@@ -102,7 +87,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 	// Now, generate the corresponding MetricFunction.
 
 	return MetricFunction{
-		Name:          name,
+		FunctionName:  name,
 		MinArguments:  requiredArgumentCount,
 		MaxArguments:  requiredArgumentCount + optionalArgumentCount,
 		AllowsGroupBy: allowsGroupBy,
@@ -145,14 +130,23 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			// argumentFuncs holds functions to obtain the Value arguments.
 			argumentFuncs := make([]func() (interface{}, error), funcType.NumIn())
 
+			// provideValue takes any value, and returns a function that returns it.
 			provideValue := func(x interface{}) func() (interface{}, error) {
 				return func() (interface{}, error) {
 					return x, nil
 				}
 			}
 
+			// provideZeroValue takes a type, and returns a function that returns the zero-value for that type.
 			provideZeroValue := func(t reflect.Type) func() (interface{}, error) {
 				return provideValue(reflect.Zero(t).Interface())
+			}
+
+			// ptrTo takes a value and returns a pointer to that value.
+			ptrTo := func(x interface{}) interface{} {
+				ptr := reflect.New(reflect.TypeOf(x))
+				ptr.Elem().Set(reflect.ValueOf(x))
+				return ptr.Interface()
 			}
 
 			for i := range argumentFuncs {
@@ -179,10 +173,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 							if err != nil {
 								return nil, err
 							}
-							// make a pointer to resultI:
-							ptrValue := reflect.New(argType)
-							ptrValue.Elem().Set(reflect.ValueOf(resultI))
-							return ptrValue.Interface(), nil
+							return ptrTo(resultI), nil
 						}
 					}
 				case expressionType:
@@ -192,11 +183,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 					if arg == nil {
 						argumentFuncs[i] = provideZeroValue(argType)
 					} else {
-						argumentFuncs[i] = func() (interface{}, error) {
-							ptrValue := reflect.New(argType)
-							ptrValue.Elem().Set(reflect.ValueOf(arg))
-							return ptrValue.Interface(), nil
-						}
+						argumentFuncs[i] = provideValue(ptrTo(arg))
 					}
 				default:
 					panic(fmt.Sprintf("Unreachable :: Argument to MakeFunction requests invalid type %+v.", argType))
