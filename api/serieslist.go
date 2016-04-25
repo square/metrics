@@ -32,16 +32,16 @@ func (list SeriesList) ToSeriesList(time Timerange) (SeriesList, error) {
 }
 
 // ToString is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToString(description string) (string, error) {
-	return "", fmt.Errorf("cannot convert %s (type SeriesList) to type string", description)
+func (list SeriesList) ToString() (string, error) {
+	return "", fmt.Errorf("cannot convert %s (type SeriesList) to type string", "")
 }
 
 // ToScalar is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToScalar(description string) (float64, error) {
-	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type scalar", description)
+func (list SeriesList) ToScalar() (float64, error) {
+	return 0, fmt.Errorf("cannot convert value of type series list to type scalar")
 }
 
 // ToDuration is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToDuration(description string) (time.Duration, error) {
-	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type duration", description)
+func (list SeriesList) ToDuration() (time.Duration, error) {
+	return 0, fmt.Errorf("cannot convert value of type series list to type duration")
 }

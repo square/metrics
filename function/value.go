@@ -27,9 +27,9 @@ import (
 // They can be floating point values, strings, or series lists.
 type Value interface {
 	ToSeriesList(api.Timerange) (api.SeriesList, error)
-	ToString(string) (string, error)          // takes a description of the object's expression
-	ToScalar(string) (float64, error)         // takes a description of the object's expression
-	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
+	ToString() (string, error)
+	ToScalar() (float64, error)
+	ToDuration() (time.Duration, error)
 }
 
 // ConversionError represents an error converting between two items of different types.
@@ -58,18 +58,18 @@ func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, error
 }
 
 // ToString is a conversion function.
-func (value StringValue) ToString(description string) (string, error) {
+func (value StringValue) ToString() (string, error) {
 	return string(value), nil
 }
 
 // ToScalar is a conversion function.
-func (value StringValue) ToScalar(description string) (float64, error) {
-	return 0, ConversionError{"string", "scalar", description}
+func (value StringValue) ToScalar() (float64, error) {
+	return 0, ConversionError{"string", "scalar", ""}
 }
 
 // ToDuration is a conversion function.
-func (value StringValue) ToDuration(description string) (time.Duration, error) {
-	return 0, ConversionError{"string", "duration", description}
+func (value StringValue) ToDuration() (time.Duration, error) {
+	return 0, ConversionError{"string", "duration", ""}
 }
 
 // A ScalarValue holds a float and can be converted to a serieslist
@@ -89,19 +89,19 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, 
 }
 
 // ToString is a conversion function. Numbers become formatted.
-func (value ScalarValue) ToString(description string) (string, error) {
+func (value ScalarValue) ToString() (string, error) {
 	return "", ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
 }
 
 // ToScalar is a conversion function.
-func (value ScalarValue) ToScalar(description string) (float64, error) {
+func (value ScalarValue) ToScalar() (float64, error) {
 	return float64(value), nil
 }
 
 // ToDuration is a conversion function.
 // Scalars cannot be converted to durations.
-func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
-	return 0, ConversionError{"scalar", "duration", description}
+func (value ScalarValue) ToDuration() (time.Duration, error) {
+	return 0, ConversionError{"scalar", "duration", ""}
 }
 
 // DurationValue is a duration with a (usually) human-written name.
@@ -121,17 +121,17 @@ func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList
 }
 
 // ToString is a conversion function.
-func (value DurationValue) ToString(description string) (string, error) {
-	return "", ConversionError{"duration", "string", description}
+func (value DurationValue) ToString() (string, error) {
+	return "", ConversionError{"duration", "string", ""}
 }
 
 // ToScalar is a conversion function.
-func (value DurationValue) ToScalar(description string) (float64, error) {
-	return 0, ConversionError{"duration", "scalar", description}
+func (value DurationValue) ToScalar() (float64, error) {
+	return 0, ConversionError{"duration", "scalar", ""}
 }
 
 // ToDuration is a conversion function.
-func (value DurationValue) ToDuration(description string) (time.Duration, error) {
+func (value DurationValue) ToDuration() (time.Duration, error) {
 	return time.Duration(value.duration), nil
 }
 

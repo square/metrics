@@ -15,6 +15,7 @@
 package function
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -134,7 +135,11 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	if err != nil {
 		return 0, err
 	}
-	return scalarValue.ToScalar(e.QueryString())
+	value, err := scalarValue.ToScalar()
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a duration.
@@ -143,7 +148,11 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	if err != nil {
 		return 0, err
 	}
-	return durationValue.ToDuration(e.QueryString())
+	value, err := durationValue.ToDuration()
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a series list.
@@ -161,7 +170,11 @@ func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return stringValue.ToString(e.QueryString())
+	value, err := stringValue.ToString()
+	if err != nil {
+		return "", fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	}
+	return value, nil
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.
