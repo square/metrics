@@ -142,7 +142,7 @@ func (expr *FunctionExpression) Evaluate(context function.EvaluationContext) (fu
 		return nil, SyntaxError{fmt.Sprintf("no such function %s", expr.FunctionName)}
 	}
 
-	return fun.Evaluate(context, expr.Arguments, expr.GroupBy, expr.GroupByCollapses)
+	return fun.Run(context, expr.Arguments, function.Groups{expr.GroupBy, expr.GroupByCollapses})
 }
 
 func functionFormatString(argumentStrings []string, f FunctionExpression) string {

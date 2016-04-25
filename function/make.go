@@ -17,6 +17,7 @@ package function
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -39,74 +40,88 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 func MakeFunction(name string, function interface{}) MetricFunction {
 	funcValue := reflect.ValueOf(function)
 	if funcValue.Kind() != reflect.Func {
-		panic("MetricFunction expects a function as input.")
+		panic("MakeFunction expects a function as input.")
 	}
 	funcType := funcValue.Type()
+	if funcType.IsVariadic() {
+		panic("MakeFunction's argument cannot be variadic.")
+	}
 	if funcType.NumOut() == 0 {
-		panic("MetricFunction's argument function must return a value.")
+		panic("MakeFunction's argument function must return a value.")
 	}
 	if funcType.NumOut() > 2 {
-		panic("MetricFunction's argument function must return at most two values.")
+		panic("MakeFunction's argument function must return at most two values.")
 	}
 	if !funcType.Out(0).ConvertibleTo(valueType) {
-		panic("MetricFunction's argument function's first return type must be convertible to `function.Value`.")
+		panic("MakeFunction's argument function's first return type must be convertible to `function.Value`.")
 	}
 	if funcType.NumOut() == 2 && !funcType.Out(1).ConvertibleTo(errorType) {
 		panic("MakeFunction's argument function's second return type must convertible be `error`.")
 	}
 
-	formalArgumentCount := 0
+	// basicArgumentTypes will describe the types as they are.
+	basicArgumentTypes := make([]reflect.Type, funcType.NumIn())
+	basicArgumentWrappers := make([]func(interface{}) reflect.Value, funcType.NumIn())
+
+	requiredArgumentCount := 0
 	optionalArgumentCount := 0
 	allowsGroupBy := false
 	for i := 0; i < funcType.NumIn(); i++ {
 		argType := funcType.In(i)
-		if argType == contextType || argType == timerangeType {
-			// It asks for context (or part of it).
-			continue
-		}
-		if argType == groupsType {
-			// It asks for groups.
-			allowsGroupBy = true
-			continue
-		}
-		if argType.Kind() == reflect.Ptr {
-			// Then this argument is optional (but everything else is the same).
-			argType = argType.Elem()
-			optionalArgumentCount++
-		} else {
-			// If an optional argument exists, this one must be optional too:
-			if optionalArgumentCount > 0 {
-				panic("MakeFunction's argument function has non-optional formal parameter after optional formal parameter.")
-			}
-		}
-		formalArgumentCount++ // The next thing is an actual argument.
+		basicArgumentTypes[i] = argType            // Note: this can be overwritten below
+		basicArgumentWrappers[i] = reflect.ValueOf // Note: this can be overwritten below
 		switch argType {
+		case contextType, timerangeType:
+		// Asks for part of context.
+		case groupsType:
+			// asks for groups
+			allowsGroupBy = true
 		case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
-			// Do nothing: these are all okay.
+			// An ordinary argument.
+			if optionalArgumentCount > 0 {
+				panic("Non-optional arguments cannot occur after optional ones.")
+			}
+			requiredArgumentCount++
+		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
+			// An optional argument
+			basicArgumentTypes[i] = argType.Elem()
+			basicArgumentWrappers[i] = func(x interface{}) reflect.Value {
+				if x == nil {
+					return reflect.Zero(argType)
+				}
+				ptr := reflect.New(argType)
+				ptr.Elem().Set(reflect.ValueOf(x))
+				return ptr
+			}
+			optionalArgumentCount++
 		default:
 			panic(fmt.Sprintf("MetricFunction function argument asks for unsupported type: cannot supply argument %d of type %+v.", i, argType))
 		}
 	}
-	// We've checked that everything is sound.
+	// The function has been checked and inspected.
+	// Now, generate the corresponding MetricFunction.
+
 	return MetricFunction{
 		Name:          name,
-		MinArguments:  formalArgumentCount - optionalArgumentCount,
-		MaxArguments:  formalArgumentCount,
+		MinArguments:  requiredArgumentCount,
+		MaxArguments:  requiredArgumentCount + optionalArgumentCount,
 		AllowsGroupBy: allowsGroupBy,
+		// Compute does a lot of reflection to get this to work.
 		Compute: func(context EvaluationContext, arguments []Expression, groups Groups) (Value, error) {
-			argValues := make([]reflect.Value, funcType.NumIn())
-			// TODO: evaluate in parallel where possible.
 
-			formalArgument := 0
+			// nextArgument will extract the next argument from the expression list `arguments`.
+			// if there are not more to return, it will return nil.
+			expressionArgument := 0
 			nextArgument := func() Expression {
-				if formalArgument >= len(arguments) {
+				if expressionArgument >= len(arguments) {
 					return nil
 				}
-				arg := arguments[formalArgument]
-				formalArgument++
+				arg := arguments[expressionArgument]
+				expressionArgument++
 				return arg
 			}
 
+			// evalTo takes an expression and a reflect.Type and evaluates to the appropriate type.
 			evalTo := func(expression Expression, result reflect.Type) (interface{}, error) {
 				value, err := expression.Evaluate(context)
 				if err != nil {
@@ -124,54 +139,94 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				case valueType:
 					return value, nil
 				}
-				panic("Unknown type!!!")
+				panic("Unreachable :: Unknown type to evaluate to")
 			}
 
-			// TODO: get pointers working for optional arguments
-			for i := 0; i < funcType.NumIn(); i++ {
+			// argumentFuncs holds functions to obtain the Value arguments.
+			argumentFuncs := make([]func() (interface{}, error), funcType.NumIn())
+
+			provideValue := func(x interface{}) func() (interface{}, error) {
+				return func() (interface{}, error) {
+					return x, nil
+				}
+			}
+
+			provideZeroValue := func(t reflect.Type) func() (interface{}, error) {
+				return provideValue(reflect.Zero(t).Interface())
+			}
+
+			for i := range argumentFuncs {
 				argType := funcType.In(i)
 				switch argType {
 				case contextType:
-					argValues[i] = reflect.ValueOf(context)
+					argumentFuncs[i] = provideValue(context)
 				case timerangeType:
-					argValues[i] = reflect.ValueOf(context.Timerange)
+					argumentFuncs[i] = provideValue(context.Timerange)
 				case groupsType:
-					argValues[i] = reflect.ValueOf(groups)
+					argumentFuncs[i] = provideValue(groups)
 				case stringType, scalarType, durationType, timeseriesType, valueType:
-					resultI, err := evalTo(nextArgument(), argType)
-					if err != nil {
-						return nil, err
+					arg := nextArgument()
+					argumentFuncs[i] = func() (interface{}, error) {
+						return evalTo(arg, argType)
 					}
-					argValues[i] = reflect.ValueOf(resultI)
 				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType):
 					arg := nextArgument()
-					if arg != nil {
-						resultI, err := evalTo(nextArgument(), argType)
-						if err != nil {
-							return nil, err
-						}
-						// make a pointer to resultI:
-						ptrValue := reflect.New(argType)
-						ptrValue.Elem().Set(reflect.ValueOf(resultI))
-						argValues[i] = ptrValue
+					if arg == nil {
+						argumentFuncs[i] = provideZeroValue(argType)
 					} else {
-						argValues[i] = reflect.Zero(argType)
+						argumentFuncs[i] = func() (interface{}, error) {
+							resultI, err := evalTo(arg, argType)
+							if err != nil {
+								return nil, err
+							}
+							// make a pointer to resultI:
+							ptrValue := reflect.New(argType)
+							ptrValue.Elem().Set(reflect.ValueOf(resultI))
+							return ptrValue.Interface(), nil
+						}
 					}
 				case expressionType:
-					argValues[i] = reflect.ValueOf(nextArgument())
+					argumentFuncs[i] = provideValue(nextArgument())
 				case reflect.PtrTo(expressionType):
 					arg := nextArgument()
-					if arg != nil {
-						ptrValue := reflect.New(argType)
-						ptrValue.Elem().Set(reflect.ValueOf(arg))
-						argValues[i] = ptrValue
+					if arg == nil {
+						argumentFuncs[i] = provideZeroValue(argType)
 					} else {
-						argValues[i] = reflect.Zero(argType)
+						argumentFuncs[i] = func() (interface{}, error) {
+							ptrValue := reflect.New(argType)
+							ptrValue.Elem().Set(reflect.ValueOf(arg))
+							return ptrValue.Interface(), nil
+						}
 					}
 				default:
-					panic(fmt.Sprintf("Argument to MakeFunction requests invalid type %+v.", argType))
+					panic(fmt.Sprintf("Unreachable :: Argument to MakeFunction requests invalid type %+v.", argType))
 				}
 			}
+
+			// Now we evaluate the functions in parallel.
+
+			waiter := sync.WaitGroup{}
+			argValues := make([]reflect.Value, funcType.NumIn())
+			errors := make(chan error, funcType.NumIn())
+			for i := range argValues {
+				i := i
+				waiter.Add(1)
+				go func() {
+					defer waiter.Done()
+					arg, err := argumentFuncs[i]()
+					if err != nil {
+						errors <- err
+						return
+					}
+					argValues[i] = reflect.ValueOf(arg)
+				}()
+			}
+			waiter.Wait() // Wait for all the arguments to be evaluated.
+
+			if len(errors) != 0 {
+				return nil, <-errors
+			}
+
 			output := funcValue.Call(argValues)
 			if len(output) == 1 {
 				return output[0].Interface().(Value), nil
@@ -183,7 +238,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				}
 				return valueI.(Value), nil
 			}
-			panic("MakeFunction built with function that doesn't return 1 or 2 things.")
+			panic("Unreachable :: MakeFunction built with function that doesn't return 1 or 2 things.")
 		},
 	}
 
