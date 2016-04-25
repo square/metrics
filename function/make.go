@@ -107,22 +107,21 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			}
 
 			// evalTo takes an expression and a reflect.Type and evaluates to the appropriate type.
-			evalTo := func(expression Expression, result reflect.Type) (interface{}, error) {
-				value, err := expression.Evaluate(context)
-				if err != nil {
-					return reflect.Value{}, err
-				}
-				switch result {
+			// If an Expression is requested, it just returns it.
+			evalTo := func(expression Expression, resultType reflect.Type) (interface{}, error) {
+				switch resultType {
+				case expressionType:
+					return expression, nil
 				case stringType:
-					return value.ToString("TODO: what goes here?")
+					return EvaluateToString(expression, context)
 				case scalarType:
-					return value.ToScalar("TODO: what goes here?")
+					return EvaluateToScalar(expression, context)
 				case durationType:
-					return value.ToDuration("TODO: what goes here?")
+					return EvaluateToDuration(expression, context)
 				case timeseriesType:
-					return value.ToSeriesList(context.Timerange)
+					return EvaluateToSeriesList(expression, context)
 				case valueType:
-					return value, nil
+					return expression.Evaluate(context)
 				}
 				panic("Unreachable :: Unknown type to evaluate to")
 			}
@@ -158,12 +157,12 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 					argumentFuncs[i] = provideValue(context.Timerange)
 				case groupsType:
 					argumentFuncs[i] = provideValue(groups)
-				case stringType, scalarType, durationType, timeseriesType, valueType:
+				case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
 					arg := nextArgument()
 					argumentFuncs[i] = func() (interface{}, error) {
 						return evalTo(arg, argType)
 					}
-				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType):
+				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 					arg := nextArgument()
 					if arg == nil {
 						argumentFuncs[i] = provideZeroValue(argType)
@@ -175,15 +174,6 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 							}
 							return ptrTo(resultI), nil
 						}
-					}
-				case expressionType:
-					argumentFuncs[i] = provideValue(nextArgument())
-				case reflect.PtrTo(expressionType):
-					arg := nextArgument()
-					if arg == nil {
-						argumentFuncs[i] = provideZeroValue(argType)
-					} else {
-						argumentFuncs[i] = provideValue(ptrTo(arg))
 					}
 				default:
 					panic(fmt.Sprintf("Unreachable :: Argument to MakeFunction requests invalid type %+v.", argType))

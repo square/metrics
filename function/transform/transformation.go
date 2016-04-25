@@ -109,7 +109,7 @@ func MapMaker(fun func(float64) float64) func(function.EvaluationContext, api.Ti
 // Default will replacing missing data (NaN) with the `default` value supplied as a parameter.
 func Default(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
-	defaultValue, err := parameters[0].ToScalar("default value")
+	defaultValue, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
 	}
@@ -154,11 +154,11 @@ func (b boundError) TokenName() string {
 // Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
 func Bound(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
-	lowerBound, err := parameters[0].ToScalar("lower bound")
+	lowerBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
 	}
-	upperBound, err := parameters[1].ToScalar("upper bound")
+	upperBound, err := parameters[1].ToScalar()
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func Bound(ctx function.EvaluationContext, series api.Timeseries, parameters []f
 // LowerBound replaces values that fall below the given bound with the lower bound.
 func LowerBound(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
-	lowerBound, err := parameters[0].ToScalar("lower bound")
+	lowerBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func LowerBound(ctx function.EvaluationContext, series api.Timeseries, parameter
 // UpperBound replaces values that fall below the given bound with the lower bound.
 func UpperBound(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
 	values := series.Values
-	upperBound, err := parameters[0].ToScalar("upper bound")
+	upperBound, err := parameters[0].ToScalar()
 	if err != nil {
 		return nil, err
 	}

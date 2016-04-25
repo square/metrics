@@ -46,7 +46,6 @@ func Test_Registry_Error(t *testing.T) {
 	}{
 		{"empty name", function.MetricFunction{FunctionName: "", Compute: dummyCompute}},
 		{"duplicate name", function.MetricFunction{FunctionName: "existing", Compute: dummyCompute}},
-		{"no compute", function.MetricFunction{FunctionName: "notexisting", Compute: nil}},
 	} {
 		a := assert.New(t).Contextf("%s", suite.Name)
 		// set up the standard registry
