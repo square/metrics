@@ -103,7 +103,7 @@ func Default() StandardRegistry {
 }
 
 // GetFunction returns a function associated with the given name, if it exists.
-func (r StandardRegistry) GetFunction(name string) (function.MetricFunction, bool) {
+func (r StandardRegistry) GetFunction(name string) (function.Function, bool) {
 	fun, ok := r.mapping[name]
 	return fun, ok
 }

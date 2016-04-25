@@ -75,11 +75,17 @@ func (notes *EvaluationNotes) Notes() []string {
 	return notes.notes
 }
 
-// The Registry interface defines a mapping from names to MetricFunctions
+// The Function interface defines a metric function.
+// It is given several (unevaluated) expressions as input, and evaluates to a Value.
+type Function interface {
+	Run(EvaluationContext, []Expression, Groups) (Value, error)
+}
+
+// The Registry interface defines a mapping from names to Functions
 // and provides a way to get the full list of functions defined.
 type Registry interface {
-	GetFunction(string) (MetricFunction, bool) // returns an instance of MetricFunction
-	All() []string                             // all the registered functions
+	GetFunction(string) (Function, bool) // returns an instance of a Function
+	All() []string                       // all the registered functions
 }
 
 // Groups holds grouping information - which tags to group by (if any), and whether to `collapse` (Collapses = true) or `group` (Collapses = false)
@@ -88,12 +94,12 @@ type Groups struct {
 	Collapses bool     // whether to "collapse by" instead of "group by"
 }
 
-// MetricFunction defines a common logic to dispatch a function in MQE.
+// MetricFunction holds a generic function object with information about its parameters.
 type MetricFunction struct {
-	Name          string
-	MinArguments  int
-	MaxArguments  int
-	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
+	Name          string // Name is the name of the function, used in its registration.
+	MinArguments  int    // MinArguments is the minimum number of arguments the function allows.
+	MaxArguments  int    // MaxArguments is the maximum number of arguments the function allows. -1 indicates an unlimited number.
+	AllowsGroupBy bool   // Whether the function allows a 'group by' clause.
 	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
 }
 
@@ -103,19 +109,19 @@ func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	return e
 }
 
-// Evaluate the given metric function.
-func (f MetricFunction) Evaluate(context EvaluationContext,
-	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
+// Run evaluates the given MetricFunction on its arguments.
+// It performs error-checking against the supplies number of arguments and/or group-by clause.
+func (f MetricFunction) Run(context EvaluationContext, arguments []Expression, groups Groups) (Value, error) {
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
 		return nil, ArgumentLengthError{f.Name, f.MinArguments, f.MaxArguments, length}
 	}
-	if len(groupBy) > 0 && !f.AllowsGroupBy {
+	if len(groups.List) > 0 && !f.AllowsGroupBy {
 		// TODO(jee) - use typed errors
 		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
 	}
-	return f.Compute(context, arguments, Groups{groupBy, collapses})
+	return f.Compute(context, arguments, groups)
 }
 
 // FetchCounter is used to count the number of fetches remaining in a thread-safe manner.
