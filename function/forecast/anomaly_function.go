@@ -31,7 +31,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 		panic("FunctionAnomalyMaker requires that the model argument take at least two parameters; series and period.")
 	}
 	return function.MetricFunction{
-		Name:         name,
+		FunctionName: name,
 		MinArguments: model.MinArguments,
 		MaxArguments: model.MaxArguments,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {

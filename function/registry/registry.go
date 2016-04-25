@@ -93,10 +93,10 @@ func init() {
 
 // StandardRegistry of a functions available in MQE.
 type StandardRegistry struct {
-	mapping map[string]function.MetricFunction
+	mapping map[string]function.Function
 }
 
-var defaultRegistry = StandardRegistry{mapping: make(map[string]function.MetricFunction)}
+var defaultRegistry = StandardRegistry{mapping: make(map[string]function.Function)}
 
 func Default() StandardRegistry {
 	return defaultRegistry
@@ -120,23 +120,20 @@ func (r StandardRegistry) All() []string {
 }
 
 // Register a new function into the registry.
-func (r StandardRegistry) Register(fun function.MetricFunction) error {
-	_, ok := r.mapping[fun.Name]
+func (r StandardRegistry) Register(fun function.Function) error {
+	_, ok := r.mapping[fun.Name()]
 	if ok {
 		return fmt.Errorf("function %s has already been registered", fun.Name)
 	}
-	if fun.Compute == nil {
-		return fmt.Errorf("function %s has no Compute() field", fun.Name)
-	}
-	if fun.Name == "" {
+	if fun.Name() == "" {
 		return fmt.Errorf("empty function name")
 	}
-	r.mapping[fun.Name] = fun
+	r.mapping[fun.Name()] = fun
 	return nil
 }
 
 // MustRegister adds a new metric function to the global function registry.
-func MustRegister(fun function.MetricFunction) {
+func MustRegister(fun function.Function) {
 	err := defaultRegistry.Register(fun)
 	if err != nil {
 		panic(fmt.Sprintf("function %s has failed to register", fun.Name))
@@ -188,15 +185,18 @@ func NewFilterThreshold(name string, summary func([]float64) float64, below bool
 
 // NewAggregate takes a named aggregating function `[float64] => float64` and makes it into a MetricFunction.
 func NewAggregate(name string, aggregator func([]float64) float64) function.MetricFunction {
-	return function.MakeFunction(name, func(seriesList api.SeriesList, groups function.Groups) api.SeriesList {
-		return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses)
-	})
+	return function.MakeFunction(
+		name,
+		func(seriesList api.SeriesList, groups function.Groups) api.SeriesList {
+			return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses)
+		},
+	)
 }
 
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
 func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, api.Timeseries, []function.Value, time.Duration) ([]float64, error)) function.MetricFunction {
 	return function.MetricFunction{
-		Name:         name,
+		FunctionName: name,
 		MinArguments: parameterCount + 1,
 		MaxArguments: parameterCount + 1,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
@@ -218,20 +218,10 @@ func NewTransform(name string, parameterCount int, transformer func(function.Eva
 
 // NewOperator creates a new binary operator function.
 // the binary operators display a natural join semantic.
-func NewOperator(op string, operator func(float64, float64) float64) function.MetricFunction {
+func NewOperator(op string, operator func(float64, float64) float64) function.Function {
 	return function.MakeFunction(
 		op,
-		func(leftValue function.Value, rightValue function.Value, timerange api.Timerange) (function.Value, error) {
-			// TODO: rewrite MakeFunction to evaluate these in parallel.
-			leftList, err := leftValue.ToSeriesList(timerange)
-			if err != nil {
-				return nil, err
-			}
-			rightList, err := rightValue.ToSeriesList(timerange)
-			if err != nil {
-				return nil, err
-			}
-
+		func(leftList api.SeriesList, rightList api.SeriesList, timerange api.Timerange) (function.Value, error) {
 			joined := join.Join([]api.SeriesList{leftList, rightList})
 
 			result := make([]api.Timeseries, len(joined.Rows))

@@ -64,8 +64,8 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 	}
 }
 
-// DropFunction wraps up DropTag into a MetricFunction called "tag.drop"
+// DropFunction wraps up DropTag into a Function called "tag.drop"
 var DropFunction = function.MakeFunction("tag.drop", DropTag)
 
-// SetFunction wraps up SetTag into a MetricFunction called "tag.set"
+// SetFunction wraps up SetTag into a Function called "tag.set"
 var SetFunction = function.MakeFunction("tag.set", SetTag)
