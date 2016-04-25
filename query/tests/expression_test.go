@@ -57,7 +57,7 @@ func (lse LiteralSeriesExpression) Name() string {
 	return "<literal series expression>"
 }
 func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return expr.list, nil
+	return function.SeriesListValue(expr.list), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -318,9 +318,9 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		result, err := value.ToSeriesList(test.context.Timerange)
-		if err != nil {
-			a.EqBool(err == nil, test.expectSuccess)
+		result, convErr := value.ToSeriesList(test.context.Timerange)
+		if convErr != nil {
+			a.EqBool(convErr == nil, test.expectSuccess)
 			continue
 		}
 
