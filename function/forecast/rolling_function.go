@@ -29,25 +29,25 @@ import (
 // this period are weighted 1.0/(1.0 - 0.9) = 10 times as much as the previous.
 var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 	"forecast.rolling_multiplicative_holt_winters",
-	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (function.Value, error) {
+	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (api.SeriesList, error) {
 		extraTrainingTime := time.Duration(0)
 		if optionalExtraTrainingTime != nil {
 			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
-			return nil, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
+			return api.SeriesList{}, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
-			return nil, err
+			return api.SeriesList{}, err
 		}
 
 		result := api.SeriesList{
@@ -72,25 +72,25 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 // perform tolerably well on data with trends as well.
 var FunctionRollingSeasonal = function.MakeFunction(
 	"forecast.rolling_seasonal",
-	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (function.Value, error) {
+	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (api.SeriesList, error) {
 		extraTrainingTime := time.Duration(0)
 		if optionalExtraTrainingTime != nil {
 			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
-			return nil, fmt.Errorf("forecast.rolling_seasonal expects the period parameter to mean at least one slot") // TODO: use a structured error
+			return api.SeriesList{}, fmt.Errorf("forecast.rolling_seasonal expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
-			return nil, err
+			return api.SeriesList{}, err
 		}
 
 		result := api.SeriesList{
@@ -115,20 +115,20 @@ var FunctionRollingSeasonal = function.MakeFunction(
 // as well as a good estimate of near-future behavior.
 var FunctionForecastLinear = function.MakeFunction(
 	"forecast.linear",
-	func(context function.EvaluationContext, seriesExpression function.Expression, optionalTrainingTime *time.Duration) (function.Value, error) {
+	func(context function.EvaluationContext, seriesExpression function.Expression, optionalTrainingTime *time.Duration) (api.SeriesList, error) {
 		extraTrainingTime := time.Duration(0)
 		if optionalTrainingTime != nil {
 			extraTrainingTime = *optionalTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return nil, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
 		if err != nil {
-			return nil, err
+			return api.SeriesList{}, err
 		}
 
 		result := api.SeriesList{

@@ -52,7 +52,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 	if funcType.NumOut() > 2 {
 		panic("MakeFunction's argument function must return at most two values.")
 	}
-	if !funcType.Out(0).ConvertibleTo(valueType) {
+	if !funcType.Out(0).ConvertibleTo(valueType) && funcType.Out(0) != timeseriesType {
 		panic("MakeFunction's argument function's first return type must be convertible to `function.Value`.")
 	}
 	if funcType.NumOut() == 2 && !funcType.Out(1).ConvertibleTo(errorType) {
@@ -205,17 +205,15 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			}
 
 			output := funcValue.Call(argValues)
-			if len(output) == 1 {
+
+			if len(output) == 2 && output[1].Interface() != nil {
+				return nil, output[1].Interface().(error)
+			}
+			if funcType.Out(0) == timeseriesType {
+				return SeriesListValue(output[0].Interface().(api.SeriesList)), nil
+			} else {
 				return output[0].Interface().(Value), nil
 			}
-			if len(output) == 2 {
-				valueI, errI := output[0].Interface(), output[1].Interface()
-				if errI != nil {
-					return nil, errI.(error)
-				}
-				return valueI.(Value), nil
-			}
-			panic("Unreachable :: MakeFunction built with function that doesn't return 1 or 2 things.")
 		},
 	}
 

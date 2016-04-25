@@ -15,7 +15,6 @@
 package function
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -135,9 +134,9 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	if err != nil {
 		return 0, err
 	}
-	value, err := scalarValue.ToScalar()
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	value, convErr := scalarValue.ToScalar()
+	if convErr != nil {
+		return 0, convErr.WithContext(e.QueryString())
 	}
 	return value, nil
 }
@@ -148,9 +147,9 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	if err != nil {
 		return 0, err
 	}
-	value, err := durationValue.ToDuration()
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	value, convErr := durationValue.ToDuration()
+	if convErr != nil {
+		return 0, convErr.WithContext(e.QueryString())
 	}
 	return value, nil
 }
@@ -161,7 +160,11 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return seriesValue.ToSeriesList(context.Timerange)
+	value, convErr := seriesValue.ToSeriesList(context.Timerange)
+	if convErr != nil {
+		return api.SeriesList{}, convErr.WithContext(e.QueryString())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a string.
@@ -170,9 +173,9 @@ func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	value, err := stringValue.ToString()
-	if err != nil {
-		return "", fmt.Errorf("failed to convert %s: %s", e.QueryString(), err.Error())
+	value, convErr := stringValue.ToString()
+	if convErr != nil {
+		return "", convErr.WithContext(e.QueryString())
 	}
 	return value, nil
 }

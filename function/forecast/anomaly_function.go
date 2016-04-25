@@ -46,9 +46,9 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
 			}
-			prediction, err := predictionValue.ToSeriesList(context.Timerange)
-			if err != nil {
-				return nil, err
+			prediction, convErr := predictionValue.ToSeriesList(context.Timerange)
+			if convErr != nil {
+				return nil, convErr.WithContext("in anomaly function - model")
 			}
 			period, err := function.EvaluateToDuration(arguments[1], context)
 			if err != nil {
@@ -72,7 +72,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 				}
 			}
 			prediction.Series = result
-			return prediction, nil
+			return function.SeriesListValue(prediction), nil
 		},
 	}
 }

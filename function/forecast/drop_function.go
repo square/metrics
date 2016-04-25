@@ -22,24 +22,27 @@ import (
 	"github.com/square/metrics/function"
 )
 
-var FunctionDrop = function.MakeFunction("forecast.drop", func(context function.EvaluationContext, original api.SeriesList, dropTime time.Duration) function.Value {
-	lastValue := float64(context.Timerange.Slots()) - dropTime.Seconds()/context.Timerange.Resolution().Seconds()
-	result := make([]api.Timeseries, len(original.Series))
-	for i, series := range original.Series {
-		values := make([]float64, len(series.Values))
-		result[i] = series
-		for j := range values {
-			if float64(j) < lastValue {
-				values[j] = series.Values[j]
-			} else {
-				values[j] = math.NaN()
+var FunctionDrop = function.MakeFunction(
+	"forecast.drop",
+	func(context function.EvaluationContext, original api.SeriesList, dropTime time.Duration) api.SeriesList {
+		lastValue := float64(context.Timerange.Slots()) - dropTime.Seconds()/context.Timerange.Resolution().Seconds()
+		result := make([]api.Timeseries, len(original.Series))
+		for i, series := range original.Series {
+			values := make([]float64, len(series.Values))
+			result[i] = series
+			for j := range values {
+				if float64(j) < lastValue {
+					values[j] = series.Values[j]
+				} else {
+					values[j] = math.NaN()
+				}
 			}
+			result[i].Values = values
 		}
-		result[i].Values = values
-	}
 
-	return api.SeriesList{
-		Series:    result,
-		Timerange: original.Timerange,
-	}
-})
+		return api.SeriesList{
+			Series:    result,
+			Timerange: original.Timerange,
+		}
+	},
+)

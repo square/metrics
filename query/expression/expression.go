@@ -105,7 +105,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.MetricName), filtered[i]}
 	}
 
-	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
+	seriesList, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		timeseries.FetchMultipleRequest{
 			metrics,
 			timeseries.RequestDetails{
@@ -117,6 +117,10 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 			},
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+	return function.SeriesListValue(seriesList), nil
 }
 
 func (expr *MetricFetchExpression) QueryString() string {

@@ -44,15 +44,15 @@ func init() {
 	MustRegister(NewAggregate("aggregate.total", aggregate.Total))
 	MustRegister(NewAggregate("aggregate.count", aggregate.Count))
 	// Transformations
-	MustRegister(NewTransform("transform.integral", 0, transform.Integral))
-	MustRegister(NewTransform("transform.cumulative", 0, transform.Cumulative))
-	MustRegister(NewTransform("transform.nan_fill", 1, transform.Default))
-	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
-	MustRegister(NewTransform("transform.log", 0, transform.MapMaker(math.Log10)))
-	MustRegister(NewTransform("transform.nan_keep_last", 0, transform.NaNKeepLast))
-	MustRegister(NewTransform("transform.bound", 2, transform.Bound))
-	MustRegister(NewTransform("transform.lower_bound", 1, transform.LowerBound))
-	MustRegister(NewTransform("transform.upper_bound", 1, transform.UpperBound))
+	MustRegister(transform.Integral)
+	MustRegister(transform.Cumulative)
+	MustRegister(transform.Default)
+	MustRegister(transform.MapMaker("transform.abs", math.Abs))
+	MustRegister(transform.MapMaker("transform.log", math.Log10))
+	MustRegister(transform.NaNKeepLast)
+	MustRegister(transform.Bound)
+	MustRegister(transform.LowerBound)
+	MustRegister(transform.UpperBound)
 
 	// Filter
 	MustRegister(NewFilterCount("filter.highest_mean", aggregate.Mean, false))
@@ -146,15 +146,15 @@ func MustRegister(fun function.Function) {
 func NewFilterCount(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
 	return function.MakeFunction(
 		name,
-		func(list api.SeriesList, countFloat float64, optionalDuration *time.Duration, timerange api.Timerange) (function.Value, error) {
+		func(list api.SeriesList, countFloat float64, optionalDuration *time.Duration, timerange api.Timerange) (api.SeriesList, error) {
 			count := int(countFloat + 0.5)
 			if count < 0 {
-				return nil, fmt.Errorf("expected positive count but got %d", count)
+				return api.SeriesList{}, fmt.Errorf("expected positive count but got %d", count)
 			}
 			duration := timerange.Duration()
 			if optionalDuration != nil {
 				if *optionalDuration < 0 {
-					return nil, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
+					return api.SeriesList{}, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
 				}
 				duration = *optionalDuration
 			}
@@ -167,11 +167,11 @@ func NewFilterCount(name string, summary func([]float64) float64, ascending bool
 func NewFilterThreshold(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
 	return function.MakeFunction(
 		name,
-		func(list api.SeriesList, threshold float64, optionalDuration *time.Duration, timerange api.Timerange) (function.Value, error) {
+		func(list api.SeriesList, threshold float64, optionalDuration *time.Duration, timerange api.Timerange) (api.SeriesList, error) {
 			duration := timerange.Duration()
 			if optionalDuration != nil {
 				if *optionalDuration < 0 {
-					return nil, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
+					return api.SeriesList{}, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
 				}
 				duration = *optionalDuration
 			}
@@ -190,35 +190,12 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 	)
 }
 
-// NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, api.Timeseries, []function.Value, float64) ([]float64, error)) function.MetricFunction {
-	return function.MetricFunction{
-		FunctionName: name,
-		MinArguments: parameterCount + 1,
-		MaxArguments: parameterCount + 1,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			parameters := make([]function.Value, parameterCount)
-			for i := range parameters {
-				parameters[i], err = arguments[i+1].Evaluate(context)
-				if err != nil {
-					return nil, err
-				}
-			}
-			return transform.ApplyTransform(context, list, transformer, parameters)
-		},
-	}
-}
-
 // NewOperator creates a new binary operator function.
 // the binary operators display a natural join semantic.
 func NewOperator(op string, operator func(float64, float64) float64) function.Function {
 	return function.MakeFunction(
 		op,
-		func(leftList api.SeriesList, rightList api.SeriesList, timerange api.Timerange) (function.Value, error) {
+		func(leftList api.SeriesList, rightList api.SeriesList, timerange api.Timerange) (api.SeriesList, error) {
 			joined := join.Join([]api.SeriesList{leftList, rightList})
 
 			result := make([]api.Timeseries, len(joined.Rows))
