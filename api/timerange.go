@@ -174,3 +174,17 @@ func (tr Timerange) ExtendBefore(length time.Duration) Timerange {
 func (tr Timerange) Slots() int {
 	return int((tr.end-tr.start)/tr.resolution) + 1
 }
+
+// TimeOfIndex returns the point in time corresponding to a (possibly out-of-range)
+func (tr Timerange) TimeOfIndex(point int) time.Time {
+	return tr.Start().Add(time.Duration(point) * tr.Resolution())
+}
+
+// IndexOfTime returns the index of the point in time (possibly out-of-range).
+// 0 corresponds to [tr.Start(), tr.Start().Add(tr.Resolution()))
+func (tr Timerange) IndexOfTime(point time.Time) int {
+	if tr.Resolution() == 0 {
+		return 0
+	}
+	return int(point.Sub(tr.Start()) / tr.Resolution())
+}
