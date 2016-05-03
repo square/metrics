@@ -176,12 +176,13 @@ func (tr Timerange) Slots() int {
 }
 
 // TimeOfIndex returns the point in time corresponding to a (possibly out-of-range)
+// index. N corresponds to tr.Start + N*tr.Resolution.
 func (tr Timerange) TimeOfIndex(point int) time.Time {
 	return tr.Start().Add(time.Duration(point) * tr.Resolution())
 }
 
 // IndexOfTime returns the index of the point in time (possibly out-of-range).
-// 0 corresponds to [tr.Start(), tr.Start().Add(tr.Resolution()))
+// 0 corresponds to any time in the interval [tr.Start, tr.Start + tr.Resolution)
 func (tr Timerange) IndexOfTime(point time.Time) int {
 	if tr.Resolution() == 0 {
 		return 0
