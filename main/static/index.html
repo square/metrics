@@ -13,8 +13,9 @@
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-aria.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-messages.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-sanitize.min.js"></script>
     <!-- Angular Material Library -->
-    <script src="http://ajax.googleapis.com/ajax/libs/angular_material/1.0.0/angular-material.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angular_material/1.0.7/angular-material.min.js"></script>
     <!-- MQE dependencies -->
     <script src="https://www.google.com/jsapi"></script>
     <script src="/static/js/angular-local-storage.min.js"></script>
@@ -36,7 +37,7 @@
                 <div layout="column">
                   <md-input-container>
                     <label>Query</label>
-                    <textarea query-input ng-model="query" id="query-input" class="queryinput"
+                    <textarea query-input ng-model="inputModel.query" id="query-input" class="queryinput"
                       placeholder="Example: select cpu.percentage where host='host1' from -1h to now"
                       ></textarea>
                   </md-input-container>
@@ -44,7 +45,7 @@
               </form>
               <div layout="row">
                 <md-button ng-click="showSaveDialog($event)" class="md-raised">Save</md-button>
-                <md-button ng-click="onSubmitQuery(query)" class="md-raised md-primary">Submit</md-button>
+                <md-button ng-click="onSubmitQuery(inputModel.query)" class="md-raised md-primary">Submit</md-button>
                 <div ng-show="screenState() != 'rendered' && screenState() != 'error'">
                   <md-progress-circular md-mode="indeterminate"></md-progress-circular>
                 </div>

@@ -21,7 +21,7 @@ google.load("visualization", "1.0", {
   "packages": ["corechart", "timeline"]
 });
 
-var module = angular.module("main", ["ngMaterial", "ngMessages", "LocalStorageModule"])
+var module = angular.module("main", ["ngMaterial", "ngMessages", "ngSanitize", "LocalStorageModule"])
   .config(function ($mdThemingProvider) {
     $mdThemingProvider.theme('default')
       .primaryPalette('green');
@@ -34,6 +34,10 @@ module.config(function ($locationProvider) {
 module.config(function (localStorageServiceProvider) {
   localStorageServiceProvider.setPrefix('mqe');
 });
+
+module.config(['$compileProvider', function ($compileProvider) {
+  $compileProvider.debugInfoEnabled(false);
+}]);
 
 module.factory("$windowSize", function ($window) {
   return {
@@ -569,18 +573,21 @@ module.controller("MainController", function (
     $mdDialog.show({
         controller: DialogController,
         template: '<md-dialog id="save-dialog">' +
-          '<md-input-container>' +
-          '<label>Name</label>' +
-          '<input ng-model="name"></input>' +
-          '</md-input-container>' +
-          '<div layout="row" flex layout-align="center">' +
-          '<md-button class="md-raised" ng-click="cancel()">' +
-          'Cancel' +
-          '</md-button>' +
-          '<md-button class="md-raised md-primary" ng-click="save()">' +
-          'Save' +
-          '</md-button>' +
-          '</div>' +
+          '<md-dialog-content class="md-dialog-content">' +
+            '<h2 class="md-title">Save Query</h2>' +
+            '<md-input-container>' +
+              '<label>Name</label>' +
+              '<input ng-model="name"></input>' +
+            '</md-input-container>' +
+          '</md-dialog-content>' +
+          '<md-dialog-actions>' +
+            '<md-button class="md-raised" ng-click="cancel()">' +
+              'Cancel' +
+            '</md-button>' +
+            '<md-button class="md-raised md-primary" ng-click="save()">' +
+              'Save' +
+            '</md-button>' +
+            '</md-dialog-actions>' +
           '</md-dialog>',
         parent: angular.element(document.body),
         targetEvent: ev,
@@ -607,9 +614,8 @@ module.controller("MainController", function (
   // Triggers when the button is clicked.
   $scope.onSubmitQuery = function (query) {
     if (query) {
-      $scope.query = query;
+      $scope.inputModel.query = query;
     }
-    $scope.inputModel.query = $scope.query;
     $location.search("query", $scope.inputModel.query);
     $location.search("renderType", $scope.inputModel.renderType);
     $location.search("profile", $scope.inputModel.profile.toString());
