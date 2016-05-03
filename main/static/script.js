@@ -12,47 +12,116 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*jshint -W117 */
 "use strict";
-
-var module = angular.module("main",[]);
 
 var MAX_RENDERED = 200;
 
-google.load("visualization", "1.0", {"packages":["corechart", "timeline"]});
+google.load("visualization", "1.0", {
+  "packages": ["corechart", "timeline"]
+});
 
-module.config(function($locationProvider) {
+var module = angular.module("main", ["ngMaterial", "ngMessages", "ngSanitize", "LocalStorageModule"])
+  .config(function ($mdThemingProvider) {
+    $mdThemingProvider.theme('default')
+      .primaryPalette('green');
+  });
+
+module.config(function ($locationProvider) {
   $locationProvider.html5Mode(true);
 });
 
-module.factory("$windowSize", function($window) {
-  return {
-    height:  $window.innerHeight,
-    width:   $window.innerWidth,
-    version: 0 // updated whenever width or height is updated, so this object can be watched.
-  }
+module.config(function (localStorageServiceProvider) {
+  localStorageServiceProvider.setPrefix('mqe');
 });
 
-module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
+module.config(['$compileProvider', function ($compileProvider) {
+  $compileProvider.debugInfoEnabled(false);
+}]);
+
+module.factory("$windowSize", function ($window) {
+  return {
+    height: $window.innerHeight,
+    width: $window.innerWidth,
+    version: 0 // updated whenever width or height is updated, so this object can be watched.
+  };
+});
+
+// enable autocomplete on query input text area.
+// TODO: reduce amount of magic and add tests
+module.directive('queryInput', function ($http) {
+  return {
+    restrict: 'A',
+    replace: 'false',
+    link: function (scope, elem, attrs) {
+      var autocom = new Autocom(elem[0]);
+      var keywords = [
+        "all", "by", "collapse", "describe", "from", "group", "match", "metrics",
+        "now", "resolution", "sample", "select", "to", "where"
+      ];
+      var latterKeywords = [
+        "from", "match", "now", "resolution", "sample", "by", "to",
+      ];
+      autocom.options = keywords.slice(0); // note: copies the array
+      autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
+      autocom.continuePattern = "[a-zA-Z_`.-]";
+      autocom.tooltipX = 0;
+      autocom.tooltipY = 20;
+      autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
+      autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
+      autocom.activeRegion = function (beforeText, afterText, candidate) {
+        if (beforeText.match(/\s(where|from|to|resolution|sample)\s/)) { // Note: only works 99% of the time.
+          return latterKeywords.indexOf(candidate) >= 0;
+        }
+        return true;
+      };
+      $http.get("/token").success(function (data, status, headers, config) {
+        if (!data.success || !data.body) {
+          return;
+        }
+        if (data.body.functions) {
+          autocom.options = autocom.options.concat(data.body.functions);
+        }
+        var tolerate = [];
+        if (data.body.metrics) {
+          autocom.options = autocom.options.concat(data.body.metrics.map(function (name) {
+            if (name.indexOf("-") >= 0) {
+              return "`" + name + "`";
+            } else {
+              tolerate.push("`" + name + "`");
+            }
+            return name;
+          }));
+        }
+        autocom.tolerate = tolerate;
+      });
+    }
+  };
+});
+
+module.directive("googleChart", function ($chartWaiting, $timeout, $windowSize) {
   return {
     restrict: "E",
     template: "<div style='width:100%;height:100px'></div>",
     scope: {
       chartType: "&",
-      data:      "&",
-      option:    "&"
+      data: "&",
+      option: "&"
     },
-    link: function(scope, element, attrs) {
+    link: function (scope, element, attrs) {
       var chart = null;
-      scope.$watch("option()", function(newValue) {
+      scope.$watch("option()", function (newValue) {
         render();
       }, true);
-      scope.$watch("data()", function(newValue) {
+      scope.$watch("data()", function (newValue) {
         render();
       });
-      scope.$watch(function() { return $windowSize.version }, function(newValue) {
+      scope.$watch(function () {
+        return $windowSize.version;
+      }, function (newValue) {
         render();
       });
-      scope.$watch("chartType()", function(newValue) {
+      scope.$watch("chartType()", function (newValue) {
         if (chart !== null) {
           chart.clearChart();
           chart = null;
@@ -66,6 +135,7 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         }
         render();
       });
+
       function getUnits(value) {
         if (typeof value !== "string") {
           return null;
@@ -74,22 +144,27 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
         if (result === null) {
           return null;
         } else {
-          return { value: parseFloat(result[1]), units: result[2] };
+          return {
+            value: parseFloat(result[1]),
+            units: result[2]
+          };
         }
       }
+
       function unitless(value) {
         return getUnits(value).value;
       }
-      function fixUnits(value , total) {
+
+      function fixUnits(value, total) {
         var match = getUnits(value);
-        if (match == null) {
+        if (match === null) {
           return null;
         }
         switch (match.units) {
-          case "px":
-            return (match.value / total * 100) + "%";
-          case "%":
-            return match.value + "%";
+        case "px":
+          return (match.value / total * 100) + "%";
+        case "%":
+          return match.value + "%";
         }
         throw "not accessible";
       }
@@ -109,13 +184,15 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
       }
 
       function render() {
-        $timeout(function(){
+        $timeout(function () {
           var data = scope.data();
           var option = scope.option();
           if (data && option) {
             $chartWaiting.inc();
-            google.visualization.events.addListener(chart, "ready", function() {
-              scope.$apply(function() { $chartWaiting.dec(); });
+            google.visualization.events.addListener(chart, "ready", function () {
+              scope.$apply(function () {
+                $chartWaiting.dec();
+              });
             });
             var elementStyle = getComputedStyle(element[0]);
             var totalWidth = unitless(elementStyle.width) * 1;
@@ -136,9 +213,9 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
                 height = (100 - unitless(top) - unitless(bottom)) + "%";
               }
               option.chartArea = {
-                left:   left,
-                top:    top,
-                width:  width,
+                left: left,
+                top: top,
+                width: width,
                 height: height
               };
             }
@@ -150,200 +227,114 @@ module.directive("googleChart", function($chartWaiting, $timeout, $windowSize) {
   };
 });
 
-module.run(function($window, $timeout, $windowSize) {
+module.run(function ($window, $timeout, $windowSize) {
   var DELAY_MS = 100;
   var counter = 0;
-  angular.element($window).bind("resize", function() {
+  angular.element($window).bind("resize", function () {
     counter++;
     var currentCounter = counter; // capture the current value via the closure.
-    $timeout(function() {
-      if (currentCounter  == counter) {
+    $timeout(function () {
+      if (currentCounter == counter) {
         $windowSize.height = $window.innerHeight;
         $windowSize.width = $window.innerWidth;
         $windowSize.version++;
       }
     }, DELAY_MS);
-  })
+  });
 });
 
-module.factory("$google", function($rootScope) {
+module.factory("$google", function ($rootScope) {
   // abstraction over the async loading of google libraries.
   // registered functions are either invoked immediately (if the library finished loading).
   // or queued in an array.
   var googleFunctions = [];
   var googleLoaded = false;
-  google.setOnLoadCallback(function(){
-    $rootScope.$apply(function() {
+  google.setOnLoadCallback(function () {
+    $rootScope.$apply(function () {
       googleLoaded = true;
-      googleFunctions.map(function(googleFunction) {
+      googleFunctions.map(function (googleFunction) {
         googleFunction();
       });
       googleFunctions.length = 0; // clear the array.
     });
   });
 
-  return function(func) {
+  return function (func) {
     if (googleLoaded) {
       func();
     } else {
       googleFunctions.push(func);
     }
-  }
-});
-
-// Autocompletion setup (depends on $http to perform request to /token).
-module.run(function($http) {
-  if (!document.getElementById("query-input")) {
-    return;
-  }
-  var autocom = new Autocom(document.getElementById("query-input"));
-  var keywords = [
-    "all",
-    "by",
-    "collapse",
-    "describe",
-    "from",
-    "group",
-    "match",
-    "metrics",
-    "now",
-    "resolution",
-    "sample",
-    "select",
-    "to",
-    "where"
-  ];
-  // Subset of keywords which can be suggested after "where" or "from" or "to" or "resolution" or "sample"
-  var latterKeywords = [
-    "from",
-    "match",
-    "now",
-    "resolution",
-    "sample",
-    "by",
-    "to",
-  ];
-  autocom.options = keywords.slice(0); // note: copies the array
-  autocom.prefixPattern = "`[a-zA-Z_][a-zA-Z._-]*`?|[a-zA-Z_][a-zA-Z._-]*";
-  autocom.continuePattern = "[a-zA-Z_`.-]";
-  autocom.tooltipX = 0;
-  autocom.tooltipY = 20;
-  autocom.config.skipWord = 0.05; // make it (5x) cheaper to skip letters in a candidate word
-  autocom.config.skipWordEnd = 0.01; // add a small cost to skipping ends of words, which benefits shorter candidates
-  autocom.activeRegion = function(beforeText, afterText, candidate) {
-    if (beforeText.match(/\s(where|from|to|resolution|sample)\s/)) { // Note: only works 99% of the time.
-      return latterKeywords.indexOf(candidate) >= 0;
-    }
-    return true;
   };
-  $http.get("/token").success(function(data, status, headers, config) {
-    if (!data.success || !data.body) {
-      return;
-    }
-    if (data.body.functions) {
-      autocom.options = autocom.options.concat( data.body.functions );
-    }
-    var tolerate = [];
-    if (data.body.metrics) {
-      autocom.options = autocom.options.concat( data.body.metrics.map(function(name) {
-        if (name.indexOf("-") >= 0) {
-          return "`" + name + "`";
-        } else {
-          tolerate.push("`" + name + "`");
-        }
-        return name;
-      }));
-    }
-    autocom.tolerate = tolerate;
-  });
 });
 
 // A counter is an object with .inc() and .dec() methods,
 // as well as .pos() and .zero() predicates.
 function Counter() {
   var count = 0;
-  this.inc = function() {
+  this.inc = function () {
     count++;
   };
-  this.dec = function() {
+  this.dec = function () {
     count--;
   };
-  this.pos = function() {
+  this.pos = function () {
     return count > 0;
   };
-  this.zero = function() {
+  this.zero = function () {
     return count === 0;
   };
-};
+}
 
 // A singleton Counter for launched queries.
-module.factory("$launchedQueries", function() {
+module.factory("$launchedQueries", function () {
   return new Counter();
 });
 
 // A singleton Counter for waiting charts
-module.factory("$chartWaiting", function() {
+module.factory("$chartWaiting", function () {
   return new Counter();
 });
 
-// A ticket booth will give you a ticket with .next()
-// The ticket will be .valid() until another ticket has been asked for.
-function TicketBooth() {
-  var count = 0;
-  function Ticket(n) {
-    this.valid = function() {
-      return n === count;
-    }
-  }
-  this.next = function() {
-    return new Ticket(++count);
-  };
-}
-// A singleton ticketbooth for query counting
-module.factory("$queryTicketBooth", function() {
-  return new TicketBooth();
-});
-
-module.factory("$launchRequest", function($google, $http, $queryTicketBooth, $launchedQueries, $q) {
-  return function(params) {
+module.service("timedQuery", function ($http, $q, $launchedQueries) {
+  return function (params) {
     var resultPromise = $q.defer(); // Will be resolved with received value.
     var start = new Date();
-    var ticket = $queryTicketBooth.next();
     $launchedQueries.inc();
     var request = $http.get("/query", {
-      params:params
-    }).success(function(data, status, headers, config) {
+      params: params
+    }).success(function (data, status, headers, config) {
       $launchedQueries.dec();
       resolve(data);
-    }).error(function(data, status, headers, config) {
+    }).error(function (data, status, headers, config) {
       $launchedQueries.dec();
       resolve(data);
     });
+
     function resolve(data) {
       var elapsedMs = new Date().getTime() - start.getTime();
-      if (ticket.valid()) {
-        resultPromise.resolve({elapsedMs: elapsedMs, payload: data});
-      } else {
-        resultPromise.reject(null);
-      }
+      resultPromise.resolve({
+        elapsedMs: elapsedMs,
+        payload: data
+      });
     }
     return resultPromise.promise;
   };
 });
 
-module.controller("commonCtrl", function(
+module.controller("CommonController", function (
   $chartWaiting,
   $launchedQueries,
   $location,
   $scope
-  ){
+) {
   $scope.inputModel = {
     profile: false,
     query: "",
     renderType: "line"
   };
   $scope.hasProfiling = hasProfiling;
-  $scope.screenState = function() {
+  $scope.screenState = function () {
     if ($launchedQueries.pos()) {
       return "loading";
     } else if ($launchedQueries.zero() && $chartWaiting.pos()) {
@@ -364,26 +355,32 @@ module.controller("commonCtrl", function(
     yaxis: ($location.search().yaxis || "").toLowerCase() == "hide" || $scope.hidden.all,
   };
 
-  $scope.applyDefault = function(name, value) {
+  $scope.applyDefault = function (name, value) {
     if ($location.search()[name] !== undefined) {
       return $location.search()[name];
     }
     return value;
-  }
+  };
 
   $scope.selectOptions = {
-    legend:    {position: $scope.hidden.legend ? "none" : "bottom"},
-    title:     $scope.applyDefault("title", ""),
+    legend: {
+      position: $scope.hidden.legend ? "none" : "bottom"
+    },
+    title: $scope.applyDefault("title", ""),
     chartArea: {
       left: $scope.applyDefault("marginleft", "10px"),
-      right: $scope.applyDefault("marginright",$scope.hidden.yaxis ? "10px" : "50px"),
+      right: $scope.applyDefault("marginright", $scope.hidden.yaxis ? "10px" : "50px"),
       top: $scope.applyDefault("margintop", "10px"),
-      bottom: $scope.applyDefault("marginbottom",(($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
+      bottom: $scope.applyDefault("marginbottom", (($scope.hidden.legend ? 15 : 25) + ($scope.hidden.xaxis ? 0 : 15)) + "px")
     },
-    series:    null,
+    series: null,
     vAxes: {
-      0: {title: ""},
-      1: {title: ""}
+      0: {
+        title: ""
+      },
+      1: {
+        title: ""
+      }
     },
     vAxis: {
       textPosition: $scope.hidden.yaxis ? "none" : "out",
@@ -393,24 +390,24 @@ module.controller("commonCtrl", function(
       textPosition: $scope.hidden.xaxis ? "none" : "out"
     }
   };
-  $scope.queryResultIsEmpty = function() {
+  $scope.queryResultIsEmpty = function () {
     var result = $scope.queryResult;
     if (!result || result.name != "select") {
       return false;
     }
     for (var i = 0; i < result.body.length; i++) {
-      if (result.body[i].series.length == 0) {
+      if (result.body[i].series.length === 0) {
         if (result.body.length == 1) {
           $scope.queryEmptyMessage = "the query resulted in 0 series";
         } else {
-          $scope.queryEmptyMessage = "expression " + (i+1) + " (of " + result.body.length + ") resulted in 0 series";
+          $scope.queryEmptyMessage = "expression " + (i + 1) + " (of " + result.body.length + ") resulted in 0 series";
         }
         return true;
       }
     }
     return false;
   };
-  $scope.$watch("inputModel.renderType", function(newValue) {
+  $scope.$watch("inputModel.renderType", function (newValue) {
     if (newValue === "area") {
       $scope.selectOptions.isStacked = true;
     } else {
@@ -419,8 +416,8 @@ module.controller("commonCtrl", function(
   });
 
   $scope.maxResult = MAX_RENDERED;
-  $scope.setQueryResult = function(queryResult) {
-    $scope.queryResult =   queryResult;
+  $scope.setQueryResult = function (queryResult) {
+    $scope.queryResult = queryResult;
     var selectResponse = convertSelectResponse(queryResult);
     if (selectResponse) {
       $scope.selectResult = selectResponse.dataTable;
@@ -440,17 +437,167 @@ module.controller("commonCtrl", function(
   };
 });
 
-module.controller("mainCtrl", function(
+module.controller("DiscoverController", function (
+  $controller,
+  $location,
+  $scope,
+  timedQuery
+) {
+  $scope.tags = {};
+  $scope.metricSelected = false;
+  $scope.metrics = [];
+  $scope.models = {};
+  $scope.tagSearchText = {};
+  $scope.to = new Date();
+  $scope.from = new Date($scope.to.getTime() - 3600*1000); // -1h
+
+  $scope.getMetrics = function() {
+    if($scope.searchText) {
+      return _.filter($scope.metrics, function(metric) { return s(metric).include($scope.searchText); });
+    }
+    else {
+      return $scope.metrics;
+    }
+  };
+
+  $scope.getTags = function() {
+    return $scope.tags;
+  }
+
+  $scope.describe = function (metric) {
+    $scope.models = {};
+    $scope.metricSelected = true;
+    timedQuery({
+      profile: false,
+      query: "describe " + "`" + metric + "`"
+    }).then(
+      function (data) {
+        $scope.tags = data.payload.body;
+      },
+      function (error) {
+        console.log("MQE request failed: " + error);
+      }
+    );
+  };
+
+  $scope.onTagSelect = function() {
+    // Generate a query and update available tags
+    var whereClause = [];
+    _.each(_.pairs($scope.models), function(pair) {
+      if(pair[1]) {
+        whereClause.push(pair[0] + " = '" + pair[1] + "'");
+      }
+    });
+    var query = "describe " + "`" + $scope.metric + "`";
+    if(whereClause.length > 0) {
+      query += " where " + whereClause.join(" and ");
+    }
+    timedQuery({
+      profile: false,
+      query: query
+    }).then(
+      function (data) {
+          if(_.keys(data.payload.body).length > 0) {
+            $scope.tags = data.payload.body;
+          }
+      },
+      function (error) {
+        console.log("MQE request failed: " + error);
+      }
+    );
+  }
+
+  $scope.onSubmit = function() {
+    // Generate a query and call parent scope
+    var whereClause = [];
+    _.each(_.pairs($scope.models), function(pair) {
+      if(pair[1]) {
+        whereClause.push(pair[0] + " = '" + pair[1] + "'");
+      }
+    });
+    var query = "select " + "`" + $scope.metric + "`";
+    if(whereClause.length > 0) {
+      query += " where " + whereClause.join(" and ");
+    }
+    query += " from '" + $scope.from.getTime() + "' to '" + $scope.to.getTime() + "';";
+    $scope.onSubmitQuery(query);
+  };
+
+  timedQuery({
+    profile: false,
+    query: "describe all"
+  }).then(
+    function (data) {
+      $scope.metrics = data.payload.body;
+    },
+    function (error) {
+      console.log("MQE request failed: " + error);
+    }
+  );
+
+
+});
+
+module.controller("MainController", function (
   $chartWaiting,
   $controller,
   $google,
-  $launchRequest,
   $launchedQueries,
   $location,
-  $scope
-  ) {
-  $controller("commonCtrl", {$scope: $scope});
-  $scope.queryHistory = [];
+  $mdDialog,
+  $scope,
+  timedQuery,
+  $window,
+  localStorageService
+) {
+  $controller("CommonController", {
+    $scope: $scope
+  });
+
+  $scope.localStorageService = localStorageService;
+
+  function DialogController($scope, $mdDialog, query, localStorageService) {
+    $scope.hide = function () {
+      $mdDialog.hide();
+    };
+    $scope.cancel = function () {
+      $mdDialog.cancel();
+    };
+    $scope.save = function (answer) {
+      localStorageService.set($scope.name, query);
+      $mdDialog.hide(answer);
+    };
+  }
+
+  $scope.showSaveDialog = function (ev) {
+    $mdDialog.show({
+        controller: DialogController,
+        template: '<md-dialog id="save-dialog">' +
+          '<md-dialog-content class="md-dialog-content">' +
+            '<h2 class="md-title">Save Query</h2>' +
+            '<md-input-container>' +
+              '<label>Name</label>' +
+              '<input ng-model="name"></input>' +
+            '</md-input-container>' +
+          '</md-dialog-content>' +
+          '<md-dialog-actions>' +
+            '<md-button class="md-raised" ng-click="cancel()">' +
+              'Cancel' +
+            '</md-button>' +
+            '<md-button class="md-raised md-primary" ng-click="save()">' +
+              'Save' +
+            '</md-button>' +
+            '</md-dialog-actions>' +
+          '</md-dialog>',
+        parent: angular.element(document.body),
+        targetEvent: ev,
+        clickOutsideToClose: true,
+        locals: {
+          query: $scope.query
+        },
+      });
+  };
+
   $scope.embedLink = "";
   $scope.queryResult = "";
 
@@ -465,58 +612,62 @@ module.controller("mainCtrl", function(
   }
 
   // Triggers when the button is clicked.
-  $scope.onSubmitQuery = function() {
-    $scope.inputModel.query = document.getElementById("query-input").value;
+  $scope.onSubmitQuery = function (query) {
+    if (query) {
+      $scope.inputModel.query = query;
+    }
     $location.search("query", $scope.inputModel.query);
     $location.search("renderType", $scope.inputModel.renderType);
     $location.search("profile", $scope.inputModel.profile.toString());
   };
 
-  $scope.$on("$locationChangeSuccess", function() {
+  $scope.$on("$locationChangeSuccess", function () {
     // this triggers at least once (in the beginning).
     var queries = $location.search();
-    $scope.inputModel.query = queries["query"] || "";
-    $scope.inputModel.renderType = queries["renderType"] || "line";
-    $scope.inputModel.profile = queries["profile"] === "true";
-    // Add the query to the history, if it hasn't been seen before and it's non-empty
+    $scope.inputModel.query = queries.query || "";
+    $scope.inputModel.renderType = queries.renderType || "line";
+    $scope.inputModel.profile = queries.profile === "true";
     var trimmedQuery = $scope.inputModel.query.trim();
-    if (trimmedQuery !== "" && $scope.queryHistory.indexOf(trimmedQuery) === -1) {
-      $scope.queryHistory.push(trimmedQuery);
-    }
     if (trimmedQuery) {
-      $launchRequest({
+      timedQuery({
         profile: $scope.inputModel.profile,
-        query:   $scope.inputModel.query
-      }).then(function(data) {
+        query: $scope.inputModel.query
+      }).then(function (data) {
         $scope.setQueryResult(data.payload);
         $scope.elapsedMs = data.elapsedMs;
         updateEmbed();
-      });
+      }, function (error) { console.log(error); });
     }
   });
 
-  $scope.historySelect = function(query) {
+  $scope.historySelect = function (query) {
     $scope.inputModel.query = query;
-  }
+  };
 
   // true if the output should be tabular.
-  $scope.isTabular = function() {
+  $scope.isTabular = function () {
     return ["describe all", "describe metrics", "describe"].indexOf($scope.queryResult.name) >= 0;
   };
   updateEmbed();
 });
 
-module.controller("embedCtrl", function(
+module.controller("QueryController", function() {
+
+});
+
+module.controller("EmbedController", function (
   $chartWaiting,
   $controller,
-  $launchRequest,
+  timedQuery,
   $launchedQueries,
   $location,
   $google,
   $scope
-  ){
-  $controller("commonCtrl", {$scope: $scope});
-  $scope.queryResult =  null;
+) {
+  $controller("CommonController", {
+    $scope: $scope
+  });
+  $scope.queryResult = null;
 
   $scope.selectOptions.chartArea.top = $scope.applyDefault("margintop", $scope.hidden.explore ? "20px" : "40px");
 
@@ -524,29 +675,37 @@ module.controller("embedCtrl", function(
   // Store the $inputModel so that the view can change it through inputs.
   $scope.inputModel.profile = false;
   $scope.inputModel.query = "";
-  $scope.inputModel.renderType = queries["renderType"] || "line";
-  $launchRequest({
+  $scope.inputModel.renderType = queries.renderType || "line";
+  timedQuery({
     profile: false,
-    query:   queries["query"] || ""
-  }).then(function(data) {
+    query: queries.query || ""
+  }).then(function (data) {
     $scope.setQueryResult(data.payload);
   });
 
   var url = $location.absUrl();
   var at = url.indexOf("?");
-  $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port()
-    + "/ui" + url.substring(at);
+  $scope.metricsURL = $location.protocol() + "://" + $location.host() + ":" + $location.port() + "/ui" + url.substring(at);
 });
 
 // utility functions
 function convertProfileResponse(object) {
   if (!(object && object.profile)) {
-    return null
+    return null;
   }
   var dataTable = new google.visualization.DataTable();
-  dataTable.addColumn({ type: 'string', id: 'Name' });
-  dataTable.addColumn({ type: 'number', id: 'Start' });
-  dataTable.addColumn({ type: 'number', id: 'End' });
+  dataTable.addColumn({
+    type: 'string',
+    id: 'Name'
+  });
+  dataTable.addColumn({
+    type: 'number',
+    id: 'Start'
+  });
+  dataTable.addColumn({
+    type: 'number',
+    id: 'End'
+  });
   var minValue = Number.POSITIVE_INFINITY;
   function epoch(timestamp) {
     return new Date(timestamp).getTime();
@@ -555,13 +714,13 @@ function convertProfileResponse(object) {
     var profile = object.profile[i];
     minValue = Math.min(epoch(profile.start), minValue);
     minValue = Math.min(epoch(profile.finish), minValue);
-  };
+  }
   function normalize(value) {
     return value - minValue;
-  };
-  for (var i = 0; i < object.profile.length; i++) {
+  }
+  for (i = 0; i < object.profile.length; i++) {
     var profile = object.profile[i];
-    var row = [ profile.name + (profile.description ? " - " + profile.description : ""), normalize(epoch(profile.start)), normalize(epoch(profile.finish)) ];
+    var row = [profile.name + " - " + profile.description, normalize(epoch(profile.start)), normalize(epoch(profile.finish))];
     dataTable.addRows([row]);
   }
   return dataTable;
@@ -569,11 +728,11 @@ function convertProfileResponse(object) {
 
 function convertSelectResponse(object) {
   if (!(object && object.name == "select" &&
-        object.body &&
-        object.body.length &&
-        object.body[0].series &&
-        object.body[0].series.length &&
-        object.body[0].timerange)) {
+      object.body &&
+      object.body.length &&
+      object.body[0].series &&
+      object.body[0].series.length &&
+      object.body[0].timerange)) {
     // invalid data.
     return null;
   }
@@ -590,7 +749,7 @@ function convertSelectResponse(object) {
         var s = object.body[i].series[j];
         var singleSeriesOption = {};
         series.push(s);
-        seriesOptions[series.length-1] = singleSeriesOption;
+        seriesOptions[series.length - 1] = singleSeriesOption;
         // special tags.
         if (s.tagset.$secondaxis === "true") {
           singleSeriesOption.targetAxisIndex = 0;
@@ -613,7 +772,7 @@ function convertSelectResponse(object) {
   var timerange = object.body[0].timerange;
   for (var t = 0; t < series[0].values.length; t++) {
     var row = [dateFromIndex(t, timerange)];
-    for (var i = 0; i < series.length; i++) {
+    for (i = 0; i < series.length; i++) {
       var cell = series[i].values[t];
       if (cell === null) {
         row.push(NaN);
@@ -626,7 +785,7 @@ function convertSelectResponse(object) {
   return {
     dataTable: google.visualization.arrayToDataTable(table),
     seriesOptions: seriesOptions
-  }
+  };
 }
 
 
