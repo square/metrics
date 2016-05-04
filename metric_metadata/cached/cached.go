@@ -133,16 +133,6 @@ func (c *CachedMetricMetadataAPI) GetBackgroundAction() func(metadata.Context) e
 	return <-c.backgroundQueue
 }
 
-// AddMetric waits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
-	return c.metricMetadataAPI.AddMetric(metric, context)
-}
-
-// AddMetrics waits for a slot to be open, then queries the underlying API.
-func (c *CachedMetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
-	return c.metricMetadataAPI.AddMetrics(metrics, context)
-}
-
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
 func (c *CachedMetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	return c.metricMetadataAPI.GetAllMetrics(context)

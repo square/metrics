@@ -42,16 +42,6 @@ type testAPI struct {
 	returnWG    sync.WaitGroup
 }
 
-// AddMetric waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
-	panic("unimplemented")
-}
-
-// AddMetrics waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
-	panic("unimplemented")
-}
-
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
 func (c *testAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	panic("unimplemented")

@@ -17,6 +17,7 @@ package ui
 import (
 	"net/http"
 
+	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
 )
 
@@ -35,10 +36,14 @@ func NewMux(config Config, context command.ExecutionContext, hook Hook) *http.Se
 	httpMux.Handle("/token", tokenHandler{
 		context: context,
 	})
-	if config.JSONIngestion {
-		httpMux.Handle("/ingest", ingestHandler{
-			metricMetadataAPI: context.MetricMetadataAPI,
-		})
+	if updateAPI, ok := context.MetricMetadataAPI.(metadata.MetricUpdateAPI); ok && config.HTTPIngestion {
+		// If the API implements MetricUpdateAPI, the server also exposes an endpoint to ingest metrics.
+		// TODO: make it possible to disable this endpoint.
+		if config.JSONIngestion {
+			httpMux.Handle("/ingest", ingestHandler{
+				metricMetadataAPI: updateAPI,
+			})
+		}
 	}
 	httpMux.Handle(
 		"/static/",

@@ -25,7 +25,7 @@ import (
 
 // tokenHandler exposes all the tokens available in the system for the autocomplete.
 type ingestHandler struct {
-	metricMetadataAPI metadata.MetricAPI
+	metricMetadataAPI metadata.MetricUpdateAPI
 }
 
 type IngestRequest struct {

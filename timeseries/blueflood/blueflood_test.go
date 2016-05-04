@@ -155,8 +155,9 @@ func Test_Blueflood(t *testing.T) {
 		}
 		fakeHTTPClient.SetResponse(test.queryURL, mocks.Response{test.queryResponse, test.queryDelay, code})
 
+		test.clientConfig.HTTPClient = fakeHTTPClient
+
 		b := NewBlueflood(test.clientConfig).(*Blueflood)
-		b.client = fakeHTTPClient
 
 		seriesList, err := b.FetchSingleTimeseries(timeseries.FetchRequest{
 			Metric: test.queryMetric,
@@ -600,9 +601,9 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 				"MIN240":  20,
 				"MIN1440": 365,
 			},
-		},
-		timeSource: func() time.Time {
-			return time.Unix(start/1000, 0)
+			TimeSource: func() time.Time {
+				return time.Unix(start/1000, 0)
+			},
 		},
 	}
 

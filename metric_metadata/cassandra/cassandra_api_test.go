@@ -39,14 +39,13 @@ func newCassandraAPI(t *testing.T) (*MetricMetadataAPI, metadata.Context) {
 		t.Fatalf("Attempted to create new database without cleaning up the old one.")
 	}
 	cassandraClean = false
-	cassandraInterface, err := NewMetricMetadataAPI(Config{
+	cassandra, err := NewMetricMetadataAPI(Config{
 		Hosts:    []string{"localhost"},
 		Keyspace: "metrics_indexer_test",
 	})
 	if err != nil {
 		t.Fatalf("Cannot instantiate Cassandra API: %s", err.Error())
 	}
-	cassandra := cassandraInterface.(*MetricMetadataAPI)
 
 	tables := []string{"metric_names", "tag_index", "metric_name_set"}
 	for _, table := range tables {

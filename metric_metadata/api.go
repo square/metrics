@@ -28,10 +28,6 @@ type Context struct {
 
 // MetricAPI is an interface for obtaining metric metadata for indexing in MQE.
 type MetricAPI interface {
-	// AddMetric adds the metric to the system.
-	AddMetric(metric api.TaggedMetric, context Context) error
-	// AddMetrics adds several metrics (possibly more efficiently than one at a time)
-	AddMetrics(metric []api.TaggedMetric, context Context) error
 	// GetAllTags takes a MetricKey and retrieves all the tagsets associated with it.
 	GetAllTags(metricKey api.MetricKey, context Context) ([]api.TagSet, error)
 	// GetAllMetrics returns all metrics managed by the system.

@@ -68,12 +68,6 @@ func LoadConfig() Config {
 	return config
 }
 
-// ExitWithRequired terminates the program when a required flag is missing.
-func ExitWithRequired(flagName string) {
-	fmt.Fprintf(os.Stderr, "%s is required\n", flagName)
-	os.Exit(1)
-}
-
 // ExitWithMessage terminates the program with the provided message.
 func ExitWithMessage(message string) {
 	fmt.Fprintf(os.Stderr, "%s\n", message)

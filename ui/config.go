@@ -21,6 +21,7 @@ type Config struct {
 	Timeout       int    `yaml:"timeout"`
 	StaticDir     string `yaml:"static_dir"`
 	JSONIngestion bool   `yaml:"json_ingestion"`
+	HTTPIngestion bool   `yaml:"enable_http_ingestion"`
 }
 
 type Hook struct {
