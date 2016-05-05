@@ -15,6 +15,8 @@
 package filter
 
 import (
+	"math"
+	"sort"
 	"testing"
 	"time"
 
@@ -285,4 +287,31 @@ func TestFilterRecent(t *testing.T) {
 			a.EqFloatArray(series.Values, seriesMap[name].Values, 1e-7)
 		}
 	}
+}
+
+func TestFilterListNaN(t *testing.T) {
+	a := assert.New(t)
+	array := newFilterList(6, true)
+
+	array.index = []int{11, 2, 11, 4, 5, 6}
+	array.value = []float64{math.NaN(), 2, math.NaN(), 8, 1, 0}
+	sort.Sort(array)
+	a.Eq(array.index, []int{6, 5, 2, 4, 11, 11})
+
+	array.index = []int{6, 5, 4, 11, 2, 11}
+	array.value = []float64{0, 1, 8, math.NaN(), 2, math.NaN()}
+	sort.Sort(array)
+	a.Eq(array.index, []int{6, 5, 2, 4, 11, 11})
+
+	array.ascending = false
+
+	array.index = []int{11, 2, 11, 4, 5, 6}
+	array.value = []float64{math.NaN(), 2, math.NaN(), 8, 1, 0}
+	sort.Sort(array)
+	a.Eq(array.index, []int{4, 2, 5, 6, 11, 11})
+
+	array.index = []int{6, 5, 4, 11, 2, 11}
+	array.value = []float64{0, 1, 8, math.NaN(), 2, math.NaN()}
+	sort.Sort(array)
+	a.Eq(array.index, []int{4, 2, 5, 6, 11, 11})
 }

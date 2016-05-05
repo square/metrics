@@ -15,7 +15,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,21 +23,24 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
+	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cached"
+	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/timeseries"
-
-	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/timeseries/blueflood"
-	"github.com/square/metrics/ui"
 	"github.com/square/metrics/util"
+	"github.com/square/metrics/web"
 )
 
-func startServer(config ui.Config, context command.ExecutionContext) {
-	httpMux := ui.NewMux(config, context, ui.Hook{})
+func startServer(config web.Config, context command.ExecutionContext) error {
+	httpMux, err := web.NewMux(config, context, web.Hook{})
+	if err != nil {
+		return err
+	}
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
@@ -47,16 +49,10 @@ func startServer(config ui.Config, context command.ExecutionContext) {
 		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Infof(err.Error())
-	}
+	return server.ListenAndServe()
 }
 
 func main() {
-	flag.Parse()
-	common.SetupLogger()
-
 	//Adding a signal handler to dump goroutines
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGUSR2)
@@ -67,13 +63,24 @@ func main() {
 		}
 	}()
 
-	config := common.LoadConfig()
+	config := struct {
+		ConversionRulesPath string           `yaml:"conversion_rules_path"`
+		Cassandra           cassandra.Config `yaml:"cassandra"`
+		Blueflood           blueflood.Config `yaml"blueflood"`
+		Web                 web.Config       `yaml:"web"`
+	}{}
 
-	metadataAPI := common.NewMetricMetadataAPI(config.Cassandra)
+	common.LoadConfigs(&config)
+
+	metadataAPI, err := cassandra.NewMetricMetadataAPI(config.Cassandra)
+	if err != nil {
+		common.ExitWithErrorMessage("Error loading Cassandra API: %s", err.Error())
+		return
+	}
 
 	ruleset, err := util.LoadRules(config.ConversionRulesPath)
 	if err != nil {
-		fmt.Printf("Error loading conversion rules: %s", err.Error())
+		common.ExitWithErrorMessage("Error loading conversion rules: %s", err.Error())
 		return
 	}
 
@@ -86,6 +93,7 @@ func main() {
 		RequestLimit: 500,
 	})
 	for i := 0; i < 10; i++ {
+		// Start goroutines to update the metadata cache in the background.
 		go func() {
 			for {
 				err := optimizedMetadataAPI.GetBackgroundAction()(metadata.Context{})
@@ -101,7 +109,7 @@ func main() {
 		IncludeRawData: false,
 	}
 
-	startServer(config.UI, command.ExecutionContext{
+	err = startServer(config.Web, command.ExecutionContext{
 		MetricMetadataAPI:     optimizedMetadataAPI,
 		TimeseriesStorageAPI:  blueflood,
 		FetchLimit:            1500,
@@ -109,4 +117,7 @@ func main() {
 		Registry:              registry.Default(),
 		UserSpecifiableConfig: userConfig,
 	})
+	if err != nil {
+		log.Infof(err.Error())
+	}
 }

@@ -98,7 +98,7 @@ func TestCached(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -186,7 +186,7 @@ func TestCachedNoStale(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -244,7 +244,7 @@ func TestInflight(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -350,7 +350,7 @@ func TestInflightError(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -463,7 +463,7 @@ func TestStaleInflight(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -551,7 +551,7 @@ func TestQueueSize(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 3,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 

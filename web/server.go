@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ui
+package web
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
 )
 
-func NewMux(config Config, context command.ExecutionContext, hook Hook) *http.ServeMux {
+func NewMux(config Config, context command.ExecutionContext, hook Hook) (*http.ServeMux, error) {
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
@@ -36,13 +37,13 @@ func NewMux(config Config, context command.ExecutionContext, hook Hook) *http.Se
 	httpMux.Handle("/token", tokenHandler{
 		context: context,
 	})
-	if updateAPI, ok := context.MetricMetadataAPI.(metadata.MetricUpdateAPI); ok && config.HTTPIngestion {
-		// If the API implements MetricUpdateAPI, the server also exposes an endpoint to ingest metrics.
-		// TODO: make it possible to disable this endpoint.
-		if config.JSONIngestion {
+	if config.HTTPIngestion {
+		if updateAPI, ok := context.MetricMetadataAPI.(metadata.MetricUpdateAPI); ok {
 			httpMux.Handle("/ingest", ingestHandler{
 				metricMetadataAPI: updateAPI,
 			})
+		} else {
+			return nil, fmt.Errorf("HTTP Ingestion is on, but the metadata API does not implement updates.")
 		}
 	}
 	httpMux.Handle(
@@ -52,5 +53,5 @@ func NewMux(config Config, context command.ExecutionContext, hook Hook) *http.Se
 			http.FileServer(http.Dir(config.StaticDir)),
 		),
 	)
-	return httpMux
+	return httpMux, nil
 }
