@@ -70,7 +70,7 @@ var _ metadata.MetricAPI = FakeComboAPI{}
 
 func (fapi FakeComboAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
 	if fapi.timerange.Resolution() < smallestResolution {
-		//	panic("ChooseResolution is too coarse for FakeComboAPI instance.")
+		panic("ChooseResolution is too coarse for FakeComboAPI instance.")
 	}
 	return fapi.timerange.Resolution()
 }
