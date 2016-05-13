@@ -123,7 +123,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				case valueType:
 					return expression.Evaluate(context)
 				}
-				panic("Unreachable :: Unknown type to evaluate to")
+				panic(fmt.Sprintf("Unreachable :: Attempting to evaluate to unknown type %+v", resultType))
 			}
 
 			// argumentFuncs holds functions to obtain the Value arguments.
@@ -168,7 +168,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 						argumentFuncs[i] = provideZeroValue(argType)
 					} else {
 						argumentFuncs[i] = func() (interface{}, error) {
-							resultI, err := evalTo(arg, argType)
+							resultI, err := evalTo(arg, argType.Elem())
 							if err != nil {
 								return nil, err
 							}
