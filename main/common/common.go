@@ -24,72 +24,37 @@ import (
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/log/glog"
 	"github.com/square/metrics/log/standard"
-	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/timeseries/blueflood"
-	"github.com/square/metrics/ui"
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	// ConfigFile is the location of the rule YAML file.
-	ConfigFile = flag.String("config-file", "", "Location of YAML config file")
-	Logger     = flag.String("logger", "glog", "Selects the logger to use")
-)
+var ConfigFile = flag.String("config-file", "", "specify the yaml config file from which to load the configuration.")
 
-type Config struct {
-	ConversionRulesPath string           `yaml:"conversion_rules_path"`
-	Blueflood           blueflood.Config `yaml:"blueflood"`
-	Cassandra           cassandra.Config `yaml:"cassandra"`
-	UI                  ui.Config        `yaml:"ui"`
-}
-
-func LoadConfig() Config {
-	var config Config
+func LoadConfigs(configs ...interface{}) {
+	flag.Parse()
 	if *ConfigFile == "" {
-		ExitWithMessage("No config file was specified. Specify it with '-config-file'")
+		ExitWithErrorMessage("No config file was specified. Specify it with '-config-file'")
 	}
-	f, err := os.Open(*ConfigFile)
+	bytes, err := ioutil.ReadFile(*ConfigFile)
 	if err != nil {
-		ExitWithMessage(fmt.Sprintf("unable to open config file `%s`", *ConfigFile))
+		ExitWithErrorMessage(fmt.Sprintf("Unable to read config file `%s`: %s", *ConfigFile, err.Error()))
 	}
 
-	bytes, err := ioutil.ReadAll(f)
-	if err != nil {
-		ExitWithMessage(fmt.Sprintf("unable to read config file `%s`", *ConfigFile))
+	for config := range configs {
+		err := yaml.Unmarshal(bytes, config)
+		ExitWithErrorMessage(fmt.Sprintf("Unable to unmarshal %T: %s", config, err.Error()))
 	}
-
-	if err := yaml.Unmarshal(bytes, &config); err != nil {
-		ExitWithMessage(fmt.Sprintf("unable to load config file `%s`: %s", *ConfigFile, err.Error()))
-	}
-
-	fmt.Printf("parsed config: %#v\n", config)
-
-	return config
-}
-
-// ExitWithRequired terminates the program when a required flag is missing.
-func ExitWithRequired(flagName string) {
-	fmt.Fprintf(os.Stderr, "%s is required\n", flagName)
-	os.Exit(1)
 }
 
 // ExitWithMessage terminates the program with the provided message.
-func ExitWithMessage(message string) {
-	fmt.Fprintf(os.Stderr, "%s\n", message)
+func ExitWithErrorMessage(format string, arguments ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+"\n", arguments...)
 	os.Exit(1)
 }
 
-// NewMetricMetadataAPI creates a new instance of the API.
-func NewMetricMetadataAPI(config cassandra.Config) metadata.MetricAPI {
-	apiInstance, err := cassandra.NewMetricMetadataAPI(config)
-	if err != nil {
-		ExitWithMessage(fmt.Sprintf("Cannot instantiate a new API from %#v: %s\n", config, err.Error()))
-	}
-	return apiInstance
-}
-
-func SetupLogger() {
+// If common is included, Logger will be configured via command-line arguments.
+func init() {
+	Logger := flag.String("logger", "glog", "Selects the logger to use")
+	flag.Parse()
 	if *Logger == "glog" {
 		log.InitLogger(&glog.Logger{})
 		log.Infof("Using glog logger")

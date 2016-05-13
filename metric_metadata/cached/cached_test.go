@@ -42,16 +42,6 @@ type testAPI struct {
 	returnWG    sync.WaitGroup
 }
 
-// AddMetric waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
-	panic("unimplemented")
-}
-
-// AddMetrics waits for a slot to be open, then queries the underlying API.
-func (c *testAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
-	panic("unimplemented")
-}
-
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
 func (c *testAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
 	panic("unimplemented")
@@ -108,7 +98,7 @@ func TestCached(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -196,7 +186,7 @@ func TestCachedNoStale(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -254,7 +244,7 @@ func TestInflight(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -360,7 +350,7 @@ func TestInflightError(t *testing.T) {
 	cached := NewMetricMetadataAPI(underlying, Config{
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -473,7 +463,7 @@ func TestStaleInflight(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 
@@ -561,7 +551,7 @@ func TestQueueSize(t *testing.T) {
 		Freshness:    5 * time.Second,
 		RequestLimit: 3,
 		TimeToLive:   10 * time.Second,
-	})
+	}).(*metricMetadataAPI)
 	clock := mocks.NewTestClock(time.Now())
 	cached.clock = clock
 

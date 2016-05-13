@@ -55,16 +55,6 @@ func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
 	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
 }
 
-func (fa *FakeMetricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
-	defer context.Profiler.Record("Mock AddMetric")()
-	return nil
-}
-
-func (fa *FakeMetricMetadataAPI) AddMetrics(metric []api.TaggedMetric, context metadata.Context) error {
-	defer context.Profiler.Record("Mock AddMetrics")()
-	return nil
-}
-
 func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Mock GetAllTags")()
 	if len(fa.metricTagSets[metricKey]) == 0 {
@@ -81,16 +71,6 @@ func (fa *FakeMetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.
 		array = append(array, key)
 	}
 	return array, nil
-}
-
-// AddMetricsForTag adds a metric to the Key/Value set list.
-func (fa *FakeMetricMetadataAPI) AddMetricsForTag(key string, value string, metric string) {
-	pair := struct {
-		key   string
-		value string
-	}{key, value}
-	// If the slice was previously nil, it will be expanded.
-	fa.metricsForTags[pair] = append(fa.metricsForTags[pair], api.MetricKey(metric))
 }
 
 func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {

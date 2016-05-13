@@ -32,25 +32,13 @@ import (
 	"github.com/square/metrics/util"
 )
 
+// Blueflood is a timeseries storage API instance.
 type Blueflood struct {
-	config            Config
-	client            httpClient
-	graphiteConverter util.GraphiteConverter
-	timeSource        TimeSource
+	config Config
 }
 
 //Implements TimeseriesStorageAPI
 var _ timeseries.StorageAPI = (*Blueflood)(nil)
-
-type BluefloodParallelRequest struct {
-	limit   int
-	tickets chan struct{}
-}
-
-type httpClient interface {
-	// our own client to mock out the standard golang HTTP Client.
-	Get(url string) (resp *http.Response, err error)
-}
 
 type TimeSource func() time.Time
 
@@ -64,6 +52,16 @@ type Config struct {
 	HTTPClient              httpClient
 	TimeSource              TimeSource
 	MaxSimultaneousRequests int `yaml:"simultaneous_requests"`
+}
+
+type BluefloodParallelRequest struct {
+	limit   int
+	tickets chan struct{}
+}
+
+type httpClient interface {
+	// our own client to mock out the standard golang HTTP Client.
+	Get(url string) (resp *http.Response, err error)
 }
 
 type queryResponse struct {
@@ -117,10 +115,7 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 	}
 
 	b := Blueflood{
-		config:            c,
-		client:            c.HTTPClient,
-		graphiteConverter: c.GraphiteMetricConverter,
-		timeSource:        c.TimeSource,
+		config: c,
 	}
 	b.config.Ttls = map[string]int64{}
 	for k, v := range c.Ttls {
@@ -292,7 +287,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 
 // CheckHealthy checks if the blueflood server is available by querying /v2.0
 func (b *Blueflood) CheckHealthy() error {
-	resp, err := b.client.Get(fmt.Sprintf("%s/v2.0", b.config.BaseURL))
+	resp, err := b.config.HTTPClient.Get(fmt.Sprintf("%s/v2.0", b.config.BaseURL))
 	if err != nil {
 		return err
 	}
@@ -319,7 +314,7 @@ func (b *Blueflood) constructURL(
 	sampler sampler,
 	queryResolution Resolution,
 ) (*url.URL, error) {
-	graphiteName, err := b.graphiteConverter.ToGraphiteName(request.Metric)
+	graphiteName, err := b.config.GraphiteMetricConverter.ToGraphiteName(request.Metric)
 	if err != nil {
 		return nil, timeseries.Error{request.Metric, timeseries.InvalidSeriesError, "cannot convert to graphite name"}
 	}
@@ -348,7 +343,7 @@ func (b *Blueflood) fetch(request timeseries.FetchRequest, queryURL *url.URL) (q
 	timeout := time.After(b.config.Timeout)
 	var rawResponse []byte
 	go func() {
-		resp, err := b.client.Get(queryURL.String())
+		resp, err := b.config.HTTPClient.Get(queryURL.String())
 		if err != nil {
 			failure <- timeseries.Error{request.Metric, timeseries.FetchIOError, "error while fetching - http connection"}
 			return
@@ -488,7 +483,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, smallestResolution
 	// actually be present for the chosen resolution.
 	// TODO: figure out how to make this work with moving averages and timeshifts
 
-	requiredAge := b.timeSource().Sub(requested.Start())
+	requiredAge := b.config.TimeSource().Sub(requested.Start())
 
 	for _, resolution := range Resolutions {
 		survivesFor := b.config.oldestViableDataForResolution(resolution)

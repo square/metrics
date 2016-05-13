@@ -88,14 +88,13 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 	flag.Parse()
-	common.SetupLogger()
 
 	if *metricsFile == "" {
-		common.ExitWithMessage("No metric file specified. Use '-metrics-file'")
+		common.ExitWithErrorMessage("No metric file specified. Use '-metrics-file'")
 	}
 
 	if *rulePath == "" {
-		common.ExitWithMessage("No rule path specified. Use '-rule-path'")
+		common.ExitWithErrorMessage("No rule path specified. Use '-rule-path'")
 	}
 
 	//TODO(cchandler): Make a constructor for a graphite converter so we don't
@@ -103,7 +102,7 @@ func main() {
 
 	ruleset, err := util.LoadRules(*rulePath)
 	if err != nil {
-		common.ExitWithMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
+		common.ExitWithErrorMessage(fmt.Sprintf("Error while reading rules: %s", err.Error()))
 	}
 
 	graphiteConverter := util.RuleBasedGraphiteConverter{Ruleset: ruleset}

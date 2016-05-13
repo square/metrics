@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ui
+package web
 
 import "github.com/square/metrics/inspect"
 
@@ -21,6 +21,7 @@ type Config struct {
 	Timeout       int    `yaml:"timeout"`
 	StaticDir     string `yaml:"static_dir"`
 	JSONIngestion bool   `yaml:"json_ingestion"`
+	HTTPIngestion bool   `yaml:"enable_http_ingestion"`
 }
 
 type Hook struct {
