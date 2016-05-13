@@ -52,20 +52,24 @@ func init() {
 	MustRegister(NewTransform("transform.bound", 2, transform.Bound))
 	MustRegister(NewTransform("transform.lower_bound", 1, transform.LowerBound))
 	MustRegister(NewTransform("transform.upper_bound", 1, transform.UpperBound))
+
 	// Filter
-	MustRegister(NewFilter("filter.highest_mean", aggregate.Mean, false))
-	MustRegister(NewFilter("filter.lowest_mean", aggregate.Mean, true))
-	MustRegister(NewFilter("filter.highest_max", aggregate.Max, false))
-	MustRegister(NewFilter("filter.lowest_max", aggregate.Max, true))
-	MustRegister(NewFilter("filter.highest_min", aggregate.Min, false))
-	MustRegister(NewFilter("filter.lowest_min", aggregate.Min, true))
-	// Filter Recent
-	MustRegister(NewFilterRecent("filter.recent_highest_mean", aggregate.Mean, false))
-	MustRegister(NewFilterRecent("filter.recent_lowest_mean", aggregate.Mean, true))
-	MustRegister(NewFilterRecent("filter.recent_highest_max", aggregate.Max, false))
-	MustRegister(NewFilterRecent("filter.recent_lowest_max", aggregate.Max, true))
-	MustRegister(NewFilterRecent("filter.recent_highest_min", aggregate.Min, false))
-	MustRegister(NewFilterRecent("filter.recent_lowest_min", aggregate.Min, true))
+	MustRegister(NewFilterCount("filter.highest_mean", aggregate.Mean, false))
+	MustRegister(NewFilterCount("filter.highest_max", aggregate.Max, false))
+	MustRegister(NewFilterCount("filter.highest_min", aggregate.Min, false))
+
+	MustRegister(NewFilterCount("filter.lowest_mean", aggregate.Mean, true))
+	MustRegister(NewFilterCount("filter.lowest_max", aggregate.Max, true))
+	MustRegister(NewFilterCount("filter.lowest_min", aggregate.Min, true))
+
+	MustRegister(NewFilterThreshold("filter.mean_above", aggregate.Mean, false))
+	MustRegister(NewFilterThreshold("filter.max_above", aggregate.Max, false))
+	MustRegister(NewFilterThreshold("filter.min_above", aggregate.Min, false))
+
+	MustRegister(NewFilterThreshold("filter.mean_below", aggregate.Mean, true))
+	MustRegister(NewFilterThreshold("filter.max_below", aggregate.Max, true))
+	MustRegister(NewFilterThreshold("filter.min_below", aggregate.Min, true))
+
 	// Weird ones
 	MustRegister(transform.Alias)
 	MustRegister(transform.Derivative)
@@ -140,37 +144,11 @@ func MustRegister(fun function.MetricFunction) {
 
 // Constructor Functions
 
-// NewFilter creates a new instance of a filtering function.
-func NewFilter(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
+// NewFilterCount creates a new instance of a count filtering function.
+func NewFilterCount(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
 	return function.MetricFunction{
 		Name:         name,
 		MinArguments: 2,
-		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			countFloat, err := function.EvaluateToScalar(arguments[1], context)
-			if err != nil {
-				return nil, err
-			}
-			// Round to the nearest integer.
-			count := int(countFloat + 0.5)
-			if count < 0 {
-				return nil, fmt.Errorf("expected positive count but got %d", count)
-			}
-			result := filter.FilterBy(list, count, summary, ascending)
-			return result, nil
-		},
-	}
-}
-
-// NewFilterRecent creates a new instance of a recent-filtering function.
-func NewFilterRecent(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: 3,
 		MaxArguments: 3,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
 			list, err := function.EvaluateToSeriesList(arguments[0], context)
@@ -181,16 +159,55 @@ func NewFilterRecent(name string, summary func([]float64) float64, ascending boo
 			if err != nil {
 				return nil, err
 			}
+			recentDuration := context.Timerange.Duration()
+			if len(arguments) == 3 {
+				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
+				if err != nil {
+					return nil, err
+				}
+			}
 			// Round to the nearest integer.
 			count := int(countFloat + 0.5)
 			if count < 0 {
 				return nil, fmt.Errorf("expected positive count but got %d", count)
 			}
-			duration, err := function.EvaluateToDuration(arguments[2], context)
+			if recentDuration < 0 {
+				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
+			}
+			result := filter.FilterByRecent(list, count, summary, ascending, recentDuration)
+			return result, nil
+		},
+	}
+}
+
+// NewFilterThreshold creates a new instance of a threshold filtering function.
+func NewFilterThreshold(name string, summary func([]float64) float64, below bool) function.MetricFunction {
+	return function.MetricFunction{
+		Name:         name,
+		MinArguments: 2,
+		MaxArguments: 3,
+		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+			list, err := function.EvaluateToSeriesList(arguments[0], context)
 			if err != nil {
 				return nil, err
 			}
-			result := filter.FilterRecentBy(list, count, summary, ascending, duration)
+			threshold, err := function.EvaluateToScalar(arguments[1], context)
+			if err != nil {
+				return nil, err
+			}
+			recentDuration := context.Timerange.Duration()
+			if len(arguments) == 3 {
+				// Set the duration to the third argument.
+				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if recentDuration < 0 {
+				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
+			}
+			result := filter.FilterThresholdByRecent(list, threshold, summary, below, recentDuration)
 			return result, nil
 		},
 	}

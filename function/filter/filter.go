@@ -32,8 +32,11 @@ func (list filterList) Len() int {
 	return len(list.index)
 }
 func (list filterList) Less(i, j int) bool {
-	if math.IsNaN(list.value[j]) && !math.IsNaN(list.value[i]) {
-		return true
+	if math.IsNaN(list.value[i]) {
+		return false // NaN must go second
+	}
+	if math.IsNaN(list.value[j]) {
+		return true // NaN must go second
 	}
 	if list.ascending {
 		return list.value[i] < list.value[j]
@@ -47,72 +50,76 @@ func (list filterList) Swap(i, j int) {
 	list.value[i], list.value[j] = list.value[j], list.value[i]
 }
 
-func newFilterList(size int, ascending bool) filterList {
-	return filterList{
-		index:     make([]int, size),
-		value:     make([]float64, size),
-		ascending: ascending,
+func sortSeries(series []api.Timeseries, summary func([]float64) float64, lowest bool) ([]api.Timeseries, []float64) {
+	array := filterList{
+		index:     make([]int, len(series)),
+		value:     make([]float64, len(series)),
+		ascending: lowest,
 	}
-}
-
-// FilterBy reduces the number of things in the series `list` to at most the given `count`.
-// They're chosen by sorting by `summary` in `ascending` or descending order.
-func FilterBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool) api.SeriesList {
-	if len(list.Series) < count {
-		// Limit the count to the number of available series
-		count = len(list.Series)
-	}
-	array := newFilterList(len(list.Series), lowest)
 	for i := range array.index {
 		array.index[i] = i
-		array.value[i] = summary(list.Series[i].Values)
+		array.value[i] = summary(series[i].Values)
 	}
 	sort.Sort(array)
+	result := make([]api.Timeseries, len(series))
+	weights := make([]float64, len(series))
+	for i, index := range array.index {
+		result[i] = series[index]
+		weights[i] = array.value[i]
+	}
+	return result, weights
+}
 
-	series := make([]api.Timeseries, count)
-	for i := range series {
-		series[i] = list.Series[array.index[i]]
+func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowest bool, duration time.Duration) ([]api.Timeseries, []float64) {
+	slots := int(duration/list.Timerange.Resolution()) + 1
+	if slots < 1 {
+		slots = 1
+	}
+	if slots > list.Timerange.Slots() {
+		slots = list.Timerange.Slots()
+	}
+	return sortSeries(
+		list.Series,
+		func(values []float64) float64 {
+			return summary(values[len(values)-slots:])
+		},
+		lowest,
+	)
+}
+
+// FilterRecentBy reduces the number of things in the series `list` to at most the given `count`.
+// However, it only considered recent points when evaluating their ordering.
+func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
+	// Sort them by their recent points.
+	sorted, _ := sortSeriesRecent(list, summary, lowest, duration)
+
+	if len(sorted) < count {
+		// Limit the count to the number of available series
+		count = len(sorted)
 	}
 
 	return api.SeriesList{
-		Series:    series,
+		Series:    sorted[:count],
 		Timerange: list.Timerange,
 	}
 }
 
-func FilterRecentBy(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
-	if len(list.Series) < count {
-		count = len(list.Series) // Limit the count to the number of available series
-	}
-	array := newFilterList(len(list.Series), lowest)
+// FilterThresholdBy reduces the number of things in the series `list` to those whose `summar` is at at least/at most the threshold.
+// However, it only considers the data points as recent as the duration permits.
+func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, duration time.Duration) api.SeriesList {
+	sorted, values := sortSeriesRecent(list, summary, below, duration)
 
-	if list.Timerange.Resolution() == 0 {
-		panic("FilterRecentBy received a api.SeriesList without a Resolution.")
-	}
-
-	// The number of elements to include
-	elements := int(duration / list.Timerange.Resolution())
-	if elements < 1 {
-		elements = 1
-	}
-	if elements > list.Timerange.Slots() {
-		elements = list.Timerange.Slots()
-	}
-	for i := range array.index {
-		array.index[i] = i
-		values := list.Series[i].Values
-		// Include only the last `elements`.
-		array.value[i] = summary(values[len(values)-elements:])
-	}
-	sort.Sort(array)
-
-	series := make([]api.Timeseries, count)
-	for i := range series {
-		series[i] = list.Series[array.index[i]]
+	result := []api.Timeseries{}
+	for i := range sorted {
+		// Since the series are sorted, once one of them falls outside the threshold, we can stop.
+		if (below && values[i] > threshold) || (!below && values[i] < threshold) {
+			break
+		}
+		result = append(result, sorted[i])
 	}
 
 	return api.SeriesList{
-		Series:    series,
+		Series:    result,
 		Timerange: list.Timerange,
 	}
 }

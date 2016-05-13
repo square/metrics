@@ -50,7 +50,7 @@ func TestFilter(t *testing.T) {
 			},
 		},
 		"D": {
-			Values: []float64{4, 4, 3, 4, 3},
+			Values: []float64{4, 4, 3.01, 4, 3.01},
 			TagSet: api.TagSet{
 				"name": "D",
 			},
@@ -62,122 +62,135 @@ func TestFilter(t *testing.T) {
 		Timerange: timerange,
 	}
 	tests := []struct {
-		summary func([]float64) float64
-		lowest  bool
-		count   int
-		expect  []string
+		summary     func([]float64) float64
+		lowest      bool
+		count       int
+		expect      []string
+		description string
 	}{
 		{
-			summary: aggregate.Sum,
-			lowest:  true,
-			count:   6,
-			expect:  []string{"A", "B", "C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      true,
+			count:       6,
+			expect:      []string{"B", "A", "C", "D"},
+			description: "sum",
 		},
 
 		{
-			summary: aggregate.Sum,
-			lowest:  false,
-			count:   6,
-			expect:  []string{"A", "B", "C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      false,
+			count:       6,
+			expect:      []string{"D", "C", "A", "B"},
+			description: "sum",
 		},
 
 		{
-			summary: aggregate.Sum,
-			lowest:  true,
-			count:   4,
-			expect:  []string{"A", "B", "C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      true,
+			count:       4,
+			expect:      []string{"B", "A", "C", "D"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  true,
-			count:   3,
-			expect:  []string{"A", "B", "C"},
+			summary:     aggregate.Sum,
+			lowest:      true,
+			count:       3,
+			expect:      []string{"B", "A", "C"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  true,
-			count:   2,
-			expect:  []string{"A", "B"},
+			summary:     aggregate.Sum,
+			lowest:      true,
+			count:       2,
+			expect:      []string{"B", "A"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  true,
-			count:   1,
-			expect:  []string{"B"},
+			summary:     aggregate.Sum,
+			lowest:      true,
+			count:       1,
+			expect:      []string{"B"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  false,
-			count:   4,
-			expect:  []string{"A", "B", "C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      false,
+			count:       4,
+			expect:      []string{"D", "C", "A", "B"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  false,
-			count:   3,
-			expect:  []string{"A", "C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      false,
+			count:       3,
+			expect:      []string{"D", "C", "A"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  false,
-			count:   2,
-			expect:  []string{"C", "D"},
+			summary:     aggregate.Sum,
+			lowest:      false,
+			count:       2,
+			expect:      []string{"D", "C"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Sum,
-			lowest:  false,
-			count:   1,
-			expect:  []string{"D"},
+			summary:     aggregate.Sum,
+			lowest:      false,
+			count:       1,
+			expect:      []string{"D"},
+			description: "sum",
 		},
 		{
-			summary: aggregate.Max,
-			lowest:  false,
-			count:   1,
-			expect:  []string{"C"},
+			summary:     aggregate.Max,
+			lowest:      false,
+			count:       1,
+			expect:      []string{"C"},
+			description: "max",
 		},
 		{
-			summary: aggregate.Max,
-			lowest:  false,
-			count:   2,
-			expect:  []string{"C", "D"},
+			summary:     aggregate.Max,
+			lowest:      false,
+			count:       2,
+			expect:      []string{"C", "D"},
+			description: "max",
 		},
 		{
-			summary: aggregate.Min,
-			lowest:  false,
-			count:   2,
-			expect:  []string{"A", "D"},
+			summary:     aggregate.Min,
+			lowest:      false,
+			count:       2,
+			expect:      []string{"D", "A"},
+			description: "min",
 		},
 		{
-			summary: aggregate.Min,
-			lowest:  false,
-			count:   3,
-			expect:  []string{"A", "C", "D"},
+			summary:     aggregate.Min,
+			lowest:      false,
+			count:       3,
+			expect:      []string{"D", "A", "C"},
+			description: "min",
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterBy(list, test.count, test.summary, test.lowest)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, list.Timerange.Duration()*10)
 		// Verify that every series in the result is from the original.
 		// Also verify that we only get the ones we expect.
 		if len(filtered.Series) != len(test.expect) {
 			t.Errorf("Expected only %d in results but got %d", len(test.expect), len(filtered.Series))
 			continue
 		}
-		for _, s := range filtered.Series {
+		for i, s := range filtered.Series {
 			original, ok := series[s.TagSet["name"]]
 			if !ok {
 				t.Fatalf("Result tagset called '%s' is not an original", s.TagSet["name"])
 			}
-			a.EqFloatArray(original.Values, s.Values, 1e-7)
-		}
-		names := map[string]bool{}
-		for _, name := range test.expect {
-			names[name] = true
-		}
-		for _, s := range filtered.Series {
-			if !names[s.TagSet["name"]] {
-				t.Fatalf("TagSets %+v aren't expected; %+v are", filtered.Series, test.expect)
+			if s.TagSet["name"] != test.expect[i] {
+				testOrder := "highest"
+				if test.lowest {
+					testOrder = "lowest"
+				}
+				t.Errorf("((%s %d %s)) Expected filtered sets to be %+v but were:\n%+v", testOrder, test.count, test.description, test.expect, filtered.Series)
+				break
 			}
-			names[s.TagSet["name"]] = false // Use up the name so that a seocnd Series can't also use it.
+			a.EqFloatArray(original.Values, s.Values, 1e-7)
 		}
 	}
 }
@@ -267,7 +280,7 @@ func TestFilterRecent(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterRecentBy(list, test.count, test.summary, test.lowest, test.duration)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, test.duration)
 		// Verify that they're all unique and expected and unchanged
 		a.EqInt(len(filtered.Series), len(test.expect))
 		// Next, verify that the names are the same.
