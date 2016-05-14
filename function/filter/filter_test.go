@@ -304,7 +304,7 @@ func TestFilterRecent(t *testing.T) {
 
 func TestFilterListNaN(t *testing.T) {
 	a := assert.New(t)
-	array := newFilterList(6, true)
+	array := filterList{nil, nil, true}
 
 	array.index = []int{11, 2, 11, 4, 5, 6}
 	array.value = []float64{math.NaN(), 2, math.NaN(), 8, 1, 0}
