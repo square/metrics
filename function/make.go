@@ -25,6 +25,7 @@ import (
 
 var stringType = reflect.TypeOf("")
 var scalarType = reflect.TypeOf(float64(0.0))
+var scalarSetType = reflect.TypeOf(ScalarSet{})
 var durationType = reflect.TypeOf(time.Duration(0))
 var timeseriesType = reflect.TypeOf(api.SeriesList{})
 var valueType = reflect.TypeOf((*Value)(nil)).Elem()
@@ -34,6 +35,48 @@ var contextType = reflect.TypeOf(EvaluationContext{})
 var timerangeType = reflect.TypeOf(api.Timerange{})
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
+
+// evaluateToType takes an expression and a reflect.Type and evaluates to the appropriate type.
+// If an Expression is requested, it just returns it.
+func evaluateToType(context EvaluationContext, expression Expression, resultType reflect.Type) (interface{}, error) {
+	switch resultType {
+	case expressionType:
+		return expression, nil
+	case stringType:
+		return EvaluateToString(expression, context)
+	case scalarType:
+		return EvaluateToScalar(expression, context)
+	case scalarSetType:
+		return EvaluateToScalarSet(expression, context)
+	case durationType:
+		return EvaluateToDuration(expression, context)
+	case timeseriesType:
+		return EvaluateToSeriesList(expression, context)
+	case valueType:
+		return expression.Evaluate(context)
+	}
+	panic(fmt.Sprintf("Unreachable :: Attempting to evaluate to unknown type %+v", resultType))
+}
+
+// valueProvider takes any value, and returns a function that returns it.
+func valueProvider(x interface{}) func() (interface{}, error) {
+	return func() (interface{}, error) {
+		return x, nil
+	}
+}
+
+// zeroProvider takes any type, and returns a function that returns the zero value for that type.
+func zeroProvider(t reflect.Type) func() (interface{}, error) {
+	return valueProvider(reflect.Zero(t).Interface())
+}
+
+// makePointerTo takes a value and returns a pointer to a copy of that value.
+func makePointerTo(x interface{}) interface{} {
+	pointer := reflect.New(reflect.TypeOf(x))
+	pointer.Elem().Set(reflect.ValueOf(x))
+	return pointer.Interface()
+
+}
 
 // MakeFunction is a convenient way to use type-safe functions to
 // construct MetricFunctions without manually checking parameters.
@@ -52,7 +95,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 	if funcType.NumOut() > 2 {
 		panic("MakeFunction's argument function must return at most two values.")
 	}
-	if !funcType.Out(0).ConvertibleTo(valueType) && funcType.Out(0) != timeseriesType {
+	if !funcType.Out(0).ConvertibleTo(valueType) && funcType.Out(0) != stringType && funcType.Out(0) != scalarType && funcType.Out(0) != scalarSetType && funcType.Out(0) != durationType && funcType.Out(0) != timeseriesType {
 		panic("MakeFunction's argument function's first return type must be convertible to `function.Value`.")
 	}
 	if funcType.NumOut() == 2 && !funcType.Out(1).ConvertibleTo(errorType) {
@@ -70,13 +113,13 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 		case groupsType:
 			// asks for groups
 			allowsGroupBy = true
-		case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
+		case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
 			// An ordinary argument.
 			if optionalArgumentCount > 0 {
 				panic("Non-optional arguments cannot occur after optional ones.")
 			}
 			requiredArgumentCount++
-		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
+		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(scalarSetType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 			// An optional argument
 			optionalArgumentCount++
 		default:
@@ -106,73 +149,34 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				return arg
 			}
 
-			// evalTo takes an expression and a reflect.Type and evaluates to the appropriate type.
-			// If an Expression is requested, it just returns it.
-			evalTo := func(expression Expression, resultType reflect.Type) (interface{}, error) {
-				switch resultType {
-				case expressionType:
-					return expression, nil
-				case stringType:
-					return EvaluateToString(expression, context)
-				case scalarType:
-					return EvaluateToScalar(expression, context)
-				case durationType:
-					return EvaluateToDuration(expression, context)
-				case timeseriesType:
-					return EvaluateToSeriesList(expression, context)
-				case valueType:
-					return expression.Evaluate(context)
-				}
-				panic(fmt.Sprintf("Unreachable :: Attempting to evaluate to unknown type %+v", resultType))
-			}
-
 			// argumentFuncs holds functions to obtain the Value arguments.
 			argumentFuncs := make([]func() (interface{}, error), funcType.NumIn())
-
-			// provideValue takes any value, and returns a function that returns it.
-			provideValue := func(x interface{}) func() (interface{}, error) {
-				return func() (interface{}, error) {
-					return x, nil
-				}
-			}
-
-			// provideZeroValue takes a type, and returns a function that returns the zero-value for that type.
-			provideZeroValue := func(t reflect.Type) func() (interface{}, error) {
-				return provideValue(reflect.Zero(t).Interface())
-			}
-
-			// ptrTo takes a value and returns a pointer to that value.
-			ptrTo := func(x interface{}) interface{} {
-				ptr := reflect.New(reflect.TypeOf(x))
-				ptr.Elem().Set(reflect.ValueOf(x))
-				return ptr.Interface()
-			}
 
 			for i := range argumentFuncs {
 				argType := funcType.In(i)
 				switch argType {
 				case contextType:
-					argumentFuncs[i] = provideValue(context)
+					argumentFuncs[i] = valueProvider(context)
 				case timerangeType:
-					argumentFuncs[i] = provideValue(context.Timerange)
+					argumentFuncs[i] = valueProvider(context.Timerange)
 				case groupsType:
-					argumentFuncs[i] = provideValue(groups)
-				case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
+					argumentFuncs[i] = valueProvider(groups)
+				case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
 					arg := nextArgument()
 					argumentFuncs[i] = func() (interface{}, error) {
-						return evalTo(arg, argType)
+						return evaluateToType(context, arg, argType)
 					}
-				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
+				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(scalarSetType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 					arg := nextArgument()
 					if arg == nil {
-						argumentFuncs[i] = provideZeroValue(argType)
+						argumentFuncs[i] = zeroProvider(argType)
 					} else {
 						argumentFuncs[i] = func() (interface{}, error) {
-							resultI, err := evalTo(arg, argType.Elem())
+							resultI, err := evaluateToType(context, arg, argType.Elem())
 							if err != nil {
 								return nil, err
 							}
-							return ptrTo(resultI), nil
+							return makePointerTo(resultI), nil
 						}
 					}
 				default:
@@ -209,9 +213,19 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			if len(output) == 2 && output[1].Interface() != nil {
 				return nil, output[1].Interface().(error)
 			}
-			if funcType.Out(0) == timeseriesType {
+
+			switch funcType.Out(0) {
+			case stringType:
+				return StringValue(output[0].Interface().(string)), nil
+			case scalarType:
+				return ScalarValue(output[0].Interface().(float64)), nil
+			case scalarSetType:
+				return output[0].Interface().(ScalarSet), nil
+			case durationType:
+				return DurationValue(output[0].Interface().(time.Duration)), nil
+			case timeseriesType:
 				return SeriesListValue(output[0].Interface().(api.SeriesList)), nil
-			} else {
+			default:
 				return output[0].Interface().(Value), nil
 			}
 		},

@@ -141,6 +141,19 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	return value, nil
 }
 
+// EvaluateToScalarSet is a helper function that takes an Expression and makes it a scalar.
+func EvaluateToScalarSet(e Expression, context EvaluationContext) (ScalarSet, error) {
+	scalarValue, err := e.Evaluate(context)
+	if err != nil {
+		return nil, err
+	}
+	value, convErr := scalarValue.ToScalarSet()
+	if convErr != nil {
+		return nil, convErr.WithContext(e.QueryString())
+	}
+	return value, nil
+}
+
 // EvaluateToDuration is a helper function that takes an Expression and makes it a duration.
 func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration, error) {
 	durationValue, err := e.Evaluate(context)

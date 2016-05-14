@@ -36,7 +36,7 @@ type Duration struct {
 }
 
 func (expr Duration) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.NewDurationValue(expr.Literal, expr.Duration), nil
+	return function.DurationValue(expr.Duration), nil
 }
 
 func (expr Duration) Name() string {

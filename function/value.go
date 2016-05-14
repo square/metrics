@@ -29,6 +29,7 @@ type Value interface {
 	ToSeriesList(api.Timerange) (api.SeriesList, *ConversionFailure)
 	ToString() (string, *ConversionFailure)
 	ToScalar() (float64, *ConversionFailure)
+	ToScalarSet() (ScalarSet, *ConversionFailure)
 	ToDuration() (time.Duration, *ConversionFailure)
 }
 
@@ -76,6 +77,11 @@ func (list SeriesListValue) ToScalar() (float64, *ConversionFailure) {
 	return 0, &ConversionFailure{"series list", "scalar"}
 }
 
+// ToScalarSet is a conversion function to implement the expression.Value interface.
+func (list SeriesListValue) ToScalarSet() (ScalarSet, *ConversionFailure) {
+	return nil, &ConversionFailure{"series list", "scalar set"}
+}
+
 // ToDuration is a conversion function to implement the expression.Value interface.
 func (list SeriesListValue) ToDuration() (time.Duration, *ConversionFailure) {
 	return 0, &ConversionFailure{"series list", "duration"}
@@ -97,6 +103,11 @@ func (value StringValue) ToString() (string, *ConversionFailure) {
 // ToScalar is a conversion function.
 func (value StringValue) ToScalar() (float64, *ConversionFailure) {
 	return 0, &ConversionFailure{"string", "scalar"}
+}
+
+// ToScalarSet is a conversion function.
+func (value StringValue) ToScalarSet() (ScalarSet, *ConversionFailure) {
+	return nil, &ConversionFailure{"string", "scalar set"}
 }
 
 // ToDuration is a conversion function.
@@ -131,6 +142,12 @@ func (value ScalarValue) ToScalar() (float64, *ConversionFailure) {
 	return float64(value), nil
 }
 
+// ToScalarSet is a conversion function.
+func (value ScalarValue) ToScalarSet() (ScalarSet, *ConversionFailure) {
+	// Return a singleton set.
+	return ScalarSet{{nil, float64(value)}}, nil
+}
+
 // ToDuration is a conversion function.
 // Scalars cannot be converted to durations.
 func (value ScalarValue) ToDuration() (time.Duration, *ConversionFailure) {
@@ -138,15 +155,7 @@ func (value ScalarValue) ToDuration() (time.Duration, *ConversionFailure) {
 }
 
 // DurationValue is a duration with a (usually) human-written name.
-type DurationValue struct {
-	name     string
-	duration time.Duration
-}
-
-// NewDurationValue creates a duration value with the given name and duration.
-func NewDurationValue(name string, duration time.Duration) DurationValue {
-	return DurationValue{name, duration}
-}
+type DurationValue time.Duration
 
 // ToSeriesList is a conversion function.
 func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, *ConversionFailure) {
@@ -163,9 +172,14 @@ func (value DurationValue) ToScalar() (float64, *ConversionFailure) {
 	return 0, &ConversionFailure{"duration", "scalar"}
 }
 
+// ToScalarSet is a conversion function.
+func (value DurationValue) ToScalarSet() (ScalarSet, *ConversionFailure) {
+	return nil, &ConversionFailure{"duration", "scalar set"}
+}
+
 // ToDuration is a conversion function.
 func (value DurationValue) ToDuration() (time.Duration, *ConversionFailure) {
-	return time.Duration(value.duration), nil
+	return time.Duration(value), nil
 }
 
 var durationRegexp = regexp.MustCompile(`^([+-]?[0-9]+)([smhdwMy]|ms|hr|mo|yr)$`)
@@ -200,4 +214,53 @@ func StringToDuration(timeString string) (time.Duration, error) {
 		scale *= 1000 * 60 * 60 * 24 * 365
 	}
 	return time.Duration(duration) * scale, nil
+}
+
+type TaggedScalar struct {
+	TagSet api.TagSet
+	Value  float64
+}
+
+type ScalarSet []TaggedScalar
+
+// ToSeriesList is a conversion function.
+// The scalar becomes a constant value for the timerange.
+func (set ScalarSet) ToSeriesList(timerange api.Timerange) (api.SeriesList, *ConversionFailure) {
+	result := api.SeriesList{
+		Series:    make([]api.Timeseries, len(set)),
+		Timerange: timerange,
+	}
+	for i := range result.Series {
+		result.Series[i] = api.Timeseries{
+			Values: make([]float64, timerange.Slots()),
+			TagSet: set[i].TagSet,
+		}
+		for j := range result.Series[i].Values {
+			result.Series[i].Values[j] = set[i].Value
+		}
+	}
+	return result, nil
+}
+
+// ToString is a conversion function. Numbers become formatted.
+func (set ScalarSet) ToString() (string, *ConversionFailure) {
+	return "", &ConversionFailure{"scalar set", "string"}
+}
+
+// ToScalar is a conversion function.
+func (set ScalarSet) ToScalar() (float64, *ConversionFailure) {
+	if len(set) == 1 && set[0].TagSet.Equals(api.TagSet{}) {
+		return set[0].Value, nil
+	}
+	return 0, &ConversionFailure{"scalar set", "scalar"}
+}
+
+// ToScalarSet is a conversion function.
+func (set ScalarSet) ToScalarSet() (ScalarSet, *ConversionFailure) {
+	return set, nil
+}
+
+// ToDuration is a conversion function.
+func (set ScalarSet) ToDuration() (time.Duration, *ConversionFailure) {
+	return 0, &ConversionFailure{"scalar set", "duration"}
 }
