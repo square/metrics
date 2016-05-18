@@ -68,12 +68,10 @@ func Test_ScalarExpression(t *testing.T) {
 	}
 	for _, test := range []struct {
 		expr           expression.Scalar
-		timerange      api.Timerange
 		expectedSeries []api.Timeseries
 	}{
 		{
 			expression.Scalar{5},
-			timerangeA,
 			[]api.Timeseries{
 				{
 					Values: []float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
@@ -85,7 +83,7 @@ func Test_ScalarExpression(t *testing.T) {
 		a := assert.New(t).Contextf("%+v", test)
 		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
 			TimeseriesStorageAPI: FakeBackend{},
-			Timerange:            test.timerange,
+			Timerange:            timerangeA,
 			SampleMethod:         timeseries.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),

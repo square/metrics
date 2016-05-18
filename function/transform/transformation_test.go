@@ -26,16 +26,11 @@ import (
 )
 
 func TestTransformTimeseries(t *testing.T) {
-	//This is to make sure that the scale of all the data
-	//is interpreted as 30 seconds (30000 milliseconds)
-	timerange, _ := api.NewTimerange(0, int64(30000*5), int64(30000))
-
 	testCases := []struct {
 		series     api.Timeseries
 		values     []float64
 		tagSet     api.TagSet
 		parameters []function.Value
-		timerange  api.Timerange
 		tests      []struct {
 			fun      transform
 			expected []float64
@@ -49,7 +44,6 @@ func TestTransformTimeseries(t *testing.T) {
 				"host": "B",
 				"env":  "C",
 			},
-			timerange:  timerange,
 			parameters: []function.Value{function.ScalarValue(100)},
 			tests: []struct {
 				fun      transform
@@ -100,7 +94,7 @@ func TestTransformTimeseries(t *testing.T) {
 				Series: []api.Timeseries{series},
 			}
 
-			a, err := ApplyTransform(ctx, seriesList, transform.fun, params, timerange.Resolution())
+			a, err := ApplyTransform(ctx, seriesList, transform.fun, params, 30*time.Second)
 			result := a.Series[0]
 			if err != nil {
 				t.Error(err)
@@ -126,11 +120,6 @@ func TestTransformTimeseries(t *testing.T) {
 }
 
 func TestApplyTransform(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758400000, 758400000+30000*5, 30000)
-	if err != nil {
-		t.Fatalf("invalid timerange used for testcase")
-		return
-	}
 	epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -198,7 +187,7 @@ func TestApplyTransform(t *testing.T) {
 	}
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameter, testTimerange.Resolution())
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameter, 30*time.Second)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -233,12 +222,6 @@ func TestApplyTransform(t *testing.T) {
 }
 
 func TestApplyNotes(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758400000, 758400000+30000*5, 30000)
-	if err != nil {
-		t.Fatalf("invalid timerange used for testcase")
-		return
-	}
-	// epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -266,7 +249,7 @@ func TestApplyNotes(t *testing.T) {
 
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
-		_, err := ApplyTransform(ctx, list, test.transform, test.parameter, testTimerange.Resolution())
+		_, err := ApplyTransform(ctx, list, test.transform, test.parameter, 30*time.Second)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -288,12 +271,6 @@ func TestApplyNotes(t *testing.T) {
 
 func TestApplyBound(t *testing.T) {
 	a := assert.New(t)
-	testTimerange, err := api.NewTimerange(758400000, 758400000+30000*5, 30000)
-	//{2, nan, nan, nan, 3, 3},
-	if err != nil {
-		t.Fatal("invalid timerange used for testcase")
-		return
-	}
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -376,7 +353,7 @@ func TestApplyBound(t *testing.T) {
 
 		for _, bounder := range bounders {
 			ctx := function.EvaluationContext{}
-			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params, testTimerange.Resolution())
+			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params, 30*time.Second)
 			if err != nil {
 				t.Errorf(err.Error())
 				continue
@@ -398,20 +375,15 @@ func TestApplyBound(t *testing.T) {
 		}
 	}
 	ctx := function.EvaluationContext{}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}, testTimerange.Resolution()); err == nil {
+	if _, err := ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}, 30*time.Second); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}, testTimerange.Resolution()); err == nil {
+	if _, err := ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}, 30*time.Second); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
 }
 
 func TestApplyTransformNaN(t *testing.T) {
-	var testTimerange, err = api.NewTimerange(758400000, 758400000+30000*5, 30000)
-	if err != nil {
-		t.Fatalf("invalid timerange used for testcase")
-		return
-	}
 	nan := math.NaN()
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -497,7 +469,7 @@ func TestApplyTransformNaN(t *testing.T) {
 	}
 	for _, test := range tests {
 		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameters, testTimerange.Resolution())
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameters, 30*time.Second)
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
 			return
@@ -526,19 +498,16 @@ func TestApplyTransformNaN(t *testing.T) {
 func TestTransformIdentity(t *testing.T) {
 	//This is to make sure that the scale of all the data
 	//is interpreted as 30 seconds (30000 milliseconds)
-	timerange, _ := api.NewTimerange(0, int64(30000*5), int64(30000))
 
 	testCases := []struct {
-		values    []float64
-		timerange api.Timerange
-		tests     []struct {
+		values []float64
+		tests  []struct {
 			expected   []float64
 			transforms []transform
 		}
 	}{
 		{
-			values:    []float64{0, 1, 2, 3, 4, 5},
-			timerange: timerange,
+			values: []float64{0, 1, 2, 3, 4, 5},
 			tests: []struct {
 				expected   []float64
 				transforms []transform
@@ -560,8 +529,7 @@ func TestTransformIdentity(t *testing.T) {
 			},
 		},
 		{
-			values:    []float64{12, 15, 20, 3, 18, 30},
-			timerange: timerange,
+			values: []float64{12, 15, 20, 3, 18, 30},
 			tests: []struct {
 				expected   []float64
 				transforms []transform
@@ -602,7 +570,7 @@ func TestTransformIdentity(t *testing.T) {
 					Series: []api.Timeseries{result},
 				}
 				params := []function.Value{}
-				a, err := ApplyTransform(ctx, seriesList, fun, params, timerange.Resolution())
+				a, err := ApplyTransform(ctx, seriesList, fun, params, 30*time.Second)
 				result = a.Series[0]
 				if err != nil {
 					t.Error(err)
