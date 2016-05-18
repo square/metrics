@@ -75,7 +75,6 @@ func makePointerTo(x interface{}) interface{} {
 	pointer := reflect.New(reflect.TypeOf(x))
 	pointer.Elem().Set(reflect.ValueOf(x))
 	return pointer.Interface()
-
 }
 
 // MakeFunction is a convenient way to use type-safe functions to

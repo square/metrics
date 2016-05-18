@@ -26,6 +26,7 @@ import (
 	"github.com/square/metrics/function/filter"
 	"github.com/square/metrics/function/forecast"
 	"github.com/square/metrics/function/join"
+	"github.com/square/metrics/function/summary"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
 )
@@ -89,6 +90,14 @@ func init() {
 	MustRegister(forecast.FunctionForecastLinear)
 
 	MustRegister(forecast.FunctionDrop)
+
+	// Summary
+	MustRegister(summary.Mean)
+	MustRegister(summary.Min)
+	MustRegister(summary.Max)
+	MustRegister(summary.Current)
+	MustRegister(summary.LastNotNaN)
+
 }
 
 // StandardRegistry of a functions available in MQE.
