@@ -183,8 +183,9 @@ func (cmd *DescribeMetricsCommand) Name() string {
 
 type QuerySeriesList struct {
 	api.SeriesList
-	Query string `json:"query"`
-	Name  string `json:"name"`
+	Timerange api.Timerange `json:"timerange"`
+	Query     string        `json:"query"`
+	Name      string        `json:"name"`
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
@@ -303,6 +304,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		for i := range body {
 			body[i] = QuerySeriesList{
 				SeriesList: lists[i],
+				Timerange:  chosenTimerange,
 				Query:      cmd.Expressions[i].QueryString(),
 				Name:       cmd.Expressions[i].Name(),
 			}
