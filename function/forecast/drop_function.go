@@ -50,8 +50,7 @@ var FunctionDrop = function.MetricFunction{
 		}
 
 		return api.SeriesList{
-			Series:    result,
-			Timerange: original.Timerange,
+			Series: result,
 		}, nil
 	},
 }

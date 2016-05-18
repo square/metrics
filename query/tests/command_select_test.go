@@ -37,7 +37,8 @@ func TestCommand_Select(t *testing.T) {
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")})
 	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")})
 	var fakeBackend mocks.FakeTimeseriesStorageAPI
-	testTimerange, err := api.NewTimerange(0, 120, 30)
+	// TODO: remove this commented stuff
+	/*testTimerange, err := api.NewTimerange(0, 120, 30)
 	if err != nil {
 		t.Errorf("Invalid test timerange")
 		return
@@ -49,7 +50,7 @@ func TestCommand_Select(t *testing.T) {
 	lateTimerange, err := api.NewTimerange(60, 120, 30)
 	if err != nil {
 		t.Errorf("Invalid test timerange")
-	}
+	}*/
 	for _, test := range []struct {
 		query       string
 		expectError bool
@@ -61,7 +62,6 @@ func TestCommand_Select(t *testing.T) {
 				Values: []float64{1, 2, 3, 4, 5},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: testTimerange,
 		}}},
 		{"select series_timeout from 0 to 120 resolution 30ms", true, []api.SeriesList{}},
 		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
@@ -69,70 +69,60 @@ func TestCommand_Select(t *testing.T) {
 				Values: []float64{2, 3, 4, 5, 6},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: testTimerange,
 		}}},
 		{"select series_1 * 2 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 4, 6, 8, 10},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: testTimerange,
 		}}},
 		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{3, 2, 3, 6, 5},
 				TagSet: api.NewTagSet(),
 			}},
-			Timerange: testTimerange,
 		}}},
 		{"select (1 + series_2) | aggregate.max from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{4, 3, 4, 7, 6},
 				TagSet: api.NewTagSet(),
 			}},
-			Timerange: testTimerange,
 		}}},
 		{"select series_1 from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{1, 2, 3},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: earlyTimerange,
 		}}},
 		{"select transform.timeshift(series_1,31ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: earlyTimerange,
 		}}},
 		{"select transform.timeshift(series_1,62ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{3, 4, 5},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: earlyTimerange,
 		}}},
 		{"select transform.timeshift(series_1,29ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: earlyTimerange,
 		}}},
 		{"select transform.timeshift(series_1,-31ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: lateTimerange,
 		}}},
 		{"select transform.timeshift(series_1,-29ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
 				TagSet: api.ParseTagSet("dc=west"),
 			}},
-			Timerange: lateTimerange,
 		}}},
 		{"select series_3 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{

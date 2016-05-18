@@ -69,7 +69,6 @@ func Test_groupBy(t *testing.T) {
 				},
 			},
 		},
-		Timerange: api.Timerange{},
 	}
 
 	var aggregateTestCases = []struct {
@@ -256,12 +255,6 @@ func Test_applyAggregation(t *testing.T) {
 func Test_AggregateBy(t *testing.T) {
 	a := assert.New(t)
 
-	timerange, err := api.NewTimerange(42, 270, 6)
-	if err != nil {
-		t.Fatalf("Timerange for test is invalid")
-		return
-	}
-
 	var testList = api.SeriesList{
 		[]api.Timeseries{
 			{
@@ -329,7 +322,6 @@ func Test_AggregateBy(t *testing.T) {
 				},
 			},
 		},
-		timerange,
 	}
 
 	var aggregatedTests = []struct {
@@ -610,10 +602,6 @@ func Test_AggregateBy(t *testing.T) {
 		aggregated := By(testList, testCase.Aggregator, testCase.Tags, testCase.Combines)
 		// Check that aggregated looks correct.
 		// There should be two series
-		if aggregated.Timerange != testList.Timerange {
-			t.Errorf("Expected aggregate's Timerange to be %+v but is %+v", testList.Timerange, aggregated.Timerange)
-			continue
-		}
 		if len(aggregated.Series) != len(testCase.Results) {
 			t.Errorf("Expected %d series in aggregation result but found %d", len(testCase.Results), len(aggregated.Series))
 			continue

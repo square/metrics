@@ -72,8 +72,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MetricFunction{
 		}
 
 		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(seriesList.Series)),
-			Timerange: context.Timerange,
+			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
 
 		for seriesIndex, series := range seriesList.Series {
@@ -128,8 +127,7 @@ var FunctionRollingSeasonal = function.MetricFunction{
 		}
 
 		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(seriesList.Series)),
-			Timerange: context.Timerange,
+			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
 
 		for seriesIndex, series := range seriesList.Series {
@@ -172,8 +170,7 @@ var FunctionForecastLinear = function.MetricFunction{
 		}
 
 		result := api.SeriesList{
-			Series:    make([]api.Timeseries, len(seriesList.Series)),
-			Timerange: context.Timerange,
+			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
 
 		for seriesIndex, series := range seriesList.Series {

@@ -17,7 +17,6 @@ package filter
 import (
 	"math"
 	"sort"
-	"time"
 
 	"github.com/square/metrics/api"
 )
@@ -70,18 +69,17 @@ func sortSeries(series []api.Timeseries, summary func([]float64) float64, lowest
 	return result, weights
 }
 
-func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowest bool, duration time.Duration) ([]api.Timeseries, []float64) {
-	slots := int(duration/list.Timerange.Resolution()) + 1
+func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowest bool, slots int) ([]api.Timeseries, []float64) {
 	if slots < 1 {
 		slots = 1
-	}
-	if slots > list.Timerange.Slots() {
-		slots = list.Timerange.Slots()
 	}
 	return sortSeries(
 		list.Series,
 		func(values []float64) float64 {
-			return summary(values[len(values)-slots:])
+			if slots < len(values) {
+				return summary(values[len(values)-slots:])
+			}
+			return summary(values)
 		},
 		lowest,
 	)
@@ -89,9 +87,9 @@ func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowe
 
 // FilterRecentBy reduces the number of things in the series `list` to at most the given `count`.
 // However, it only considered recent points when evaluating their ordering.
-func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, duration time.Duration) api.SeriesList {
+func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, slots int) api.SeriesList {
 	// Sort them by their recent points.
-	sorted, _ := sortSeriesRecent(list, summary, lowest, duration)
+	sorted, _ := sortSeriesRecent(list, summary, lowest, slots)
 
 	if len(sorted) < count {
 		// Limit the count to the number of available series
@@ -99,15 +97,14 @@ func FilterByRecent(list api.SeriesList, count int, summary func([]float64) floa
 	}
 
 	return api.SeriesList{
-		Series:    sorted[:count],
-		Timerange: list.Timerange,
+		Series: sorted[:count],
 	}
 }
 
 // FilterThresholdBy reduces the number of things in the series `list` to those whose `summar` is at at least/at most the threshold.
 // However, it only considers the data points as recent as the duration permits.
-func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, duration time.Duration) api.SeriesList {
-	sorted, values := sortSeriesRecent(list, summary, below, duration)
+func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, slots int) api.SeriesList {
+	sorted, values := sortSeriesRecent(list, summary, below, slots)
 
 	result := []api.Timeseries{}
 	for i := range sorted {
@@ -119,7 +116,6 @@ func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary fun
 	}
 
 	return api.SeriesList{
-		Series:    result,
-		Timerange: list.Timerange,
+		Series: result,
 	}
 }

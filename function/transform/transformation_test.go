@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -96,11 +97,10 @@ func TestTransformTimeseries(t *testing.T) {
 			}
 			ctx := function.EvaluationContext{}
 			seriesList := api.SeriesList{
-				Series:    []api.Timeseries{series},
-				Timerange: timerange,
+				Series: []api.Timeseries{series},
 			}
 
-			a, err := ApplyTransform(ctx, seriesList, transform.fun, params)
+			a, err := ApplyTransform(ctx, seriesList, transform.fun, params, timerange.Resolution())
 			result := a.Series[0]
 			if err != nil {
 				t.Error(err)
@@ -153,7 +153,6 @@ func TestApplyTransform(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
 	}
 	testCases := []struct {
 		transform transform
@@ -199,7 +198,7 @@ func TestApplyTransform(t *testing.T) {
 	}
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameter)
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameter, testTimerange.Resolution())
 		if err != nil {
 			t.Error(err)
 			continue
@@ -249,7 +248,6 @@ func TestApplyNotes(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
 	}
 
 	testCases := []struct {
@@ -268,7 +266,7 @@ func TestApplyNotes(t *testing.T) {
 
 	for _, test := range testCases {
 		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
-		_, err := ApplyTransform(ctx, list, test.transform, test.parameter)
+		_, err := ApplyTransform(ctx, list, test.transform, test.parameter, testTimerange.Resolution())
 		if err != nil {
 			t.Error(err)
 			continue
@@ -317,7 +315,6 @@ func TestApplyBound(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
 	}
 	tests := []struct {
 		lower       float64
@@ -367,7 +364,7 @@ func TestApplyBound(t *testing.T) {
 	}
 	for _, test := range tests {
 		bounders := []struct {
-			bounder  func(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error)
+			bounder  func(function.EvaluationContext, api.Timeseries, []function.Value, time.Duration) ([]float64, error)
 			params   []function.Value
 			expected map[string][]float64
 			name     string
@@ -379,7 +376,7 @@ func TestApplyBound(t *testing.T) {
 
 		for _, bounder := range bounders {
 			ctx := function.EvaluationContext{}
-			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params)
+			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params, testTimerange.Resolution())
 			if err != nil {
 				t.Errorf(err.Error())
 				continue
@@ -401,10 +398,10 @@ func TestApplyBound(t *testing.T) {
 		}
 	}
 	ctx := function.EvaluationContext{}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}); err == nil {
+	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}, testTimerange.Resolution()); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
-	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}); err == nil {
+	if _, err = ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}, testTimerange.Resolution()); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
 }
@@ -437,7 +434,6 @@ func TestApplyTransformNaN(t *testing.T) {
 				},
 			},
 		},
-		Timerange: testTimerange,
 	}
 	tests := []struct {
 		transform  transform
@@ -501,7 +497,7 @@ func TestApplyTransformNaN(t *testing.T) {
 	}
 	for _, test := range tests {
 		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameters)
+		result, err := ApplyTransform(ctx, list, test.transform, test.parameters, testTimerange.Resolution())
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
 			return
@@ -603,11 +599,10 @@ func TestTransformIdentity(t *testing.T) {
 				ctx := function.EvaluationContext{}
 
 				seriesList := api.SeriesList{
-					Series:    []api.Timeseries{result},
-					Timerange: timerange,
+					Series: []api.Timeseries{result},
 				}
 				params := []function.Value{}
-				a, err := ApplyTransform(ctx, seriesList, fun, params)
+				a, err := ApplyTransform(ctx, seriesList, fun, params, timerange.Resolution())
 				result = a.Series[0]
 				if err != nil {
 					t.Error(err)

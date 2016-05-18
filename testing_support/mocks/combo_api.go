@@ -103,8 +103,7 @@ func (fapi FakeComboAPI) FetchSingleTimeseries(request timeseries.FetchRequest) 
 func (fapi FakeComboAPI) FetchMultipleTimeseries(multiRequest timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	requests := multiRequest.ToSingle()
 	seriesList := api.SeriesList{
-		Series:    make([]api.Timeseries, len(requests)),
-		Timerange: multiRequest.Timerange,
+		Series: make([]api.Timeseries, len(requests)),
 	}
 	for i, request := range requests {
 		timeseries, err := fapi.FetchSingleTimeseries(request)
