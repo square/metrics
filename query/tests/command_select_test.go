@@ -28,29 +28,24 @@ import (
 )
 
 func TestCommand_Select(t *testing.T) {
-	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=west")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=east")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("dc=north")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_timeout", api.ParseTagSet("dc=west")})
-	var fakeBackend mocks.FakeTimeseriesStorageAPI
-	// TODO: remove this commented stuff
-	/*testTimerange, err := api.NewTimerange(0, 120, 30)
+	testTimerange, err := api.NewSnappedTimerange(0, 120, 30)
 	if err != nil {
-		t.Errorf("Invalid test timerange")
-		return
+		t.Fatalf("Error creating timerange for test: %s", err.Error())
 	}
-	earlyTimerange, err := api.NewTimerange(0, 60, 30)
-	if err != nil {
-		t.Errorf("Invalid test timerange")
-	}
-	lateTimerange, err := api.NewTimerange(60, 120, 30)
-	if err != nil {
-		t.Errorf("Invalid test timerange")
-	}*/
+
+	comboAPI := mocks.NewComboAPI(
+		// timerange
+		testTimerange,
+		// series_1
+		api.Timeseries{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.TagSet{"metric": "series_1", "dc": "west"}},
+		// series_2
+		api.Timeseries{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.TagSet{"metric": "series_2", "dc": "west"}},
+		api.Timeseries{Values: []float64{3, 0, 3, 6, 2}, TagSet: api.TagSet{"metric": "series_2", "dc": "east"}},
+		// series_3
+		api.Timeseries{Values: []float64{1, 1, 1, 4, 4}, TagSet: api.TagSet{"metric": "series_3", "dc": "west"}},
+		api.Timeseries{Values: []float64{5, 5, 5, 2, 2}, TagSet: api.TagSet{"metric": "series_3", "dc": "east"}},
+		api.Timeseries{Values: []float64{3, 3, 3, 3, 3}, TagSet: api.TagSet{"metric": "series_3", "dc": "north"}},
+	)
 	for _, test := range []struct {
 		query       string
 		expectError bool
@@ -316,7 +311,7 @@ func TestCommand_Select(t *testing.T) {
 				},
 			},
 		}}},
-		{"select series_1 from -1000d to now resolution 30s", true, []api.SeriesList{}},
+		{"select series_1 from -1000d to now resolution 30ms", true, []api.SeriesList{}},
 	} {
 		a := assert.New(t).Contextf("query=%s", test.query)
 		expected := test.expected
@@ -327,8 +322,8 @@ func TestCommand_Select(t *testing.T) {
 		}
 		a.EqString(testCommand.Name(), "select")
 		rawResult, err := testCommand.Execute(command.ExecutionContext{
-			TimeseriesStorageAPI: fakeBackend,
-			MetricMetadataAPI:    fakeAPI,
+			TimeseriesStorageAPI: comboAPI,
+			MetricMetadataAPI:    comboAPI,
 			FetchLimit:           1000,
 			Timeout:              100 * time.Millisecond,
 		})
@@ -360,8 +355,8 @@ func TestCommand_Select(t *testing.T) {
 		return
 	}
 	context := command.ExecutionContext{
-		TimeseriesStorageAPI: fakeBackend,
-		MetricMetadataAPI:    fakeAPI,
+		TimeseriesStorageAPI: comboAPI,
+		MetricMetadataAPI:    comboAPI,
 		FetchLimit:           3,
 		Timeout:              0,
 	}

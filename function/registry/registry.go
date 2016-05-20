@@ -175,7 +175,7 @@ func NewFilterCount(name string, summary func([]float64) float64, ascending bool
 			if recentDuration < 0 {
 				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
 			}
-			result := filter.FilterByRecent(list, count, summary, ascending, int(recentDuration/context.Timerange.Resolution()))
+			result := filter.FilterByRecent(list, count, summary, ascending, 1+int(recentDuration/context.Timerange.Resolution()))
 			return result, nil
 		},
 	}
