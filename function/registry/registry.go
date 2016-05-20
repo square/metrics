@@ -132,7 +132,7 @@ func (r StandardRegistry) All() []string {
 func (r StandardRegistry) Register(fun function.Function) error {
 	_, ok := r.mapping[fun.Name()]
 	if ok {
-		return fmt.Errorf("function %s has already been registered", fun.Name)
+		return fmt.Errorf("function %s has already been registered", fun.Name())
 	}
 	if fun.Name() == "" {
 		return fmt.Errorf("empty function name")
@@ -145,7 +145,7 @@ func (r StandardRegistry) Register(fun function.Function) error {
 func MustRegister(fun function.Function) {
 	err := defaultRegistry.Register(fun)
 	if err != nil {
-		panic(fmt.Sprintf("function %s has failed to register", fun.Name))
+		panic(fmt.Sprintf("function %s has failed to register: %s", fun.Name(), err.Error()))
 	}
 }
 

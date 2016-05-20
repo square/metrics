@@ -27,7 +27,7 @@ import (
 
 var recent = func(name string, summarizer func([]float64) float64) function.MetricFunction {
 	return function.MakeFunction(
-		"summarize.mean",
+		name,
 		func(list api.SeriesList, optionalDuration *time.Duration) function.ScalarSet {
 			duration := list.Timerange.Duration()
 			if optionalDuration != nil {
