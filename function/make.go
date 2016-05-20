@@ -209,9 +209,16 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			if len(output) == 2 && output[1].Interface() != nil {
 				return nil, output[1].Interface().(error)
 			}
-			if funcType.Out(0) == timeseriesType {
+			switch funcType.Out(0) {
+			case stringType:
+				return StringValue(output[0].Interface().(string)), nil
+			case scalarType:
+				return ScalarValue(output[0].Interface().(float64)), nil
+			case durationType:
+				return DurationValue{"", output[0].Interface().(time.Duration)}, nil
+			case timeseriesType:
 				return SeriesListValue(output[0].Interface().(api.SeriesList)), nil
-			} else {
+			default:
 				return output[0].Interface().(Value), nil
 			}
 		},
