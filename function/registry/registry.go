@@ -208,7 +208,7 @@ func NewFilterThreshold(name string, summary func([]float64) float64, below bool
 			if recentDuration < 0 {
 				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
 			}
-			result := filter.FilterThresholdByRecent(list, threshold, summary, below, int(recentDuration/context.Timerange.Resolution()))
+			result := filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(recentDuration/context.Timerange.Resolution()))
 			return result, nil
 		},
 	}

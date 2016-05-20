@@ -36,7 +36,10 @@ func (fapi FakeComboAPI) AddMetrics(metrics []api.TaggedMetric, context metadata
 	return fmt.Errorf("cannot add metrics to FakeComboAPI")
 }
 func (fapi FakeComboAPI) GetAllTags(metric api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
-	list := fapi.metrics[metric]
+	list, ok := fapi.metrics[metric]
+	if !ok {
+		return nil, fmt.Errorf("no such metric `%s`", metric)
+	}
 	tagsets := []api.TagSet{}
 	for _, timeseries := range list {
 		tagsets = append(tagsets, timeseries.TagSet)
@@ -76,6 +79,14 @@ func (fapi FakeComboAPI) ChooseResolution(requested api.Timerange, smallestResol
 }
 
 func (fapi FakeComboAPI) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
+	if request.Metric.MetricKey == "series_timeout" {
+		// This is a special-case.
+		<-time.After(30 * time.Second)
+		return api.Timeseries{}, fmt.Errorf("timeout occurred")
+	}
+	if _, ok := fapi.metrics[request.Metric.MetricKey]; !ok {
+		return api.Timeseries{}, fmt.Errorf("no such metric `%s`", request.Metric.MetricKey)
+	}
 	for _, series := range fapi.metrics[request.Metric.MetricKey] {
 		if !series.TagSet.Equals(request.Metric.TagSet) {
 			continue
@@ -115,10 +126,15 @@ func (fapi FakeComboAPI) FetchMultipleTimeseries(multiRequest timeseries.FetchMu
 	return seriesList, nil
 }
 
+// NewComboAPI asks for a list of timeseries.
+// Each must have a `metric` tag which is used to set their metric key.
+// If you query a metric called `series_timeout` then the fetch will time-out.
 func NewComboAPI(timerange api.Timerange, timeseries ...api.Timeseries) FakeComboAPI {
 	result := FakeComboAPI{
 		timerange,
-		map[api.MetricKey][]api.Timeseries{},
+		map[api.MetricKey][]api.Timeseries{
+			"series_timeout": {{}}, // One empty entry to allow it to be queried.
+		},
 	}
 	for _, series := range timeseries {
 		if len(series.Values) != timerange.Slots() {
