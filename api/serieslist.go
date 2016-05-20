@@ -14,35 +14,10 @@
 
 package api
 
-import (
-	"fmt"
-	"time"
-)
-
 // SeriesList is a list of time series sharing the same time range.
 // this struct must satisfy the `function.Value` interface. However, a type assertion
 // cannot be held here due to a circular import.
 type SeriesList struct {
 	Series    []Timeseries `json:"series"`
 	Timerange Timerange    `json:"timerange"`
-}
-
-// ToSeriesList is an identity function that allows SeriesList to implement the expression.Value interface.
-func (list SeriesList) ToSeriesList(time Timerange, description string) (SeriesList, error) {
-	return list, nil
-}
-
-// ToString is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToString(description string) (string, error) {
-	return "", fmt.Errorf("cannot convert %s (type SeriesList) to type string", description)
-}
-
-// ToScalar is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToScalar(description string) (float64, error) {
-	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type scalar", description)
-}
-
-// ToDuration is a conversion function to implement the expression.Value interface.
-func (list SeriesList) ToDuration(description string) (time.Duration, error) {
-	return 0, fmt.Errorf("cannot convert %s (type SeriesList) to type duration", description)
 }

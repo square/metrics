@@ -41,10 +41,10 @@ func (le LiteralExpression) Name() string {
 }
 
 func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return api.SeriesList{
+	return function.SeriesListValue(api.SeriesList{
 		Series:    []api.Timeseries{{Values: expr.Values, TagSet: api.NewTagSet()}},
 		Timerange: api.Timerange{},
-	}, nil
+	}), nil
 }
 
 type LiteralSeriesExpression struct {
@@ -58,7 +58,7 @@ func (lse LiteralSeriesExpression) Name() string {
 	return "<literal series expression>"
 }
 func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return expr.list, nil
+	return function.SeriesListValue(expr.list), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {
@@ -325,15 +325,15 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 
 		metricFun := registry.NewOperator(test.functionName, test.evalFunction)
 
-		value, err := metricFun.Evaluate(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, []string{}, false)
+		value, err := metricFun.Run(test.context, []function.Expression{&LiteralSeriesExpression{test.left}, &LiteralSeriesExpression{test.right}}, function.Groups{})
 		if err != nil {
 			a.EqBool(err == nil, test.expectSuccess)
 			continue
 		}
 
-		result, err := value.ToSeriesList(test.context.Timerange, "-test-")
-		if err != nil {
-			a.EqBool(err == nil, test.expectSuccess)
+		result, convErr := value.ToSeriesList(test.context.Timerange)
+		if convErr != nil {
+			a.EqBool(convErr == nil, test.expectSuccess)
 			continue
 		}
 

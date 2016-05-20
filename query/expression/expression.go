@@ -36,7 +36,7 @@ type Duration struct {
 }
 
 func (expr Duration) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.NewDurationValue(expr.Literal, expr.Duration), nil
+	return function.DurationValue(expr.Duration), nil
 }
 
 func (expr Duration) Name() string {
@@ -105,7 +105,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.MetricName), filtered[i]}
 	}
 
-	return context.TimeseriesStorageAPI.FetchMultipleTimeseries(
+	seriesList, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		timeseries.FetchMultipleRequest{
 			metrics,
 			timeseries.RequestDetails{
@@ -117,6 +117,10 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 			},
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
+	return function.SeriesListValue(seriesList), nil
 }
 
 func (expr *MetricFetchExpression) QueryString() string {
@@ -142,7 +146,7 @@ func (expr *FunctionExpression) Evaluate(context function.EvaluationContext) (fu
 		return nil, SyntaxError{fmt.Sprintf("no such function %s", expr.FunctionName)}
 	}
 
-	return fun.Evaluate(context, expr.Arguments, expr.GroupBy, expr.GroupByCollapses)
+	return fun.Run(context, expr.Arguments, function.Groups{expr.GroupBy, expr.GroupByCollapses})
 }
 
 func functionFormatString(argumentStrings []string, f FunctionExpression) string {

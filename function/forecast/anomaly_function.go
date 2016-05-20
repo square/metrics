@@ -31,7 +31,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 		panic("FunctionAnomalyMaker requires that the model argument take at least two parameters; series and period.")
 	}
 	return function.MetricFunction{
-		Name:         name,
+		FunctionName: name,
 		MinArguments: model.MinArguments,
 		MaxArguments: model.MaxArguments,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
@@ -46,9 +46,9 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
 			}
-			prediction, err := predictionValue.ToSeriesList(context.Timerange, "prediction series")
-			if err != nil {
-				return nil, err
+			prediction, convErr := predictionValue.ToSeriesList(context.Timerange)
+			if convErr != nil {
+				return nil, convErr.WithContext("in anomaly function - model")
 			}
 			period, err := function.EvaluateToDuration(arguments[1], context)
 			if err != nil {
@@ -72,7 +72,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 				}
 			}
 			prediction.Series = result
-			return prediction, nil
+			return function.SeriesListValue(prediction), nil
 		},
 	}
 }
