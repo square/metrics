@@ -17,6 +17,7 @@ package transform
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -65,9 +66,6 @@ var MovingAverage = function.MetricFunction{
 		if err != nil {
 			return nil, err
 		}
-
-		// The timerange must be reverted.
-		list.Timerange = context.Timerange
 
 		// Update each series in the list.
 		for index, series := range list.Series {
@@ -140,9 +138,6 @@ var ExponentialMovingAverage = function.MetricFunction{
 		// so, alpha = exp(log(1/2) / ticks)
 		alpha := math.Exp(math.Log(0.5) * float64(context.Timerange.Resolution()) / float64(size))
 
-		// The timerange must be reverted.
-		list.Timerange = context.Timerange
-
 		// Update each series in the list.
 		for index, series := range list.Series {
 			// The series will be given a (shorter) replaced list of values.
@@ -179,7 +174,7 @@ var Alias = function.MetricFunction{
 // This transform estimates the "change per second" between the two samples (scaled consecutive difference)
 var Derivative = newDerivativeBasedTransform("derivative", derivative)
 
-func derivative(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+func derivative(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, resolution time.Duration) ([]float64, error) {
 	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
@@ -187,7 +182,7 @@ func derivative(ctx function.EvaluationContext, series api.Timeseries, parameter
 			continue
 		}
 		// Scaled difference
-		result[i-1] = (values[i] - values[i-1]) / scale
+		result[i-1] = (values[i] - values[i-1]) / resolution.Seconds()
 	}
 	return result, nil
 }
@@ -199,7 +194,7 @@ func derivative(ctx function.EvaluationContext, series api.Timeseries, parameter
 // differences which are at least 0, or math.Max of the newly reported value and 0
 var Rate = newDerivativeBasedTransform("rate", rate)
 
-func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, scale float64) ([]float64, error) {
+func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []function.Value, resolution time.Duration) ([]float64, error) {
 	values := series.Values
 	result := make([]float64, len(values)-1)
 	for i := range values {
@@ -207,7 +202,7 @@ func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []fu
 			continue
 		}
 		// Scaled difference
-		result[i-1] = (values[i] - values[i-1]) / scale
+		result[i-1] = (values[i] - values[i-1]) / resolution.Seconds()
 		if result[i-1] < 0 {
 			result[i-1] = 0
 		}
@@ -218,7 +213,7 @@ func rate(ctx function.EvaluationContext, series api.Timeseries, parameters []fu
 			// values[i] is our best approximatation of the delta between i-1 and i
 			// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 			// the counter has reset, and we know *at least* v[i] increments have happened
-			result[i-1] = math.Max(values[i], 0) / scale
+			result[i-1] = math.Max(values[i], 0) / resolution.Seconds()
 		}
 	}
 	return result, nil
@@ -244,12 +239,9 @@ func newDerivativeBasedTransform(name string, transformer transform) function.Me
 				return nil, err
 			}
 
-			// Reset the timerange
-			list.Timerange = context.Timerange
-
 			//Apply the original context to the transform even though the list
 			//will include one additional data point.
-			result, err := ApplyTransform(context, list, transformer, []function.Value{})
+			result, err := ApplyTransform(context, list, transformer, []function.Value{}, context.Timerange.Resolution())
 			if err != nil {
 				return nil, err
 			}

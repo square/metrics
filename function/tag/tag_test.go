@@ -105,12 +105,7 @@ func TestDropSeries(t *testing.T) {
 }
 
 func TestDrop(t *testing.T) {
-	timerange, err := api.NewTimerange(1300, 1600, 100)
-	if err != nil {
-		t.Fatal("invalid timerange used in testcase")
-	}
 	list := api.SeriesList{
-		Timerange: timerange,
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -148,7 +143,6 @@ func TestDrop(t *testing.T) {
 	}
 	result := DropTag(list, "host")
 	expect := api.SeriesList{
-		Timerange: timerange,
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -182,7 +176,6 @@ func TestDrop(t *testing.T) {
 	}
 	// Verify that result == expect
 	a := assert.New(t)
-	a.Eq(result.Timerange, expect.Timerange)
 	a.EqInt(len(result.Series), len(expect.Series))
 	for i := range result.Series {
 		// Verify that the two are equal
@@ -295,13 +288,8 @@ func TestSetSeries(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	timerange, err := api.NewTimerange(1300, 1600, 100)
-	if err != nil {
-		t.Fatal("invalid timerange used in testcase")
-	}
 	newValue := "east"
 	list := api.SeriesList{
-		Timerange: timerange,
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -337,7 +325,6 @@ func TestSet(t *testing.T) {
 	}
 	result := SetTag(list, "dc", newValue)
 	expect := api.SeriesList{
-		Timerange: timerange,
 		Series: []api.Timeseries{
 			{
 				Values: []float64{1, 2, 3, 4},
@@ -375,7 +362,6 @@ func TestSet(t *testing.T) {
 	}
 	// Verify that result == expect
 	a := assert.New(t)
-	a.Eq(result.Timerange, expect.Timerange)
 	a.EqInt(len(result.Series), len(expect.Series))
 	for i := range result.Series {
 		// Verify that the two are equal

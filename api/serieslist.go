@@ -23,8 +23,7 @@ import (
 // this struct must satisfy the `function.Value` interface. However, a type assertion
 // cannot be held here due to a circular import.
 type SeriesList struct {
-	Series    []Timeseries `json:"series"`
-	Timerange Timerange    `json:"timerange"`
+	Series []Timeseries `json:"series"`
 }
 
 // ToSeriesList is an identity function that allows SeriesList to implement the expression.Value interface.

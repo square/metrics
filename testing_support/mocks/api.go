@@ -166,8 +166,7 @@ func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.Fet
 	}
 
 	return api.SeriesList{
-		Series:    timeseries,
-		Timerange: request.Timerange,
+		Series: timeseries,
 	}, nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
@@ -174,7 +175,7 @@ func NewFilterCount(name string, summary func([]float64) float64, ascending bool
 			if recentDuration < 0 {
 				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
 			}
-			result := filter.FilterByRecent(list, count, summary, ascending, recentDuration)
+			result := filter.FilterByRecent(list, count, summary, ascending, 1+int(recentDuration/context.Timerange.Resolution()))
 			return result, nil
 		},
 	}
@@ -207,7 +208,7 @@ func NewFilterThreshold(name string, summary func([]float64) float64, below bool
 			if recentDuration < 0 {
 				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
 			}
-			result := filter.FilterThresholdByRecent(list, threshold, summary, below, recentDuration)
+			result := filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(recentDuration/context.Timerange.Resolution()))
 			return result, nil
 		},
 	}
@@ -232,7 +233,7 @@ func NewAggregate(name string, aggregator func([]float64) float64) function.Metr
 }
 
 // NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, api.Timeseries, []function.Value, float64) ([]float64, error)) function.MetricFunction {
+func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, api.Timeseries, []function.Value, time.Duration) ([]float64, error)) function.MetricFunction {
 	return function.MetricFunction{
 		Name:         name,
 		MinArguments: parameterCount + 1,
@@ -249,7 +250,7 @@ func NewTransform(name string, parameterCount int, transformer func(function.Eva
 					return nil, err
 				}
 			}
-			return transform.ApplyTransform(context, list, transformer, parameters)
+			return transform.ApplyTransform(context, list, transformer, parameters, context.Timerange.Resolution())
 		},
 	}
 }
@@ -292,8 +293,7 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 			}
 
 			return api.SeriesList{
-				Series:    result,
-				Timerange: context.Timerange,
+				Series: result,
 			}, nil
 		},
 	}

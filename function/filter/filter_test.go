@@ -18,7 +18,6 @@ import (
 	"math"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function/aggregate"
@@ -27,10 +26,6 @@ import (
 
 func TestFilter(t *testing.T) {
 	a := assert.New(t)
-	timerange, err := api.NewTimerange(1300, 1700, 100)
-	if err != nil {
-		t.Fatalf("invalid timerange used in testcase")
-	}
 
 	series := map[string]api.Timeseries{
 		"A": {
@@ -60,8 +55,7 @@ func TestFilter(t *testing.T) {
 	}
 
 	list := api.SeriesList{
-		Series:    []api.Timeseries{series["A"], series["B"], series["C"], series["D"]},
-		Timerange: timerange,
+		Series: []api.Timeseries{series["A"], series["B"], series["C"], series["D"]},
 	}
 	tests := []struct {
 		summary     func([]float64) float64
@@ -172,7 +166,7 @@ func TestFilter(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, list.Timerange.Duration()*10)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, 100)
 		// Verify that every series in the result is from the original.
 		// Also verify that we only get the ones we expect.
 		if len(filtered.Series) != len(test.expect) {
@@ -198,9 +192,7 @@ func TestFilter(t *testing.T) {
 }
 
 func TestFilterRecent(t *testing.T) {
-	timerange, err := api.NewTimerange(1300, 2000, 100)
 	a := assert.New(t)
-	a.CheckError(err)
 	series := []api.Timeseries{
 		{
 			Values: []float64{0, 1, 1, 0, 8, 8, 9, 8},
@@ -220,69 +212,68 @@ func TestFilterRecent(t *testing.T) {
 		},
 	}
 	list := api.SeriesList{
-		Series:    series,
-		Timerange: timerange,
+		Series: series,
 	}
 	seriesMap := map[string]api.Timeseries{"A": series[0], "B": series[1], "C": series[2], "D": series[3]}
 	tests := []struct {
-		summary  func([]float64) float64
-		lowest   bool
-		count    int
-		duration time.Duration
-		expect   []string
+		summary func([]float64) float64
+		lowest  bool
+		count   int
+		slots   int
+		expect  []string
 	}{
 		{
-			summary:  aggregate.Max,
-			lowest:   false,
-			count:    50,
-			duration: time.Millisecond * 450, // Four points
-			expect:   []string{"A", "B", "C", "D"},
+			summary: aggregate.Max,
+			lowest:  false,
+			count:   50,
+			slots:   4,
+			expect:  []string{"A", "B", "C", "D"},
 		},
 		{
-			summary:  aggregate.Min,
-			lowest:   true,
-			count:    5,
-			duration: time.Millisecond * 450, // Four points
-			expect:   []string{"A", "B", "C", "D"},
+			summary: aggregate.Min,
+			lowest:  true,
+			count:   5,
+			slots:   4,
+			expect:  []string{"A", "B", "C", "D"},
 		},
 		{
-			summary:  aggregate.Mean,
-			lowest:   false,
-			count:    4,
-			duration: time.Millisecond * 450, // Four points
-			expect:   []string{"A", "B", "C", "D"},
+			summary: aggregate.Mean,
+			lowest:  false,
+			count:   4,
+			slots:   4,
+			expect:  []string{"A", "B", "C", "D"},
 		},
 		{
-			summary:  aggregate.Max,
-			lowest:   false,
-			count:    2,
-			duration: time.Millisecond * 450, // Four points
-			expect:   []string{"A", "B"},
+			summary: aggregate.Max,
+			lowest:  false,
+			count:   2,
+			slots:   4,
+			expect:  []string{"A", "B"},
 		},
 		{
-			summary:  aggregate.Max,
-			lowest:   true,
-			count:    2,
-			duration: time.Millisecond * 450, // Four points
-			expect:   []string{"C", "D"},
+			summary: aggregate.Max,
+			lowest:  true,
+			count:   2,
+			slots:   4,
+			expect:  []string{"C", "D"},
 		},
 		{
-			summary:  aggregate.Sum,
-			lowest:   true,
-			count:    1,
-			duration: time.Millisecond * 9000, // All points
-			expect:   []string{"B"},
+			summary: aggregate.Sum,
+			lowest:  true,
+			count:   1,
+			slots:   19, // all points
+			expect:  []string{"B"},
 		},
 		{
-			summary:  aggregate.Sum,
-			lowest:   false,
-			count:    1,
-			duration: time.Millisecond * 9000, // All points
-			expect:   []string{"A"},
+			summary: aggregate.Sum,
+			lowest:  false,
+			count:   1,
+			slots:   19,
+			expect:  []string{"A"},
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, test.duration)
+		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, test.slots)
 		// Verify that they're all unique and expected and unchanged
 		a.EqInt(len(filtered.Series), len(test.expect))
 		// Next, verify that the names are the same.

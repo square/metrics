@@ -200,8 +200,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 	}
 
 	return api.SeriesList{
-		Series:    resultSeries,
-		Timerange: request.Timerange,
+		Series: resultSeries,
 	}, nil
 }
 
