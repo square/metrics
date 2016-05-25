@@ -15,8 +15,6 @@
 package api
 
 // SeriesList is a list of time series sharing the same time range.
-// this struct must satisfy the `function.Value` interface. However, a type assertion
-// cannot be held here due to a circular import.
 type SeriesList struct {
 	Series []Timeseries `json:"series"`
 }
