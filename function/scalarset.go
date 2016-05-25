@@ -15,6 +15,10 @@
 package function
 
 import (
+	"bytes"
+	"encoding/json"
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -23,6 +27,25 @@ import (
 type TaggedScalar struct {
 	TagSet api.TagSet
 	Value  float64
+}
+
+// TaggedScalar marshals NaN or infinity to null.
+func (ts TaggedScalar) MarshalJSON() ([]byte, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString(`{"tagset":`)
+	tagset, err := json.Marshal(ts.TagSet)
+	if err != nil {
+		return nil, err
+	}
+	buffer.Write(tagset)
+	buffer.WriteString(`,"value":`)
+	if math.IsInf(ts.Value, 0) || math.IsNaN(ts.Value) {
+		buffer.WriteString(`null`)
+	} else {
+		buffer.WriteString(strconv.FormatFloat(ts.Value, 'g', -1, 64))
+	}
+	buffer.WriteString("}")
+	return buffer.Bytes(), nil
 }
 
 type ScalarSet []TaggedScalar

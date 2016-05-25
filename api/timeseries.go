@@ -48,5 +48,5 @@ func (ts Timeseries) MarshalJSON() ([]byte, error) {
 		buffer.WriteString(strconv.FormatFloat(y, 'g', -1, 64))
 	}
 	buffer.WriteString("]}")
-	return buffer.Bytes(), err
+	return buffer.Bytes(), nil
 }
