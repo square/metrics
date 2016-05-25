@@ -25,6 +25,7 @@ import (
 
 var stringType = reflect.TypeOf("")
 var scalarType = reflect.TypeOf(float64(0.0))
+var scalarSetType = reflect.TypeOf(ScalarSet{})
 var durationType = reflect.TypeOf(time.Duration(0))
 var timeseriesType = reflect.TypeOf(api.SeriesList{})
 var valueType = reflect.TypeOf((*Value)(nil)).Elem()
@@ -70,13 +71,13 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 		case groupsType:
 			// asks for groups
 			allowsGroupBy = true
-		case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
+		case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
 			// An ordinary argument.
 			if optionalArgumentCount > 0 {
 				panic("Non-optional arguments cannot occur after optional ones.")
 			}
 			requiredArgumentCount++
-		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
+		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(scalarSetType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 			// An optional argument
 			optionalArgumentCount++
 		default:
@@ -116,6 +117,8 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 					return EvaluateToString(expression, context)
 				case scalarType:
 					return EvaluateToScalar(expression, context)
+				case scalarSetType:
+					return EvaluateToScalarSet(expression, context)
 				case durationType:
 					return EvaluateToDuration(expression, context)
 				case timeseriesType:
@@ -157,12 +160,12 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 					argumentFuncs[i] = provideValue(context.Timerange)
 				case groupsType:
 					argumentFuncs[i] = provideValue(groups)
-				case stringType, scalarType, durationType, timeseriesType, valueType, expressionType:
+				case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
 					arg := nextArgument()
 					argumentFuncs[i] = func() (interface{}, error) {
 						return evalTo(arg, argType)
 					}
-				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
+				case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(scalarSetType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 					arg := nextArgument()
 					if arg == nil {
 						argumentFuncs[i] = provideZeroValue(argType)
@@ -214,6 +217,8 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				return StringValue(output[0].Interface().(string)), nil
 			case scalarType:
 				return ScalarValue(output[0].Interface().(float64)), nil
+			case scalarSetType:
+				return output[0].Interface().(ScalarSet), nil
 			case durationType:
 				return DurationValue{"", output[0].Interface().(time.Duration)}, nil
 			case timeseriesType:
