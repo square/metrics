@@ -62,7 +62,7 @@ func cleanAPI(t *testing.T, c *MetricMetadataAPI) {
 	cassandraClean = true
 }
 
-func Test_MetricName_GetTagSet_API(t *testing.T) {
+func TestMetricNameGetTagSetAPI(t *testing.T) {
 	a := assert.New(t)
 	cassandra, context := newCassandraAPI(t)
 	defer cleanAPI(t, cassandra)
@@ -74,24 +74,24 @@ func Test_MetricName_GetTagSet_API(t *testing.T) {
 	metricNamesTests := []struct {
 		addTest      bool
 		metricName   api.MetricKey
-		tagString    string
-		expectedTags map[string][]string // { metricName: [ tags ] }
+		tagSet       api.TagSet
+		expectedTags map[string][]api.TagSet // { metricName: [ tags ] }
 	}{
-		{true, "sample", "foo=bar1", map[string][]string{
-			"sample": {"foo=bar1"},
+		{true, "sample", api.TagSet{"foo": "bar1"}, map[string][]api.TagSet{
+			"sample": {{"foo": "bar1"}},
 		}},
-		{true, "sample", "foo=bar2", map[string][]string{
-			"sample": {"foo=bar1", "foo=bar2"},
+		{true, "sample", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
+			"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
 		}},
-		{true, "sample2", "foo=bar2", map[string][]string{
-			"sample":  {"foo=bar1", "foo=bar2"},
-			"sample2": {"foo=bar2"},
+		{true, "sample2", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
+			"sample":  {{"foo": "bar1"}, {"foo": "bar2"}},
+			"sample2": {{"foo": "bar2"}},
 		}},
-		{false, "sample2", "foo=bar2", map[string][]string{
-			"sample": {"foo=bar1", "foo=bar2"},
+		{false, "sample2", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
+			"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
 		}},
-		{false, "sample", "foo=bar1", map[string][]string{
-			"sample": {"foo=bar2"},
+		{false, "sample", api.TagSet{"foo": "bar1"}, map[string][]api.TagSet{
+			"sample": {{"foo": "bar2"}},
 		}},
 	}
 
@@ -99,43 +99,36 @@ func Test_MetricName_GetTagSet_API(t *testing.T) {
 		if c.addTest {
 			a.CheckError(cassandra.AddMetric(api.TaggedMetric{
 				api.MetricKey(c.metricName),
-				api.ParseTagSet(c.tagString),
+				c.tagSet,
 			}, context))
 		} else {
-
-			clearCassandraInstance(t, &cassandra.db, c.metricName, c.tagString)
-
+			clearCassandraInstance(t, &cassandra.db, c.metricName, c.tagSet.Serialize())
 		}
 
-		for k, v := range c.expectedTags {
-			if tags, err := cassandra.GetAllTags(api.MetricKey(k), context); err != nil {
+		for metric, expected := range c.expectedTags {
+			tags, err := cassandra.GetAllTags(api.MetricKey(metric), context)
+			if err != nil {
 				t.Errorf("Error fetching tags")
-			} else {
-				stringTags := make([]string, len(tags))
-				for i, tag := range tags {
-					stringTags[i] = tag.Serialize()
-				}
-
-				a.EqInt(len(stringTags), len(v))
-				sort.Sort(sort.StringSlice(stringTags))
-				sort.Sort(sort.StringSlice(v))
-				a.Eq(stringTags, v)
+				continue
 			}
+			api.SortTagSets(tags)
+			api.SortTagSets(expected)
+			a.Contextf("GetAllTags(%q)", metric).Eq(tags, expected)
 		}
 	}
 }
 
-func Test_GetAllMetrics_API(t *testing.T) {
+func TestGetAllMetricsAPI(t *testing.T) {
 	a := assert.New(t)
 	cassandra, context := newCassandraAPI(t)
 	defer cleanAPI(t, cassandra)
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
 		"metric.a",
-		api.ParseTagSet("foo=a"),
+		api.TagSet{"foo": "a"},
 	}, context))
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
 		"metric.a",
-		api.ParseTagSet("foo=b"),
+		api.TagSet{"foo": "b"},
 	}, context))
 	a.CheckError(cassandra.AddMetrics([]api.TaggedMetric{
 		{
@@ -163,11 +156,11 @@ func Test_GetAllMetrics_API(t *testing.T) {
 	a.Eq(keys, []api.MetricKey{"metric.a", "metric.c", "metric.d", "metric.e"})
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
 		"metric.b",
-		api.ParseTagSet("foo=c"),
+		api.TagSet{"foo": "c"},
 	}, context))
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
 		"metric.b",
-		api.ParseTagSet("foo=c"),
+		api.TagSet{"foo": "c"},
 	}, context))
 	keys, err = cassandra.GetAllMetrics(context)
 	a.CheckError(err)
@@ -175,7 +168,7 @@ func Test_GetAllMetrics_API(t *testing.T) {
 	a.Eq(keys, []api.MetricKey{"metric.a", "metric.b", "metric.c", "metric.d", "metric.e"})
 }
 
-func Test_TagIndex_API(t *testing.T) {
+func TestTagIndexAPI(t *testing.T) {
 	a := assert.New(t)
 	cassandra, context := newCassandraAPI(t)
 	defer cleanAPI(t, cassandra)
