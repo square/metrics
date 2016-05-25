@@ -172,9 +172,9 @@ func TestQueryNaming(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]command.QuerySeriesList)
-		if !ok || len(seriesListList) != 1 {
-			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
+		seriesListList, ok := rawResult.Body.([]command.QueryResult)
+		if !ok || len(seriesListList) != 1 || seriesListList[0].Type != "series" {
+			t.Errorf("expected query `%s` to produce []QueryResult of series list; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
 		actualQuery := seriesListList[0].Query

@@ -181,11 +181,15 @@ func (cmd *DescribeMetricsCommand) Name() string {
 	return "describe metrics"
 }
 
-type QuerySeriesList struct {
-	api.SeriesList
-	Timerange api.Timerange `json:"timerange"`
-	Query     string        `json:"query"`
-	Name      string        `json:"name"`
+type QueryResult struct {
+	Query string `json:"query"`
+	Name  string `json:"name"`
+	Type  string `json:"type"` // one of "series" or "scalars"
+	// for "series" type
+	Series    []api.Timeseries `json:"series,omitempty"`
+	Timerange api.Timerange    `json:"timerange"`
+	// for "scalar" type
+	Scalars []function.TaggedScalar `json:"scalars,omitempty"`
 }
 
 // Execute performs the query represented by the given query string, and returs the result.
@@ -274,16 +278,13 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	case err := <-errors:
 		return CommandResult{}, err
 	case result := <-results:
-		lists := make([]api.SeriesList, len(result))
-		for i := range result {
-			var convErr *function.ConversionFailure
-			lists[i], convErr = result[i].ToSeriesList(evaluationContext.Timerange)
-			if convErr != nil {
-				return CommandResult{}, convErr.WithContext(cmd.Expressions[i].QueryString())
-			}
-		}
 		description := map[string][]string{}
-		for _, list := range lists {
+		for _, value := range result {
+			listValue, err := value.ToSeriesList(evaluationContext.Timerange)
+			if err != nil {
+				continue
+			}
+			list := api.SeriesList(listValue)
 			for _, series := range list.Series {
 				for key, value := range series.TagSet {
 					description[key] = append(description[key], value)
@@ -304,14 +305,28 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		// Body adds the Query as an annotation.
 		// It's a slice of interfaces; it will be cast to an interface
 		// when returned from this function in a CommandResult.
-		body := make([]QuerySeriesList, len(lists))
+		body := make([]QueryResult, len(result))
 		for i := range body {
-			body[i] = QuerySeriesList{
-				SeriesList: lists[i],
-				Timerange:  chosenTimerange,
-				Query:      cmd.Expressions[i].QueryString(),
-				Name:       cmd.Expressions[i].Name(),
+			if list, ok := result[i].(function.SeriesListValue); ok {
+				body[i] = QueryResult{
+					Query:     cmd.Expressions[i].QueryString(),
+					Name:      cmd.Expressions[i].Name(),
+					Type:      "series",
+					Series:    list.Series,
+					Timerange: chosenTimerange,
+				}
+				continue
 			}
+			if scalars, err := result[i].ToScalarSet(); err == nil {
+				body[i] = QueryResult{
+					Query:   cmd.Expressions[i].QueryString(),
+					Name:    cmd.Expressions[i].Name(),
+					Type:    "scalars",
+					Scalars: scalars,
+				}
+				continue
+			}
+			return CommandResult{}, fmt.Errorf("Query %s does not result in a timeseries or scalar.", cmd.Expressions[i].QueryString())
 		}
 
 		return CommandResult{

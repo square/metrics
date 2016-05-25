@@ -206,7 +206,7 @@ func TestCommandSelectFilterRange(t *testing.T) {
 			t.Errorf("Error evaluating query %q: %s", test.Query, err.Error())
 			continue
 		}
-		list := rawResult.Body.([]command.QuerySeriesList)[0]
+		list := rawResult.Body.([]command.QueryResult)[0]
 		tags := make([]string, len(list.Series))
 		for i, series := range list.Series {
 			tags[i] = series.TagSet["foo"]
