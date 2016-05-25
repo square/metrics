@@ -16,24 +16,15 @@ package forecast
 
 import (
 	"math"
+	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 )
 
-var FunctionDrop = function.MetricFunction{
-	Name:         "forecast.drop",
-	MinArguments: 2,
-	MaxArguments: 2,
-	Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-		original, err := function.EvaluateToSeriesList(arguments[0], context)
-		if err != nil {
-			return nil, err
-		}
-		dropTime, err := function.EvaluateToDuration(arguments[1], context)
-		if err != nil {
-			return nil, err
-		}
+var FunctionDrop = function.MakeFunction(
+	"forecast.drop",
+	func(context function.EvaluationContext, original api.SeriesList, dropTime time.Duration) api.SeriesList {
 		lastValue := float64(context.Timerange.Slots()) - dropTime.Seconds()/context.Timerange.Resolution().Seconds()
 		result := make([]api.Timeseries, len(original.Series))
 		for i, series := range original.Series {
@@ -51,6 +42,6 @@ var FunctionDrop = function.MetricFunction{
 
 		return api.SeriesList{
 			Series: result,
-		}, nil
+		}
 	},
-}
+)

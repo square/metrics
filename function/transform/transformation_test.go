@@ -18,23 +18,39 @@ import (
 	"fmt"
 	"math"
 	"testing"
-	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/testing_support/assert"
 )
 
+type literal struct {
+	value function.Value
+}
+
+func (lit literal) QueryString() string {
+	return "<literal>"
+}
+func (lit literal) Name() string {
+	return "<literal>"
+}
+func (lit literal) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return lit.value, nil
+}
+
 func TestTransformTimeseries(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 4*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating test timerange: %s", err.Error())
+	}
 	testCases := []struct {
 		series     api.Timeseries
 		values     []float64
 		tagSet     api.TagSet
 		parameters []function.Value
 		tests      []struct {
-			fun      transform
+			fun      function.Function
 			expected []float64
-			useParam bool
 		}
 	}{
 		{
@@ -46,34 +62,28 @@ func TestTransformTimeseries(t *testing.T) {
 			},
 			parameters: []function.Value{function.ScalarValue(100)},
 			tests: []struct {
-				fun      transform
+				fun      function.Function
 				expected []float64
-				useParam bool
 			}{
 				{
-					fun:      derivative,
+					fun:      Derivative,
 					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
-					useParam: false,
 				},
 				{
 					fun:      Integral,
 					expected: []float64{0.0, 1.0 * 30.0, 3.0 * 30.0, 6.0 * 30.0, 10.0 * 30.0, 15.0 * 30.0},
-					useParam: false,
 				},
 				{
-					fun:      MapMaker(func(x float64) float64 { return -x }),
+					fun:      MapMaker("negative", func(x float64) float64 { return -x }),
 					expected: []float64{0, -1, -2, -3, -4, -5},
-					useParam: false,
 				},
 				{
 					fun:      NaNKeepLast,
 					expected: []float64{0, 1, 2, 3, 4, 5},
-					useParam: false,
 				},
 				{
-					fun:      rate,
+					fun:      Rate,
 					expected: []float64{1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0, 1.0 / 30.0},
-					useParam: false,
 				},
 			},
 		},
@@ -85,21 +95,21 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			params := test.parameters
-			if !transform.useParam {
-				params = []function.Value{}
-			}
-			ctx := function.EvaluationContext{}
+			ctx := function.EvaluationContext{Timerange: timerange}
 			seriesList := api.SeriesList{
 				Series: []api.Timeseries{series},
 			}
-
-			a, err := ApplyTransform(ctx, seriesList, transform.fun, params, 30*time.Second)
-			result := a.Series[0]
+			resultValue, err := transform.fun.Run(ctx, []function.Expression{&literal{function.SeriesListValue(seriesList)}}, function.Groups{})
 			if err != nil {
 				t.Error(err)
 				continue
 			}
+			resultList, convErr := resultValue.ToSeriesList(ctx.Timerange)
+			if convErr != nil {
+				t.Errorf("Conversion to series list failed: %s", convErr.WithContext("???").Error())
+				continue
+			}
+			result := resultList.Series[0]
 			if !result.TagSet.Equals(test.tagSet) {
 				t.Errorf("Expected tagset to be unchanged by transform, changed %+v into %+v", test.tagSet, result.TagSet)
 				continue
@@ -120,6 +130,10 @@ func TestTransformTimeseries(t *testing.T) {
 }
 
 func TestApplyTransform(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating timerange: %s", err.Error())
+	}
 	epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -143,14 +157,14 @@ func TestApplyTransform(t *testing.T) {
 			},
 		},
 	}
+	listExpression := literal{function.SeriesListValue(list)}
 	testCases := []struct {
-		transform transform
-		parameter []function.Value
-		expected  map[string][]float64
+		transform function.Function
+		// Each function is given just the list as an argument.
+		expected map[string][]float64
 	}{
 		{
 			transform: Cumulative,
-			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1, 3, 6, 10, 15},
 				"B": {0, 2, 3, 4, 7, 10},
@@ -158,8 +172,7 @@ func TestApplyTransform(t *testing.T) {
 			},
 		},
 		{
-			transform: derivative,
-			parameter: []function.Value{},
+			transform: Derivative,
 			expected: map[string][]float64{
 				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
 				"B": {0, -1.0 / 30, 0, 2.0 / 30, 0},
@@ -168,7 +181,6 @@ func TestApplyTransform(t *testing.T) {
 		},
 		{
 			transform: Integral,
-			parameter: []function.Value{},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 3 * 30, 6 * 30, 10 * 30, 15 * 30},
 				"B": {0, 2 * 30, 3 * 30, 4 * 30, 7 * 30, 10 * 30},
@@ -176,8 +188,7 @@ func TestApplyTransform(t *testing.T) {
 			},
 		},
 		{
-			transform: rate,
-			parameter: []function.Value{},
+			transform: Rate,
 			expected: map[string][]float64{
 				"A": {1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30, 1.0 / 30},
 				"B": {0, 1.0 / 30, 0, 2.0 / 30, 0},
@@ -186,10 +197,15 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameter, 30*time.Second)
+		ctx := function.EvaluationContext{Timerange: timerange}
+		resultValue, err := test.transform.Run(ctx, []function.Expression{listExpression}, function.Groups{})
 		if err != nil {
 			t.Error(err)
+			continue
+		}
+		result, convErr := resultValue.ToSeriesList(ctx.Timerange)
+		if convErr != nil {
+			t.Errorf("Error converting to series list: %s", convErr.WithContext("test case").Error())
 			continue
 		}
 		alreadyUsed := make(map[string]bool)
@@ -222,6 +238,10 @@ func TestApplyTransform(t *testing.T) {
 }
 
 func TestApplyNotes(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating timerange for test case: %s", err.Error())
+	}
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -232,15 +252,16 @@ func TestApplyNotes(t *testing.T) {
 			},
 		},
 	}
+	listExpression := literal{function.SeriesListValue(list)}
 
 	testCases := []struct {
-		transform transform
-		parameter []function.Value
-		expected  []string
+		transform  function.Function
+		parameters []function.Expression
+		expected   []string
 	}{
 		{
-			transform: rate,
-			parameter: []function.Value{},
+			transform:  Rate,
+			parameters: []function.Expression{listExpression},
 			expected: []string{
 				"Rate(map[series:C]): The underlying counter reset between 2.000000, 1.000000\n",
 			},
@@ -248,8 +269,8 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
-		_, err := ApplyTransform(ctx, list, test.transform, test.parameter, 30*time.Second)
+		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes), Timerange: timerange}
+		_, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Error(err)
 			continue
@@ -293,6 +314,7 @@ func TestApplyBound(t *testing.T) {
 			},
 		},
 	}
+	listExpression := literal{function.SeriesListValue(list)}
 	tests := []struct {
 		lower       float64
 		upper       float64
@@ -341,21 +363,41 @@ func TestApplyBound(t *testing.T) {
 	}
 	for _, test := range tests {
 		bounders := []struct {
-			bounder  func(function.EvaluationContext, api.Timeseries, []function.Value, time.Duration) ([]float64, error)
-			params   []function.Value
-			expected map[string][]float64
-			name     string
+			bounder    function.Function
+			parameters []function.Expression
+			expected   map[string][]float64
+			name       string
 		}{
-			{bounder: Bound, params: []function.Value{function.ScalarValue(test.lower), function.ScalarValue(test.upper)}, expected: test.expectBound, name: "bound"},
-			{bounder: LowerBound, params: []function.Value{function.ScalarValue(test.lower)}, expected: test.expectLower, name: "lower"},
-			{bounder: UpperBound, params: []function.Value{function.ScalarValue(test.upper)}, expected: test.expectUpper, name: "upper"},
+			{
+				bounder:    Bound,
+				parameters: []function.Expression{listExpression, literal{function.ScalarValue(test.lower)}, literal{function.ScalarValue(test.upper)}},
+				expected:   test.expectBound,
+				name:       "bound",
+			},
+			{
+				bounder:    LowerBound,
+				parameters: []function.Expression{listExpression, literal{function.ScalarValue(test.lower)}},
+				expected:   test.expectLower,
+				name:       "lower",
+			},
+			{
+				bounder:    UpperBound,
+				parameters: []function.Expression{listExpression, literal{function.ScalarValue(test.upper)}},
+				expected:   test.expectUpper,
+				name:       "upper",
+			},
 		}
 
-		for _, bounder := range bounders {
+		for _, bounderDetails := range bounders {
 			ctx := function.EvaluationContext{}
-			bounded, err := ApplyTransform(ctx, list, bounder.bounder, bounder.params, 30*time.Second)
+			boundedValue, err := bounderDetails.bounder.Run(ctx, bounderDetails.parameters, function.Groups{})
 			if err != nil {
 				t.Errorf(err.Error())
+				continue
+			}
+			bounded, convErr := boundedValue.ToSeriesList(ctx.Timerange)
+			if convErr != nil {
+				t.Errorf("Error converting to series list: %s", convErr.WithContext("test case"))
 				continue
 			}
 			if len(bounded.Series) != len(list.Series) {
@@ -370,20 +412,25 @@ func TestApplyBound(t *testing.T) {
 				}
 				alreadyUsed[series.TagSet["name"]] = true
 				// Next, verify that it's what we expect
-				a.EqFloatArray(series.Values, bounder.expected[series.TagSet["name"]], 3e-7)
+				a.EqFloatArray(series.Values, bounderDetails.expected[series.TagSet["name"]], 3e-7)
 			}
 		}
 	}
 	ctx := function.EvaluationContext{}
-	if _, err := ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(18), function.ScalarValue(17)}, 30*time.Second); err == nil {
+	if _, err := Bound.Run(ctx, []function.Expression{listExpression, literal{function.ScalarValue(18)}, literal{function.ScalarValue(17)}}, function.Groups{}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
-	if _, err := ApplyTransform(ctx, list, Bound, []function.Value{function.ScalarValue(-17), function.ScalarValue(-18)}, 30*time.Second); err == nil {
+	if _, err := Bound.Run(ctx, []function.Expression{listExpression, literal{function.ScalarValue(-17)}, literal{function.ScalarValue(-18)}}, function.Groups{}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
 }
 
 func TestApplyTransformNaN(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error constructing timerange for testcase; %s", err.Error())
+	}
+
 	nan := math.NaN()
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -407,14 +454,15 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 	}
+	listExpression := literal{function.SeriesListValue(list)}
 	tests := []struct {
-		transform  transform
-		parameters []function.Value
+		transform  function.Function
+		parameters []function.Expression
 		expected   map[string][]float64
 	}{
 		{
-			transform:  derivative,
-			parameters: []function.Value{},
+			transform:  Derivative,
+			parameters: []function.Expression{listExpression},
 			expected: map[string][]float64{
 				"A": {1.0 / 30, nan, nan, 1.0 / 30, 1.0 / 30},
 				"B": {nan, nan, nan, nan, 0.0},
@@ -423,7 +471,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  Integral,
-			parameters: []function.Value{},
+			parameters: []function.Expression{listExpression},
 			expected: map[string][]float64{
 				"A": {0, 1 * 30, 1 * 30, 4 * 30, 8 * 30, 13 * 30},
 				"B": {0, 0, 0, 0, 3 * 30, 6 * 30},
@@ -431,8 +479,8 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 		{
-			transform:  rate,
-			parameters: []function.Value{},
+			transform:  Rate,
+			parameters: []function.Expression{listExpression},
 			expected: map[string][]float64{
 				"A": {1 / 30.0, nan, nan, 1 / 30.0, 1 / 30.0},
 				"B": {nan, nan, nan, nan, 0},
@@ -441,7 +489,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  Cumulative,
-			parameters: []function.Value{},
+			parameters: []function.Expression{listExpression},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 4, 8, 13},
 				"B": {0, 0, 0, 0, 3, 6},
@@ -450,7 +498,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  Default,
-			parameters: []function.Value{function.ScalarValue(17)},
+			parameters: []function.Expression{listExpression, literal{function.ScalarValue(17)}},
 			expected: map[string][]float64{
 				"A": {0, 1, 17, 3, 4, 5},
 				"B": {2, 17, 17, 17, 3, 3},
@@ -459,7 +507,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 		{
 			transform:  NaNKeepLast,
-			parameters: []function.Value{},
+			parameters: []function.Expression{listExpression},
 			expected: map[string][]float64{
 				"A": {0, 1, 1, 3, 4, 5},
 				"B": {2, 2, 2, 2, 3, 3},
@@ -468,10 +516,15 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		ctx := function.EvaluationContext{}
-		result, err := ApplyTransform(ctx, list, test.transform, test.parameters, 30*time.Second)
+		ctx := function.EvaluationContext{Timerange: timerange}
+		resultValue, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
+			return
+		}
+		result, convErr := resultValue.ToSeriesList(ctx.Timerange)
+		if convErr != nil {
+			t.Fatalf("error converting to series list: %s", convErr.WithContext("test case"))
 			return
 		}
 		for _, series := range result.Series {
@@ -498,31 +551,35 @@ func TestApplyTransformNaN(t *testing.T) {
 func TestTransformIdentity(t *testing.T) {
 	//This is to make sure that the scale of all the data
 	//is interpreted as 30 seconds (30000 milliseconds)
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error constructing timerange for testcase: %s", err.Error())
+	}
 
 	testCases := []struct {
 		values []float64
 		tests  []struct {
 			expected   []float64
-			transforms []transform
+			transforms []function.Function
 		}
 	}{
 		{
 			values: []float64{0, 1, 2, 3, 4, 5},
 			tests: []struct {
 				expected   []float64
-				transforms []transform
+				transforms []function.Function
 			}{
 				{
 					expected: []float64{0, 1, 2, 3, 4},
-					transforms: []transform{
-						derivative,
+					transforms: []function.Function{
+						Derivative,
 						Integral,
 					},
 				},
 				{
 					expected: []float64{0, 1, 2, 3, 4},
-					transforms: []transform{
-						rate,
+					transforms: []function.Function{
+						Rate,
 						Integral,
 					},
 				},
@@ -532,12 +589,12 @@ func TestTransformIdentity(t *testing.T) {
 			values: []float64{12, 15, 20, 3, 18, 30},
 			tests: []struct {
 				expected   []float64
-				transforms []transform
+				transforms []function.Function
 			}{
 				{
 					expected: []float64{0, 5, -12, 3, 15},
-					transforms: []transform{
-						derivative,
+					transforms: []function.Function{
+						Derivative,
 						Integral,
 					},
 				},
@@ -546,8 +603,8 @@ func TestTransformIdentity(t *testing.T) {
 					// We saw 5 increments (15 - 20), then we saw thirty total increments
 					// (3, 18, 30) over the rest of the time period
 					expected: []float64{0, 5, 8, 23, 35},
-					transforms: []transform{
-						rate,
+					transforms: []function.Function{
+						Rate,
 						Integral,
 					},
 				},
@@ -555,7 +612,6 @@ func TestTransformIdentity(t *testing.T) {
 		},
 	}
 	epsilon := 1e-10
-	var err error
 	for _, test := range testCases {
 		series := api.Timeseries{
 			Values: test.values,
@@ -564,13 +620,22 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContext{}
+				ctx := function.EvaluationContext{Timerange: timerange}
 
 				seriesList := api.SeriesList{
 					Series: []api.Timeseries{result},
 				}
-				params := []function.Value{}
-				a, err := ApplyTransform(ctx, seriesList, fun, params, 30*time.Second)
+				params := []function.Expression{literal{function.SeriesListValue(seriesList)}}
+				aValue, err := fun.Run(ctx, params, function.Groups{})
+				if err != nil {
+					t.Error(err)
+					break
+				}
+				a, convErr := aValue.ToSeriesList(ctx.Timerange)
+				if convErr != nil {
+					t.Error(convErr)
+					break
+				}
 				result = a.Series[0]
 				if err != nil {
 					t.Error(err)

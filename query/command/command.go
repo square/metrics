@@ -273,9 +273,10 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	case result := <-results:
 		lists := make([]api.SeriesList, len(result))
 		for i := range result {
-			lists[i], err = result[i].ToSeriesList(evaluationContext.Timerange, cmd.Expressions[i].QueryString())
-			if err != nil {
-				return CommandResult{}, err
+			var convErr *function.ConversionFailure
+			lists[i], convErr = result[i].ToSeriesList(evaluationContext.Timerange)
+			if convErr != nil {
+				return CommandResult{}, convErr.WithContext(cmd.Expressions[i].QueryString())
 			}
 		}
 		description := map[string][]string{}

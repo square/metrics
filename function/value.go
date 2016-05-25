@@ -26,50 +26,82 @@ import (
 // Value is the result of evaluating an expression.
 // They can be floating point values, strings, or series lists.
 type Value interface {
-	ToSeriesList(api.Timerange, string) (api.SeriesList, error)
-	ToString(string) (string, error)          // takes a description of the object's expression
-	ToScalar(string) (float64, error)         // takes a description of the object's expression
-	ToDuration(string) (time.Duration, error) // takes a description of the object's expression
+	ToSeriesList(api.Timerange) (api.SeriesList, *ConversionFailure)
+	ToString() (string, *ConversionFailure)
+	ToScalar() (float64, *ConversionFailure)
+	ToDuration() (time.Duration, *ConversionFailure)
+}
+
+type ConversionFailure struct {
+	From string // the original data type
+	To   string // the type that it attempted to convert to
+}
+
+// WithContext adds enough context to make the ConversionFailure into an error.
+func (c *ConversionFailure) WithContext(context string) ConversionError {
+	return ConversionError{
+		From:    c.From,
+		To:      c.To,
+		Context: context,
+	}
 }
 
 // ConversionError represents an error converting between two items of different types.
 type ConversionError struct {
-	From  string // the original data type
-	To    string // the type that attempted to convert to
-	Value string // a short string representation of the value
+	From    string // the original data type
+	To      string // the type that attempted to convert to
+	Context string // a short string representation of the value
 }
 
 // Error gives a readable description of the error.
 func (e ConversionError) Error() string {
-	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Value, e.From, e.To)
+	return fmt.Sprintf("cannot convert %s (type %s) to type %s", e.Context, e.From, e.To)
 }
 
-// TokenName gives the token name where the error occurred.
-func (e ConversionError) TokenName() string {
-	return fmt.Sprintf("%+v (type %s)", e.Value, e.From)
+// A SeriesListValue holds a SeriesList.
+type SeriesListValue api.SeriesList
+
+// ToSeriesList is an identity function that allows SeriesList to implement the expression.Value interface.
+func (list SeriesListValue) ToSeriesList(time api.Timerange) (api.SeriesList, *ConversionFailure) {
+	return api.SeriesList(list), nil
+}
+
+// ToString is a conversion function to implement the expression.Value interface.
+func (list SeriesListValue) ToString() (string, *ConversionFailure) {
+	return "", &ConversionFailure{"series list", "string"}
+}
+
+// ToScalar is a conversion function to implement the expression.Value interface.
+func (list SeriesListValue) ToScalar() (float64, *ConversionFailure) {
+	return 0, &ConversionFailure{"series list", "scalar"}
+}
+
+// ToDuration is a conversion function to implement the expression.Value interface.
+func (list SeriesListValue) ToDuration() (time.Duration, *ConversionFailure) {
+	return 0, &ConversionFailure{"series list", "duration"}
 }
 
 // A StringValue holds a string
 type StringValue string
 
 // ToSeriesList is a conversion function.
-func (value StringValue) ToSeriesList(time api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, ConversionError{"string", "SeriesList", description}
+func (value StringValue) ToSeriesList(time api.Timerange) (api.SeriesList, *ConversionFailure) {
+	return api.SeriesList{}, &ConversionFailure{"string", "SeriesList"}
 }
 
 // ToString is a conversion function.
-func (value StringValue) ToString(description string) (string, error) {
+func (value StringValue) ToString() (string, *ConversionFailure) {
 	return string(value), nil
 }
 
 // ToScalar is a conversion function.
-func (value StringValue) ToScalar(description string) (float64, error) {
-	return 0, ConversionError{"string", "scalar", description}
+func (value StringValue) ToScalar() (float64, *ConversionFailure) {
+	return 0, &ConversionFailure{"string", "scalar"}
 }
 
 // ToDuration is a conversion function.
-func (value StringValue) ToDuration(description string) (time.Duration, error) {
-	return 0, ConversionError{"string", "duration", description}
+func (value StringValue) ToDuration() (time.Duration, *ConversionFailure) {
+	return 0, &ConversionFailure{"string", "duration"}
 }
 
 // A ScalarValue holds a float and can be converted to a serieslist
@@ -77,7 +109,7 @@ type ScalarValue float64
 
 // ToSeriesList is a conversion function.
 // The scalar becomes a constant value for the timerange.
-func (value ScalarValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
+func (value ScalarValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, *ConversionFailure) {
 	series := make([]float64, timerange.Slots())
 	for i := range series {
 		series[i] = float64(value)
@@ -89,19 +121,19 @@ func (value ScalarValue) ToSeriesList(timerange api.Timerange, description strin
 }
 
 // ToString is a conversion function. Numbers become formatted.
-func (value ScalarValue) ToString(description string) (string, error) {
-	return "", ConversionError{"scalar", "string", fmt.Sprintf("%f", value)}
+func (value ScalarValue) ToString() (string, *ConversionFailure) {
+	return "", &ConversionFailure{"scalar", "string"}
 }
 
 // ToScalar is a conversion function.
-func (value ScalarValue) ToScalar(description string) (float64, error) {
+func (value ScalarValue) ToScalar() (float64, *ConversionFailure) {
 	return float64(value), nil
 }
 
 // ToDuration is a conversion function.
 // Scalars cannot be converted to durations.
-func (value ScalarValue) ToDuration(description string) (time.Duration, error) {
-	return 0, ConversionError{"scalar", "duration", description}
+func (value ScalarValue) ToDuration() (time.Duration, *ConversionFailure) {
+	return 0, &ConversionFailure{"scalar", "duration"}
 }
 
 // DurationValue is a duration with a (usually) human-written name.
@@ -116,22 +148,22 @@ func NewDurationValue(name string, duration time.Duration) DurationValue {
 }
 
 // ToSeriesList is a conversion function.
-func (value DurationValue) ToSeriesList(timerange api.Timerange, description string) (api.SeriesList, error) {
-	return api.SeriesList{}, ConversionError{"duration", "SeriesList", description}
+func (value DurationValue) ToSeriesList(timerange api.Timerange) (api.SeriesList, *ConversionFailure) {
+	return api.SeriesList{}, &ConversionFailure{"duration", "SeriesList"}
 }
 
 // ToString is a conversion function.
-func (value DurationValue) ToString(description string) (string, error) {
-	return "", ConversionError{"duration", "string", description}
+func (value DurationValue) ToString() (string, *ConversionFailure) {
+	return "", &ConversionFailure{"duration", "string"}
 }
 
 // ToScalar is a conversion function.
-func (value DurationValue) ToScalar(description string) (float64, error) {
-	return 0, ConversionError{"duration", "scalar", description}
+func (value DurationValue) ToScalar() (float64, *ConversionFailure) {
+	return 0, &ConversionFailure{"duration", "scalar"}
 }
 
 // ToDuration is a conversion function.
-func (value DurationValue) ToDuration(description string) (time.Duration, error) {
+func (value DurationValue) ToDuration() (time.Duration, *ConversionFailure) {
 	return time.Duration(value.duration), nil
 }
 

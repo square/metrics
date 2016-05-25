@@ -15,7 +15,6 @@
 package function
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -75,47 +74,10 @@ func (notes *EvaluationNotes) Notes() []string {
 	return notes.notes
 }
 
-// The Registry interface defines a mapping from names to MetricFunctions
-// and provides a way to get the full list of functions defined.
-type Registry interface {
-	GetFunction(string) (MetricFunction, bool) // returns an instance of MetricFunction
-	All() []string                             // all the registered functions
-}
-
-// Groups holds grouping information - which tags to group by (if any), and whether to `collapse` (Collapses = true) or `group` (Collapses = false)
-type Groups struct {
-	List      []string // the tags to group by
-	Collapses bool     // whether to "collapse by" instead of "group by"
-}
-
-// MetricFunction defines a common logic to dispatch a function in MQE.
-type MetricFunction struct {
-	Name          string
-	MinArguments  int
-	MaxArguments  int
-	AllowsGroupBy bool // Whether the function allows a 'group by' clause.
-	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
-}
-
 // WithTimerange duplicates the EvaluationContext but with a new timerange.
 func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	e.Timerange = t
 	return e
-}
-
-// Evaluate the given metric function.
-func (f MetricFunction) Evaluate(context EvaluationContext,
-	arguments []Expression, groupBy []string, collapses bool) (Value, error) {
-	// preprocessing
-	length := len(arguments)
-	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
-		return nil, ArgumentLengthError{f.Name, f.MinArguments, f.MaxArguments, length}
-	}
-	if len(groupBy) > 0 && !f.AllowsGroupBy {
-		// TODO(jee) - use typed errors
-		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.Name)
-	}
-	return f.Compute(context, arguments, Groups{groupBy, collapses})
 }
 
 // FetchCounter is used to count the number of fetches remaining in a thread-safe manner.
@@ -172,7 +134,11 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	if err != nil {
 		return 0, err
 	}
-	return scalarValue.ToScalar(e.QueryString())
+	value, convErr := scalarValue.ToScalar()
+	if convErr != nil {
+		return 0, convErr.WithContext(e.QueryString())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a duration.
@@ -181,7 +147,11 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	if err != nil {
 		return 0, err
 	}
-	return durationValue.ToDuration(e.QueryString())
+	value, convErr := durationValue.ToDuration()
+	if convErr != nil {
+		return 0, convErr.WithContext(e.QueryString())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a series list.
@@ -190,7 +160,11 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	return seriesValue.ToSeriesList(context.Timerange, e.QueryString())
+	value, convErr := seriesValue.ToSeriesList(context.Timerange)
+	if convErr != nil {
+		return api.SeriesList{}, convErr.WithContext(e.QueryString())
+	}
+	return value, nil
 }
 
 // EvaluateToDuration is a helper function that takes an Expression and makes it a string.
@@ -199,7 +173,11 @@ func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return stringValue.ToString(e.QueryString())
+	value, convErr := stringValue.ToString()
+	if convErr != nil {
+		return "", convErr.WithContext(e.QueryString())
+	}
+	return value, nil
 }
 
 // EvaluateMany evaluates a list of expressions using a single EvaluationContext.

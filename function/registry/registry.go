@@ -44,15 +44,15 @@ func init() {
 	MustRegister(NewAggregate("aggregate.total", aggregate.Total))
 	MustRegister(NewAggregate("aggregate.count", aggregate.Count))
 	// Transformations
-	MustRegister(NewTransform("transform.integral", 0, transform.Integral))
-	MustRegister(NewTransform("transform.cumulative", 0, transform.Cumulative))
-	MustRegister(NewTransform("transform.nan_fill", 1, transform.Default))
-	MustRegister(NewTransform("transform.abs", 0, transform.MapMaker(math.Abs)))
-	MustRegister(NewTransform("transform.log", 0, transform.MapMaker(math.Log10)))
-	MustRegister(NewTransform("transform.nan_keep_last", 0, transform.NaNKeepLast))
-	MustRegister(NewTransform("transform.bound", 2, transform.Bound))
-	MustRegister(NewTransform("transform.lower_bound", 1, transform.LowerBound))
-	MustRegister(NewTransform("transform.upper_bound", 1, transform.UpperBound))
+	MustRegister(transform.Integral)
+	MustRegister(transform.Cumulative)
+	MustRegister(transform.Default)
+	MustRegister(transform.MapMaker("transform.abs", math.Abs))
+	MustRegister(transform.MapMaker("transform.log", math.Log10))
+	MustRegister(transform.NaNKeepLast)
+	MustRegister(transform.Bound)
+	MustRegister(transform.LowerBound)
+	MustRegister(transform.UpperBound)
 
 	// Filter
 	MustRegister(NewFilterCount("filter.highest_mean", aggregate.Mean, false))
@@ -93,17 +93,17 @@ func init() {
 
 // StandardRegistry of a functions available in MQE.
 type StandardRegistry struct {
-	mapping map[string]function.MetricFunction
+	mapping map[string]function.Function
 }
 
-var defaultRegistry = StandardRegistry{mapping: make(map[string]function.MetricFunction)}
+var defaultRegistry = StandardRegistry{mapping: make(map[string]function.Function)}
 
 func Default() StandardRegistry {
 	return defaultRegistry
 }
 
 // GetFunction returns a function associated with the given name, if it exists.
-func (r StandardRegistry) GetFunction(name string) (function.MetricFunction, bool) {
+func (r StandardRegistry) GetFunction(name string) (function.Function, bool) {
 	fun, ok := r.mapping[name]
 	return fun, ok
 }
@@ -120,23 +120,20 @@ func (r StandardRegistry) All() []string {
 }
 
 // Register a new function into the registry.
-func (r StandardRegistry) Register(fun function.MetricFunction) error {
-	_, ok := r.mapping[fun.Name]
+func (r StandardRegistry) Register(fun function.Function) error {
+	_, ok := r.mapping[fun.Name()]
 	if ok {
 		return fmt.Errorf("function %s has already been registered", fun.Name)
 	}
-	if fun.Compute == nil {
-		return fmt.Errorf("function %s has no Compute() field", fun.Name)
-	}
-	if fun.Name == "" {
+	if fun.Name() == "" {
 		return fmt.Errorf("empty function name")
 	}
-	r.mapping[fun.Name] = fun
+	r.mapping[fun.Name()] = fun
 	return nil
 }
 
 // MustRegister adds a new metric function to the global function registry.
-func MustRegister(fun function.MetricFunction) {
+func MustRegister(fun function.Function) {
 	err := defaultRegistry.Register(fun)
 	if err != nil {
 		panic(fmt.Sprintf("function %s has failed to register", fun.Name))
@@ -145,139 +142,60 @@ func MustRegister(fun function.MetricFunction) {
 
 // Constructor Functions
 
-// NewFilterCount creates a new instance of a count filtering function.
+// NewFilterCount creates a new instance of a filtering function with count limit.
 func NewFilterCount(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: 2,
-		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			countFloat, err := function.EvaluateToScalar(arguments[1], context)
-			if err != nil {
-				return nil, err
-			}
-			recentDuration := context.Timerange.Duration()
-			if len(arguments) == 3 {
-				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
-				if err != nil {
-					return nil, err
-				}
-			}
-			// Round to the nearest integer.
+	return function.MakeFunction(
+		name,
+		func(list api.SeriesList, countFloat float64, optionalDuration *time.Duration, timerange api.Timerange) (api.SeriesList, error) {
 			count := int(countFloat + 0.5)
 			if count < 0 {
-				return nil, fmt.Errorf("expected positive count but got %d", count)
+				return api.SeriesList{}, fmt.Errorf("expected positive count but got %d", count)
 			}
-			if recentDuration < 0 {
-				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
+			duration := timerange.Duration()
+			if optionalDuration != nil {
+				duration = *optionalDuration
 			}
-			result := filter.FilterByRecent(list, count, summary, ascending, 1+int(recentDuration/context.Timerange.Resolution()))
-			return result, nil
+			if duration < 0 {
+				return api.SeriesList{}, fmt.Errorf("expected positive recent duration but got %+v", duration)
+			}
+			return filter.FilterByRecent(list, count, summary, ascending, 1+int(duration/timerange.Resolution())), nil
 		},
-	}
+	)
 }
 
-// NewFilterThreshold creates a new instance of a threshold filtering function.
+// NewFilterThreshold creates a new instance of a filtering function.
 func NewFilterThreshold(name string, summary func([]float64) float64, below bool) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: 2,
-		MaxArguments: 3,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
+	return function.MakeFunction(
+		name,
+		func(list api.SeriesList, threshold float64, optionalDuration *time.Duration, timerange api.Timerange) (api.SeriesList, error) {
+			duration := timerange.Duration()
+			if optionalDuration != nil {
+				duration = *optionalDuration
 			}
-			threshold, err := function.EvaluateToScalar(arguments[1], context)
-			if err != nil {
-				return nil, err
+			if duration < 0 {
+				return api.SeriesList{}, fmt.Errorf("expected positive recent duration but got %+v", duration)
 			}
-			recentDuration := context.Timerange.Duration()
-			if len(arguments) == 3 {
-				// Set the duration to the third argument.
-				recentDuration, err = function.EvaluateToDuration(arguments[2], context)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			if recentDuration < 0 {
-				return nil, fmt.Errorf("expected positive recent duration but got %+v", recentDuration)
-			}
-			result := filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(recentDuration/context.Timerange.Resolution()))
-			return result, nil
+			return filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(duration/timerange.Resolution())), nil
 		},
-	}
+	)
 }
 
 // NewAggregate takes a named aggregating function `[float64] => float64` and makes it into a MetricFunction.
 func NewAggregate(name string, aggregator func([]float64) float64) function.MetricFunction {
-	return function.MetricFunction{
-		Name:          name,
-		MinArguments:  1,
-		MaxArguments:  1,
-		AllowsGroupBy: true,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			argument := args[0]
-			seriesList, err := function.EvaluateToSeriesList(argument, context)
-			if err != nil {
-				return nil, err
-			}
-			return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses), nil
+	return function.MakeFunction(
+		name,
+		func(seriesList api.SeriesList, groups function.Groups) api.SeriesList {
+			return aggregate.By(seriesList, aggregator, groups.List, groups.Collapses)
 		},
-	}
-}
-
-// NewTransform takes a named transforming function `[float64], [value] => [float64]` and makes it into a MetricFunction.
-func NewTransform(name string, parameterCount int, transformer func(function.EvaluationContext, api.Timeseries, []function.Value, time.Duration) ([]float64, error)) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         name,
-		MinArguments: parameterCount + 1,
-		MaxArguments: parameterCount + 1,
-		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
-			list, err := function.EvaluateToSeriesList(arguments[0], context)
-			if err != nil {
-				return nil, err
-			}
-			parameters := make([]function.Value, parameterCount)
-			for i := range parameters {
-				parameters[i], err = arguments[i+1].Evaluate(context)
-				if err != nil {
-					return nil, err
-				}
-			}
-			return transform.ApplyTransform(context, list, transformer, parameters, context.Timerange.Resolution())
-		},
-	}
+	)
 }
 
 // NewOperator creates a new binary operator function.
 // the binary operators display a natural join semantic.
-func NewOperator(op string, operator func(float64, float64) float64) function.MetricFunction {
-	return function.MetricFunction{
-		Name:         op,
-		MinArguments: 2,
-		MaxArguments: 2,
-		Compute: func(context function.EvaluationContext, args []function.Expression, groups function.Groups) (function.Value, error) {
-			evaluated, err := function.EvaluateMany(context, args)
-			if err != nil {
-				return nil, err
-			}
-			leftValue := evaluated[0]
-			rightValue := evaluated[1]
-			leftList, err := leftValue.ToSeriesList(context.Timerange, args[0].QueryString())
-			if err != nil {
-				return nil, err
-			}
-			rightList, err := rightValue.ToSeriesList(context.Timerange, args[1].QueryString())
-			if err != nil {
-				return nil, err
-			}
-
+func NewOperator(op string, operator func(float64, float64) float64) function.Function {
+	return function.MakeFunction(
+		op,
+		func(leftList api.SeriesList, rightList api.SeriesList, timerange api.Timerange) (api.SeriesList, error) {
 			joined := join.Join([]api.SeriesList{leftList, rightList})
 
 			result := make([]api.Timeseries, len(joined.Rows))
@@ -296,5 +214,5 @@ func NewOperator(op string, operator func(float64, float64) float64) function.Me
 				Series: result,
 			}, nil
 		},
-	}
+	)
 }
