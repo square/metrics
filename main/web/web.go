@@ -66,7 +66,7 @@ func main() {
 	config := struct {
 		ConversionRulesPath string           `yaml:"conversion_rules_path"`
 		Cassandra           cassandra.Config `yaml:"cassandra"`
-		Blueflood           blueflood.Config `yaml"blueflood"`
+		Blueflood           blueflood.Config `yaml:"blueflood"`
 		Web                 web.Config       `yaml:"web"`
 	}{}
 
