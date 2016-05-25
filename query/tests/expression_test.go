@@ -41,9 +41,9 @@ func (le LiteralExpression) Name() string {
 }
 
 func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return api.SeriesList{
+	return function.SeriesListValue(api.SeriesList{
 		Series: []api.Timeseries{{Values: expr.Values, TagSet: api.NewTagSet()}},
-	}, nil
+	}), nil
 }
 
 type LiteralSeriesExpression struct {

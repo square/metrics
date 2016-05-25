@@ -39,6 +39,10 @@ func (lit literal) Evaluate(context function.EvaluationContext) (function.Value,
 }
 
 func TestTransformTimeseries(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 4*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating test timerange: %s", err.Error())
+	}
 	testCases := []struct {
 		series     api.Timeseries
 		values     []float64
@@ -91,7 +95,7 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			ctx := function.EvaluationContext{}
+			ctx := function.EvaluationContext{Timerange: timerange}
 			seriesList := api.SeriesList{
 				Series: []api.Timeseries{series},
 			}
@@ -126,6 +130,10 @@ func TestTransformTimeseries(t *testing.T) {
 }
 
 func TestApplyTransform(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating timerange: %s", err.Error())
+	}
 	epsilon := 1e-10
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -189,7 +197,7 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{}
+		ctx := function.EvaluationContext{Timerange: timerange}
 		resultValue, err := test.transform.Run(ctx, []function.Expression{listExpression}, function.Groups{})
 		if err != nil {
 			t.Error(err)
@@ -230,6 +238,10 @@ func TestApplyTransform(t *testing.T) {
 }
 
 func TestApplyNotes(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error creating timerange for test case: %s", err.Error())
+	}
 	list := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -257,7 +269,7 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes)}
+		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes), Timerange: timerange}
 		_, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Error(err)
@@ -414,6 +426,11 @@ func TestApplyBound(t *testing.T) {
 }
 
 func TestApplyTransformNaN(t *testing.T) {
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error constructing timerange for testcase; %s", err.Error())
+	}
+
 	nan := math.NaN()
 	list := api.SeriesList{
 		Series: []api.Timeseries{
@@ -499,7 +516,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		ctx := function.EvaluationContext{}
+		ctx := function.EvaluationContext{Timerange: timerange}
 		resultValue, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
@@ -534,6 +551,10 @@ func TestApplyTransformNaN(t *testing.T) {
 func TestTransformIdentity(t *testing.T) {
 	//This is to make sure that the scale of all the data
 	//is interpreted as 30 seconds (30000 milliseconds)
+	timerange, err := api.NewSnappedTimerange(0, 5*30000, 30000)
+	if err != nil {
+		t.Fatalf("Error constructing timerange for testcase: %s", err.Error())
+	}
 
 	testCases := []struct {
 		values []float64
@@ -591,7 +612,6 @@ func TestTransformIdentity(t *testing.T) {
 		},
 	}
 	epsilon := 1e-10
-	var err error
 	for _, test := range testCases {
 		series := api.Timeseries{
 			Values: test.values,
@@ -600,7 +620,7 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContext{}
+				ctx := function.EvaluationContext{Timerange: timerange}
 
 				seriesList := api.SeriesList{
 					Series: []api.Timeseries{result},
