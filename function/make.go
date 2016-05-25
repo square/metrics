@@ -66,7 +66,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 		argType := funcType.In(i)
 		switch argType {
 		case contextType, timerangeType:
-		// Asks for part of context.
+			// Asks for part of context.
 		case groupsType:
 			// asks for groups
 			allowsGroupBy = true

@@ -142,7 +142,7 @@ func MustRegister(fun function.Function) {
 
 // Constructor Functions
 
-// NewFilter creates a new instance of a filtering function.
+// NewFilterCount creates a new instance of a filtering function with count limit.
 func NewFilterCount(name string, summary func([]float64) float64, ascending bool) function.MetricFunction {
 	return function.MakeFunction(
 		name,
@@ -153,10 +153,10 @@ func NewFilterCount(name string, summary func([]float64) float64, ascending bool
 			}
 			duration := timerange.Duration()
 			if optionalDuration != nil {
-				if *optionalDuration < 0 {
-					return api.SeriesList{}, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
-				}
 				duration = *optionalDuration
+			}
+			if duration < 0 {
+				return api.SeriesList{}, fmt.Errorf("expected positive recent duration but got %+v", duration)
 			}
 			return filter.FilterByRecent(list, count, summary, ascending, 1+int(duration/timerange.Resolution())), nil
 		},
@@ -170,9 +170,6 @@ func NewFilterThreshold(name string, summary func([]float64) float64, below bool
 		func(list api.SeriesList, threshold float64, optionalDuration *time.Duration, timerange api.Timerange) (api.SeriesList, error) {
 			duration := timerange.Duration()
 			if optionalDuration != nil {
-				if *optionalDuration < 0 {
-					return api.SeriesList{}, fmt.Errorf("expected a positive duration but got %+v", *optionalDuration)
-				}
 				duration = *optionalDuration
 			}
 			if duration < 0 {
