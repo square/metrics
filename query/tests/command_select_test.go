@@ -55,20 +55,20 @@ func TestCommand_Select(t *testing.T) {
 		{"select series_1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{1, 2, 3, 4, 5},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select series_timeout from 0 to 120 resolution 30ms", true, []api.SeriesList{}},
 		{"select series_1 + 1 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4, 5, 6},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select series_1 * 2 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 4, 6, 8, 10},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select aggregate.max(series_2) from 0 to 120 resolution 30ms", false, []api.SeriesList{{
@@ -86,52 +86,52 @@ func TestCommand_Select(t *testing.T) {
 		{"select series_1 from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{1, 2, 3},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select transform.timeshift(series_1,31ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select transform.timeshift(series_1,62ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{3, 4, 5},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select transform.timeshift(series_1,29ms) from 0 to 60 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select transform.timeshift(series_1,-31ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select transform.timeshift(series_1,-29ms) from 60 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{{
 				Values: []float64{2, 3, 4},
-				TagSet: api.ParseTagSet("dc=west"),
+				TagSet: api.TagSet{"dc": "west"},
 			}},
 		}}},
 		{"select series_3 from 0 to 120 resolution 30ms", false, []api.SeriesList{{
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 			},
 		}}},
@@ -139,15 +139,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 			},
 		}}},
@@ -155,11 +155,11 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 			},
 		}}},
@@ -167,7 +167,7 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 			},
 		}}},
@@ -175,15 +175,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 			},
 		}}},
@@ -191,15 +191,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 			},
 		}}},
@@ -207,15 +207,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 			},
 		}}},
@@ -223,11 +223,11 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 			},
 		}}},
@@ -235,7 +235,7 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 			},
 		}}},
@@ -243,15 +243,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 			},
 		}}},
@@ -259,11 +259,11 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 			},
 		}}},
@@ -271,7 +271,7 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 			},
 		}}},
@@ -279,15 +279,15 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 				{
 					Values: []float64{5, 5, 5, 2, 2},
-					TagSet: api.ParseTagSet("dc=east"),
+					TagSet: api.TagSet{"dc": "east"},
 				},
 			},
 		}}},
@@ -295,11 +295,11 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 				{
 					Values: []float64{1, 1, 1, 4, 4},
-					TagSet: api.ParseTagSet("dc=west"),
+					TagSet: api.TagSet{"dc": "west"},
 				},
 			},
 		}}},
@@ -307,7 +307,7 @@ func TestCommand_Select(t *testing.T) {
 			Series: []api.Timeseries{
 				{
 					Values: []float64{3, 3, 3, 3, 3},
-					TagSet: api.ParseTagSet("dc=north"),
+					TagSet: api.TagSet{"dc": "north"},
 				},
 			},
 		}}},
@@ -404,10 +404,10 @@ func TestCommand_Select(t *testing.T) {
 
 func TestTag(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "east", "env": "staging"}})
 
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {

@@ -38,7 +38,7 @@ func Test_Blueflood(t *testing.T) {
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
 			util.GraphiteMetric("some.key.graphite"): {
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 		},
 	}
@@ -72,7 +72,7 @@ func Test_Blueflood(t *testing.T) {
 			name: "Success case",
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 			sampleMethod: timeseries.SampleMean,
 			timerange:    timerange,
@@ -101,14 +101,14 @@ func Test_Blueflood(t *testing.T) {
       }`,
 			expectedSeriesList: api.Timeseries{
 				Values: []float64{5, 3},
-				TagSet: api.ParseTagSet("tag=value"),
+				TagSet: api.TagSet{"tag": "value"},
 			},
 		},
 		{
 			name: "Failure case - invalid JSON",
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 			sampleMethod:      timeseries.SampleMean,
 			timerange:         timerange,
@@ -121,7 +121,7 @@ func Test_Blueflood(t *testing.T) {
 			name: "Failure case - HTTP error",
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 			sampleMethod:      timeseries.SampleMean,
 			timerange:         timerange,
@@ -135,7 +135,7 @@ func Test_Blueflood(t *testing.T) {
 			name: "Failure case - timeout",
 			queryMetric: api.TaggedMetric{
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 			sampleMethod:      timeseries.SampleMean,
 			timerange:         timerange,
@@ -193,7 +193,7 @@ func TestIncludeRawPayload(t *testing.T) {
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
 			util.GraphiteMetric("some.key.value"): {
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 		},
 	}
@@ -281,7 +281,7 @@ func TestIncludeRawPayload(t *testing.T) {
 	timeSeries, err := b.FetchSingleTimeseries(timeseries.FetchRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
+			TagSet:    api.TagSet{"tag": "value"},
 		},
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod:          timeseries.SampleMean,
@@ -355,7 +355,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
 			util.GraphiteMetric("some.key.value"): {
 				MetricKey: api.MetricKey("some.key"),
-				TagSet:    api.ParseTagSet("tag=value"),
+				TagSet:    api.TagSet{"tag": "value"},
 			},
 		},
 	}
@@ -482,7 +482,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	seriesList, err := b.FetchSingleTimeseries(timeseries.FetchRequest{
 		Metric: api.TaggedMetric{
 			MetricKey: api.MetricKey("some.key"),
-			TagSet:    api.ParseTagSet("tag=value"),
+			TagSet:    api.TagSet{"tag": "value"},
 		},
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod: timeseries.SampleMean,

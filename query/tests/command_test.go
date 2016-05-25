@@ -33,10 +33,10 @@ var emptyGraphiteName = util.GraphiteMetric("")
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=production,host=a")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=west,env=staging,host=b")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=production,host=c")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("dc=east,env=staging,host=d")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "west", "env": "production", "host": "a"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "west", "env": "staging", "host": "b"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "east", "env": "production", "host": "c"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "east", "env": "staging", "host": "d"}})
 
 	for _, test := range []struct {
 		query          string
@@ -87,10 +87,10 @@ func TestCommand_Describe(t *testing.T) {
 
 func TestCommand_DescribeAll(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.ParseTagSet("")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.TagSet{}})
 
 	for _, test := range []struct {
 		query          string
