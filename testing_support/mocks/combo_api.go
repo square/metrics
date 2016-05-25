@@ -138,10 +138,10 @@ func NewComboAPI(timerange api.Timerange, timeseries ...api.Timeseries) FakeComb
 	}
 	for _, series := range timeseries {
 		if len(series.Values) != timerange.Slots() {
-			panic("NewComboAPI given series with wrong number of values.")
+			panic(fmt.Sprintf("NewComboAPI given series with wrong number of values: timerange has %d slots but series %+v has %d.", timerange.Slots(), series.TagSet, len(series.Values)))
 		}
 		if _, ok := series.TagSet["metric"]; !ok {
-			panic("NewCombiAPI expects that every series has a `metric` tag")
+			panic(fmt.Sprintf("NewCombiAPI expects that every series has a `metric` tag, but tagset is %+v", series.TagSet))
 		}
 		result.metrics[api.MetricKey(series.TagSet["metric"])] = append(result.metrics[api.MetricKey(series.TagSet["metric"])], series)
 		delete(series.TagSet, "metric")

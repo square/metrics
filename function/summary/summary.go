@@ -55,18 +55,29 @@ var Mean = recent(
 	"summarize.mean",
 	func(slice []float64) float64 {
 		sum := 0.0
+		count := 0
 		for i := range slice {
+			if math.IsNaN(slice[i]) {
+				continue
+			}
 			sum += slice[i]
+			count++
 		}
-		return sum / float64(len(slice))
+		return sum / float64(count)
 	},
 )
 
 var Min = recent(
 	"summarize.min",
 	func(slice []float64) float64 {
-		min := math.Inf(1)
+		min := math.NaN()
 		for i := range slice {
+			if math.IsNaN(min) {
+				min = slice[i]
+			}
+			if math.IsNaN(slice[i]) {
+				continue
+			}
 			min = math.Min(min, slice[i])
 		}
 		return min
@@ -76,8 +87,14 @@ var Min = recent(
 var Max = recent(
 	"summarize.max",
 	func(slice []float64) float64 {
-		max := math.Inf(-1)
+		max := math.NaN()
 		for i := range slice {
+			if math.IsNaN(max) {
+				max = slice[i]
+			}
+			if math.IsNaN(slice[i]) {
+				continue
+			}
 			max = math.Max(max, slice[i])
 		}
 		return max

@@ -52,6 +52,7 @@ func (assert Assert) Stack(stack int) Assert {
 // when the line number is not sufficient locator for the test failure:
 // i.e. testing in a loop.
 // returns a new instances of Assert.
+// It will add to the existing context for the Assert object.
 func (assert Assert) Contextf(format string, a ...interface{}) Assert {
 	if assert.context != "" {
 		assert.context += ", "
@@ -123,8 +124,14 @@ func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
 
 // EqFloat errors the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqFloat(actual, expected, epsilon float64) {
+	if math.IsNaN(actual) != math.IsNaN(expected) {
+		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
+	}
+	if math.IsNaN(expected) {
+		return
+	}
 	delta := math.Abs(actual - expected)
-	if (delta > epsilon && actual != expected) && !(math.IsNaN(actual) && math.IsNaN(expected)) {
+	if delta > epsilon {
 		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
 	}
 }
