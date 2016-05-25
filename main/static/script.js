@@ -571,6 +571,7 @@ function convertSelectResponse(object) {
   if (!(object && object.name == "select" &&
         object.body &&
         object.body.length &&
+        object.body[0].type == "series" && // don't display scalar values
         object.body[0].series &&
         object.body[0].series.length &&
         object.body[0].timerange)) {
