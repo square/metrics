@@ -35,10 +35,6 @@ type Timerange struct {
 	resolution int64
 }
 
-func (tr Timerange) String() string {
-	return fmt.Sprintf("epoch+%dms to epoch+%dms (%+v)", tr.start, tr.end, tr.Resolution())
-}
-
 // StartMillis returns the number of milliseconds between the epoch and the start of the timerange.
 // The start is inclusive.
 // StartMillis() is always divisible by ResolutionMillis()
