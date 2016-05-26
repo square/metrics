@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ var testResolutions = []Resolution{
 }
 
 func TestBluefloodChooseResolution(t *testing.T) {
-	nowMillis := int64(17592742) // Arbitrary magic constant.
+	nowMillis := int64((time.Hour*24*365*19 + time.Minute*1734 + time.Second*17) / time.Millisecond) // Arbitrary magic constant.
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
 		if beforeStart < beforeEnd {
 			t.Fatalf("Before start must be at least as large as before end.")
@@ -95,11 +96,15 @@ func TestBluefloodChooseResolution(t *testing.T) {
 	instance := &Blueflood{
 		config: Config{
 			Resolutions: testResolutions,
-			TimeSource:  func() time.Time { return time.Unix(nowMillis/1000, nowMillis%1000*1e6) },
+			TimeSource: func() time.Time {
+				timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
+				return timeValue
+			},
 		},
 	}
-	for _, test := range testcases {
-		a := a.Contextf("test (( %+v ))", test)
+	for i, test := range testcases {
+		fmt.Printf("\n\n\nTEST #%d\n===========================\n\n", i+1)
+		a := a.Contextf("test #%d (( %+v ))", i+1, test)
 		actual, err := instance.ChooseResolution(test.requested, test.lowerBound)
 		if test.problem {
 			if err == nil {

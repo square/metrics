@@ -121,34 +121,39 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 }
 
 func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
+	defer fmt.Printf("\n\n")
 	answer := map[Resolution]api.Timerange{}
 
-	stopTime := requestRange.Start().Add(-requestRange.Resolution())
+	requiredTime := requestRange.Start().Add(-requestRange.Resolution())
 	for i := len(resolutions) - 1; i >= 0; i-- {
-		if stopTime.After(requestRange.End()) {
+		if requiredTime.After(requestRange.End()) {
 			// Don't need to fetch any more points.
 			break
 		}
 		resolution := resolutions[i]
-		if now.Add(-resolution.TimeToLive).After(requestRange.Start()) {
+		if now.Add(-resolution.TimeToLive).After(requiredTime) {
 			// This resolution data doesn't live long enough to fetch the beginning of the timerange.
 			continue
 		}
+		clippedAfter, ok := requestRange.OnlyAfterExclusive(requiredTime)
+		if !ok {
+			fmt.Printf("SKIP C\n")
+			continue // empty??? why???
+		}
 		// Cut the timerange to the point where it's valid.
 		nextStopTime := now.Add(-resolution.FirstAvailable)
-		clippedBefore, ok := requestRange.Resample(resolution.Resolution).OnlyBeforeInclusive(nextStopTime)
+		clippedBefore, ok := clippedAfter.Resample(resolution.Resolution).OnlyBeforeInclusive(nextStopTime)
 		if !ok {
 			continue // empty??? why???
 		}
-		clippedAfter, ok := clippedBefore.OnlyAfterExclusive(stopTime)
-		if !ok {
-			continue // empty??? why???
-		}
-		stopTime = nextStopTime
+		requiredTime = nextStopTime.Add(resolution.Resolution)
 
-		answer[resolution] = clippedAfter
+		answer[resolution] = clippedBefore
 	}
-	return answer, nil
+	if requiredTime.After(requestRange.End()) {
+		return answer, nil
+	}
+	return nil, fmt.Errorf("Cannot cover timerange %+v with available resolution data", requestRange)
 }
 
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.

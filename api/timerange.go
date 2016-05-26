@@ -212,7 +212,7 @@ func (tr Timerange) Resample(resolution time.Duration) Timerange {
 // If the resulting timerange would be empty, it returns `Timerange{}, false`.
 // If the resulting timerange is not empty, it returns `result, true`.
 func (tr Timerange) OnlyBeforeInclusive(cut time.Time) (Timerange, bool) {
-	cutMillis := cut.UnixNano() / 1e6
+	cutMillis := int64(cut.UnixNano() / 1e6)
 	if cutMillis < tr.start {
 		// Before timerange starts.
 		return Timerange{}, false
