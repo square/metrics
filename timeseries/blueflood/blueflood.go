@@ -115,7 +115,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 		if err == nil {
 			return current.Resolution, nil
 		}
-		lastErr = fmt.Errorf("cannot choose resolution for timerange %s: %s", requested.String(), err.Error())
+		lastErr = fmt.Errorf("cannot choose resolution for timerange %+v: %s", requested, err.Error())
 	}
 	return 0, lastErr
 }
