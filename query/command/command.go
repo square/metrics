@@ -209,7 +209,10 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	// res >= (end - start) / (slots - 2)
 
 	// Update the timerange by applying the insights of the storage API:
-	chosenResolution := context.TimeseriesStorageAPI.ChooseResolution(userTimerange, smallestResolution)
+	chosenResolution, err := context.TimeseriesStorageAPI.ChooseResolution(userTimerange, smallestResolution)
+	if err != nil {
+		return CommandResult{}, err
+	}
 
 	chosenTimerange, err := api.NewSnappedTimerange(userTimerange.StartMillis(), userTimerange.EndMillis(), int64(chosenResolution/time.Millisecond))
 	if err != nil {

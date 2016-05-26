@@ -71,11 +71,11 @@ func (fapi FakeComboAPI) CheckHealthy() error {
 
 var _ metadata.MetricAPI = FakeComboAPI{}
 
-func (fapi FakeComboAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
+func (fapi FakeComboAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) (time.Duration, error) {
 	if requested.Resolution() != fapi.timerange.Resolution() {
-		panic(fmt.Sprintf("FakeComboAPI has internal resolution %+v but user requested %+v", fapi.timerange.Resolution(), requested.Resolution()))
+		return 0, fmt.Errorf("FakeComboAPI has internal resolution %+v but user requested %+v", fapi.timerange.Resolution(), requested.Resolution())
 	}
-	return requested.Resolution()
+	return requested.Resolution(), nil
 }
 
 func (fapi FakeComboAPI) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {

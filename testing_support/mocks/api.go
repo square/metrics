@@ -121,8 +121,8 @@ func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.T
 
 type FakeTimeseriesStorageAPI struct{}
 
-func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration {
-	return requested.Resolution()
+func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) (time.Duration, error) {
+	return requested.Resolution(), nil
 }
 
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {

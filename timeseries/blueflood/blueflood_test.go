@@ -46,9 +46,7 @@ func Test_Blueflood(t *testing.T) {
 	defaultClientConfig := Config{
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
-		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   0,
 		GraphiteMetricConverter: &graphite,
 	}
 	// Not really MIN1440, but that's what default TTLs will get with the Timerange we use
@@ -213,9 +211,7 @@ func TestIncludeRawPayload(t *testing.T) {
 	defaultClientConfig := Config{
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
-		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   14400,
 		GraphiteMetricConverter: &graphite,
 		TimeSource:              timeSource,
 	}
@@ -298,58 +294,6 @@ func TestIncludeRawPayload(t *testing.T) {
 	}
 }
 
-func TestSeriesFromMetricPoints(t *testing.T) {
-	timerange, err := api.NewTimerange(4000, 4800, 100)
-	if err != nil {
-		t.Fatalf("testcase timerange is invalid")
-		return
-	}
-	points := []metricPoint{
-		{
-			Timestamp: 4100,
-			Average:   1,
-		},
-		{
-			Timestamp: 4299, // Test flooring behavior
-			Average:   2,
-		},
-		{
-			Timestamp: 4403, // Test flooring behavior
-			Average:   3,
-		},
-		{
-			Timestamp: 4500,
-			Average:   4,
-		},
-		{
-			Timestamp: 4700,
-			Average:   5,
-		},
-		{
-			Timestamp: 4749,
-			Average:   6,
-		},
-	}
-	expected := [][]float64{{}, {1}, {2}, {}, {3}, {4}, {}, {5, 6}, {}}
-	result := bucketsFromMetricPoints(points, func(point metricPoint) float64 { return point.Average }, timerange)
-	if len(result) != len(expected) {
-		t.Fatalf("Expected %+v but got %+v", expected, result)
-		return
-	}
-	for i, expect := range expected {
-		if len(result[i]) != len(expect) {
-			t.Fatalf("Exected %+v but got %+v", expected, result)
-			return
-		}
-		for j := range expect {
-			if result[i][j] != expect[j] {
-				t.Fatalf("Expected %+v but got %+v", expected, result)
-				return
-			}
-		}
-	}
-}
-
 func TestFullResolutionDataFilling(t *testing.T) {
 	graphite := mocks.FakeGraphiteConverter{
 		MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
@@ -375,9 +319,7 @@ func TestFullResolutionDataFilling(t *testing.T) {
 	defaultClientConfig := Config{
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
-		Ttls:                    make(map[string]int64),
 		Timeout:                 time.Millisecond,
-		FullResolutionOverlap:   14400,
 		GraphiteMetricConverter: &graphite,
 		TimeSource:              timeSource,
 	}
@@ -509,7 +451,7 @@ func TestBlueflood_UserSuppliedTTLs(t *testing.T) {
 	ttlInDays := int64(5)
 	ttls["MIN7"] = ttlInDays // 7 minute resolution is available for 5 days
 	conf := Config{
-		Ttls: ttls,
+		TTLs: ttls,
 	}
 	result := conf.oldestViableDataForResolution(myRes)
 	if time.Duration(ttlInDays)*24*time.Hour != result {
@@ -593,7 +535,7 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 
 	b := &Blueflood{
 		config: Config{
-			Ttls: map[string]int64{
+			TTLs: map[string]int64{
 				"FULL":    1,
 				"MIN5":    30,
 				"MIN20":   60,
@@ -609,9 +551,13 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 
 	for i, test := range tests {
 		smallestResolution := test.input.Duration() / time.Duration(test.slotLimit-2)
-		result := b.ChooseResolution(test.input, smallestResolution)
+		result, err := b.ChooseResolution(test.input, smallestResolution)
+		if err != nil {
+			t.Errorf("Unexpected error choosing resolution: %s", err.Error())
+			continue
+		}
 		// This is mostly a sanity check:
-		_, err := api.NewSnappedTimerange(test.input.StartMillis(), test.input.EndMillis(), int64(result/time.Millisecond))
+		_, err = api.NewSnappedTimerange(test.input.StartMillis(), test.input.EndMillis(), int64(result/time.Millisecond))
 		if err != nil {
 			t.Errorf("Test %+v:\nEncountered error when building timerange: %s", test, err.Error())
 		}
