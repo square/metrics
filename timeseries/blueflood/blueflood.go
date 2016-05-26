@@ -102,6 +102,55 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 	return b
 }
 
+// ChooseResolution will choose the finest-grained resolution for which an interval fetch plan exists that
+// is at least as coarse as the requested timerange and lower bound.
+func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
+	now := b.config.TimeSource()
+	lastErr := fmt.Errorf("no available resolutions to choose from")
+	for i, current := range b.config.Resolutions {
+		if current.Resolution < lowerBound || current.Resolution < requested.Resolution() {
+			continue
+		}
+		_, err := planFetchIntervals(b.config.Resolutions[:i+1], now, requested)
+		if err == nil {
+			return current.Resolution, nil
+		}
+		lastErr = fmt.Errorf("cannot choose resolution for timerange %s: %s", requested.String(), err.Error())
+	}
+	return 0, lastErr
+}
+
+func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
+	answer := map[Resolution]api.Timerange{}
+
+	stopTime := requestRange.Start().Add(-requestRange.Resolution())
+	for i := len(resolutions) - 1; i >= 0; i-- {
+		if stopTime.After(requestRange.End()) {
+			// Don't need to fetch any more points.
+			break
+		}
+		resolution := resolutions[i]
+		if now.Add(-resolution.TimeToLive).After(requestRange.Start()) {
+			// This resolution data doesn't live long enough to fetch the beginning of the timerange.
+			continue
+		}
+		// Cut the timerange to the point where it's valid.
+		nextStopTime := now.Add(-resolution.FirstAvailable)
+		clippedBefore, ok := requestRange.Resample(resolution.Resolution).OnlyBeforeInclusive(nextStopTime)
+		if !ok {
+			continue // empty??? why???
+		}
+		clippedAfter, ok := clippedBefore.OnlyAfterExclusive(stopTime)
+		if !ok {
+			continue // empty??? why???
+		}
+		stopTime = nextStopTime
+
+		answer[resolution] = clippedAfter
+	}
+	return answer, nil
+}
+
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.
 // It requires that the resolution is supported.
 func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
@@ -110,30 +159,38 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
-	resolution, ok := Resolution{}, false
-	for _, candidate := range b.config.Resolutions {
-		if candidate.Resolution == request.Timerange.Resolution() {
-			resolution, ok = candidate, true
-		}
-	}
-	if !ok {
-		return api.Timeseries{}, fmt.Errorf("unsupported Blueflood resolution %+v", request.Timerange.Resolution())
-	}
-	queryURL, err := b.constructURL(request.Metric, request.Timerange, sampler, resolution)
-	if err != nil {
-		return api.Timeseries{}, err
-	}
-	parsedResult, err := b.fetch(queryURL)
+	intervals, err := planFetchIntervals(b.config.Resolutions, b.config.TimeSource(), request.Timerange)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
 
-	values := samplePoints(parsedResult.Values, request.Timerange, sampler)
+	allPoints := []metricPoint{}
+	for resolution, timerange := range intervals {
+		points, err := b.requestPoints(request.Metric, timerange, sampler, resolution)
+		if err != nil {
+			return api.Timeseries{}, err
+		}
+		allPoints = append(allPoints, points...)
+	}
+
+	values := samplePoints(allPoints, request.Timerange, sampler)
 
 	return api.Timeseries{
 		Values: values,
 		TagSet: request.Metric.TagSet,
 	}, nil
+}
+
+func (b *Blueflood) requestPoints(metric api.TaggedMetric, timerange api.Timerange, sampler sampler, resolution Resolution) ([]metricPoint, error) {
+	queryURL, err := b.constructURL(metric, timerange, sampler, resolution)
+	if err != nil {
+		return nil, err
+	}
+	parsedResult, err := b.fetch(queryURL)
+	if err != nil {
+		return nil, err
+	}
+	return parsedResult.Values, nil
 }
 
 // Helper functions

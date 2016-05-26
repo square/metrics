@@ -17,35 +17,9 @@ package blueflood
 import (
 	"fmt"
 	"sync"
-	"time"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/tasks"
 )
-
-// ChooseResolution will use the finest-grained permissible resolution at least as coarse as the requested,
-// unless no such timerange exists.
-// Thus, if you request too many points, it will automatically reduce the resolution.
-func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
-	oldestAge := b.config.TimeSource().Sub(requested.Start())
-	youngestAge := b.config.TimeSource().Sub(requested.End())
-	for _, resolution := range b.config.Resolutions {
-		if resolution.TimeToLive < oldestAge {
-			// Doesn't live long enough.
-			continue
-		}
-		if resolution.FirstAvailable > youngestAge {
-			// Doesn't exist soon enough.
-			continue
-		}
-		if resolution.Resolution < lowerBound {
-			// Resolution is too high (which would produce too many points).
-			continue
-		}
-		return resolution.Resolution, nil
-	}
-	return 0, fmt.Errorf("")
-}
 
 type ticket struct{}
 

@@ -15,18 +15,107 @@
 package blueflood
 
 import (
-	"fmt"
-	"net/http"
 	"testing"
 	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/assert"
-	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/timeseries"
-	"github.com/square/metrics/util"
 )
 
+const day = 24 * time.Hour
+
+var testResolutions = []Resolution{
+	{
+		Name:           "FULL",
+		Resolution:     30 * time.Second,
+		FirstAvailable: 0,
+		TimeToLive:     1 * day,
+	},
+	{
+		Name:           "5MIN",
+		Resolution:     5 * time.Minute,
+		FirstAvailable: 1 * day,
+		TimeToLive:     30 * day,
+	},
+	{
+		Name:           "60MIN",
+		Resolution:     time.Hour,
+		FirstAvailable: 15 * day,
+		TimeToLive:     90 * day,
+	},
+	{
+		Name:           "1440MIN",
+		Resolution:     day,
+		FirstAvailable: 180 * day,
+		TimeToLive:     900 * day,
+	},
+}
+
+func TestBluefloodChooseResolution(t *testing.T) {
+	nowMillis := int64(17592742) // Arbitrary magic constant.
+	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
+		if beforeStart < beforeEnd {
+			t.Fatalf("Before start must be at least as large as before end.")
+		}
+		timerange, err := api.NewSnappedTimerange(nowMillis-int64(beforeStart.Seconds()*1000), nowMillis-int64(beforeEnd.Seconds()*1000), int64(resolution.Seconds()*1000))
+		if err != nil {
+			t.Fatalf("Problem creating timerange for test.")
+		}
+		return timerange
+	}
+	a := assert.New(t)
+	type test struct {
+		requested  api.Timerange
+		lowerBound time.Duration
+		expected   time.Duration
+		problem    bool
+	}
+	testcases := []test{
+		{
+			requested:  makeRange(1*time.Hour, 0, 12*time.Second),
+			lowerBound: 0,
+			expected:   30 * time.Second,
+		},
+		{
+			requested:  makeRange(1*time.Hour, 0, 31*time.Second),
+			lowerBound: 0,
+			expected:   5 * time.Minute,
+		},
+		{
+			requested:  makeRange(1*time.Hour, 0, 12*time.Second),
+			lowerBound: 31 * time.Second,
+			expected:   5 * time.Minute,
+		},
+		{
+			requested:  makeRange(2*day, 0, 12*time.Second),
+			lowerBound: 0,
+			expected:   5 * time.Minute,
+		},
+	}
+	instance := &Blueflood{
+		config: Config{
+			Resolutions: testResolutions,
+			TimeSource:  func() time.Time { return time.Unix(nowMillis/1000, nowMillis%1000*1e6) },
+		},
+	}
+	for _, test := range testcases {
+		a := a.Contextf("test (( %+v ))", test)
+		actual, err := instance.ChooseResolution(test.requested, test.lowerBound)
+		if test.problem {
+			if err == nil {
+				a.Errorf("Expected error but got: %+v", actual)
+			}
+		} else {
+			if err != nil {
+				a.Errorf("Unexpected error: %s", err.Error())
+				continue
+			}
+			a.Eq(actual, test.expected)
+		}
+	}
+}
+
+/*
 func Test_Blueflood(t *testing.T) {
 	timerange, err := api.NewTimerange(12000, 13000, 1000)
 	if err != nil {
@@ -566,3 +655,4 @@ func TestBlueflood_ChooseResolution(t *testing.T) {
 		}
 	}
 }
+*/
