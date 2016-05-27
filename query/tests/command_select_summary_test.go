@@ -137,6 +137,22 @@ func TestSelectSummary(t *testing.T) {
 				api.TagSet{"dc": "miss"}.Serialize(): n,
 			},
 		},
+		{
+			query: "select series_b | summarize.current from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): n,
+				api.TagSet{"dc": "east"}.Serialize(): 2,
+				api.TagSet{"dc": "miss"}.Serialize(): n,
+			},
+		},
+		{
+			query: "select series_b | summarize.last_not_nan from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 7,
+				api.TagSet{"dc": "east"}.Serialize(): 2,
+				api.TagSet{"dc": "miss"}.Serialize(): n,
+			},
+		},
 	}
 
 	for _, test := range tests {
