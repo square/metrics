@@ -138,14 +138,20 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange ap
 		}
 		clippedAfter, ok := requestRange.OnlyAfterExclusive(requiredTime)
 		if !ok {
-			fmt.Printf("SKIP C\n")
-			continue // empty??? why???
+			// This shouldn't ever be able to happen (provided that resolutions are in a sensible order).
+			// It would mean that a coarser resolution first appears before some finer resolution.
+			// However, this ordering is contingent upon resolutions being ordered by coarseness
+			// (with finest first).
+			continue
 		}
 		// Cut the timerange to the point where it's valid.
 		nextStopTime := now.Add(-resolution.FirstAvailable)
 		clippedBefore, ok := clippedAfter.Resample(resolution.Resolution).OnlyBeforeInclusive(nextStopTime)
 		if !ok {
-			continue // empty??? why???
+			// This resolution data expires much, much sooner than is useful.
+			// If this occurs (and the resolutions have a sane ordering),
+			// then it's very likely that the rest of the evaluation will fail.
+			continue
 		}
 		requiredTime = nextStopTime.Add(resolution.Resolution)
 
