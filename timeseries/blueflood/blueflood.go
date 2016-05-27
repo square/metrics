@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -170,12 +171,30 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	}
 
 	allPoints := []metricPoint{}
+	mutex := sync.Mutex{}
+	wait := sync.WaitGroup{}
+	someErr := error(nil)
+
 	for resolution, timerange := range intervals {
-		points, err := b.requestPoints(request.Metric, timerange, sampler, resolution)
-		if err != nil {
-			return api.Timeseries{}, err
-		}
-		allPoints = append(allPoints, points...)
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			points, err := b.requestPoints(request.Metric, timerange, sampler, resolution)
+			if err != nil {
+				mutex.Lock()
+				defer mutex.Unlock()
+				someErr = err
+				return
+			}
+			mutex.Lock()
+			defer mutex.Unlock()
+			allPoints = append(allPoints, points...)
+		}()
+	}
+	wait.Wait()
+
+	if someErr != nil {
+		return api.Timeseries{}, someErr
 	}
 
 	values := samplePoints(allPoints, request.Timerange, sampler)
