@@ -112,3 +112,19 @@ func (tagSet TagSet) HasKey(key string) bool {
 	_, hasTag := tagSet[key]
 	return hasTag
 }
+
+type tagSetList []TagSet
+
+func (list tagSetList) Len() int {
+	return len(list)
+}
+func (list tagSetList) Swap(i, j int) {
+	list[i], list[j] = list[j], list[i]
+}
+func (list tagSetList) Less(i, j int) bool {
+	return list[i].Serialize() < list[j].Serialize()
+}
+
+func SortTagSets(list []TagSet) {
+	sort.Sort(tagSetList(list))
+}

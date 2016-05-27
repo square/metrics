@@ -122,8 +122,8 @@ func Test_GetAllMetrics_DB(t *testing.T) {
 		return
 	}
 	defer cleanDatabase(t, db)
-	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=a")))
-	a.CheckError(db.AddMetricName("metric.a", api.ParseTagSet("foo=b")))
+	a.CheckError(db.AddMetricName("metric.a", api.TagSet{"foo": "a"}))
+	a.CheckError(db.AddMetricName("metric.a", api.TagSet{"foo": "b"}))
 	a.CheckError(db.AddMetricNames([]api.TaggedMetric{
 		{
 			"metric.c",
@@ -148,8 +148,8 @@ func Test_GetAllMetrics_DB(t *testing.T) {
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))
 	a.Eq(keys, []api.MetricKey{"metric.a", "metric.c", "metric.d", "metric.e"})
-	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
-	a.CheckError(db.AddMetricName("metric.b", api.ParseTagSet("foo=c")))
+	a.CheckError(db.AddMetricName("metric.b", api.TagSet{"foo": "c"}))
+	a.CheckError(db.AddMetricName("metric.b", api.TagSet{"foo": "c"}))
 	keys, err = db.GetAllMetrics()
 	a.CheckError(err)
 	sort.Sort(api.MetricKeys(keys))

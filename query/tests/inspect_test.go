@@ -49,19 +49,19 @@ func TestProfilerIntegration(t *testing.T) {
 	// 	},
 	// }
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=1,y=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=2,y=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.ParseTagSet("x=3,y=1")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "1", "y": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "2", "y": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "3", "y": "1"}})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=foo")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.ParseTagSet("q=bar")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.TagSet{"q": "foo"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.TagSet{"q": "bar"}})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=1")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=2")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=3")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=4")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=5")})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.ParseTagSet("c=6")})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "1"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "3"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "4"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "5"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "6"}})
 
 	testCases := []struct {
 		query    string

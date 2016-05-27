@@ -26,16 +26,16 @@ import (
 
 func TestQueryNaming(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.ParseTagSet("dc=east,env=staging")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=west,env=production")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.ParseTagSet("dc=east,env=staging")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.ParseTagSet("dc=east,env=staging")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.TagSet{"dc": "east", "env": "staging"}})
 
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.bar.", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{".foo.bar", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.2bar", api.ParseTagSet("qaz=foo1")})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"_names423.with_.dots_and_und3rsc0r3s", api.ParseTagSet("qaz=foo1")})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.bar.", api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{".foo.bar", api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.2bar", api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"_names423.with_.dots_and_und3rsc0r3s", api.TagSet{"qaz": "foo1"}})
 
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {

@@ -182,7 +182,7 @@ func TestToGraphiteName(t *testing.T) {
 	a.CheckError(err)
 	tm := api.TaggedMetric{
 		MetricKey: "test-metric",
-		TagSet:    api.ParseTagSet("foo=fooValue"),
+		TagSet:    api.TagSet{"foo": "fooValue"},
 	}
 	reversed, err := rule.ToGraphiteName(tm)
 	a.CheckError(err)
@@ -198,14 +198,14 @@ func TestToGraphiteName_Error(t *testing.T) {
 	a.CheckError(err)
 	reversed, err := rule.ToGraphiteName(api.TaggedMetric{
 		MetricKey: "test-metric",
-		TagSet:    api.ParseTagSet(""),
+		TagSet:    api.TagSet{},
 	})
 	checkConversionErrorCode(t, err, MissingTag)
 	a.EqString(string(reversed), "")
 
 	reversed, err = rule.ToGraphiteName(api.TaggedMetric{
 		MetricKey: "test-metric-foo",
-		TagSet:    api.ParseTagSet("foo=fooValue"),
+		TagSet:    api.TagSet{"foo": "fooValue"},
 	})
 	checkConversionErrorCode(t, err, CannotInterpolate)
 	a.EqString(string(reversed), "")
