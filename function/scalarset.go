@@ -29,7 +29,7 @@ type TaggedScalar struct {
 	Value  float64
 }
 
-// TaggedScalar marshals NaN or infinity to null.
+// MarshalJSON for TaggedScalar marshals NaN or infinity to null.
 func (ts TaggedScalar) MarshalJSON() ([]byte, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString(`{"tagset":`)
