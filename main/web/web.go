@@ -49,6 +49,7 @@ func startServer(config web.Config, context command.ExecutionContext) error {
 		WriteTimeout:   time.Duration(config.Timeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
+	fmt.Printf("Listening on port %d.\n", config.Port)
 	return server.ListenAndServe()
 }
 

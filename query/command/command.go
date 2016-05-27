@@ -187,7 +187,7 @@ type QueryResult struct {
 	Type  string `json:"type"` // one of "series" or "scalars"
 	// for "series" type
 	Series    []api.Timeseries `json:"series,omitempty"`
-	Timerange api.Timerange    `json:"timerange"`
+	Timerange api.Timerange    `json:"timerange,omitempty"`
 	// for "scalar" type
 	Scalars []function.TaggedScalar `json:"scalars,omitempty"`
 }

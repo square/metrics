@@ -56,15 +56,17 @@
 
     <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
       <div class="col-xs-10">
-        Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned.
-        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b>
+        Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds.
+        <b>{{ totalSeriesCount }}</b> Series returned.
+        <span ng-show="totalScalarsCount > 0"><b>{{ totalScalarsCount }}</b> scalars returned. <b> At this time the web UI cannot display them.</b></span>
+        <b ng-show="totalSeriesCount > maxResult">UI is only rendering {{ maxResult }} results.</b>
       </div>
       <div class="col-xs-2">
         <a ng-href="{{ embedLink }}" class="btn btn-default" target="_blank">Embed Link</a>
       </div>
     </div>
     <div
-      ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
+      ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty() && hasSeriesList()"
       class="col-xs-12">
       <google-chart
         class="metric-chart"

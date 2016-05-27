@@ -399,6 +399,9 @@ module.controller("commonCtrl", function(
       return false;
     }
     for (var i = 0; i < result.body.length; i++) {
+      if (result.body[i].type == "scalars") {
+        continue;
+      }
       if (result.body[i].series.length == 0) {
         if (result.body.length == 1) {
           $scope.queryEmptyMessage = "the query resulted in 0 series";
@@ -410,6 +413,18 @@ module.controller("commonCtrl", function(
     }
     return false;
   };
+  $scope.hasSeriesList = function() {
+    var result = $scope.queryResult;
+    if (!result || result.name != "select") {
+      return false;
+    }
+    for (var i = 0; i < result.body.length; i++) {
+      if (result.body[i].type == "series") {
+        return true;
+      }
+    }
+    return false;
+  }
   $scope.$watch("inputModel.renderType", function(newValue) {
     if (newValue === "area") {
       $scope.selectOptions.isStacked = true;
@@ -429,12 +444,18 @@ module.controller("commonCtrl", function(
       $scope.selectResult = null;
       $scope.selectOptions.series = null;
     }
-    $scope.totalResult = 0;
+    $scope.totalSeriesCount = 0;
+    $scope.totalScalarsCount = 0;
     $scope.profileResult = convertProfileResponse(queryResult);
-    if ($scope.selectResult) {
+    if (queryResult && queryResult.body) {
       for (var i = 0; i < queryResult.body.length; i++) {
         // Each of these is a list of series
-        $scope.totalResult += queryResult.body[i].series.length;
+        if (queryResult.body[i].type == "series") {
+          $scope.totalSeriesCount += queryResult.body[i].series.length;
+        }
+        if (queryResult.body[i].type == "scalars") {
+          $scope.totalScalarsCount += queryResult.body[i].scalars.length;
+        }
       }
     }
   };
