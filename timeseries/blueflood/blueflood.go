@@ -164,6 +164,17 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange ap
 	return nil, fmt.Errorf("Cannot cover timerange %+v with available resolution data", requestRange)
 }
 
+// planFetchIntervalsRestricted assumes that the requested range is as coarse as desired.
+// Hence, it will trim all coarser resolutions before doing planning.
+func planFetchIntervalsRestricted(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
+	for i := range resolutions {
+		if resolutions[i].Resolution > requestRange.Resolution() {
+			return planFetchIntervals(resolutions[:i], now, requestRange)
+		}
+	}
+	return planFetchIntervals(resolutions, now, requestRange)
+}
+
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.
 // It requires that the resolution is supported.
 func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
@@ -172,7 +183,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
-	intervals, err := planFetchIntervals(b.config.Resolutions, b.config.TimeSource(), request.Timerange)
+	intervals, err := planFetchIntervalsRestricted(b.config.Resolutions, b.config.TimeSource(), request.Timerange)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
