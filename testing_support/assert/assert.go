@@ -53,7 +53,10 @@ func (assert Assert) Stack(stack int) Assert {
 // i.e. testing in a loop.
 // returns a new instances of Assert.
 func (assert Assert) Contextf(format string, a ...interface{}) Assert {
-	assert.context = fmt.Sprintf(format, a...)
+	if assert.context != "" {
+		assert.context += ", "
+	}
+	assert.context += fmt.Sprintf(format, a...)
 	return assert
 }
 

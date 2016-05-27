@@ -121,22 +121,23 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 	return 0, lastErr
 }
 
+// planFetchIntervals will plan the (point-count minimal) request intervals needed to cover the given timerange.
+// the resolutions slice should be sorted, with the finest-grained resolution first.
 func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
-	defer fmt.Printf("\n\n")
 	answer := map[Resolution]api.Timerange{}
 
-	requiredTime := requestRange.Start().Add(-requestRange.Resolution())
+	cutTime := requestRange.Start().Add(-1 * time.Millisecond)
 	for i := len(resolutions) - 1; i >= 0; i-- {
-		if requiredTime.After(requestRange.End()) {
+		if cutTime.After(requestRange.End()) || cutTime == requestRange.End() {
 			// Don't need to fetch any more points.
 			break
 		}
 		resolution := resolutions[i]
-		if now.Add(-resolution.TimeToLive).After(requiredTime) {
+		if cutTime.Before(now.Add(-resolution.TimeToLive)) {
 			// This resolution data doesn't live long enough to fetch the beginning of the timerange.
 			continue
 		}
-		clippedAfter, ok := requestRange.OnlyAfterExclusive(requiredTime)
+		clippedAfter, ok := requestRange.Resample(resolution.Resolution).OnlyAfterExclusive(cutTime)
 		if !ok {
 			// This shouldn't ever be able to happen (provided that resolutions are in a sensible order).
 			// It would mean that a coarser resolution first appears before some finer resolution.
@@ -145,19 +146,19 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange ap
 			continue
 		}
 		// Cut the timerange to the point where it's valid.
-		nextStopTime := now.Add(-resolution.FirstAvailable)
-		clippedBefore, ok := clippedAfter.Resample(resolution.Resolution).OnlyBeforeInclusive(nextStopTime)
+		nextCutTime := now.Add(-resolution.FirstAvailable)
+		clippedBefore, ok := clippedAfter.Resample(resolution.Resolution).OnlyBeforeInclusive(nextCutTime)
 		if !ok {
 			// This resolution data expires much, much sooner than is useful.
-			// If this occurs (and the resolutions have a sane ordering),
-			// then it's very likely that the rest of the evaluation will fail.
+			// If this occurs then (provided that the resolutions have a sane ordering),
+			// it's very likely that the rest of the evaluation will fail.
 			continue
 		}
-		requiredTime = nextStopTime.Add(resolution.Resolution)
+		cutTime = nextCutTime
 
 		answer[resolution] = clippedBefore
 	}
-	if requiredTime.After(requestRange.End()) {
+	if cutTime.After(requestRange.End()) || cutTime == requestRange.End() {
 		return answer, nil
 	}
 	return nil, fmt.Errorf("Cannot cover timerange %+v with available resolution data", requestRange)

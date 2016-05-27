@@ -241,7 +241,7 @@ func (tr Timerange) OnlyAfterExclusive(cut time.Time) (Timerange, bool) {
 	}
 
 	return Timerange{
-		start:      (cutMillis + tr.resolution - 1) / tr.resolution * tr.resolution, // Round up to be exclusive.
+		start:      (cutMillis + tr.resolution) / tr.resolution * tr.resolution, // Round up to be exclusive.
 		end:        tr.end,
 		resolution: tr.resolution,
 	}, true

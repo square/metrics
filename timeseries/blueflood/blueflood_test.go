@@ -25,42 +25,50 @@ import (
 
 const day = 24 * time.Hour
 
-var testResolutions = []Resolution{
-	{
-		Name:           "FULL",
-		Resolution:     30 * time.Second,
-		FirstAvailable: 0,
-		TimeToLive:     1 * day,
-	},
-	{
-		Name:           "5MIN",
-		Resolution:     5 * time.Minute,
-		FirstAvailable: 1 * day,
-		TimeToLive:     30 * day,
-	},
-	{
-		Name:           "60MIN",
-		Resolution:     time.Hour,
-		FirstAvailable: 15 * day,
-		TimeToLive:     90 * day,
-	},
-	{
-		Name:           "1440MIN",
-		Resolution:     day,
-		FirstAvailable: 180 * day,
-		TimeToLive:     900 * day,
-	},
+var resolutionFull = Resolution{
+	Name:           "FULL",
+	Resolution:     30 * time.Second,
+	FirstAvailable: 0,
+	TimeToLive:     1 * day,
+}
+var resolution5Min = Resolution{
+	Name:           "5MIN",
+	Resolution:     5 * time.Minute,
+	FirstAvailable: 1 * day,
+	TimeToLive:     30 * day,
+}
+var resolution60Min = Resolution{
+	Name:           "60MIN",
+	Resolution:     time.Hour,
+	FirstAvailable: 15 * day,
+	TimeToLive:     90 * day,
+}
+var resolution1440Min = Resolution{
+	Name:           "1440MIN",
+	Resolution:     day,
+	FirstAvailable: 180 * day,
+	TimeToLive:     900 * day,
 }
 
-func TestBluefloodChooseResolution(t *testing.T) {
-	nowMillis := int64((time.Hour*24*365*19 + time.Minute*1734 + time.Second*17) / time.Millisecond) // Arbitrary magic constant.
+var testResolutions = []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min}
+
+func TestPlanFetchIntervals(t *testing.T) {
+	// Note: this constant is not completely arbitrary. It has lots of factors,
+	// which means that it lies on a lot of resolution boundaries,
+	// so most resolutions will be able to work without rounding (e.g., 31ms).
+	nowMillis := int64(12331800) * 60000
+	nowFunc := func() time.Time {
+		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
+		return timeValue
+	}
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
 		if beforeStart < beforeEnd {
 			t.Fatalf("Before start must be at least as large as before end.")
 		}
-		timerange, err := api.NewSnappedTimerange(nowMillis-int64(beforeStart.Seconds()*1000), nowMillis-int64(beforeEnd.Seconds()*1000), int64(resolution.Seconds()*1000))
+		// Note: it's not snapped so that we don't accidentally alter the ends of the timerange via a snap.
+		timerange, err := api.NewTimerange(nowMillis-int64(beforeStart.Seconds()*1000), nowMillis-int64(beforeEnd.Seconds()*1000), int64(resolution.Seconds()*1000))
 		if err != nil {
-			t.Fatalf("Problem creating timerange for test.")
+			panic(fmt.Sprintf("Problem creating timerange for test: %s", err.Error()))
 		}
 		return timerange
 	}
@@ -68,45 +76,78 @@ func TestBluefloodChooseResolution(t *testing.T) {
 	type test struct {
 		requested  api.Timerange
 		lowerBound time.Duration
-		expected   time.Duration
-		problem    bool
+		expected   map[Resolution]api.Timerange
+		error      bool
 	}
 	testcases := []test{
 		{
 			requested:  makeRange(1*time.Hour, 0, 12*time.Second),
 			lowerBound: 0,
-			expected:   30 * time.Second,
-		},
-		{
-			requested:  makeRange(1*time.Hour, 0, 31*time.Second),
-			lowerBound: 0,
-			expected:   5 * time.Minute,
-		},
-		{
-			requested:  makeRange(1*time.Hour, 0, 12*time.Second),
-			lowerBound: 31 * time.Second,
-			expected:   5 * time.Minute,
-		},
-		{
-			requested:  makeRange(2*day, 0, 12*time.Second),
-			lowerBound: 0,
-			expected:   5 * time.Minute,
-		},
-	}
-	instance := &Blueflood{
-		config: Config{
-			Resolutions: testResolutions,
-			TimeSource: func() time.Time {
-				timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
-				return timeValue
+			expected: map[Resolution]api.Timerange{
+				resolutionFull: makeRange(1*time.Hour, 0, 30*time.Second),
 			},
+		},
+		{
+			requested:  makeRange(1*time.Hour+27*time.Second, 0, 31*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				resolutionFull: makeRange(1*time.Hour, 0, 30*time.Second),
+			},
+		},
+		{
+			requested:  makeRange(37*time.Hour, 0, 12*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				resolution5Min: makeRange(37*time.Hour, 24*time.Hour, 5*time.Minute),
+				resolutionFull: makeRange(24*time.Hour-30*time.Second, 0, 30*time.Second),
+			},
+		},
+		{
+			requested:  makeRange(20*day, 11*day, 12*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				resolution60Min: makeRange(20*day, 15*day, 60*time.Minute),
+				resolution5Min:  makeRange(15*day-5*time.Minute, 11*day, 5*time.Minute),
+			},
+		},
+		{
+			requested:  makeRange(20*day, 0, 12*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				resolution60Min: makeRange(20*day, 15*day, 60*time.Minute),
+				resolution5Min:  makeRange(15*day-5*time.Minute, 1*day, 5*time.Minute),
+				resolutionFull:  makeRange(1*day-30*time.Second, 0, 30*time.Second),
+			},
+		},
+		{
+			requested:  makeRange(20*day, 0, 30*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				resolution60Min: makeRange(20*day, 15*day, 60*time.Minute),
+				resolution5Min:  makeRange(15*day-5*time.Minute, 1*day, 5*time.Minute),
+				resolutionFull:  makeRange(1*day-30*time.Second, 0, 30*time.Second),
+			},
+		},
+		{
+			requested:  makeRange(1*day, 0, 12*time.Second),
+			lowerBound: 0,
+			expected: map[Resolution]api.Timerange{
+				// These seems very wasteful, but it seems consistent.
+				// In practice, this should be fixed by staggering TTL and first available
+				resolution5Min: makeRange(1*day, 1*day, 5*time.Minute),             // one point
+				resolutionFull: makeRange(1*day-30*time.Second, 0, 30*time.Second), // the rest
+			},
+		},
+		{
+			requested:  makeRange(901*day, 0, 30*time.Second),
+			lowerBound: 0,
+			error:      true,
 		},
 	}
 	for i, test := range testcases {
-		fmt.Printf("\n\n\nTEST #%d\n===========================\n\n", i+1)
-		a := a.Contextf("test #%d (( %+v ))", i+1, test)
-		actual, err := instance.ChooseResolution(test.requested, test.lowerBound)
-		if test.problem {
+		a := a.Contextf("test #%d (input %+v)", i+1, test.requested)
+		actual, err := planFetchIntervals(testResolutions, nowFunc(), test.requested)
+		if test.error {
 			if err == nil {
 				a.Errorf("Expected error but got: %+v", actual)
 			}
