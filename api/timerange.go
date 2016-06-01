@@ -168,6 +168,12 @@ func (tr Timerange) ExtendBefore(length time.Duration) Timerange {
 	return tr.Snap()
 }
 
+// ExtendAfter increases the length of the timerange by the given duration.
+func (tr Timerange) ExtendAfter(length time.Duration) Timerange {
+	tr.end += int64(length / time.Millisecond)
+	return tr.Snap()
+}
+
 // Slots represent the total # of data points
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
@@ -190,59 +196,6 @@ func (tr Timerange) IndexOfTime(point time.Time) int {
 	return int(point.Sub(tr.Start()) / tr.Resolution())
 }
 
-// Resample returns the smallest snapped timerange of the given resolution that contains this one.
-func (tr Timerange) Resample(resolution time.Duration) Timerange {
-	if resolution == 0 {
-		panic("Timerange.Resample given 0 resolution")
-	}
-	resolutionMillis := int64(resolution.Nanoseconds()) / 1e6
-	return Timerange{
-		start:      tr.start / resolutionMillis * resolutionMillis,                        // round down
-		end:        (tr.end + resolutionMillis - 1) / resolutionMillis * resolutionMillis, // round up
-		resolution: resolutionMillis,
-	}
-}
-
-// OnlyBeforeInclusive cuts the timerange to only include points in time before the specified cut.
-// The resulting timerange will include the cut point.
-// If the resulting timerange would be empty, it returns `Timerange{}, false`.
-// If the resulting timerange is not empty, it returns `result, true`.
-func (tr Timerange) OnlyBeforeInclusive(cut time.Time) (Timerange, bool) {
-	cutMillis := int64(cut.UnixNano() / 1e6)
-	if cutMillis < tr.start {
-		// Before timerange starts.
-		return Timerange{}, false
-	}
-	if cutMillis > tr.end {
-		// After end of timerange.
-		return tr, true
-	}
-
-	return Timerange{
-		start:      tr.start,
-		end:        (cutMillis + tr.resolution - 1) / tr.resolution * tr.resolution, // Round up to be inclusive.
-		resolution: tr.resolution,
-	}, true
-}
-
-// OnlyAfterExclusive cuts the timerange to only include points in time after the specified cut.
-// The resulting timerange will exclude the cut point.
-// If the resulting timerange would be empty, it returns `Timerange{}, false`.
-// If the resulting timerange is not empty, it returns `result, true`.
-func (tr Timerange) OnlyAfterExclusive(cut time.Time) (Timerange, bool) {
-	cutMillis := cut.UnixNano() / 1e6
-	if cutMillis >= tr.end {
-		// Before timerange starts.
-		return Timerange{}, false
-	}
-	if cutMillis < tr.start {
-		// After end of timerange.
-		return tr, true
-	}
-
-	return Timerange{
-		start:      (cutMillis + tr.resolution) / tr.resolution * tr.resolution, // Round up to be exclusive.
-		end:        tr.end,
-		resolution: tr.resolution,
-	}, true
+func (tr Timerange) Interval() Interval {
+	return Interval{Start: tr.Start(), End: tr.End()}
 }

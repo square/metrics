@@ -104,75 +104,72 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 }
 
 // ChooseResolution will choose the finest-grained resolution for which an interval fetch plan exists that
-// is at least as coarse as the requested timerange and lower bound.
+// is at least as coarse as the lower bound.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
 	now := b.config.TimeSource()
-	lastErr := fmt.Errorf("no available resolutions to choose from")
+	errTexts := ""
 	for i, current := range b.config.Resolutions {
 		if current.Resolution < lowerBound || current.Resolution < requested.Resolution() {
 			continue
 		}
-		_, err := planFetchIntervals(b.config.Resolutions[:i+1], now, requested)
+		_, err := planFetchIntervals(b.config.Resolutions[:i+1], now, requested.Interval())
 		if err == nil {
 			return current.Resolution, nil
 		}
-		lastErr = fmt.Errorf("cannot choose resolution for timerange %+v: %s", requested, err.Error())
+		errTexts += "\n" + err.Error()
 	}
-	return 0, lastErr
+	return 0, fmt.Errorf("cannot choose resolution for timerange %+v: %s", requested, errTexts)
 }
 
 // planFetchIntervals will plan the (point-count minimal) request intervals needed to cover the given timerange.
 // the resolutions slice should be sorted, with the finest-grained resolution first.
-func planFetchIntervals(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
-	answer := map[Resolution]api.Timerange{}
-
-	cutTime := requestRange.Start().Add(-1 * time.Millisecond)
+func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval api.Interval) (map[Resolution]api.Interval, error) {
+	answer := map[Resolution]api.Interval{}
+	// Note: for anything other than FULL, a Blueflood returned point corresponds to the period FOLLOWING that point.
+	// e.g. at 1hr resolution, a 4pm point summarizes all points in [4pm, 5pm], exclusive of 5pm.
+	requestTimerange := requestInterval.CoveringTimerange(resolutions[len(resolutions)-1].Resolution)
+	here := requestTimerange.Start()
+	end := requestTimerange.End()
 	for i := len(resolutions) - 1; i >= 0; i-- {
-		if cutTime.After(requestRange.End()) || cutTime == requestRange.End() {
-			// Don't need to fetch any more points.
-			break
-		}
 		resolution := resolutions[i]
-		if cutTime.Before(now.Add(-resolution.TimeToLive)) {
-			// This resolution data doesn't live long enough to fetch the beginning of the timerange.
+		if here.Before(now.Add(-resolution.TimeToLive)) {
+			// Expired
 			continue
 		}
-		clippedAfter, ok := requestRange.Resample(resolution.Resolution).OnlyAfterExclusive(cutTime)
-		if !ok {
-			// This shouldn't ever be able to happen (provided that resolutions are in a sensible order).
-			// It would mean that a coarser resolution first appears before some finer resolution.
-			// However, this ordering is contingent upon resolutions being ordered by coarseness
-			// (with finest first).
-			continue
+		originalHere := here
+		for {
+			// TODO: optimize this into a division.
+			if !here.Before(end) {
+				break // We'll covered the timerange.
+			}
+			if here.Add(resolution.Resolution).After(now.Add(-resolution.FirstAvailable)) {
+				break // Can't add this point- it's not available yet.
+			}
+			here = here.Add(resolution.Resolution)
 		}
-		// Cut the timerange to the point where it's valid.
-		nextCutTime := now.Add(-resolution.FirstAvailable)
-		clippedBefore, ok := clippedAfter.Resample(resolution.Resolution).OnlyBeforeInclusive(nextCutTime)
-		if !ok {
-			// This resolution data expires much, much sooner than is useful.
-			// If this occurs then (provided that the resolutions have a sane ordering),
-			// it's very likely that the rest of the evaluation will fail.
-			continue
+		if here != originalHere {
+			// At least one point is included, so:
+			answer[resolution] = api.Interval{Start: originalHere, End: here}
 		}
-		cutTime = nextCutTime
-
-		answer[resolution] = clippedBefore
 	}
-	if cutTime.After(requestRange.End()) || cutTime == requestRange.End() {
-		return answer, nil
+	if here.Before(end) {
+		return answer, fmt.Errorf("can't reach end of timerange using available resolutions: falls %+v short", end.Sub(here))
 	}
-	return nil, fmt.Errorf("Cannot cover timerange %+v with available resolution data", requestRange)
+	return answer, nil
 }
 
-// planFetchIntervalsRestricted assumes that the requested range is as coarse as desired.
+// planFetchIntervalsWithOnlyFiner assumes that the requested range is as coarse as desired.
 // Hence, it will trim all coarser resolutions before doing planning.
-func planFetchIntervalsRestricted(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Timerange, error) {
+func planFetchIntervalsWithOnlyFiner(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Interval, error) {
 	for i := range resolutions {
 		if resolutions[i].Resolution > requestRange.Resolution() {
-			return planFetchIntervals(resolutions[:i], now, requestRange)
+			if i == 0 {
+				return nil, fmt.Errorf("No resolutions are available at least as fine as the chosen %+v", requestRange.Resolution())
+			}
+			return planFetchIntervals(resolutions[:i], now, requestRange.Interval())
 		}
 	}
-	return planFetchIntervals(resolutions, now, requestRange)
+	return planFetchIntervals(resolutions, now, requestRange.Interval())
 }
 
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.
@@ -183,7 +180,12 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if !ok {
 		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
 	}
-	intervals, err := planFetchIntervalsRestricted(b.config.Resolutions, b.config.TimeSource(), request.Timerange)
+	// Extend it one point forward, unless that would fetch past the current time.
+	modifiedRange := request.Timerange
+	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource()) {
+		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
+	}
+	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource(), modifiedRange)
 	if err != nil {
 		return api.Timeseries{}, err
 	}
@@ -193,11 +195,12 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	wait := sync.WaitGroup{}
 	someErr := error(nil)
 
-	for resolution, timerange := range intervals {
+	for resolution, interval := range intervals {
+		resolution, interval := resolution, interval
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			points, err := b.requestPoints(request.Metric, timerange, sampler, resolution)
+			points, err := b.requestPoints(request.Metric, interval, sampler, resolution)
 			if err != nil {
 				mutex.Lock()
 				defer mutex.Unlock()
@@ -223,8 +226,8 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	}, nil
 }
 
-func (b *Blueflood) requestPoints(metric api.TaggedMetric, timerange api.Timerange, sampler sampler, resolution Resolution) ([]metricPoint, error) {
-	queryURL, err := b.constructURL(metric, timerange, sampler, resolution)
+func (b *Blueflood) requestPoints(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) ([]metricPoint, error) {
+	queryURL, err := b.constructURL(metric, interval, sampler, resolution)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +242,7 @@ func (b *Blueflood) requestPoints(metric api.TaggedMetric, timerange api.Timeran
 // ----------------
 
 // constructURL creates the URL to the blueflood's backend to fetch the data from.
-func (b *Blueflood) constructURL(metric api.TaggedMetric, timerange api.Timerange, sampler sampler, resolution Resolution) (*url.URL, error) {
+func (b *Blueflood) constructURL(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) (*url.URL, error) {
 	graphiteName, err := b.config.GraphiteMetricConverter.ToGraphiteName(metric)
 	if err != nil {
 		return nil, timeseries.Error{metric, timeseries.InvalidSeriesError, "cannot convert to graphite name"}
@@ -251,8 +254,8 @@ func (b *Blueflood) constructURL(metric api.TaggedMetric, timerange api.Timerang
 	}
 
 	result.RawQuery = url.Values{
-		"from":       {strconv.FormatInt(timerange.StartMillis(), 10)},
-		"to":         {strconv.FormatInt(timerange.EndMillis()+timerange.ResolutionMillis(), 10)},
+		"from":       {strconv.FormatInt(int64(interval.Start.UnixNano()/1e6), 10)},
+		"to":         {strconv.FormatInt(int64(interval.End.UnixNano()/1e6-1), 10)},
 		"resolution": {resolution.Name},
 		"select":     {fmt.Sprintf("numPoints,%s", strings.ToLower(sampler.fieldName))},
 	}.Encode()
