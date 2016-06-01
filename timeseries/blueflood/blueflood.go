@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
 )
@@ -188,7 +189,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 		return api.Timeseries{}, err
 	}
 
-	queue := NewParallelQueue(len(intervals), b.config.Timeout)
+	queue := tasks.NewParallelQueue(len(intervals), b.config.Timeout)
 
 	allPoints := []metricPoint{}
 
@@ -391,7 +392,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
 	errs := make([]error, len(singleRequests))
-	queue := NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
+	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
 		queue.Do(func() error {
