@@ -106,7 +106,6 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 // is at least as coarse as the lower bound.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
 	now := b.config.TimeSource()
-	errTexts := ""
 	for i, current := range b.config.Resolutions {
 		if current.Resolution < lowerBound || current.Resolution < requested.Resolution() {
 			continue
@@ -115,9 +114,8 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 		if err == nil {
 			return current.Resolution, nil
 		}
-		errTexts += "\n" + err.Error()
 	}
-	return 0, fmt.Errorf("cannot choose resolution for timerange %+v: %s", requested, errTexts)
+	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
 }
 
 // planFetchIntervals will plan the (point-count minimal) request intervals needed to cover the given timerange.
@@ -152,7 +150,7 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 		}
 	}
 	if here.Before(end) {
-		return answer, fmt.Errorf("can't reach end of timerange using available resolutions: falls %+v short", end.Sub(here))
+		return answer, fmt.Errorf("can't reach end of timerange using available resolutions up to %+v: it expires after only %+v try using a coarser resolution", resolutions[len(resolutions)-1].Resolution, end.Sub(here))
 	}
 	return answer, nil
 }
@@ -197,6 +195,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 		resolution, interval := resolution, interval
 		var points []metricPoint
 		queue.Do(func() error {
+			defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", request.Metric.String(), resolution.Resolution))
 			points, err = b.requestPoints(request.Metric, interval, sampler, resolution)
 			if err != nil {
 				return err
