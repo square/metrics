@@ -70,7 +70,7 @@ func main() {
 		Web                 web.Config       `yaml:"web"`
 	}{}
 
-	common.LoadConfigs(&config)
+	common.LoadConfig(&config)
 
 	metadataAPI, err := cassandra.NewMetricMetadataAPI(config.Cassandra)
 	if err != nil {

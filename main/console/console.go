@@ -50,7 +50,7 @@ func main() {
 		Blueflood           blueflood.Config `yaml:"blueflood"`
 	}{}
 
-	common.LoadConfigs(&config)
+	common.LoadConfig(&config)
 
 	cassandraAPI, err := cassandra.NewMetricMetadataAPI(config.Cassandra)
 	if err != nil {

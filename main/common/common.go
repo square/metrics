@@ -29,7 +29,7 @@ import (
 
 var ConfigFile = flag.String("config-file", "", "specify the yaml config file from which to load the configuration.")
 
-func LoadConfigs(configs ...interface{}) {
+func LoadConfig(config interface{}) {
 	flag.Parse()
 	if *ConfigFile == "" {
 		ExitWithErrorMessage("No config file was specified. Specify it with '-config-file'")
@@ -39,8 +39,8 @@ func LoadConfigs(configs ...interface{}) {
 		ExitWithErrorMessage(fmt.Sprintf("Unable to read config file `%s`: %s", *ConfigFile, err.Error()))
 	}
 
-	for config := range configs {
-		err := yaml.Unmarshal(bytes, config)
+	err = yaml.Unmarshal(bytes, config)
+	if err != nil {
 		ExitWithErrorMessage(fmt.Sprintf("Unable to unmarshal %T: %s", config, err.Error()))
 	}
 }
