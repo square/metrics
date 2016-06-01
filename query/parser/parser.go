@@ -135,6 +135,10 @@ type Assert struct {
 	error
 }
 
+type ParserError struct {
+	error
+}
+
 func Parse(query string) (commandResult command.Command, finalErr error) {
 	p := Parser{Buffer: query}
 	p.Init()
@@ -145,7 +149,13 @@ func Parse(query string) (commandResult command.Command, finalErr error) {
 		}
 		if message, ok := r.(Assert); ok {
 			finalErr = message
+			return
 		}
+		if parserError, ok := r.(ParserError); ok {
+			finalErr = parserError.error
+			return
+		}
+		panic(r) // Can't catch it
 	}()
 	if err := p.Parse(); err != nil {
 		// Parsing error - invalid syntax.
@@ -744,6 +754,33 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 	}
 	underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
 	return line, underline
+}
+
+func (p *Parser) errorHere(position uint32, message string) {
+	panic(ParserError{
+		error: fmt.Errorf("%s: %s", p.currentPosition(position), message),
+	})
+}
+
+func (p *Parser) currentPosition(position uint32) string {
+	line := 0
+	column := 0
+	for i, c := range p.buffer {
+		if uint32(i) >= position {
+			break
+		}
+		switch c {
+		case '\n':
+			line++
+		case '\r':
+			column = 9
+		case '\t':
+			column = column/4*4 + 4
+		default:
+			column++
+		}
+	}
+	return fmt.Sprintf("line %d, column %d", line+1, column+1)
 }
 
 func min(x, y int) int {
