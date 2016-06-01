@@ -382,8 +382,8 @@ STRING       <-
   QUOTE_SINGLE <(!QUOTE_SINGLE CHAR)*> (QUOTE_SINGLE / { p.errorHere(token.begin,`expected "'" to close string`) })
   /
   QUOTE_DOUBLE <(!QUOTE_DOUBLE CHAR)*> (QUOTE_DOUBLE / { p.errorHere(token.begin,`expected '"' to close string`) })
-CHAR         <- "\\" (ESCAPE_CLASS / QUOTE_SINGLE / QUOTE_DOUBLE) / ! ESCAPE_CLASS .
-ESCAPE_CLASS <- "`" / ("\\" / { p.errorHere(token.begin,"expected \"\\\" or \"`\" to follow escaping backslash") })
+CHAR         <- "\\" (ESCAPE_CLASS / QUOTE_SINGLE / (QUOTE_DOUBLE / { p.errorHere(token.begin, "expected \"\\\", \"'\", \"`\", or '\"' to follow \"\\\" in string literal") }) ) / ! ESCAPE_CLASS .
+ESCAPE_CLASS <- "`" / "\\"
 
 # Numerical elements
 # ==================

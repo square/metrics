@@ -979,7 +979,7 @@ func (p *Parser) Execute() {
 		case ruleAction94:
 			p.errorHere(token.begin, `expected '"' to close string`)
 		case ruleAction95:
-			p.errorHere(token.begin, "expected \"\\\" or \"`\" to follow escaping backslash")
+			p.errorHere(token.begin, "expected \"\\\", \"'\", \"`\", or '\"' to follow \"\\\" in string literal")
 		case ruleAction96:
 			p.errorHere(token.begin, `expected exponent`)
 
@@ -5872,7 +5872,7 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position727, tokenIndex727, depth727
 			return false
 		},
-		/* 56 CHAR <- <(('\\' ((&('"') QUOTE_DOUBLE) | (&('\'') QUOTE_SINGLE) | (&('\\' | '`') ESCAPE_CLASS))) / (!ESCAPE_CLASS .))> */
+		/* 56 CHAR <- <(('\\' ((&('"') (QUOTE_DOUBLE / Action95)) | (&('\'') QUOTE_SINGLE) | (&('\\' | '`') ESCAPE_CLASS))) / (!ESCAPE_CLASS .))> */
 		func() bool {
 			position745, tokenIndex745, depth745 := position, tokenIndex, depth
 			{
@@ -5887,9 +5887,19 @@ func (p *Parser) Init() {
 					{
 						switch buffer[position] {
 						case '"':
-							if !_rules[ruleQUOTE_DOUBLE]() {
-								goto l748
+							{
+								position750, tokenIndex750, depth750 := position, tokenIndex, depth
+								if !_rules[ruleQUOTE_DOUBLE]() {
+									goto l751
+								}
+								goto l750
+							l751:
+								position, tokenIndex, depth = position750, tokenIndex750, depth750
+								{
+									add(ruleAction95, position)
+								}
 							}
+						l750:
 							break
 						case '\'':
 							if !_rules[ruleQUOTE_SINGLE]() {
@@ -5908,13 +5918,13 @@ func (p *Parser) Init() {
 				l748:
 					position, tokenIndex, depth = position747, tokenIndex747, depth747
 					{
-						position750, tokenIndex750, depth750 := position, tokenIndex, depth
+						position753, tokenIndex753, depth753 := position, tokenIndex, depth
 						if !_rules[ruleESCAPE_CLASS]() {
-							goto l750
+							goto l753
 						}
 						goto l745
-					l750:
-						position, tokenIndex, depth = position750, tokenIndex750, depth750
+					l753:
+						position, tokenIndex, depth = position753, tokenIndex753, depth753
 					}
 					if !matchDot() {
 						goto l745
@@ -5929,40 +5939,34 @@ func (p *Parser) Init() {
 			position, tokenIndex, depth = position745, tokenIndex745, depth745
 			return false
 		},
-		/* 57 ESCAPE_CLASS <- <('`' / ('\\' / Action95))> */
+		/* 57 ESCAPE_CLASS <- <('`' / '\\')> */
 		func() bool {
+			position754, tokenIndex754, depth754 := position, tokenIndex, depth
 			{
-				position752 := position
+				position755 := position
 				depth++
 				{
-					position753, tokenIndex753, depth753 := position, tokenIndex, depth
+					position756, tokenIndex756, depth756 := position, tokenIndex, depth
 					if buffer[position] != rune('`') {
+						goto l757
+					}
+					position++
+					goto l756
+				l757:
+					position, tokenIndex, depth = position756, tokenIndex756, depth756
+					if buffer[position] != rune('\\') {
 						goto l754
 					}
 					position++
-					goto l753
-				l754:
-					position, tokenIndex, depth = position753, tokenIndex753, depth753
-					{
-						position755, tokenIndex755, depth755 := position, tokenIndex, depth
-						if buffer[position] != rune('\\') {
-							goto l756
-						}
-						position++
-						goto l755
-					l756:
-						position, tokenIndex, depth = position755, tokenIndex755, depth755
-						{
-							add(ruleAction95, position)
-						}
-					}
-				l755:
 				}
-			l753:
+			l756:
 				depth--
-				add(ruleESCAPE_CLASS, position752)
+				add(ruleESCAPE_CLASS, position755)
 			}
 			return true
+		l754:
+			position, tokenIndex, depth = position754, tokenIndex754, depth754
+			return false
 		},
 		/* 58 NUMBER <- <(NUMBER_INTEGER NUMBER_FRACTION? NUMBER_EXP?)> */
 		func() bool {
@@ -6560,7 +6564,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 168 Action94 <- <{ p.errorHere(token.begin,`expected '"' to close string`) }> */
 		nil,
-		/* 169 Action95 <- <{ p.errorHere(token.begin,"expected \"\\\" or \"`\" to follow escaping backslash") }> */
+		/* 169 Action95 <- <{ p.errorHere(token.begin, "expected \"\\\", \"'\", \"`\", or '\"' to follow \"\\\" in string literal") }> */
 		nil,
 		/* 170 Action96 <- <{ p.errorHere(token.begin,`expected exponent`) }> */
 		nil,
