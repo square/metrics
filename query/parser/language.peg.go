@@ -792,21 +792,21 @@ func (p *Parser) Execute() {
 		case ruleAction2:
 			p.addNullMatchClause()
 		case ruleAction3:
-			p.errorHere(position, `expected string literal to follow keyword "match"`)
+			p.errorHere(token.begin, `expected string literal to follow keyword "match"`)
 		case ruleAction4:
 			p.addMatchClause()
 		case ruleAction5:
-			p.errorHere(position, `expected "where" to follow keyword "metrics" in "describe metrics" command`)
+			p.errorHere(token.begin, `expected "where" to follow keyword "metrics" in "describe metrics" command`)
 		case ruleAction6:
-			p.errorHere(position, `expected "=" to follow keyword "where" in "describe metrics" command`)
+			p.errorHere(token.begin, `expected "=" to follow keyword "where" in "describe metrics" command`)
 		case ruleAction7:
-			p.errorHere(position, `expected string literal to follow "=" in "describe metrics" command`)
+			p.errorHere(token.begin, `expected string literal to follow "=" in "describe metrics" command`)
 		case ruleAction8:
 			p.makeDescribeMetrics()
 		case ruleAction9:
 			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction10:
-			p.errorHere(position, `expected metric name to follow "describe" in "describe" command`)
+			p.errorHere(token.begin, `expected metric name to follow "describe" in "describe" command`)
 		case ruleAction11:
 			p.makeDescribe()
 		case ruleAction12:
@@ -816,7 +816,7 @@ func (p *Parser) Execute() {
 		case ruleAction14:
 			p.addPropertyValue(buffer[begin:end])
 		case ruleAction15:
-			p.errorHere(position, `expected property value to follow property key`)
+			p.errorHere(token.begin, `expected property value to follow property key`)
 		case ruleAction16:
 			p.insertPropertyKeyValue()
 		case ruleAction17:
@@ -828,7 +828,7 @@ func (p *Parser) Execute() {
 		case ruleAction20:
 			p.appendExpression()
 		case ruleAction21:
-			p.errorHere(position, `expected expression to follow ","`)
+			p.errorHere(token.begin, `expected expression to follow ","`)
 		case ruleAction22:
 			p.appendExpression()
 		case ruleAction23:
@@ -836,7 +836,7 @@ func (p *Parser) Execute() {
 		case ruleAction24:
 			p.addOperatorLiteral("-")
 		case ruleAction25:
-			p.errorHere(position, `expected expression to follow operator "+" or "-"`)
+			p.errorHere(token.begin, `expected expression to follow operator "+" or "-"`)
 		case ruleAction26:
 			p.addOperatorFunction()
 		case ruleAction27:
@@ -844,17 +844,17 @@ func (p *Parser) Execute() {
 		case ruleAction28:
 			p.addOperatorLiteral("*")
 		case ruleAction29:
-			p.errorHere(position, `expected expression to follow operator "*" or "/"`)
+			p.errorHere(token.begin, `expected expression to follow operator "*" or "/"`)
 		case ruleAction30:
 			p.addOperatorFunction()
 		case ruleAction31:
-			p.errorHere(position, `expected function name to follow pipe "|"`)
+			p.errorHere(token.begin, `expected function name to follow pipe "|"`)
 		case ruleAction32:
 			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction33:
 			p.addExpressionList()
 		case ruleAction34:
-			p.errorHere(position, `expected ")" to close "(" opened in pipe function call`)
+			p.errorHere(token.begin, `expected ")" to close "(" opened in pipe function call`)
 		case ruleAction35:
 
 			p.addExpressionList()
@@ -863,9 +863,9 @@ func (p *Parser) Execute() {
 		case ruleAction36:
 			p.addPipeExpression()
 		case ruleAction37:
-			p.errorHere(position, `expected expression to follow "("`)
+			p.errorHere(token.begin, `expected expression to follow "("`)
 		case ruleAction38:
-			p.errorHere(position, `expected ")" to close "("`)
+			p.errorHere(token.begin, `expected ")" to close "("`)
 		case ruleAction39:
 			p.addDurationNode(text)
 		case ruleAction40:
@@ -873,7 +873,7 @@ func (p *Parser) Execute() {
 		case ruleAction41:
 			p.addStringNode(unescapeLiteral(buffer[begin:end]))
 		case ruleAction42:
-			p.errorHere(position, `expected "
+			p.errorHere(token.begin, `expected "
 		case ruleAction43:
 			" opened for annotation`)
 		case ruleAction44:
@@ -883,105 +883,105 @@ func (p *Parser) Execute() {
 		case ruleAction46:
 			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction47:
-			p.errorHere(position, `expected ")" to close "(" opened by function call`)
+			p.errorHere(token.begin, `expected ")" to close "(" opened by function call`)
 		case ruleAction48:
 			p.addFunctionInvocation()
 		case ruleAction49:
 			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction50:
-			p.errorHere(position, `expected predicate to follow "[" after metric`)
+			p.errorHere(token.begin, `expected predicate to follow "[" after metric`)
 		case ruleAction51:
-			p.errorHere(position, `expected "]" to close "[" opened to apply predicate`)
+			p.errorHere(token.begin, `expected "]" to close "[" opened to apply predicate`)
 		case ruleAction52:
 			p.addNullPredicate()
 		case ruleAction53:
 			p.addMetricExpression()
 		case ruleAction54:
-			p.errorHere(position, `expected keyword "by" to follow keyword "group" in "group by" clause`)
+			p.errorHere(token.begin, `expected keyword "by" to follow keyword "group" in "group by" clause`)
 		case ruleAction55:
-			p.errorHere(position, `expected tag key identifier to follow "group by" keywords in "group by" clause`)
+			p.errorHere(token.begin, `expected tag key identifier to follow "group by" keywords in "group by" clause`)
 		case ruleAction56:
 			p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 		case ruleAction57:
-			p.errorHere(position, `expected tag key identifier to follow "," in "group by" clause`)
+			p.errorHere(token.begin, `expected tag key identifier to follow "," in "group by" clause`)
 		case ruleAction58:
 			p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
 		case ruleAction59:
-			p.errorHere(position, `expected keyword "by" to follow keyword "collapse" in "collapse by" clause`)
+			p.errorHere(token.begin, `expected keyword "by" to follow keyword "collapse" in "collapse by" clause`)
 		case ruleAction60:
-			p.errorHere(position, `expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`)
+			p.errorHere(token.begin, `expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`)
 		case ruleAction61:
 			p.appendCollapseBy(unescapeLiteral(text))
 		case ruleAction62:
-			p.errorHere(position, `expected tag key identifier to follow "," in "collapse by" clause`)
+			p.errorHere(token.begin, `expected tag key identifier to follow "," in "collapse by" clause`)
 		case ruleAction63:
 			p.appendCollapseBy(unescapeLiteral(text))
 		case ruleAction64:
-			p.errorHere(position, `expected predicate to follow "where" keyword`)
+			p.errorHere(token.begin, `expected predicate to follow "where" keyword`)
 		case ruleAction65:
-			p.errorHere(position, `expected predicate to follow "or" operator`)
+			p.errorHere(token.begin, `expected predicate to follow "or" operator`)
 		case ruleAction66:
 			p.addOrPredicate()
 		case ruleAction67:
-			p.errorHere(position, `expected predicate to follow "and" operator`)
+			p.errorHere(token.begin, `expected predicate to follow "and" operator`)
 		case ruleAction68:
 			p.addAndPredicate()
 		case ruleAction69:
-			p.errorHere(position, `expected predicate to follow "not" operator`)
+			p.errorHere(token.begin, `expected predicate to follow "not" operator`)
 		case ruleAction70:
 			p.addNotPredicate()
 		case ruleAction71:
-			p.errorHere(position, `expected predicate to follow "("`)
+			p.errorHere(token.begin, `expected predicate to follow "("`)
 		case ruleAction72:
-			p.errorHere(position, `expected ")" to close "(" opened in predicate`)
+			p.errorHere(token.begin, `expected ")" to close "(" opened in predicate`)
 		case ruleAction73:
-			p.errorHere(position, `expected string literal to follow "="`)
+			p.errorHere(token.begin, `expected string literal to follow "="`)
 		case ruleAction74:
 			p.addLiteralMatcher()
 		case ruleAction75:
-			p.errorHere(position, `expected string literal to follow "!="`)
+			p.errorHere(token.begin, `expected string literal to follow "!="`)
 		case ruleAction76:
 			p.addLiteralMatcher()
 		case ruleAction77:
 			p.addNotPredicate()
 		case ruleAction78:
-			p.errorHere(position, `expected regex string literal to follow "match"`)
+			p.errorHere(token.begin, `expected regex string literal to follow "match"`)
 		case ruleAction79:
 			p.addRegexMatcher()
 		case ruleAction80:
-			p.errorHere(position, `expected string literal list to follow "in" keyword`)
+			p.errorHere(token.begin, `expected string literal list to follow "in" keyword`)
 		case ruleAction81:
 			p.addListMatcher()
 		case ruleAction82:
-			p.errorHere(position, `expected "=", "!=", "match", or "in" to follow tag key in predicate`)
+			p.errorHere(token.begin, `expected "=", "!=", "match", or "in" to follow tag key in predicate`)
 		case ruleAction83:
 			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction84:
 			p.addLiteralList()
 		case ruleAction85:
-			p.errorHere(position, `expected string literal to follow "(" in literal list`)
+			p.errorHere(token.begin, `expected string literal to follow "(" in literal list`)
 		case ruleAction86:
-			p.errorHere(position, `expected string literal to follow "," in literal list`)
+			p.errorHere(token.begin, `expected string literal to follow "," in literal list`)
 		case ruleAction87:
-			p.errorHere(position, `expected ")" to close "(" for literal list`)
+			p.errorHere(token.begin, `expected ")" to close "(" for literal list`)
 		case ruleAction88:
 			p.appendLiteral(unescapeLiteral(buffer[begin:end]))
 		case ruleAction89:
 			p.addTagLiteral(unescapeLiteral(buffer[begin:end]))
 		case ruleAction90:
-			p.errorHere(position, "expected \"`\" to end identifier")
+			p.errorHere(token.begin, "expected \"`\" to end identifier")
 		case ruleAction91:
-			p.errorHere(position, `expected identifier segment to follow "."`)
+			p.errorHere(token.begin, `expected identifier segment to follow "."`)
 		case ruleAction92:
-			p.errorHere(position, `expected keyword "by" to follow keyword "sample"`)
+			p.errorHere(token.begin, `expected keyword "by" to follow keyword "sample"`)
 		case ruleAction93:
-			p.errorHere(position, `expected "'" to close string`)
+			p.errorHere(token.begin, `expected "'" to close string`)
 		case ruleAction94:
-			p.errorHere(position, `expected '"' to close string`)
+			p.errorHere(token.begin, `expected '"' to close string`)
 		case ruleAction95:
-			p.errorHere(position, "expected \"\\\" or \"`\" to follow escaping backslash")
+			p.errorHere(token.begin, "expected \"\\\" or \"`\" to follow escaping backslash")
 		case ruleAction96:
-			p.errorHere(position, `expected exponent`)
+			p.errorHere(token.begin, `expected exponent`)
 
 		}
 	}
@@ -6372,22 +6372,22 @@ func (p *Parser) Init() {
 		nil,
 		/* 75 Action2 <- <{ p.addNullMatchClause() }> */
 		nil,
-		/* 76 Action3 <- <{ p.errorHere(position, `expected string literal to follow keyword "match"`) }> */
+		/* 76 Action3 <- <{ p.errorHere(token.begin,`expected string literal to follow keyword "match"`) }> */
 		nil,
 		/* 77 Action4 <- <{ p.addMatchClause() }> */
 		nil,
-		/* 78 Action5 <- <{ p.errorHere(position, `expected "where" to follow keyword "metrics" in "describe metrics" command`) }> */
+		/* 78 Action5 <- <{ p.errorHere(token.begin,`expected "where" to follow keyword "metrics" in "describe metrics" command`) }> */
 		nil,
-		/* 79 Action6 <- <{ p.errorHere(position, `expected "=" to follow keyword "where" in "describe metrics" command`) }> */
+		/* 79 Action6 <- <{ p.errorHere(token.begin,`expected "=" to follow keyword "where" in "describe metrics" command`) }> */
 		nil,
-		/* 80 Action7 <- <{ p.errorHere(position, `expected string literal to follow "=" in "describe metrics" command`) }> */
+		/* 80 Action7 <- <{ p.errorHere(token.begin,`expected string literal to follow "=" in "describe metrics" command`) }> */
 		nil,
 		/* 81 Action8 <- <{ p.makeDescribeMetrics() }> */
 		nil,
 		nil,
 		/* 83 Action9 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 84 Action10 <- <{ p.errorHere(position, `expected metric name to follow "describe" in "describe" command`) }> */
+		/* 84 Action10 <- <{ p.errorHere(token.begin,`expected metric name to follow "describe" in "describe" command`) }> */
 		nil,
 		/* 85 Action11 <- <{ p.makeDescribe() }> */
 		nil,
@@ -6397,7 +6397,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 88 Action14 <- <{ p.addPropertyValue(buffer[begin:end]) }> */
 		nil,
-		/* 89 Action15 <- <{ p.errorHere(position, `expected property value to follow property key`) }> */
+		/* 89 Action15 <- <{ p.errorHere(token.begin,`expected property value to follow property key`) }> */
 		nil,
 		/* 90 Action16 <- <{ p.insertPropertyKeyValue() }> */
 		nil,
@@ -6409,7 +6409,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 94 Action20 <- <{ p.appendExpression() }> */
 		nil,
-		/* 95 Action21 <- <{ p.errorHere(position, `expected expression to follow ","`) }> */
+		/* 95 Action21 <- <{ p.errorHere(token.begin,`expected expression to follow ","`) }> */
 		nil,
 		/* 96 Action22 <- <{ p.appendExpression() }> */
 		nil,
@@ -6417,7 +6417,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 98 Action24 <- <{ p.addOperatorLiteral("-") }> */
 		nil,
-		/* 99 Action25 <- <{ p.errorHere(position, `expected expression to follow operator "+" or "-"`) }> */
+		/* 99 Action25 <- <{ p.errorHere(token.begin,`expected expression to follow operator "+" or "-"`) }> */
 		nil,
 		/* 100 Action26 <- <{ p.addOperatorFunction() }> */
 		nil,
@@ -6425,17 +6425,17 @@ func (p *Parser) Init() {
 		nil,
 		/* 102 Action28 <- <{ p.addOperatorLiteral("*") }> */
 		nil,
-		/* 103 Action29 <- <{ p.errorHere(position, `expected expression to follow operator "*" or "/"`) }> */
+		/* 103 Action29 <- <{ p.errorHere(token.begin,`expected expression to follow operator "*" or "/"`) }> */
 		nil,
 		/* 104 Action30 <- <{ p.addOperatorFunction() }> */
 		nil,
-		/* 105 Action31 <- <{ p.errorHere(position, `expected function name to follow pipe "|"`) }> */
+		/* 105 Action31 <- <{ p.errorHere(token.begin,`expected function name to follow pipe "|"`) }> */
 		nil,
 		/* 106 Action32 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 		/* 107 Action33 <- <{p.addExpressionList()}> */
 		nil,
-		/* 108 Action34 <- <{ p.errorHere(position, `expected ")" to close "(" opened in pipe function call`) }> */
+		/* 108 Action34 <- <{ p.errorHere(token.begin,`expected ")" to close "(" opened in pipe function call`) }> */
 		nil,
 		/* 109 Action35 <- <{
 		   p.addExpressionList()
@@ -6444,9 +6444,9 @@ func (p *Parser) Init() {
 		nil,
 		/* 110 Action36 <- <{ p.addPipeExpression() }> */
 		nil,
-		/* 111 Action37 <- <{ p.errorHere(position, `expected expression to follow "("`) }> */
+		/* 111 Action37 <- <{ p.errorHere(token.begin,`expected expression to follow "("`) }> */
 		nil,
-		/* 112 Action38 <- <{ p.errorHere(position, `expected ")" to close "("`) }> */
+		/* 112 Action38 <- <{ p.errorHere(token.begin,`expected ")" to close "("`) }> */
 		nil,
 		/* 113 Action39 <- <{ p.addDurationNode(text) }> */
 		nil,
@@ -6454,7 +6454,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 115 Action41 <- <{ p.addStringNode(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 116 Action42 <- <{ p.errorHere(position, `expected "}> */
+		/* 116 Action42 <- <{ p.errorHere(token.begin,`expected "}> */
 		nil,
 		/* 117 Action43 <- <{" opened for annotation`) }> */
 		nil,
@@ -6464,105 +6464,105 @@ func (p *Parser) Init() {
 		nil,
 		/* 120 Action46 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 121 Action47 <- <{ p.errorHere(position, `expected ")" to close "(" opened by function call`) }> */
+		/* 121 Action47 <- <{ p.errorHere(token.begin,`expected ")" to close "(" opened by function call`) }> */
 		nil,
 		/* 122 Action48 <- <{ p.addFunctionInvocation() }> */
 		nil,
 		/* 123 Action49 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 124 Action50 <- <{ p.errorHere(position, `expected predicate to follow "[" after metric`) }> */
+		/* 124 Action50 <- <{ p.errorHere(token.begin,`expected predicate to follow "[" after metric`) }> */
 		nil,
-		/* 125 Action51 <- <{ p.errorHere(position, `expected "]" to close "[" opened to apply predicate`) }> */
+		/* 125 Action51 <- <{ p.errorHere(token.begin,`expected "]" to close "[" opened to apply predicate`) }> */
 		nil,
 		/* 126 Action52 <- <{ p.addNullPredicate() }> */
 		nil,
 		/* 127 Action53 <- <{ p.addMetricExpression() }> */
 		nil,
-		/* 128 Action54 <- <{ p.errorHere(position, `expected keyword "by" to follow keyword "group" in "group by" clause`) }> */
+		/* 128 Action54 <- <{ p.errorHere(token.begin,`expected keyword "by" to follow keyword "group" in "group by" clause`) }> */
 		nil,
-		/* 129 Action55 <- <{ p.errorHere(position, `expected tag key identifier to follow "group by" keywords in "group by" clause`) }> */
+		/* 129 Action55 <- <{ p.errorHere(token.begin,`expected tag key identifier to follow "group by" keywords in "group by" clause`) }> */
 		nil,
 		/* 130 Action56 <- <{ p.appendGroupBy(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 131 Action57 <- <{ p.errorHere(position, `expected tag key identifier to follow "," in "group by" clause`) }> */
+		/* 131 Action57 <- <{ p.errorHere(token.begin,`expected tag key identifier to follow "," in "group by" clause`) }> */
 		nil,
 		/* 132 Action58 <- <{ p.appendGroupBy(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 133 Action59 <- <{ p.errorHere(position, `expected keyword "by" to follow keyword "collapse" in "collapse by" clause`) }> */
+		/* 133 Action59 <- <{ p.errorHere(token.begin,`expected keyword "by" to follow keyword "collapse" in "collapse by" clause`) }> */
 		nil,
-		/* 134 Action60 <- <{ p.errorHere(position, `expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`) }> */
+		/* 134 Action60 <- <{ p.errorHere(token.begin,`expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`) }> */
 		nil,
 		/* 135 Action61 <- <{ p.appendCollapseBy(unescapeLiteral(text)) }> */
 		nil,
-		/* 136 Action62 <- <{ p.errorHere(position, `expected tag key identifier to follow "," in "collapse by" clause`) }> */
+		/* 136 Action62 <- <{ p.errorHere(token.begin,`expected tag key identifier to follow "," in "collapse by" clause`) }> */
 		nil,
 		/* 137 Action63 <- <{ p.appendCollapseBy(unescapeLiteral(text)) }> */
 		nil,
-		/* 138 Action64 <- <{ p.errorHere(position, `expected predicate to follow "where" keyword`) }> */
+		/* 138 Action64 <- <{ p.errorHere(token.begin,`expected predicate to follow "where" keyword`) }> */
 		nil,
-		/* 139 Action65 <- <{ p.errorHere(position, `expected predicate to follow "or" operator`) }> */
+		/* 139 Action65 <- <{ p.errorHere(token.begin,`expected predicate to follow "or" operator`) }> */
 		nil,
 		/* 140 Action66 <- <{ p.addOrPredicate() }> */
 		nil,
-		/* 141 Action67 <- <{ p.errorHere(position, `expected predicate to follow "and" operator`) }> */
+		/* 141 Action67 <- <{ p.errorHere(token.begin,`expected predicate to follow "and" operator`) }> */
 		nil,
 		/* 142 Action68 <- <{ p.addAndPredicate() }> */
 		nil,
-		/* 143 Action69 <- <{ p.errorHere(position, `expected predicate to follow "not" operator`) }> */
+		/* 143 Action69 <- <{ p.errorHere(token.begin,`expected predicate to follow "not" operator`) }> */
 		nil,
 		/* 144 Action70 <- <{ p.addNotPredicate() }> */
 		nil,
-		/* 145 Action71 <- <{ p.errorHere(position, `expected predicate to follow "("`) }> */
+		/* 145 Action71 <- <{ p.errorHere(token.begin,`expected predicate to follow "("`) }> */
 		nil,
-		/* 146 Action72 <- <{ p.errorHere(position, `expected ")" to close "(" opened in predicate`) }> */
+		/* 146 Action72 <- <{ p.errorHere(token.begin,`expected ")" to close "(" opened in predicate`) }> */
 		nil,
-		/* 147 Action73 <- <{ p.errorHere(position, `expected string literal to follow "="`) }> */
+		/* 147 Action73 <- <{ p.errorHere(token.begin,`expected string literal to follow "="`) }> */
 		nil,
 		/* 148 Action74 <- <{ p.addLiteralMatcher() }> */
 		nil,
-		/* 149 Action75 <- <{ p.errorHere(position, `expected string literal to follow "!="`) }> */
+		/* 149 Action75 <- <{ p.errorHere(token.begin,`expected string literal to follow "!="`) }> */
 		nil,
 		/* 150 Action76 <- <{ p.addLiteralMatcher() }> */
 		nil,
 		/* 151 Action77 <- <{ p.addNotPredicate() }> */
 		nil,
-		/* 152 Action78 <- <{ p.errorHere(position, `expected regex string literal to follow "match"`) }> */
+		/* 152 Action78 <- <{ p.errorHere(token.begin,`expected regex string literal to follow "match"`) }> */
 		nil,
 		/* 153 Action79 <- <{ p.addRegexMatcher() }> */
 		nil,
-		/* 154 Action80 <- <{ p.errorHere(position, `expected string literal list to follow "in" keyword`) }> */
+		/* 154 Action80 <- <{ p.errorHere(token.begin,`expected string literal list to follow "in" keyword`) }> */
 		nil,
 		/* 155 Action81 <- <{ p.addListMatcher() }> */
 		nil,
-		/* 156 Action82 <- <{ p.errorHere(position, `expected "=", "!=", "match", or "in" to follow tag key in predicate`) }> */
+		/* 156 Action82 <- <{ p.errorHere(token.begin,`expected "=", "!=", "match", or "in" to follow tag key in predicate`) }> */
 		nil,
 		/* 157 Action83 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 		/* 158 Action84 <- <{ p.addLiteralList() }> */
 		nil,
-		/* 159 Action85 <- <{ p.errorHere(position, `expected string literal to follow "(" in literal list`) }> */
+		/* 159 Action85 <- <{ p.errorHere(token.begin,`expected string literal to follow "(" in literal list`) }> */
 		nil,
-		/* 160 Action86 <- <{ p.errorHere(position, `expected string literal to follow "," in literal list`) }> */
+		/* 160 Action86 <- <{ p.errorHere(token.begin,`expected string literal to follow "," in literal list`) }> */
 		nil,
-		/* 161 Action87 <- <{ p.errorHere(position, `expected ")" to close "(" for literal list`) }> */
+		/* 161 Action87 <- <{ p.errorHere(token.begin,`expected ")" to close "(" for literal list`) }> */
 		nil,
 		/* 162 Action88 <- <{ p.appendLiteral(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 		/* 163 Action89 <- <{ p.addTagLiteral(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
-		/* 164 Action90 <- <{ p.errorHere(position, "expected \"`\" to end identifier") }> */
+		/* 164 Action90 <- <{ p.errorHere(token.begin,"expected \"`\" to end identifier") }> */
 		nil,
-		/* 165 Action91 <- <{ p.errorHere(position, `expected identifier segment to follow "."`) }> */
+		/* 165 Action91 <- <{ p.errorHere(token.begin,`expected identifier segment to follow "."`) }> */
 		nil,
-		/* 166 Action92 <- <{ p.errorHere(position, `expected keyword "by" to follow keyword "sample"`) }> */
+		/* 166 Action92 <- <{ p.errorHere(token.begin,`expected keyword "by" to follow keyword "sample"`) }> */
 		nil,
-		/* 167 Action93 <- <{ p.errorHere(position, `expected "'" to close string`) }> */
+		/* 167 Action93 <- <{ p.errorHere(token.begin,`expected "'" to close string`) }> */
 		nil,
-		/* 168 Action94 <- <{ p.errorHere(position, `expected '"' to close string`) }> */
+		/* 168 Action94 <- <{ p.errorHere(token.begin,`expected '"' to close string`) }> */
 		nil,
-		/* 169 Action95 <- <{ p.errorHere(position, "expected \"\\\" or \"`\" to follow escaping backslash") }> */
+		/* 169 Action95 <- <{ p.errorHere(token.begin,"expected \"\\\" or \"`\" to follow escaping backslash") }> */
 		nil,
-		/* 170 Action96 <- <{ p.errorHere(position, `expected exponent`) }> */
+		/* 170 Action96 <- <{ p.errorHere(token.begin,`expected exponent`) }> */
 		nil,
 	}
 	p.rules = _rules
