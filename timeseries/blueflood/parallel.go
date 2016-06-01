@@ -17,6 +17,7 @@ package blueflood
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/square/metrics/tasks"
 )
@@ -28,17 +29,29 @@ type ParallelQueue struct {
 	tickets   chan ticket
 	timeout   *tasks.Timeout
 	waitgroup sync.WaitGroup
+	sync.Mutex
+	errorResult error
 }
 
-func (b *ParallelQueue) Do(f func()) {
+func (b *ParallelQueue) FlagError(err error) {
+	if err == nil {
+		return
+	}
+	b.Lock()
+	defer b.Unlock()
+	b.errorResult = err
+}
+
+func (b *ParallelQueue) Do(f func() error) {
 	b.waitgroup.Add(1)
 	go func() {
 		defer b.waitgroup.Done()
 		select {
 		case <-b.tickets:
 			defer func() { b.tickets <- ticket{} }()
-			f()
+			b.FlagError(f())
 		case <-b.timeout.Done():
+			b.FlagError(fmt.Errorf("timeout"))
 		}
 	}()
 }
@@ -53,6 +66,19 @@ func (b *ParallelQueue) Wait() error {
 	case <-b.timeout.Done():
 		return fmt.Errorf("timeout")
 	case <-done:
-		return nil
+		b.Lock()
+		defer b.Unlock()
+		return b.errorResult
+	}
+}
+
+func NewParallelQueue(tickets int, timeout time.Duration) *ParallelQueue {
+	ticketChannel := make(chan ticket, tickets)
+	for i := 0; i < tickets; i++ {
+		ticketChannel <- ticket{}
+	}
+	return &ParallelQueue{
+		tickets: ticketChannel,
+		timeout: tasks.NewTimeout(timeout).Timeout(),
 	}
 }

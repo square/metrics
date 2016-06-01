@@ -23,11 +23,9 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
 )
@@ -190,32 +188,27 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 		return api.Timeseries{}, err
 	}
 
+	queue := NewParallelQueue(len(intervals), b.config.Timeout)
+
 	allPoints := []metricPoint{}
-	mutex := sync.Mutex{}
-	wait := sync.WaitGroup{}
-	someErr := error(nil)
 
 	for resolution, interval := range intervals {
 		resolution, interval := resolution, interval
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
-			points, err := b.requestPoints(request.Metric, interval, sampler, resolution)
+		var points []metricPoint
+		queue.Do(func() error {
+			points, err = b.requestPoints(request.Metric, interval, sampler, resolution)
 			if err != nil {
-				mutex.Lock()
-				defer mutex.Unlock()
-				someErr = err
-				return
+				return err
 			}
-			mutex.Lock()
-			defer mutex.Unlock()
+			queue.Lock()
+			defer queue.Unlock()
 			allPoints = append(allPoints, points...)
-		}()
+			return nil
+		})
 	}
-	wait.Wait()
 
-	if someErr != nil {
-		return api.Timeseries{}, someErr
+	if err := queue.Wait(); err != nil {
+		return api.Timeseries{}, err
 	}
 
 	values := samplePoints(allPoints, request.Timerange, sampler)
@@ -398,17 +391,23 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
 	errs := make([]error, len(singleRequests))
-	queue := &ParallelQueue{
-		timeout: tasks.NewTimeout(b.config.Timeout).Timeout(),
-	}
+	queue := NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
 	for i := range singleRequests {
-		singleRequest := singleRequests[i]
-		queue.Do(func() {
-			results[i], errs[i] = b.FetchSingleTimeseries(singleRequest)
+		i := i // Captures it in a new local for the closure.
+		queue.Do(func() error {
+			result, err := b.FetchSingleTimeseries(singleRequests[i])
+			if err != nil {
+				return err
+			}
+			results[i] = result
+			return nil
 		})
 	}
 
-	queue.Wait()
+	err := queue.Wait()
+	if err != nil {
+		return api.SeriesList{}, err
+	}
 
 	for _, err := range errs {
 		if err != nil {
