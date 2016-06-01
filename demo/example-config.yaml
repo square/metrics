@@ -4,10 +4,12 @@ conversion_rules_path: demo/conversion_rules  # the directory for the conversion
 blueflood:
   base_url: http://localhost:1777  # the URL of the Blueflood server
   tenant_id: "example-tenant"      # the tenant-ID (you can have independent tenants that share the same Blueflood server)
-  ttls:
-    FULL: 10                       # the number of days that FULL (30s) resolution data has to live
-  timeout: 2e10                    # the timeout (in nanoseconds) for connecting to Blueflood
-  full_resolution_overlap: 10000   # the amount of time (in milliseconds)
+  timeout: 20s                     # the timeout for connecting to Blueflood
+  resolutions:
+    - name: FULL
+      resolution: 30s
+      first_available: 0
+      ttl: 24h
   simultaneous_requests: 10        # the number of simultaneously concurrent requests that MQE is allowed to make to Blueflood
 
 cassandra:
