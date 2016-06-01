@@ -68,7 +68,8 @@ matchClause <-
 
 describeMetrics <-
   _ "metrics" KEY
-  (_ "where" KEY tagName / { p.errorHere(token.begin,`expected "where" to follow keyword "metrics" in "describe metrics" command`) })
+  (_ "where" KEY / { p.errorHere(token.begin,`expected "where" to follow keyword "metrics" in "describe metrics" command`) })
+  (tagName / { p.errorHere(token.begin,`expected tag key to follow keyword "where" in "describe metrics" command`) })
   (_ "=" / { p.errorHere(token.begin,`expected "=" to follow keyword "where" in "describe metrics" command`) })
   (literalString / { p.errorHere(token.begin,`expected string literal to follow "=" in "describe metrics" command`) })
   { p.makeDescribeMetrics() }
@@ -326,7 +327,7 @@ IDENTIFIER <-
   )*
 # `[[a-z]]?` allows for relative timestamps
 TIMESTAMP <- _ <NUMBER [[a-z]]*> / _ STRING / _ <"now"> KEY
-ID_SEGMENT <- _ ID_START ID_CONT*
+ID_SEGMENT <- ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
 # If hyphens are needed, use backticks instead.
 ID_START <-    [a-zA-Z_]
