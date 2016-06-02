@@ -139,7 +139,7 @@ func TestBluefloodHTTPQueriesSingle(t *testing.T) {
 
 // TestBluefloodHTTPQueriesMultiResolution tests that multiresolution fetching works.
 func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
-	// from -15d2h to -14d23h50m
+	// from -30d5h to -14d17h
 	nowMillis := int64(739908000000)
 	nowFunc := func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
