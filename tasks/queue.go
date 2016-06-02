@@ -20,12 +20,37 @@ import (
 	"time"
 )
 
+// A TimeoutError is an error associated with a timeout.
+// It can be queried for the time in question.
+type TimeoutError interface {
+	error
+	Timeout() time.Duration
+}
+
+type timeoutError struct {
+	duration time.Duration
+}
+
+func (t timeoutError) Error() string {
+	return fmt.Sprintf("Timeout after %+v", t.duration)
+}
+
+func (t timeoutError) Timeout() time.Duration {
+	return t.duration
+}
+
+func NewTimeoutError(duration time.Duration) TimeoutError {
+	return timeoutError{duration: duration}
+}
+
 type ticket struct{}
 
 // ParallelQueue is a queue of actions which are rate-limited by a specified
 // maximum amount of concurrency.
 type ParallelQueue struct {
 	sync.Mutex // ParallelQueue uses itself as a mutex, and clients can also use it as a mutex.
+
+	timeoutTime time.Duration // how long before it times out
 
 	tickets   chan ticket    // tickets internally limit the number of simultaneous actions
 	timeout   *Timeout       // timeout is used to stop the queue
@@ -62,7 +87,7 @@ func (q *ParallelQueue) Do(f func() error) {
 			defer func() { q.tickets <- ticket{} }()
 			q.FlagError(f())
 		case <-q.timeout.Done():
-			q.FlagError(fmt.Errorf("timeout"))
+			q.FlagError(NewTimeoutError(q.timeoutTime))
 		}
 	}()
 }
@@ -78,7 +103,7 @@ func (q *ParallelQueue) Wait() error {
 	}()
 	select {
 	case <-q.timeout.Done():
-		return fmt.Errorf("timeout")
+		return NewTimeoutError(q.timeoutTime)
 	case <-q.errorNotification:
 		q.Lock()
 		defer q.Unlock()
@@ -97,6 +122,7 @@ func NewParallelQueue(tickets int, timeout time.Duration) *ParallelQueue {
 		ticketChannel <- ticket{}
 	}
 	return &ParallelQueue{
+		timeoutTime:       timeout,
 		tickets:           ticketChannel,
 		timeout:           NewTimeout(timeout).Timeout(),
 		errorNotification: make(chan ticket, 1),
