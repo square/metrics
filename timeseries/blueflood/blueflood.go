@@ -58,7 +58,7 @@ type Config struct {
 	TenantID                string        `yaml:"tenant_id"`
 	Resolutions             []Resolution  `yaml:"resolutions"`           // Resolutions are ordered by priority: best (typically finest) first.
 	Timeout                 time.Duration `yaml:"timeout"`               // Timeout is the amount of time a single fetch request is allowed.
-	MaxSimultaneousRequests int           `yaml:"simultaneous_requests"` // simultaneous requests limits the number of concurrent single-fetches for each multi-fetcj
+	MaxSimultaneousRequests int           `yaml:"simultaneous_requests"` // simultaneous requests limits the number of concurrent single-fetches for each multi-fetch
 
 	GraphiteMetricConverter util.GraphiteConverter
 
@@ -134,13 +134,14 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 			continue
 		}
 		originalHere := here
+
+		// TODO: optimize this into a division.
 		for {
-			// TODO: optimize this into a division.
 			if !here.Before(end) {
-				break // We'll covered the timerange.
+				break // The timerange has been covered.
 			}
 			if here.Add(resolution.Resolution).After(now.Add(-resolution.FirstAvailable)) {
-				break // Can't add this point- it's not available yet.
+				break // This point would not be available yet, so it cannot be used.
 			}
 			here = here.Add(resolution.Resolution)
 		}
