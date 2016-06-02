@@ -301,9 +301,9 @@ func (b *Blueflood) fetch(queryURL *url.URL) (queryResponse, error) {
 }
 
 type sampler struct {
-	fieldName    string
-	selectField  func(point metricPoint) float64
-	sampleBucket func([]float64) float64
+	fieldName    string                          // Name of field in Blueflood JSON response
+	selectField  func(point metricPoint) float64 // Function for extracting field from metricPoint
+	sampleBucket func([]float64) float64         // Function to sample from the bucket (e.g., min, mean, max)
 }
 
 // sampleResult samples the points into a uniform slice of float64s.
@@ -391,7 +391,6 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
-	errs := make([]error, len(singleRequests))
 	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
@@ -405,15 +404,8 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 		})
 	}
 
-	err := queue.Wait()
-	if err != nil {
+	if err := queue.Wait(); err != nil {
 		return api.SeriesList{}, err
-	}
-
-	for _, err := range errs {
-		if err != nil {
-			return api.SeriesList{}, err
-		}
 	}
 
 	return api.SeriesList{

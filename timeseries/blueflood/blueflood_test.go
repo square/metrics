@@ -29,8 +29,7 @@ var resolutionFull = Resolution{
 	Name:           "FULL",
 	Resolution:     30 * time.Second,
 	FirstAvailable: 0,
-	// TimeToLive is open, so setting it to 1 day exactly means queries from -1d to now will need 5min.
-	TimeToLive: 1*day + 30*time.Second,
+	TimeToLive:     1 * day,
 }
 var resolution5Min = Resolution{
 	Name:           "5MIN",
@@ -47,12 +46,13 @@ var resolution60Min = Resolution{
 var resolution1440Min = Resolution{
 	Name:           "1440MIN",
 	Resolution:     day,
-	FirstAvailable: 180 * day,
+	FirstAvailable: 80 * day,
 	TimeToLive:     900 * day,
 }
 
 var testResolutions = []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min}
 
+// TestPlanFetchIntervals tests whether the planning intervals behave correctly.
 func TestPlanFetchIntervals(t *testing.T) {
 	// Note: this constant is not completely arbitrary. It has lots of factors,
 	// which means that it lies on a lot of resolution boundaries,
@@ -75,78 +75,96 @@ func TestPlanFetchIntervals(t *testing.T) {
 	}
 	testcases := []test{
 		{
+			// -1hr to now (30s only)
 			resolutions: testResolutions[:1],
 			requested:   makeInterval(1*time.Hour, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// only use full resolution
 				resolutionFull: makeInterval(1*time.Hour, 0),
 			},
 		},
 		{
+			// -1hr to now (30s and 5m)
 			resolutions: testResolutions[:2],
 			requested:   makeInterval(1*time.Hour, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// only use full resolution
 				resolutionFull: makeInterval(1*time.Hour, 0),
 			},
 		},
 		{
+			// -1hr27s to now (30s and 5m)
 			resolutions: testResolutions[:2],
 			requested:   makeInterval(1*time.Hour+27*time.Second, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// only use full resolution
 				resolutionFull: makeInterval(1*time.Hour+5*time.Minute, 0),
 			},
 		},
 		{
+			// -37h to now (30s, 5m, 60m)
 			resolutions: testResolutions[:3],
 			requested:   makeInterval(37*time.Hour, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// use 5m until 24hr, then 30s for the rest
 				resolution5Min: makeInterval(37*time.Hour, 24*time.Hour),
 				resolutionFull: makeInterval(24*time.Hour, 0),
 			},
 		},
 		{
+			// -20d to -11d (30s, 5m, 60m)
 			resolutions: testResolutions[:3],
 			requested:   makeInterval(20*day, 11*day),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// use 60m and 5m resolution
 				resolution60Min: makeInterval(20*day, 15*day),
 				resolution5Min:  makeInterval(15*day, 11*day),
 			},
 		},
 		{
+			// -20d to now (30s, 5m, 60m)
 			resolutions: testResolutions[:3],
 			requested:   makeInterval(20*day, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// use all resolutions
 				resolution60Min: makeInterval(20*day, 15*day),
 				resolution5Min:  makeInterval(15*day, 1*day),
 				resolutionFull:  makeInterval(1*day, 0),
 			},
 		},
 		{
+			// -20d to -6hr (30s, 5m, 60m)
 			resolutions: testResolutions[:3],
-			requested:   makeInterval(20*day, 0),
+			requested:   makeInterval(20*day, 6*time.Hour),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// use all resolutions
 				resolution60Min: makeInterval(20*day, 15*day),
 				resolution5Min:  makeInterval(15*day, 1*day),
-				resolutionFull:  makeInterval(1*day, 0),
+				resolutionFull:  makeInterval(1*day, 6*time.Hour),
 			},
 		},
 		{
+			// -1d to now (30s, 5m, 60m)
 			resolutions: testResolutions[:3],
 			requested:   makeInterval(1*day, 0),
 			lowerBound:  0,
 			expected: map[Resolution]api.Interval{
+				// use only full resolution
 				resolutionFull: makeInterval(1*day, 0), // the rest
 			},
 		},
 		{
+			// -901d to now (30s, 5m, 60m)
+			// should error
 			resolutions: testResolutions[:3],
-			requested:   makeInterval(901*day, 0),
+			requested:   makeInterval(91*day, 0),
 			lowerBound:  0,
 			error:       true,
 		},
