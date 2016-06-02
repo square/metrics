@@ -150,8 +150,8 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 			answer[resolution] = api.Interval{Start: originalHere, End: here}
 		}
 	}
-	if here.Before(end) {
-		return answer, fmt.Errorf("can't reach end of timerange using available resolutions up to %+v: it expires after only %+v try using a coarser resolution", resolutions[len(resolutions)-1].Resolution, end.Sub(here))
+	if here.Before(end) && here.Add(resolutions[0].Resolution).Before(now) {
+		return answer, fmt.Errorf("can't reach end of timerange %+v using available resolutions up to %+v: missing the last %+v of data", requestInterval, resolutions[len(resolutions)-1].Resolution, end.Sub(here))
 	}
 	return answer, nil
 }
@@ -262,7 +262,7 @@ func (b *Blueflood) performFetch(queryURL *url.URL) (queryResponse, error) {
 	resp, err := b.config.HTTPClient.Get(queryURL.String())
 	if err != nil {
 		// TODO: report the right metric
-		return queryResponse{}, timeseries.Error{api.TaggedMetric{}, timeseries.FetchIOError, "error while fetching - http connection"}
+		return queryResponse{}, timeseries.Error{api.TaggedMetric{}, timeseries.FetchIOError, fmt.Sprintf("error while fetching - http connection: %s", err.Error())}
 	}
 	defer resp.Body.Close()
 
