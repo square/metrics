@@ -168,6 +168,12 @@ func (tr Timerange) ExtendBefore(length time.Duration) Timerange {
 	return tr.Snap()
 }
 
+// ExtendAfter increases the length of the timerange by the given duration.
+func (tr Timerange) ExtendAfter(length time.Duration) Timerange {
+	tr.end += int64(length / time.Millisecond)
+	return tr.Snap()
+}
+
 // Slots represent the total # of data points
 // Behavior is undefined when operating on an invalid Timerange. There's a
 // circular dependency here, but it all works out.
@@ -188,4 +194,8 @@ func (tr Timerange) IndexOfTime(point time.Time) int {
 		return 0
 	}
 	return int(point.Sub(tr.Start()) / tr.Resolution())
+}
+
+func (tr Timerange) Interval() Interval {
+	return Interval{Start: tr.Start(), End: tr.End()}
 }

@@ -24,7 +24,7 @@ import (
 )
 
 type StorageAPI interface {
-	ChooseResolution(requested api.Timerange, smallestResolution time.Duration) time.Duration
+	ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error)
 	FetchSingleTimeseries(request FetchRequest) (api.Timeseries, error)
 	FetchMultipleTimeseries(request FetchMultipleRequest) (api.SeriesList, error)
 	// CheckHealthy checks if this StorageAPI is healthy, returning a possible error

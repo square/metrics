@@ -4,10 +4,12 @@ conversion_rules_path: demo/conversion_rules  # the directory for the conversion
 blueflood:
   base_url: http://localhost:1777  # the URL of the Blueflood server
   tenant_id: "example-tenant"      # the tenant-ID (you can have independent tenants that share the same Blueflood server)
-  ttls:
-    FULL: 10                       # the number of days that FULL (30s) resolution data has to live
-  timeout: 2e10                    # the timeout (in nanoseconds) for connecting to Blueflood
-  full_resolution_overlap: 10000   # the amount of time (in milliseconds)
+  timeout: 20s                     # the timeout for connecting to Blueflood
+  resolutions:
+    - name: FULL
+      resolution: 30s
+      first_available: 0
+      ttl: 24h
   simultaneous_requests: 10        # the number of simultaneously concurrent requests that MQE is allowed to make to Blueflood
 
 cassandra:
@@ -15,7 +17,7 @@ cassandra:
     - localhost:9160                            # the IP addresses/hostnames for the Cassandra nodes (9160 is the default port, and can be omitted)
   keyspace: metrics_indexer                     # the keyspace for MQE indexing
 
-ui:
+web:
   port: 9007                 # The port that the HTTP UI is served on. Visit http://localhost:9007 to see the UI.
   timeout: 2000              # The timeout before a connection is dropped over the UI.
   static_dir: main/static  # The directory that the HTTP server presents. You can fork the provided UI and use your own by placing it in a different directory.
