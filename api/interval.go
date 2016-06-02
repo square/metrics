@@ -16,7 +16,7 @@ package api
 
 import "time"
 
-// Interval is an interval in time.
+// Interval is an interval of time.
 type Interval struct {
 	Start time.Time // Start of the interval (including this instant in time)
 	End   time.Time // End of the interval (excluding this instant time)
