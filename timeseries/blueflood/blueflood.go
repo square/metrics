@@ -183,17 +183,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource()) {
 		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
 	}
-<<<<<<< dc32a8b3f4d5aaab4be570a0b83e080c462bb5a4
 	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource(), modifiedRange)
-||||||| merged common ancestors
-
-	rawResults := make([][]byte, 1)
-	parsedResult, rawResult, err := b.fetch(request, queryURL)
-	rawResults[0] = rawResult
-=======
-
-	parsedResult, rawResult, err := b.fetch(request, queryURL)
->>>>>>> update query structure to enable creation of scalars in json
 	if err != nil {
 		return api.Timeseries{}, err
 	}
