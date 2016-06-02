@@ -138,10 +138,11 @@ var ExponentialMovingAverage = function.MakeFunction(
 	},
 )
 
+// Alias is deprecated.
 // TODO: delete this function
-var Alias = function.MakeFunction("transform.alias", func(context function.EvaluationContext, value function.Value) function.Value {
+var Alias = function.MakeFunction("transform.alias", func(seriesList api.SeriesList, message string, context function.EvaluationContext) api.SeriesList {
 	context.EvaluationNotes.AddNote("transform.alias is deprecated")
-	return value
+	return seriesList
 })
 
 // Derivative is special because it needs to get one extra data point to the left
