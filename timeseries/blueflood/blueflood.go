@@ -129,9 +129,12 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 	end := requestTimerange.End()
 	for i := len(resolutions) - 1; i >= 0; i-- {
 		resolution := resolutions[i]
+		if !here.Before(end) {
+			break
+		}
 		if here.Before(now.Add(-resolution.TimeToLive)) {
 			// Expired
-			continue
+			return nil, fmt.Errorf("resolutions up to %+v only live for %+v, but request needs data that's at least %+v old", resolution.Resolution, resolution.TimeToLive, now.Sub(here))
 		}
 		originalHere := here
 
@@ -149,9 +152,6 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 			// At least one point is included, so:
 			answer[resolution] = api.Interval{Start: originalHere, End: here}
 		}
-	}
-	if here.Before(end) {
-		return answer, fmt.Errorf("can't reach end of timerange using available resolutions up to %+v: it expires after only %+v try using a coarser resolution", resolutions[len(resolutions)-1].Resolution, end.Sub(here))
 	}
 	return answer, nil
 }
