@@ -168,6 +168,17 @@ func TestPlanFetchIntervals(t *testing.T) {
 			lowerBound:  0,
 			error:       true,
 		},
+		{
+			// -1hr to +36hr (future) (30s, 5m, 60m)
+			// should error
+			resolutions: testResolutions[:3],
+			requested:   makeInterval(1*time.Hour, -36*time.Hour),
+			lowerBound:  0,
+			expected: map[Resolution]api.Interval{
+				// use only full resolution
+				resolutionFull: makeInterval(1*time.Hour, 0),
+			},
+		},
 	}
 	for i, test := range testcases {
 		a := a.Contextf("test #%d (input %+v)", i+1, test.requested)
