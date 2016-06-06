@@ -196,7 +196,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 		resolution, interval := resolution, interval
 		var points []metricPoint
 		queue.Do(func() error {
-			defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", request.Metric.String(), resolution.Resolution))
+			defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", request.Metric.String(), resolution.Resolution))()
 			points, err = b.requestPoints(request.Metric, interval, sampler, resolution)
 			if err != nil {
 				return err
