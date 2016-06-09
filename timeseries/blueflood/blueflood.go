@@ -136,21 +136,28 @@ func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval
 			// Expired
 			return nil, fmt.Errorf("resolutions up to %+v only live for %+v, but request needs data that's at least %+v old", resolution.Resolution, resolution.TimeToLive, now.Sub(here))
 		}
-		originalHere := here
 
-		// TODO: optimize this into a division.
-		for {
-			if !here.Before(end) {
-				break // The timerange has been covered.
-			}
-			if here.Add(resolution.Resolution).After(now.Add(-resolution.FirstAvailable)) {
-				break // This point would not be available yet, so it cannot be used.
-			}
-			here = here.Add(resolution.Resolution)
+		// clipEnd is the end of requested interval,
+		// or where the data is not yet available,
+		// whichever is earlier.
+		clipEnd := now.Add(-resolution.FirstAvailable)
+		if end.Before(clipEnd) {
+			clipEnd = end
 		}
-		if here != originalHere {
+
+		// count how many resolution intervals pass from now until then.
+		count := clipEnd.Sub(here) / resolution.Resolution
+		if count < 0 {
+			count = 0
+		}
+
+		// advance that number of intervals
+		newHere := here.Add(count * resolution.Resolution)
+
+		if newHere != here {
 			// At least one point is included, so:
-			answer[resolution] = api.Interval{Start: originalHere, End: here}
+			answer[resolution] = api.Interval{Start: here, End: newHere}
+			here = newHere
 		}
 	}
 	return answer, nil
