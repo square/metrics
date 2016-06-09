@@ -46,7 +46,7 @@ func init() {
 	// Transformations
 	MustRegister(transform.Integral)
 	MustRegister(transform.Cumulative)
-	MustRegister(transform.Default)
+	MustRegister(transform.NaNFill)
 	MustRegister(transform.MapMaker("transform.abs", math.Abs))
 	MustRegister(transform.MapMaker("transform.log", math.Log10))
 	MustRegister(transform.NaNKeepLast)

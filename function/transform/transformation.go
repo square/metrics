@@ -97,7 +97,6 @@ var Cumulative = function.MakeFunction(
 // MapMaker can be used to use a function as a transform, such as 'math.Abs' (or similar):
 //  `MapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
-
 func MapMaker(name string, fun func(float64) float64) function.Function {
 	return function.MakeFunction(
 		name,
@@ -113,9 +112,9 @@ func MapMaker(name string, fun func(float64) float64) function.Function {
 	)
 }
 
-// Default will replacing missing data (NaN) with the `default` value supplied as a parameter.
-var Default = function.MakeFunction(
-	"transform.default",
+// NaNFill will replacing missing data (NaN) with the `default` value supplied as a parameter.
+var NaNFill = function.MakeFunction(
+	"transform.nan_fill",
 	func(list api.SeriesList, defaultValue float64) api.SeriesList {
 		return mapper(list, func(value float64) float64 {
 			if math.IsNaN(value) {

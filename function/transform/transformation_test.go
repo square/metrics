@@ -497,7 +497,7 @@ func TestApplyTransformNaN(t *testing.T) {
 			},
 		},
 		{
-			transform:  Default,
+			transform:  NaNFill,
 			parameters: []function.Expression{listExpression, literal{function.ScalarValue(17)}},
 			expected: map[string][]float64{
 				"A": {0, 1, 17, 3, 4, 5},
