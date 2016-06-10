@@ -26,6 +26,7 @@ import (
 	"github.com/square/metrics/function/filter"
 	"github.com/square/metrics/function/forecast"
 	"github.com/square/metrics/function/join"
+	"github.com/square/metrics/function/summary"
 	"github.com/square/metrics/function/tag"
 	"github.com/square/metrics/function/transform"
 )
@@ -78,9 +79,11 @@ func init() {
 	MustRegister(transform.ExponentialMovingAverage)
 	MustRegister(transform.Rate)
 	MustRegister(transform.Timeshift)
+
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
+
 	// Forecasting
 	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionAnomalyRollingMultiplicativeHoltWinters)
@@ -89,6 +92,13 @@ func init() {
 	MustRegister(forecast.FunctionForecastLinear)
 
 	MustRegister(forecast.FunctionDrop)
+
+	// Summary
+	MustRegister(summary.Current)
+	MustRegister(summary.Mean)
+	MustRegister(summary.Min)
+	MustRegister(summary.Max)
+	MustRegister(summary.LastNotNaN)
 }
 
 // StandardRegistry of a functions available in MQE.

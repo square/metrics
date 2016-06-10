@@ -16,7 +16,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"math"
 	"strconv"
@@ -24,66 +23,30 @@ import (
 
 // Timeseries is a single time series, identified with the associated tagset.
 type Timeseries struct {
-	Values []float64
-	TagSet TagSet
-	Raw    [][]byte
+	Values []float64 `json:"values"`
+	TagSet TagSet    `json:"tagset"`
 }
 
 // MarshalJSON exists to manually encode floats.
 func (ts Timeseries) MarshalJSON() ([]byte, error) {
 	var buffer bytes.Buffer
-	var scratch [64]byte
-	buffer.WriteByte('{')
-	buffer.WriteString("\"tagset\":")
+	buffer.WriteString(`{"tagset":`)
 	tagset, err := json.Marshal(ts.TagSet)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	buffer.Write(tagset)
-	buffer.WriteByte(',')
-
-	if ts.Raw != nil {
-		buffer.WriteString("\"raw\":")
-		buffer.WriteByte('[')
-		first := true
-		for _, raw := range ts.Raw {
-			if !first {
-				buffer.WriteByte(',')
-			}
-			buffer.WriteByte('[')
-			buffer.WriteByte('"')
-			base64Wrapped := base64.StdEncoding.EncodeToString(raw)
-			buffer.WriteString(base64Wrapped)
-			buffer.WriteByte('"')
-			buffer.WriteByte(']')
-			first = false
-		}
-		// raw, _ := json.Marshal(ts.Raw)
-		buffer.WriteByte(']')
-		buffer.WriteByte(',')
-	}
-
-	// buffer.WriteByte(',')
-	buffer.WriteString("\"values\":")
-	buffer.WriteByte('[')
-	n := len(ts.Values)
-	for i := 0; i < n; i++ {
+	buffer.WriteString(`,"values":[`)
+	for i, y := range ts.Values {
 		if i > 0 {
 			buffer.WriteByte(',')
 		}
-		f := ts.Values[i]
-		if math.IsInf(f, 1) {
-			buffer.WriteString("null") // TODO - positive infinity
-		} else if math.IsInf(f, -1) {
-			buffer.WriteString("null") // TODO - negative infinity
-		} else if math.IsNaN(f) {
-			buffer.WriteString("null")
-		} else {
-			b := strconv.AppendFloat(scratch[:0], f, 'g', -1, 64)
-			buffer.Write(b)
+		if math.IsInf(y, 0) || math.IsNaN(y) {
+			buffer.WriteString(`null`)
+			continue
 		}
+		buffer.WriteString(strconv.FormatFloat(y, 'g', -1, 64))
 	}
-	buffer.WriteByte(']')
-	buffer.WriteByte('}')
-	return buffer.Bytes(), err
+	buffer.WriteString("]}")
+	return buffer.Bytes(), nil
 }

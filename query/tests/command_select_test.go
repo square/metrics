@@ -333,11 +333,15 @@ func TestCommand_Select(t *testing.T) {
 			}
 		} else {
 			a.CheckError(err)
-			actual := rawResult.Body.([]command.QuerySeriesList)
+			actual := rawResult.Body.([]command.QueryResult)
 			a.EqInt(len(actual), len(expected))
 			if len(actual) == len(expected) {
 				for i := range actual {
 					list := actual[i]
+					if list.Type != "series" {
+						t.Errorf("Should be given series, but was not.")
+						continue
+					}
 					a.EqInt(len(list.Series), len(expected[i].Series))
 					for j := range list.Series {
 						a.Eq(list.Series[j].TagSet, expected[i].Series[j].TagSet)
@@ -392,7 +396,7 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success but got %s", err.Error())
 	}
-	queries := result.Body.([]command.QuerySeriesList)[0].Series
+	queries := result.Body.([]command.QueryResult)[0].Series
 
 	assert.New(t).Eq(queries, []api.Timeseries{
 		{
@@ -495,8 +499,8 @@ func TestTag(t *testing.T) {
 			t.Errorf("Unexpected error while execution: %s", err.Error())
 			continue
 		}
-		seriesListList, ok := rawResult.Body.([]command.QuerySeriesList)
-		if !ok || len(seriesListList) != 1 {
+		seriesListList, ok := rawResult.Body.([]command.QueryResult)
+		if !ok || len(seriesListList) != 1 || seriesListList[0].Type != "series" {
 			t.Errorf("expected query `%s` to produce []QuerySeriesList; got %+v :: %T", test.query, rawResult.Body, rawResult.Body)
 			continue
 		}
