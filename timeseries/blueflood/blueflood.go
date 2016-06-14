@@ -177,34 +177,20 @@ func planFetchIntervalsWithOnlyFiner(resolutions []Resolution, now time.Time, re
 	return planFetchIntervals(resolutions, now, requestRange.Interval())
 }
 
-// FetchSingleTimeseries fetches a timeseries with the given tagged metric.
-// It requires that the resolution is supported.
-func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
-	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
-	sampler, ok := samplerMap[request.SampleMethod]
-	if !ok {
-		return api.Timeseries{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
-	}
-	// Extend it one point forward, unless that would fetch past the current time.
-	modifiedRange := request.Timerange
-	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource()) {
-		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
-	}
-	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource(), modifiedRange)
-	if err != nil {
-		return api.Timeseries{}, err
-	}
+// fetchSingleTimeseriesPrepped uses info prepped by FetchSingleTimeseries and
+// FetchMultipleTimeseries to fetch data. FetchMultipleTimeseries defers to this
+// method, instead of FetchSingleTimeseries, to avoid duplication of work across
+// each of these calls.
+func (b *Blueflood) fetchSingleTimeseriesPrepped(request timeseries.FetchRequest, intervals map[Resolution]api.Interval, sampler sampler) (api.Timeseries, error) {
 
 	queue := tasks.NewParallelQueue(len(intervals), b.config.Timeout)
-
 	allPoints := []metricPoint{}
 
 	for resolution, interval := range intervals {
 		resolution, interval := resolution, interval
-		var points []metricPoint
 		queue.Do(func() error {
 			defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", request.Metric.String(), resolution.Resolution))()
-			points, err = b.requestPoints(request.Metric, interval, sampler, resolution)
+			points, err := b.requestPoints(request.Metric, interval, sampler, resolution)
 			if err != nil {
 				return err
 			}
@@ -225,6 +211,35 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 		Values: values,
 		TagSet: request.Metric.TagSet,
 	}, nil
+	return api.Timeseries{}, nil
+}
+
+func (b *Blueflood) prepWork(request timeseries.RequestDetails) (map[Resolution]api.Interval, sampler, error) {
+	samplerFunc, ok := samplerMap[request.SampleMethod]
+	if !ok {
+		return nil, sampler{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
+	}
+	// Extend it one point forward, unless that would fetch past the current time.
+	modifiedRange := request.Timerange
+	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource()) {
+		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
+	}
+	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource(), modifiedRange)
+	if err != nil {
+		return nil, sampler{}, err
+	}
+	return intervals, samplerFunc, nil
+}
+
+// FetchSingleTimeseries fetches a timeseries with the given tagged metric.
+// It requires that the resolution is supported.
+func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
+	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
+	intervals, samplerFunc, err := b.prepWork(request.RequestDetails)
+	if err != nil {
+		return api.Timeseries{}, err
+	}
+	return b.fetchSingleTimeseriesPrepped(request, intervals, samplerFunc)
 }
 
 func (b *Blueflood) requestPoints(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) ([]metricPoint, error) {
@@ -395,6 +410,10 @@ var samplerMap = map[timeseries.SampleMethod]sampler{
 
 func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
+	intervals, samplerFunc, err := b.prepWork(request.RequestDetails)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
 
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
@@ -402,7 +421,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
 		queue.Do(func() error {
-			result, err := b.FetchSingleTimeseries(singleRequests[i])
+			result, err := b.fetchSingleTimeseriesPrepped(singleRequests[i], intervals, samplerFunc)
 			if err != nil {
 				return err
 			}
