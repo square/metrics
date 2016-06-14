@@ -15,6 +15,7 @@
 package function
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -108,8 +109,9 @@ func (c FetchCounter) Current() int {
 // Consume decrements the internal counter and returns whether the result is at least 0.
 // It does so in a threadsafe manner.
 func (c FetchCounter) Consume(n int) error {
-	if atomic.AddInt32(c.count, -int32(n)) < 0 {
-		return NewLimitError("fetch limit exceeded: too many series to fetch", n, c.limit)
+	remaining := atomic.AddInt32(c.count, -int32(n))
+	if remaining < 0 {
+		return fmt.Errorf("performing fetch of %d additional series brings the total to %d, which exceeds the specified limit %d", n, c.limit-int(remaining), c.limit)
 	}
 	return nil
 }
