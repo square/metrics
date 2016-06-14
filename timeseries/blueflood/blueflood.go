@@ -262,14 +262,14 @@ func (b *Blueflood) performFetch(queryURL *url.URL) (queryResponse, error) {
 	resp, err := b.config.HTTPClient.Get(queryURL.String())
 	if err != nil {
 		// TODO: report the right metric
-		return queryResponse{}, fmt.Errorf("error fetching Blueflood at URL %q: %s", queryURL.String(), err.Error())
+		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching Blueflood at URL %q: %s", queryURL.String(), err.Error())}
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		// TODO: report the right metric
-		return queryResponse{}, fmt.Errorf("error reading response from Blueflood at URL %q: %s", queryURL.String(), err.Error())
+		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading response from Blueflood at URL %q: %s [[500]]", queryURL.String(), err.Error())}
 	}
 	var parsedJSON queryResponse
 	err = json.Unmarshal(body, &parsedJSON)

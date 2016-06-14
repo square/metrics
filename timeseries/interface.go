@@ -16,6 +16,7 @@ package timeseries
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -54,6 +55,25 @@ type UserSpecifiableConfig struct {
 }
 
 type ErrorCode int
+
+// FetchError can return a custom error code
+type FetchError struct {
+	Message string
+	Code    int
+}
+
+// Error returns the message associated with the FetchError.
+func (e FetchError) Error() string {
+	return e.Message
+}
+
+// Error500 indicates that it's a 500-level error.
+func (e FetchError) ErrorCode() int {
+	if e.Code == 0 {
+		return http.StatusBadRequest
+	}
+	return e.Code
+}
 
 const (
 	FetchTimeoutError  ErrorCode = iota + 1 // error while fetching - timeout.

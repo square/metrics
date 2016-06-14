@@ -220,6 +220,12 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 	}, nil
 }
 
+// ErrorHTTP indicates that an error should override the return code.
+type ErrorHTTP interface {
+	error
+	ErrorCode() int
+}
+
 func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 	profiler := inspect.New()
@@ -234,7 +240,11 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		}
 	default: // use the form parameters
 		if err := request.ParseForm(); err != nil {
-			writer.WriteHeader(http.StatusBadRequest)
+			if errHTTP, ok := err.(ErrorHTTP); ok {
+				writer.WriteHeader(errHTTP.ErrorCode())
+			} else {
+				writer.WriteHeader(http.StatusBadRequest)
+			}
 			writer.Write(encodeError(err))
 			return
 		}
