@@ -221,7 +221,7 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 }
 
 // ErrorHTTP indicates that an error should override the return code.
-type ErrorHTTP interface {
+type HTTPError interface {
 	error
 	ErrorCode() int
 }
@@ -240,11 +240,7 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		}
 	default: // use the form parameters
 		if err := request.ParseForm(); err != nil {
-			if errHTTP, ok := err.(ErrorHTTP); ok {
-				writer.WriteHeader(errHTTP.ErrorCode())
-			} else {
-				writer.WriteHeader(http.StatusBadRequest)
-			}
+			writer.WriteHeader(http.StatusBadRequest)
 			writer.Write(encodeError(err))
 			return
 		}
@@ -254,10 +250,14 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	// "process" does the hard work for the handler, but doesn't touch the HTTP details.
 	responseMessage, err := q.process(profiler, queryForm)
 	if err != nil {
-		// Note: the server always blames the client for a bad request.
-		// Although occasionally the client is not at fault, determining this
-		// would require knowing all of the possible values that err could take.
-		writer.WriteHeader(http.StatusBadRequest)
+		if errHTTP, ok := err.(HTTPError); ok {
+			// If an HTTPError is returned, then we use its reported code instead of
+			// StatusBadRequest. This can be used to identify errors as 500s instead
+			// of always blaming the client.
+			writer.WriteHeader(errHTTP.ErrorCode())
+		} else {
+			writer.WriteHeader(http.StatusBadRequest)
+		}
 		writer.Write(encodeError(err))
 		return
 	}
