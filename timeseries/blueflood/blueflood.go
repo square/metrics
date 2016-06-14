@@ -269,7 +269,7 @@ func (b *Blueflood) performFetch(queryURL *url.URL) (queryResponse, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		// TODO: report the right metric
-		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading response from Blueflood at URL %q: %s [[500]]", queryURL.String(), err.Error())}
+		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading response from Blueflood at URL %q: %s", queryURL.String(), err.Error())}
 	}
 	var parsedJSON queryResponse
 	err = json.Unmarshal(body, &parsedJSON)
