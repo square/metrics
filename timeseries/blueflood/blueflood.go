@@ -65,11 +65,10 @@ func (r Resolution) String() string {
 }
 
 type Config struct {
-	BaseURL                 string        `yaml:"base_url"`
-	TenantID                string        `yaml:"tenant_id"`
-	Resolutions             []Resolution  `yaml:"resolutions"`           // Resolutions are ordered by priority: best (typically finest) first.
-	Timeout                 time.Duration `yaml:"timeout"`               // Timeout is the amount of time a single fetch request is allowed.
-	MaxSimultaneousRequests int           `yaml:"simultaneous_requests"` // simultaneous requests limits the number of concurrent single-fetches for each multi-fetch
+	BaseURL                 string       `yaml:"base_url"`
+	TenantID                string       `yaml:"tenant_id"`
+	Resolutions             []Resolution `yaml:"resolutions"`           // Resolutions are ordered by priority: best (typically finest) first.
+	MaxSimultaneousRequests int          `yaml:"simultaneous_requests"` // simultaneous requests limits the number of concurrent single-fetches for each multi-fetch
 
 	GraphiteMetricConverter util.GraphiteConverter
 
@@ -150,7 +149,7 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
-	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
+	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, request.Timeout)
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
 		queue.Do(func() error {
@@ -208,7 +207,7 @@ func (b *Blueflood) createPlan(request timeseries.RequestDetails) (fetchPlan, er
 // rather than FetchSingleTimeseries, in order to prevent duplicating work on a
 // per-timeseries basis.
 func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler, timeout *tasks.Timeout) (api.Timeseries, error) {
-	queue := tasks.NewParallelQueue(len(plan.intervals), b.config.Timeout)
+	queue := tasks.NewParallelQueue(len(plan.intervals), timeout)
 	allPoints := []metricPoint{}
 	for resolution, interval := range plan.intervals {
 		resolution, interval := resolution, interval

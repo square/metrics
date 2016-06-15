@@ -103,7 +103,6 @@ func TestBluefloodHTTPQueriesSingle(t *testing.T) {
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
 		Resolutions:             []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min},
-		Timeout:                 time.Millisecond,
 		MaxSimultaneousRequests: 5,
 
 		GraphiteMetricConverter: &mocks.FakeGraphiteConverter{
@@ -228,7 +227,6 @@ func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
 		Resolutions:             []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min},
-		Timeout:                 time.Second,
 		MaxSimultaneousRequests: 5,
 
 		GraphiteMetricConverter: &mocks.FakeGraphiteConverter{

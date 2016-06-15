@@ -50,8 +50,6 @@ type ticket struct{}
 type ParallelQueue struct {
 	sync.Mutex // ParallelQueue uses itself as a mutex, and clients can also use it as a mutex.
 
-	timeoutTime time.Duration // how long before it times out
-
 	tickets   chan ticket    // tickets internally limit the number of simultaneous actions
 	timeout   *Timeout       // timeout is used to stop the queue
 	waitgroup sync.WaitGroup // the waitgroup synchronizes the actions
@@ -87,7 +85,7 @@ func (q *ParallelQueue) Do(f func() error) {
 			defer func() { q.tickets <- ticket{} }()
 			q.FlagError(f())
 		case <-q.timeout.Done():
-			q.FlagError(NewTimeoutError(q.timeoutTime))
+			q.FlagError(NewTimeoutError(q.timeout.Duration()))
 		}
 	}()
 }
@@ -103,7 +101,7 @@ func (q *ParallelQueue) Wait() error {
 	}()
 	select {
 	case <-q.timeout.Done():
-		return NewTimeoutError(q.timeoutTime)
+		return NewTimeoutError(q.timeout.Duration())
 	case <-q.errorNotification:
 		q.Lock()
 		defer q.Unlock()
@@ -116,15 +114,14 @@ func (q *ParallelQueue) Wait() error {
 }
 
 // NewParallelQueue creates a ParallelQueue with the given number of tickets whose timeout is the specified timeout.
-func NewParallelQueue(tickets int, timeout time.Duration) *ParallelQueue {
+func NewParallelQueue(tickets int, timeout *Timeout) *ParallelQueue {
 	ticketChannel := make(chan ticket, tickets)
 	for i := 0; i < tickets; i++ {
 		ticketChannel <- ticket{}
 	}
 	return &ParallelQueue{
-		timeoutTime:       timeout,
+		timeout:           timeout,
 		tickets:           ticketChannel,
-		timeout:           NewTimeout(timeout).Timeout(),
 		errorNotification: make(chan ticket, 1),
 	}
 }

@@ -46,8 +46,13 @@ func (to TimeoutOwner) Finish() {
 
 // A Timeout is an object which can alert that an event should be cancelled.
 type Timeout struct {
-	mutex sync.Mutex
-	done  chan struct{}
+	mutex    sync.Mutex
+	done     chan struct{}
+	duration time.Duration
+}
+
+func (t Timeout) Duration() time.Duration {
+	return t.duration
 }
 
 // Done returns a receive-only channel, which will close when the timeout ends.
@@ -62,9 +67,10 @@ func (t *Timeout) Done() <-chan struct{} {
 // NewTimeout returns a TimeoutOwner and spawns a goroutine to cancel the timeout.
 func NewTimeout(duration time.Duration) TimeoutOwner {
 	owner := TimeoutOwner{
-		&Timeout{
-			mutex: sync.Mutex{},
-			done:  make(chan struct{}),
+		timeout: &Timeout{
+			mutex:    sync.Mutex{},
+			done:     make(chan struct{}),
+			duration: duration,
 		},
 	}
 	go func() {
