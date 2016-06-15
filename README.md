@@ -3,6 +3,10 @@
 
 #### Metrics Query Engine
 
+```
+go get "github.com/square/metrics"
+```
+
 Metrics Query Engine(MQE) provides SQL-like interface to time series data with powerful functions to aggregate, filter and analyze.
 
 For example, to find which 10 endpoints have the highest HTTP latency on your web application farm:
@@ -28,10 +32,10 @@ Or you want to see how many cumulative seconds have been spent serving an API re
 
 ```
 transform.integral(
- aggregate.sum(transform.rate(`framework.actions.service-api.response_codes.X00`[type='200']) 
- * 
+ aggregate.sum(transform.rate(`framework.actions.service-api.response_codes.X00`[type='200'])
+ *
 `framework.actions.service-api.response_times.histogram`[distribution='mean'])
-) 
+)
 
 where app = 'secretapp' and service = 'SecretService' and api = 'GetSecret'
 
@@ -41,5 +45,9 @@ from -1w to now
 ##### Why
 Square collects millions of signals every few seconds from application servers and datacenters. The large volume of unstructured metric names makes it difficult to search for and discover metrics relevant to a particular host, app, service, connection type, or data center. Metrics Query Engine uses tagged metrics as a way to structure metric names so that they can be more easily queried and discovered.
 
+#### Go Version
 
-###### See wiki for installation, setup and development. 
+MQE supports Go 1.5 and up.
+
+
+###### See wiki for installation, setup and development.
