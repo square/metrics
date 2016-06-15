@@ -39,7 +39,18 @@ type Blueflood struct {
 //Blueflood implements TimeseriesStorageAPI
 var _ timeseries.StorageAPI = (*Blueflood)(nil)
 
-type TimeSource func() time.Time
+// TimeSource represents a source of time values.
+// Its zero value will give the current time.
+type TimeSource struct {
+	GetTime func() time.Time
+}
+
+func (t TimeSource) Now() time.Time {
+	if t.GetTime == nil {
+		return time.Now()
+	}
+	return t.GetTime()
+}
 
 // A Resolution stores information about supported resolutions and the timeranges in which they're available.
 type Resolution struct {
@@ -88,9 +99,6 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 	if c.HTTPClient == nil {
 		c.HTTPClient = http.DefaultClient
 	}
-	if c.TimeSource == nil {
-		c.TimeSource = time.Now
-	}
 	if c.MaxSimultaneousRequests == 0 {
 		c.MaxSimultaneousRequests = 5
 	}
@@ -105,7 +113,7 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 // ChooseResolution will choose the finest-grained resolution for which an interval fetch plan exists that
 // is at least as coarse as the lower bound.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
-	now := b.config.TimeSource()
+	now := b.config.TimeSource.Now()
 	for i, current := range b.config.Resolutions {
 		if current.Resolution < lowerBound || current.Resolution < requested.Resolution() {
 			continue
@@ -116,65 +124,6 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 		}
 	}
 	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
-}
-
-// planFetchIntervals will plan the (point-count minimal) request intervals needed to cover the given timerange.
-// the resolutions slice should be sorted, with the finest-grained resolution first.
-func planFetchIntervals(resolutions []Resolution, now time.Time, requestInterval api.Interval) (map[Resolution]api.Interval, error) {
-	answer := map[Resolution]api.Interval{}
-	// Note: for anything other than FULL, a Blueflood returned point corresponds to the period FOLLOWING that point.
-	// e.g. at 1hr resolution, a 4pm point summarizes all points in [4pm, 5pm], exclusive of 5pm.
-	requestTimerange := requestInterval.CoveringTimerange(resolutions[len(resolutions)-1].Resolution)
-	here := requestTimerange.Start()
-	end := requestTimerange.End()
-	for i := len(resolutions) - 1; i >= 0; i-- {
-		resolution := resolutions[i]
-		if !here.Before(end) {
-			break
-		}
-		if here.Before(now.Add(-resolution.TimeToLive)) {
-			// Expired
-			return nil, fmt.Errorf("resolutions up to %+v only live for %+v, but request needs data that's at least %+v old", resolution.Resolution, resolution.TimeToLive, now.Sub(here))
-		}
-
-		// clipEnd is the end of requested interval,
-		// or where the data is not yet available,
-		// whichever is earlier.
-		clipEnd := now.Add(-resolution.FirstAvailable)
-		if end.Before(clipEnd) {
-			clipEnd = end
-		}
-
-		// count how many resolution intervals pass from now until then.
-		count := clipEnd.Sub(here) / resolution.Resolution
-		if count < 0 {
-			count = 0
-		}
-
-		// advance that number of intervals
-		newHere := here.Add(count * resolution.Resolution)
-
-		if newHere != here {
-			// At least one point is included, so:
-			answer[resolution] = api.Interval{Start: here, End: newHere}
-			here = newHere
-		}
-	}
-	return answer, nil
-}
-
-// planFetchIntervalsWithOnlyFiner assumes that the requested range is as coarse as desired.
-// Hence, it will trim all coarser resolutions before doing planning.
-func planFetchIntervalsWithOnlyFiner(resolutions []Resolution, now time.Time, requestRange api.Timerange) (map[Resolution]api.Interval, error) {
-	for i := range resolutions {
-		if resolutions[i].Resolution > requestRange.Resolution() {
-			if i == 0 {
-				return nil, fmt.Errorf("No resolutions are available at least as fine as the chosen %+v", requestRange.Resolution())
-			}
-			return planFetchIntervals(resolutions[:i], now, requestRange.Interval())
-		}
-	}
-	return planFetchIntervals(resolutions, now, requestRange.Interval())
 }
 
 // fetchSingleTimeseriesPrepped uses info prepped by FetchSingleTimeseries and
@@ -221,10 +170,10 @@ func (b *Blueflood) prepWork(request timeseries.RequestDetails) (map[Resolution]
 	}
 	// Extend it one point forward, unless that would fetch past the current time.
 	modifiedRange := request.Timerange
-	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource()) {
+	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource.Now()) {
 		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
 	}
-	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource(), modifiedRange)
+	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource.Now(), modifiedRange)
 	if err != nil {
 		return nil, sampler{}, err
 	}

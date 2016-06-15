@@ -29,10 +29,10 @@ import (
 func TestBluefloodHTTPQueriesMulti(t *testing.T) {
 	// from -2m to now
 	nowMillis := int64(739908000000)
-	nowFunc := func() time.Time {
+	nowFunc := TimeSource{GetTime: func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
 		return timeValue
-	}
+	}}
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
 		if beforeStart < beforeEnd {
 			t.Fatalf("Before start must be at least as large as before end.")
@@ -172,10 +172,10 @@ func TestBluefloodHTTPQueriesMulti(t *testing.T) {
 func TestBluefloodHTTPQueriesMultiResolutionMulti(t *testing.T) {
 	// from -30d5h to -14d17h
 	nowMillis := int64(739908000000)
-	nowFunc := func() time.Time {
+	nowFunc := TimeSource{GetTime: func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
 		return timeValue
-	}
+	}}
 	offset30 := int64(30 * 24 * 60 * 60 * 1000) // 30 days, TTL on 5m resolution
 	offset15 := int64(15 * 24 * 60 * 60 * 1000) // 15 days, first available on 60
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {

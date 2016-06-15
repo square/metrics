@@ -202,10 +202,10 @@ func TestPlanChooseResolution(t *testing.T) {
 	// which means that it lies on a lot of resolution boundaries,
 	// so most resolutions will be able to work without rounding (e.g., 31ms).
 	nowMillis := int64(12331800) * 60000
-	nowFunc := func() time.Time {
+	nowFunc := TimeSource{GetTime: func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
 		return timeValue
-	}
+	}}
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
 		if beforeStart < beforeEnd {
 			t.Fatalf("Before start must be at least as large as before end.")
