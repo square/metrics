@@ -293,6 +293,13 @@ func (b *Blueflood) performFetch(queryURL *url.URL) (queryResponse, error) {
 		// TODO: report the right metric
 		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading response from Blueflood at URL %q: %s", queryURL.String(), err.Error())}
 	}
+
+	// Don't try and JSON parse a non-200 response
+	if resp.StatusCode != http.StatusOK {
+		// TODO: report the right metric
+		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching Blueflood at URL %q, got %d: %s", queryURL.String(), resp.StatusCode, string(body))}
+	}
+
 	var parsedJSON queryResponse
 	err = json.Unmarshal(body, &parsedJSON)
 	if err != nil {
