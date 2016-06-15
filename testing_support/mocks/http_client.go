@@ -60,3 +60,10 @@ func (c *FakeHTTPClient) Get(url string) (*http.Response, error) {
 	}
 	return &resp, nil
 }
+
+func (c *FakeHTTPClient) Do(request *http.Request) (*http.Response, error) {
+	if request.Method != "GET" {
+		panic("FakeHTTPClient only supports GET requests in method Do(req)")
+	}
+	return c.Get(request.URL.String())
+}

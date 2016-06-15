@@ -77,24 +77,7 @@ type Config struct {
 	TimeSource TimeSource
 }
 
-type httpClient interface {
-	// our own client to mock out the standard golang HTTP Client.
-	Get(url string) (resp *http.Response, err error)
-}
-
-type queryResponse struct {
-	Values []metricPoint `json:"values"`
-}
-
-type metricPoint struct {
-	Points    int     `json:"numPoints"`
-	Timestamp int64   `json:"timestamp"`
-	Average   float64 `json:"average"`
-	Max       float64 `json:"max"`
-	Min       float64 `json:"min"`
-	Variance  float64 `json:"variance"`
-}
-
+// NewBlueflood uses the Config to create an instance of Blueflood.
 func NewBlueflood(c Config) timeseries.StorageAPI {
 	if c.HTTPClient == nil {
 		c.HTTPClient = http.DefaultClient
@@ -110,8 +93,27 @@ func NewBlueflood(c Config) timeseries.StorageAPI {
 	return b
 }
 
-// ChooseResolution will choose the finest-grained resolution for which an interval fetch plan exists that
-// is at least as coarse as the lower bound.
+// CheckHealthy checks if the blueflood server is available by querying /v2.0
+func (b *Blueflood) CheckHealthy() error {
+	resp, err := b.config.HTTPClient.Get(fmt.Sprintf("%s/v2.0", b.config.BaseURL))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Blueflood returned an unhealthy status of %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// ChooseResolution will choose the finest-grained resolution for which an
+// interval fetch plan exists that is at least as coarse as the lower bound.
 func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
 	now := b.config.TimeSource.Now()
 	for i, current := range b.config.Resolutions {
@@ -126,25 +128,99 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
 }
 
+// FetchSingleTimeseries fetches a timeseries with the given tagged metric.
+// The resolution is required to be supported (as ensured by ChooseResolution).
+func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
+	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
+	plan, err := b.createPlan(request.RequestDetails)
+	if err != nil {
+		return api.Timeseries{}, err
+	}
+	return b.fetchTimeseries(request.Metric, plan, request.Profiler, request.Timeout)
+}
+
+// FetchMultipleRequest fetches multiple timeseries. It requires that the
+// The resolution is required to be supported (as ensured by ChooseResolution).
+func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
+	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
+	plan, err := b.createPlan(request.RequestDetails)
+	if err != nil {
+		return api.SeriesList{}, err
+	}
+
+	singleRequests := request.ToSingle()
+	results := make([]api.Timeseries, len(singleRequests))
+	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
+	for i := range singleRequests {
+		i := i // Captures it in a new local for the closure.
+		queue.Do(func() error {
+			result, err := b.fetchTimeseries(singleRequests[i].Metric, plan, request.Profiler, request.Timeout)
+			if err != nil {
+				return err
+			}
+			results[i] = result
+			return nil
+		})
+	}
+
+	if err := queue.Wait(); err != nil {
+		return api.SeriesList{}, err
+	}
+
+	return api.SeriesList{
+		Series: results,
+	}, nil
+}
+
+// fetchPlan contains data required to fetch a timeseries by stitching together
+// multi-resolution data.
 type fetchPlan struct {
 	intervals map[Resolution]api.Interval
 	sampler   sampler
 	timerange api.Timerange
 }
 
+// createPlan uses the specified request details (which don't depend on the
+// metric itself) to create a plan for fetching it with multi-resolution data.
+func (b *Blueflood) createPlan(request timeseries.RequestDetails) (fetchPlan, error) {
+	samplerFunc, ok := samplerMap[request.SampleMethod]
+	if !ok {
+		return fetchPlan{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
+	}
+	// Extend it one point forward, unless that would fetch past the current time.
+	modifiedRange := request.Timerange
+	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource.Now()) {
+		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
+	}
+	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource.Now(), modifiedRange)
+	if err != nil {
+		return fetchPlan{}, err
+	}
+	return fetchPlan{
+		intervals: intervals,
+		sampler:   samplerFunc,
+		timerange: request.Timerange,
+	}, nil
+}
+
 // fetchTimeseries uses the provided plan to fetch the timeseries from Blueflood
 // using several HTTP queries. FetchMultipleTimeseries defers to this method,
 // rather than FetchSingleTimeseries, in order to prevent duplicating work on a
 // per-timeseries basis.
-func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler) (api.Timeseries, error) {
+func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler, timeout *tasks.Timeout) (api.Timeseries, error) {
 	queue := tasks.NewParallelQueue(len(plan.intervals), b.config.Timeout)
 	allPoints := []metricPoint{}
-
 	for resolution, interval := range plan.intervals {
 		resolution, interval := resolution, interval
 		queue.Do(func() error {
 			defer profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", metric.String(), resolution.Resolution))()
-			points, err := b.requestPoints(metric, interval, plan.sampler, resolution)
+			// Construct the URL
+			queryURL, err := b.constructURL(metric, interval, plan.sampler, resolution)
+			if err != nil {
+				return err
+			}
+			// Then query it.
+			points, err := b.fetchTimeseriesHTTP(queryURL, timeout)
 			if err != nil {
 				return err
 			}
@@ -165,54 +241,6 @@ func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, pro
 		Values: values,
 		TagSet: metric.TagSet,
 	}, nil
-}
-
-func (b *Blueflood) prepWork(request timeseries.RequestDetails) (map[Resolution]api.Interval, sampler, error) {
-	samplerFunc, ok := samplerMap[request.SampleMethod]
-	if !ok {
-		return nil, sampler{}, fmt.Errorf("unsupported SampleMethod %s", request.SampleMethod.String())
-	}
-	// Extend it one point forward, unless that would fetch past the current time.
-	modifiedRange := request.Timerange
-	if modifiedRange.End().Add(modifiedRange.Resolution()).Before(b.config.TimeSource.Now()) {
-		modifiedRange = modifiedRange.ExtendAfter(modifiedRange.Resolution())
-	}
-	intervals, err := planFetchIntervalsWithOnlyFiner(b.config.Resolutions, b.config.TimeSource.Now(), modifiedRange)
-	if err != nil {
-		return nil, sampler{}, err
-	}
-	return intervals, samplerFunc, nil
-}
-
-// FetchSingleTimeseries fetches a timeseries with the given tagged metric.
-// It requires that the resolution is supported.
-func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
-	defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries", request.Metric.String())()
-	intervals, samplerFunc, err := b.prepWork(request.RequestDetails)
-	if err != nil {
-		return api.Timeseries{}, err
-	}
-	return b.fetchTimeseries(
-		request.Metric,
-		fetchPlan{
-			intervals: intervals,
-			sampler:   samplerFunc,
-			timerange: request.Timerange,
-		},
-		request.Profiler,
-	)
-}
-
-func (b *Blueflood) requestPoints(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) ([]metricPoint, error) {
-	queryURL, err := b.constructURL(metric, interval, sampler, resolution)
-	if err != nil {
-		return nil, err
-	}
-	parsedResult, err := b.fetch(queryURL)
-	if err != nil {
-		return nil, err
-	}
-	return parsedResult.Values, nil
 }
 
 // Helper functions
@@ -240,110 +268,48 @@ func (b *Blueflood) constructURL(metric api.TaggedMetric, interval api.Interval,
 	return result, nil
 }
 
-// performFetch is a synchronous method that fetches the given URL.
-func (b *Blueflood) performFetch(queryURL *url.URL) (queryResponse, error) {
-	resp, err := b.config.HTTPClient.Get(queryURL.String())
-	if err != nil {
-		// TODO: report the right metric
-		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching Blueflood at URL %q: %s", queryURL.String(), err.Error())}
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		// TODO: report the right metric
-		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading response from Blueflood at URL %q: %s", queryURL.String(), err.Error())}
-	}
-
-	// Don't try and JSON parse a non-200 response
-	if resp.StatusCode != http.StatusOK {
-		// TODO: report the right metric
-		return queryResponse{}, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching Blueflood at URL %q, got %d: %s", queryURL.String(), resp.StatusCode, string(body))}
-	}
-
-	var parsedJSON queryResponse
-	err = json.Unmarshal(body, &parsedJSON)
-	if err != nil {
-		// TODO: report the right metric
-		return queryResponse{}, timeseries.Error{api.TaggedMetric{}, timeseries.FetchIOError, "error while fetching - json decoding\nBody: " + string(body) + "\nError: " + err.Error() + "\nURL: " + queryURL.String()}
-	}
-	return parsedJSON, nil
+type httpClient interface {
+	// our own client to mock out the standard golang HTTP Client.
+	Get(string) (resp *http.Response, err error)
+	Do(*http.Request) (resp *http.Response, err error)
 }
 
 // fetch fetches from the backend, asynchronously calling performFetch and cancelling on timeout.
-func (b *Blueflood) fetch(queryURL *url.URL) (queryResponse, error) {
-	type Answer struct {
-		response queryResponse
-		err      error
+func (b *Blueflood) fetchTimeseriesHTTP(queryURL *url.URL, timeout *tasks.Timeout) ([]metricPoint, error) {
+	request, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
-	answer := make(chan Answer, 1)
-	go func() {
-		response, err := b.performFetch(queryURL)
-		answer <- Answer{response, err}
-	}()
-	select {
-	case result := <-answer:
-		return result.response, result.err
-	case <-time.After(b.config.Timeout):
-		// TODO: report the right metric
-		return queryResponse{}, timeseries.Error{api.TaggedMetric{}, timeseries.FetchTimeoutError, ""}
+	request.Cancel = timeout.Done()
+	response, err := b.config.HTTPClient.Do(request)
+	if err != nil {
+		return nil, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching from Blueflood at URL %q: %s", queryURL.String(), err.Error())}
 	}
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error reading from Blueflood response body at URL %q: %s", queryURL.String(), err.Error())}
+	}
+	err = response.Body.Close()
+	if err != nil {
+		return nil, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error finishing response from Blueflood at URL %q: %s", queryURL.String(), err.Error())}
+	}
+	var parsedJSON queryResponse
+	err = json.Unmarshal(body, &parsedJSON)
+	if err != nil {
+		return nil, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error unmarshaling JSON from Blueflood at URL %q: %s;\nBody:%s", queryURL.String(), err.Error(), body)}
+	}
+	return parsedJSON.Values, nil
 }
 
-func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
-	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
-	intervals, samplerFunc, err := b.prepWork(request.RequestDetails)
-	if err != nil {
-		return api.SeriesList{}, err
-	}
-
-	singleRequests := request.ToSingle()
-	results := make([]api.Timeseries, len(singleRequests))
-	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, b.config.Timeout)
-	for i := range singleRequests {
-		i := i // Captures it in a new local for the closure.
-		queue.Do(func() error {
-			result, err := b.fetchTimeseries(
-				singleRequests[i].Metric,
-				fetchPlan{
-					intervals: intervals,
-					sampler:   samplerFunc,
-					timerange: request.Timerange,
-				},
-				request.Profiler,
-			)
-			if err != nil {
-				return err
-			}
-			results[i] = result
-			return nil
-		})
-	}
-
-	if err := queue.Wait(); err != nil {
-		return api.SeriesList{}, err
-	}
-
-	return api.SeriesList{
-		Series: results,
-	}, nil
+type queryResponse struct {
+	Values []metricPoint `json:"values"`
 }
 
-// CheckHealthy checks if the blueflood server is available by querying /v2.0
-func (b *Blueflood) CheckHealthy() error {
-	resp, err := b.config.HTTPClient.Get(fmt.Sprintf("%s/v2.0", b.config.BaseURL))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("Blueflood returned an unhealthy status of %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+type metricPoint struct {
+	Points    int     `json:"numPoints"`
+	Timestamp int64   `json:"timestamp"`
+	Average   float64 `json:"average"`
+	Max       float64 `json:"max"`
+	Min       float64 `json:"min"`
+	Variance  float64 `json:"variance"`
 }
