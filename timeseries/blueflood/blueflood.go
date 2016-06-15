@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,6 +25,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
@@ -126,20 +126,25 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
 }
 
-// fetchSingleTimeseriesPrepped uses info prepped by FetchSingleTimeseries and
-// FetchMultipleTimeseries to fetch data. FetchMultipleTimeseries defers to this
-// method, instead of FetchSingleTimeseries, to avoid duplication of work across
-// each of these calls.
-func (b *Blueflood) fetchSingleTimeseriesPrepped(request timeseries.FetchRequest, intervals map[Resolution]api.Interval, sampler sampler) (api.Timeseries, error) {
+type fetchPlan struct {
+	intervals map[Resolution]api.Interval
+	sampler   sampler
+	timerange api.Timerange
+}
 
-	queue := tasks.NewParallelQueue(len(intervals), b.config.Timeout)
+// fetchTimeseries uses the provided plan to fetch the timeseries from Blueflood
+// using several HTTP queries. FetchMultipleTimeseries defers to this method,
+// rather than FetchSingleTimeseries, in order to prevent duplicating work on a
+// per-timeseries basis.
+func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler) (api.Timeseries, error) {
+	queue := tasks.NewParallelQueue(len(plan.intervals), b.config.Timeout)
 	allPoints := []metricPoint{}
 
-	for resolution, interval := range intervals {
+	for resolution, interval := range plan.intervals {
 		resolution, interval := resolution, interval
 		queue.Do(func() error {
-			defer request.Profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", request.Metric.String(), resolution.Resolution))()
-			points, err := b.requestPoints(request.Metric, interval, sampler, resolution)
+			defer profiler.RecordWithDescription("Blueflood FetchSingleTimeseries Resolution", fmt.Sprintf("%s at %+v", metric.String(), resolution.Resolution))()
+			points, err := b.requestPoints(metric, interval, plan.sampler, resolution)
 			if err != nil {
 				return err
 			}
@@ -154,13 +159,12 @@ func (b *Blueflood) fetchSingleTimeseriesPrepped(request timeseries.FetchRequest
 		return api.Timeseries{}, err
 	}
 
-	values := samplePoints(allPoints, request.Timerange, sampler)
+	values := samplePoints(allPoints, plan.timerange, plan.sampler)
 
 	return api.Timeseries{
 		Values: values,
-		TagSet: request.Metric.TagSet,
+		TagSet: metric.TagSet,
 	}, nil
-	return api.Timeseries{}, nil
 }
 
 func (b *Blueflood) prepWork(request timeseries.RequestDetails) (map[Resolution]api.Interval, sampler, error) {
@@ -188,7 +192,15 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-	return b.fetchSingleTimeseriesPrepped(request, intervals, samplerFunc)
+	return b.fetchTimeseries(
+		request.Metric,
+		fetchPlan{
+			intervals: intervals,
+			sampler:   samplerFunc,
+			timerange: request.Timerange,
+		},
+		request.Profiler,
+	)
 }
 
 func (b *Blueflood) requestPoints(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) ([]metricPoint, error) {
@@ -278,92 +290,6 @@ func (b *Blueflood) fetch(queryURL *url.URL) (queryResponse, error) {
 	}
 }
 
-type sampler struct {
-	fieldName    string                          // Name of field in Blueflood JSON response
-	selectField  func(point metricPoint) float64 // Function for extracting field from metricPoint
-	sampleBucket func([]float64) float64         // Function to sample from the bucket (e.g., min, mean, max)
-}
-
-// sampleResult samples the points into a uniform slice of float64s.
-func samplePoints(points []metricPoint, timerange api.Timerange, sampler sampler) []float64 {
-	// A bucket holds a set of points corresponding to one interval in the result.
-	buckets := make([][]float64, timerange.Slots())
-	for _, point := range points {
-		pointValue := sampler.selectField(point)
-		index := (point.Timestamp - timerange.StartMillis()) / timerange.ResolutionMillis()
-		if index < 0 || int(index) >= len(buckets) {
-			continue
-		}
-		buckets[index] = append(buckets[index], pointValue)
-	}
-
-	// values will hold the final values to be returned as the series.
-	values := make([]float64, timerange.Slots())
-
-	for i, bucket := range buckets {
-		if len(bucket) == 0 {
-			values[i] = math.NaN()
-			continue
-		}
-		values[i] = sampler.sampleBucket(bucket)
-	}
-	return values
-}
-
-var samplerMap = map[timeseries.SampleMethod]sampler{
-	timeseries.SampleMean: {
-		fieldName:   "average",
-		selectField: func(point metricPoint) float64 { return point.Average },
-		sampleBucket: func(bucket []float64) float64 {
-			value := 0.0
-			count := 0
-			for _, v := range bucket {
-				if !math.IsNaN(v) {
-					value += v
-					count++
-				}
-			}
-			return value / float64(count)
-		},
-	},
-	timeseries.SampleMin: {
-		fieldName:   "min",
-		selectField: func(point metricPoint) float64 { return point.Min },
-		sampleBucket: func(bucket []float64) float64 {
-			smallest := math.NaN()
-			for _, v := range bucket {
-				if math.IsNaN(v) {
-					continue
-				}
-				if math.IsNaN(smallest) {
-					smallest = v
-				} else {
-					smallest = math.Min(smallest, v)
-				}
-			}
-			return smallest
-		},
-	},
-	timeseries.SampleMax: {
-		fieldName:   "max",
-		selectField: func(point metricPoint) float64 { return point.Max },
-		sampleBucket: func(bucket []float64) float64 {
-			largest := math.NaN()
-			for _, v := range bucket {
-				if math.IsNaN(v) {
-					continue
-				}
-				if math.IsNaN(largest) {
-					largest = v
-				} else {
-					largest = math.Max(largest, v)
-				}
-			}
-			return largest
-		},
-	},
-}
-
 func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
 	intervals, samplerFunc, err := b.prepWork(request.RequestDetails)
@@ -377,7 +303,15 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
 		queue.Do(func() error {
-			result, err := b.fetchSingleTimeseriesPrepped(singleRequests[i], intervals, samplerFunc)
+			result, err := b.fetchTimeseries(
+				singleRequests[i].Metric,
+				fetchPlan{
+					intervals: intervals,
+					sampler:   samplerFunc,
+					timerange: request.Timerange,
+				},
+				request.Profiler,
+			)
 			if err != nil {
 				return err
 			}
