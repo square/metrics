@@ -48,24 +48,33 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error loading rules; %+v", err.Error())
 		return
+		// @@ err.Error() escapes to heap
 	}
 
 	converter := util.RuleBasedGraphiteConverter{Ruleset: rules}
 
+	// @@ moved to heap: converter
 	cassandra, err := cassandra.NewMetricMetadataAPI(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port
 		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
+		// @@ []string literal escapes to heap
 	})
 	if err != nil {
 		fmt.Printf("Error encountered while creating Cassandra API instance: %+v", err.Error())
 		return
+		// @@ err.Error() escapes to heap
 	}
 	fmt.Printf("Successfully connected to the Cassandra database.\n")
 
 	// Now we'll create an HTTP service which can be provided metric names.
 	// It will deliver them to Cassandra through this api
 	http.HandleFunc("/ingest", func(w http.ResponseWriter, req *http.Request) {
+		// @@ leaking param content: req
+		// @@ leaking param: w
+		// @@ leaking param content: req
 		// This function is called each time that an ingestion request is received for the /ingest path.
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 
 		// Print so that you can verify that it's working.
 		fmt.Printf("Received request.\n")
@@ -73,10 +82,14 @@ func main() {
 		// Read the body, which is expected to contain a newline-separated list of metric names.
 		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
+			// @@ req.Body escapes to heap
 			log.Printf("Error reading body %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
+			// @@ err.Error() escapes to heap
 			w.Write([]byte(fmt.Sprintf("Error reading body: %s", err.Error())))
 			return
+			// @@ err.Error() escapes to heap
+			// @@ ([]byte)(fmt.Sprintf("Error reading body: %s", err.Error())) escapes to heap
 		}
 
 		// Close the body now that we're done.
@@ -84,6 +97,7 @@ func main() {
 		if err != nil {
 			log.Printf("Error closing body: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
+			// @@ err.Error() escapes to heap
 			return
 		}
 
@@ -91,6 +105,7 @@ func main() {
 		metrics := []util.GraphiteMetric{}
 		for _, metric := range strings.Split(string(bytes), "\n") {
 			if metric := strings.TrimSpace(metric); metric != "" {
+				// @@ string(bytes) escapes to heap
 				metrics = append(metrics, util.GraphiteMetric(metric))
 			}
 		}
@@ -100,18 +115,25 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("No metrics were received."))
 			return
+			// @@ ([]byte)("No metrics were received.") escapes to heap
 		}
 
 		// Take all of the metrics we received and convert them with the specified conversiond rules.
 		converted := []api.TaggedMetric{}
 
+		// @@ []api.TaggedMetric literal escapes to heap
 		for _, metric := range metrics {
 			// If conversion fails because no rule is applicable, then err will be non-nil.
 			result, err := converter.ToTaggedName(metric)
 			if err != nil {
+				// @@ leaking closure reference converter
+				// @@ &converter escapes to heap
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(fmt.Sprintf("Error converting metric `%s`; %s\n", metric, err.Error())))
 				continue
+				// @@ metric escapes to heap
+				// @@ err.Error() escapes to heap
+				// @@ ([]byte)(fmt.Sprintf("Error converting metric `%s`; %s\n", metric, err.Error())) escapes to heap
 			}
 			converted = append(converted, result)
 		}
@@ -121,13 +143,19 @@ func main() {
 		if err != nil {
 			log.Printf("Error sending metrics to Cassandra: %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
+			// @@ err.Error() escapes to heap
 			w.Write([]byte(fmt.Sprintf("Error connecting to Cassandra; %s\n", err.Error())))
 			return
+			// @@ err.Error() escapes to heap
+			// @@ ([]byte)(fmt.Sprintf("Error connecting to Cassandra; %s\n", err.Error())) escapes to heap
 		}
 	})
 
 	err = http.ListenAndServe(":"+*listenOnPort, nil)
 	if err != nil {
+		// @@ ":" + *listenOnPort escapes to heap
 		log.Fatal("ListenAndServe: ", err)
 	}
+	// @@ "ListenAndServe: " escapes to heap
+	// @@ err escapes to heap
 }

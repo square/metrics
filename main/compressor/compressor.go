@@ -25,14 +25,25 @@ func main() {
 
 	data := []float64{1.0, 1.3, 1.4, 1.5, 1.6, 2.0, 2.1, 1.1, 1.2, 1.2, 1.2, 0.4}
 	fmt.Printf("Data: %f\n", data)
+	// @@ []float64 literal escapes to heap
 
+	// @@ data escapes to heap
 	c := compress.NewCompressionBuffer()
 	c.Compress(data)
+	// @@ inlining call to compress.NewCompressionBuffer
+	// @@ &bytes.Buffer literal escapes to heap
+	// @@ &bytes.Buffer literal escapes to heap
 	c.Finalize()
 	compressed := c.Bytes()
 	fmt.Printf("%+v\n", compressed)
 	fmt.Printf("%d bytes instead of %d bytes\n", len(compressed), len(data)*8)
+	// @@ compressed escapes to heap
 	d := compress.NewDecompressionBuffer(compressed, len(data))
+	// @@ len(compressed) escapes to heap
+	// @@ len(data) * 8 escapes to heap
 	decompressed := d.Decompress()
+	// @@ inlining call to compress.NewDecompressionBuffer
 	fmt.Printf("Decompressed %f\n", decompressed)
 }
+
+// @@ decompressed escapes to heap

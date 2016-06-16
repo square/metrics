@@ -77,18 +77,24 @@ type singleChecker struct {
 }
 
 func (s *singleChecker) add(success bool, message string) error {
+	// @@ leaking param content: s
+	// @@ leaking param: message
 	if !success {
 		return nil
 	}
 	if s.found {
 		return fmt.Errorf("already had %q but tried to add %q", s.name, message)
 	}
+	// @@ s.name escapes to heap
+	// @@ message escapes to heap
 	s.found = true
 	s.name = message
 	return nil
 }
 
 func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
+	// @@ leaking param content: c
+	// @@ leaking param: c
 	only := &singleChecker{}
 	if err := only.add(c.Not != nil, "not"); err != nil {
 		return nil, err
@@ -119,8 +125,18 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 		}
 		return predicate.NotPredicate{child}, nil
 	case "all":
+		// @@ predicate.NotPredicate literal escapes to heap
+		// @@ predicate.NotPredicate literal escapes to heap
+		// @@ predicate.NotPredicate literal escapes to heap
+		// @@ predicate.NotPredicate literal escapes to heap
 		children := make([]predicate.Predicate, len(c.All))
 		for i, arg := range c.All {
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.All)) escapes to heap
 			child, err := predicateFromConstraint(arg)
 			if err != nil {
 				return nil, err
@@ -129,8 +145,19 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 		}
 		return predicate.AndPredicate{children}, nil
 	case "any":
+		// @@ predicate.AndPredicate literal escapes to heap
+		// @@ predicate.AndPredicate literal escapes to heap
+		// @@ predicate.AndPredicate literal escapes to heap
+		// @@ predicate.AndPredicate literal escapes to heap
+		// @@ predicate.AndPredicate literal escapes to heap
 		children := make([]predicate.Predicate, len(c.Any))
 		for i, arg := range c.Any {
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
+			// @@ make([]predicate.Predicate, len(c.Any)) escapes to heap
 			child, err := predicateFromConstraint(arg)
 			if err != nil {
 				return nil, err
@@ -139,19 +166,39 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 		}
 		return predicate.OrPredicate{children}, nil
 	case "key_is":
+		// @@ predicate.OrPredicate literal escapes to heap
+		// @@ predicate.OrPredicate literal escapes to heap
+		// @@ predicate.OrPredicate literal escapes to heap
+		// @@ predicate.OrPredicate literal escapes to heap
+		// @@ predicate.OrPredicate literal escapes to heap
 		if c.KeyIs.Key == "" {
 			return nil, fmt.Errorf(`key is given no value in "key_is" constraint`)
 		}
 		return predicate.ListMatcher{
-			Tag:    c.KeyIs.Key,
+			Tag: c.KeyIs.Key,
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
 			Values: []string{c.KeyIs.Value},
 		}, nil
+		// @@ []string literal escapes to heap
+		// @@ []string literal escapes to heap
+		// @@ []string literal escapes to heap
+		// @@ []string literal escapes to heap
+		// @@ []string literal escapes to heap
 	case "key_in":
 		if c.KeyIn.Key == "" {
 			return nil, fmt.Errorf(`key is given no value in "key_in" constraint`)
 		}
 		return predicate.ListMatcher{
-			Tag:    c.KeyIn.Key,
+			Tag: c.KeyIn.Key,
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
+			// @@ predicate.ListMatcher literal escapes to heap
 			Values: c.KeyIn.Values,
 		}, nil
 	case "key_match":
@@ -163,12 +210,18 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 			return nil, err
 		}
 		return predicate.RegexMatcher{
-			Tag:   c.KeyMatch.Key,
+			Tag: c.KeyMatch.Key,
+			// @@ predicate.RegexMatcher literal escapes to heap
+			// @@ predicate.RegexMatcher literal escapes to heap
+			// @@ predicate.RegexMatcher literal escapes to heap
+			// @@ predicate.RegexMatcher literal escapes to heap
+			// @@ predicate.RegexMatcher literal escapes to heap
 			Regex: regex,
 		}, nil
 	default:
 		panic(fmt.Sprintf("internal error: unknown constraint name: %q", only.name))
 	}
+	// @@ only.name escapes to heap
 }
 
 type QueryForm struct {
@@ -179,12 +232,18 @@ type QueryForm struct {
 }
 
 func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) (QueryResponse, error) {
+	// @@ leaking param: q
+	// @@ leaking param: profiler
+	// @@ leaking param: parsedForm
 	log.Infof("INPUT: %+v\n", parsedForm)
 	var rawCommand command.Command
+	// @@ ... argument escapes to heap
+	// @@ parsedForm escapes to heap
 	var err error
 	profiler.Do("Parsing Query", func() {
 		rawCommand, err = parser.Parse(parsedForm.Input)
 	})
+	// @@ leaking closure reference parsedForm
 	if err != nil {
 		return QueryResponse{}, err
 	}
@@ -201,6 +260,9 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 
 	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
 
+	// @@ inlining call to command.NewProfilingCommandWithProfiler
+	// @@ command.ProfilingCommand literal escapes to heap
+	// @@ command.ProfilingCommand literal escapes to heap
 	context.UserSpecifiableConfig = timeseries.UserSpecifiableConfig{
 		IncludeRawData: parsedForm.IncludeRaw,
 	}
@@ -209,6 +271,8 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 	profiler.Do("Total Execution", func() {
 		result, err = profiledCommand.Execute(context)
 	})
+	// @@ leaking closure reference context
+	// @@ leaking closure reference profiledCommand
 	if err != nil {
 		return QueryResponse{}, err
 	}
@@ -227,15 +291,34 @@ type HTTPError interface {
 }
 
 func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	// @@ leaking param: writer
+	// @@ leaking param content: request
+	// @@ leaking param content: request
+	// @@ leaking param: q
 	writer.Header().Set("Content-Type", "application/json")
 	profiler := inspect.New()
 
+	// @@ inlining call to inspect.New
+	// @@ &inspect.Profiler literal escapes to heap
+	// @@ []inspect.Profile literal escapes to heap
+	// @@ &inspect.Profiler literal escapes to heap
+	// @@ []inspect.Profile literal escapes to heap
+	// @@ &inspect.Profiler literal escapes to heap
+	// @@ []inspect.Profile literal escapes to heap
+	// @@ &inspect.Profiler literal escapes to heap
+	// @@ []inspect.Profile literal escapes to heap
 	queryForm := QueryForm{}
 
+	// @@ moved to heap: queryForm
 	switch request.Header.Get("Content-Type") {
 	case "application/json": // assume the body is a JSON request
 		if err := json.NewDecoder(request.Body).Decode(&queryForm); err != nil {
 			writer.WriteHeader(http.StatusBadRequest)
+			// @@ inlining call to json.NewDecoder
+			// @@ &json.Decoder literal escapes to heap
+			// @@ request.Body escapes to heap
+			// @@ &queryForm escapes to heap
+			// @@ &queryForm escapes to heap
 			writer.Write(encodeError(err))
 		}
 	default: // use the form parameters
@@ -246,6 +329,8 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		}
 		parseStruct(request.Form, &queryForm)
 	}
+	// @@ &queryForm escapes to heap
+	// @@ &queryForm escapes to heap
 
 	// "process" does the hard work for the handler, but doesn't touch the HTTP details.
 	responseMessage, err := q.process(profiler, queryForm)
@@ -269,23 +354,31 @@ func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 
 	if showProfile, _ := strconv.ParseBool(request.Form.Get("profile")); showProfile {
 		responseJSON.Profile = profiler.All()
+		// @@ inlining call to url.Values.Get
 	}
 
 	if q.hook.OnQuery != nil {
 		go func() {
 			// Send the profiler along this way.
+			// @@ can inline queryHandler.ServeHTTP.func1
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			q.hook.OnQuery <- profiler
 		}()
+		// @@ leaking closure reference profiler
 	}
 
 	pretty, _ := strconv.ParseBool(request.Form.Get("pretty")) // If it's absent, default to false.
 
+	// @@ inlining call to url.Values.Get
 	var encoded []byte
 	if pretty {
 		encoded, err = json.MarshalIndent(responseJSON, "", "  ")
 	} else {
+		// @@ responseJSON escapes to heap
 		encoded, err = json.Marshal(responseJSON)
 	}
+	// @@ responseJSON escapes to heap
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write(encodeError(err))

@@ -302,6 +302,8 @@ func (node *node32) print(depth int, buffer string) {
 		}
 		fmt.Printf("\x1B[34m%v\x1B[m %v\n", rul3s[node.pegRule], strconv.Quote(string(([]rune(buffer)[node.begin:node.end]))))
 		if node.up != nil {
+			// @@ rul3s[node.token32.pegRule] escapes to heap
+			// @@ strconv.Quote(string(([]rune)(buffer)[node.token32.begin:node.token32.end])) escapes to heap
 			node.up.print(depth+1, buffer)
 		}
 		node = node.next
@@ -325,19 +327,27 @@ type token32 struct {
 
 func (t *token32) isZero() bool {
 	return t.pegRule == ruleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
+	// @@ can inline (*token32).isZero
 }
 
 func (t *token32) isParentOf(u token32) bool {
 	return t.begin <= u.begin && t.end >= u.end && t.next > u.next
+	// @@ can inline (*token32).isParentOf
 }
 
 func (t *token32) getToken32() token32 {
 	return token32{pegRule: t.pegRule, begin: uint32(t.begin), end: uint32(t.end), next: uint32(t.next)}
+	// @@ can inline (*token32).getToken32
 }
 
 func (t *token32) String() string {
 	return fmt.Sprintf("\x1B[34m%v\x1B[m %v %v %v", rul3s[t.pegRule], t.begin, t.end, t.next)
 }
+
+// @@ rul3s[t.pegRule] escapes to heap
+// @@ t.begin escapes to heap
+// @@ t.end escapes to heap
+// @@ t.next escapes to heap
 
 type tokens32 struct {
 	tree    []token32
@@ -346,24 +356,31 @@ type tokens32 struct {
 
 func (t *tokens32) trim(length int) {
 	t.tree = t.tree[0:length]
+	// @@ can inline (*tokens32).trim
 }
+
+// @@ (*tokens32).trim ignoring self-assignment to t.tree
 
 func (t *tokens32) Print() {
 	for _, token := range t.tree {
 		fmt.Println(token.String())
 	}
+	// @@ token.String() escapes to heap
 }
 
 func (t *tokens32) Order() [][]token32 {
+	// @@ leaking param: t to result ~r0 level=1
 	if t.ordered != nil {
 		return t.ordered
 	}
 
 	depths := make([]int32, 1, math.MaxInt16)
 	for i, token := range t.tree {
+		// @@ make([]int32, 1, math.MaxInt16) escapes to heap
 		if token.pegRule == ruleUnknown {
 			t.tree = t.tree[:i]
 			break
+			// @@ (*tokens32).Order ignoring self-assignment to t.tree
 		}
 		depth := int(token.next)
 		if length := len(depths); depth >= length {
@@ -375,6 +392,11 @@ func (t *tokens32) Order() [][]token32 {
 
 	ordered, pool := make([][]token32, len(depths)), make([]token32, len(t.tree)+len(depths))
 	for i, depth := range depths {
+		// @@ make([][]token32, len(depths)) escapes to heap
+		// @@ make([][]token32, len(depths)) escapes to heap
+		// @@ make([]token32, len(t.tree) + len(depths)) escapes to heap
+		// @@ make([]token32, len(t.tree) + len(depths)) escapes to heap
+		// @@ make([][]token32, len(depths)) escapes to heap
 		depth++
 		ordered[i], pool, depths[i] = pool[:depth], pool[depth:], 0
 	}
@@ -396,34 +418,86 @@ type state32 struct {
 }
 
 func (t *tokens32) AST() *node32 {
+	// @@ leaking param: t
 	tokens := t.Tokens()
 	stack := &element{node: &node32{token32: <-tokens}}
 	for token := range tokens {
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
+		// @@ &node32 literal escapes to heap
+		// @@ &element literal escapes to heap
 		if token.begin == token.end {
 			continue
 		}
 		node := &node32{token32: token}
 		for stack != nil && stack.node.begin >= token.begin && stack.node.end <= token.end {
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
+			// @@ &node32 literal escapes to heap
 			stack.node.next = node.up
 			node.up = stack.node
 			stack = stack.down
 		}
 		stack = &element{node: node, down: stack}
 	}
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
+	// @@ &element literal escapes to heap
 	return stack.node
 }
 
 func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
+	// @@ leaking param content: t
+	// @@ leaking param: t to result ~r1 level=1
 	s, ordered := make(chan state32, 6), t.Order()
+	// @@ mark escaped content: t
 	go func() {
+		// @@ make(chan state32, 6) escapes to heap
+		// @@ make(chan state32, 6) escapes to heap
 		var states [8]state32
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		for i := range states {
 			states[i].depths = make([]int32, len(ordered))
 		}
+		// @@ make([]int32, len(ordered)) escapes to heap
+		// @@ make([]int32, len(ordered)) escapes to heap
+		// @@ make([]int32, len(ordered)) escapes to heap
+		// @@ make([]int32, len(ordered)) escapes to heap
+		// @@ make([]int32, len(ordered)) escapes to heap
+		// @@ make([]int32, len(ordered)) escapes to heap
 		depths, state, depth := make([]int32, len(ordered)), 0, 1
 		write := func(t token32, leaf bool) {
+			// @@ make([]int32, len(ordered)) escapes to heap
 			S := states[state]
+			// @@ can inline (*tokens32).PreOrder.func1.1
 			state, S.pegRule, S.begin, S.end, S.next, S.leaf = (state+1)%8, t.pegRule, t.begin, t.end, uint32(depth), leaf
+			// @@ leaking closure reference states
 			copy(S.depths, depths)
 			s <- S
 		}
@@ -438,7 +512,9 @@ func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
 				if i := depths[depth]; i > 0 {
 					if c, j := ordered[depth][i-1], depths[depth-1]; a.isParentOf(c) &&
 						(j < 2 || !ordered[depth-1][j-2].isParentOf(c)) {
+						// @@ inlining call to (*token32).isParentOf
 						if c.end != b.begin {
+							// @@ inlining call to (*token32).isParentOf
 							write(token32{pegRule: ruleIn, begin: c.end, end: b.begin}, true)
 						}
 						break
@@ -454,6 +530,7 @@ func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
 			next := depth + 1
 			if c := ordered[next][depths[next]]; c.pegRule != ruleUnknown && b.isParentOf(c) {
 				write(b, false)
+				// @@ inlining call to (*token32).isParentOf
 				depths[depth]++
 				depth, a, b = next, b, c
 				continue
@@ -465,6 +542,7 @@ func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
 			for {
 				if c.pegRule != ruleUnknown && a.isParentOf(c) {
 					b = c
+					// @@ inlining call to (*token32).isParentOf
 					continue depthFirstSearch
 				} else if parent && b.end != a.end {
 					write(token32{pegRule: ruleSuf, begin: b.end, end: a.end}, true)
@@ -475,6 +553,7 @@ func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
 					a, b, c = ordered[depth-1][depths[depth-1]-1], a, ordered[depth][depths[depth]]
 					parent = a.isParentOf(b)
 					continue
+					// @@ inlining call to (*token32).isParentOf
 				}
 
 				break depthFirstSearch
@@ -487,47 +566,62 @@ func (t *tokens32) PreOrder() (<-chan state32, [][]token32) {
 }
 
 func (t *tokens32) PrintSyntax() {
+	// @@ leaking param content: t
 	tokens, ordered := t.PreOrder()
 	max := -1
 	for token := range tokens {
 		if !token.leaf {
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
+				// @@ token.token32.begin escapes to heap
 				fmt.Printf(" \x1B[36m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
+			// @@ rul3s[ordered[i][depths[i] - 1].pegRule] escapes to heap
 			fmt.Printf(" \x1B[36m%v\x1B[m\n", rul3s[token.pegRule])
 		} else if token.begin == token.end {
+			// @@ rul3s[token.token32.pegRule] escapes to heap
 			fmt.Printf("%v", token.begin)
 			for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
+				// @@ token.token32.begin escapes to heap
 				fmt.Printf(" \x1B[31m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 			}
+			// @@ rul3s[ordered[i][depths[i] - 1].pegRule] escapes to heap
 			fmt.Printf(" \x1B[31m%v\x1B[m\n", rul3s[token.pegRule])
 		} else {
+			// @@ rul3s[token.token32.pegRule] escapes to heap
 			for c, end := token.begin, token.end; c < end; c++ {
 				if i := int(c); max+1 < i {
 					for j := max; j < i; j++ {
 						fmt.Printf("skip %v %v\n", j, token.String())
 					}
+					// @@ j escapes to heap
+					// @@ token.token32.String() escapes to heap
 					max = i
 				} else if i := int(c); i <= max {
 					for j := i; j <= max; j++ {
 						fmt.Printf("dupe %v %v\n", j, token.String())
 					}
+					// @@ j escapes to heap
+					// @@ token.token32.String() escapes to heap
 				} else {
 					max = int(c)
 				}
 				fmt.Printf("%v", c)
 				for i, leaf, depths := 0, int(token.next), token.depths; i < leaf; i++ {
+					// @@ c escapes to heap
 					fmt.Printf(" \x1B[34m%v\x1B[m", rul3s[ordered[i][depths[i]-1].pegRule])
 				}
+				// @@ rul3s[ordered[i][depths[i] - 1].pegRule] escapes to heap
 				fmt.Printf(" \x1B[34m%v\x1B[m\n", rul3s[token.pegRule])
 			}
+			// @@ rul3s[token.token32.pegRule] escapes to heap
 			fmt.Printf("\n")
 		}
 	}
 }
 
 func (t *tokens32) PrintSyntaxTree(buffer string) {
+	// @@ leaking param content: t
 	tokens, _ := t.PreOrder()
 	for token := range tokens {
 		for c := 0; c < int(token.next); c++ {
@@ -535,18 +629,27 @@ func (t *tokens32) PrintSyntaxTree(buffer string) {
 		}
 		fmt.Printf("\x1B[34m%v\x1B[m %v\n", rul3s[token.pegRule], strconv.Quote(string(([]rune(buffer)[token.begin:token.end]))))
 	}
+	// @@ rul3s[token.token32.pegRule] escapes to heap
+	// @@ strconv.Quote(string(([]rune)(buffer)[token.token32.begin:token.token32.end])) escapes to heap
 }
 
 func (t *tokens32) Add(rule pegRule, begin, end, depth uint32, index int) {
 	t.tree[index] = token32{pegRule: rule, begin: uint32(begin), end: uint32(end), next: uint32(depth)}
+	// @@ can inline (*tokens32).Add
 }
 
 func (t *tokens32) Tokens() <-chan token32 {
+	// @@ leaking param: t
 	s := make(chan token32, 16)
 	go func() {
+		// @@ make(chan token32, 16) escapes to heap
+		// @@ make(chan token32, 16) escapes to heap
 		for _, v := range t.tree {
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			s <- v.getToken32()
 		}
+		// @@ inlining call to (*token32).getToken32
 		close(s)
 	}()
 	return s
@@ -557,10 +660,13 @@ func (t *tokens32) Error() []token32 {
 	length := len(ordered)
 	tokens, length := make([]token32, length), length-1
 	for i := range tokens {
+		// @@ make([]token32, length) escapes to heap
+		// @@ make([]token32, length) escapes to heap
 		o := ordered[length-i]
 		if len(o) > 1 {
 			tokens[i] = o[len(o)-2].getToken32()
 		}
+		// @@ inlining call to (*token32).getToken32
 	}
 	return tokens
 }
@@ -578,10 +684,14 @@ func (t *tokens32) Error() []token32 {
 }*/
 
 func (t *tokens32) Expand(index int) tokenTree {
+	// @@ leaking param content: t
 	tree := t.tree
+	// @@ can inline (*tokens32).Expand
 	if index >= len(tree) {
 		expanded := make([]token32, 2*len(tree))
 		copy(expanded, tree)
+		// @@ make([]token32, 2 * len(tree)) escapes to heap
+		// @@ make([]token32, 2 * len(tree)) escapes to heap
 		t.tree = expanded
 	}
 	return nil
@@ -622,8 +732,10 @@ type textPosition struct {
 type textPositionMap map[int]textPosition
 
 func translatePositions(buffer []rune, positions []int) textPositionMap {
+	// @@ leaking param: positions
 	length, translations, j, line, symbol := len(positions), make(textPositionMap, len(positions)), 0, 1, 0
 	sort.Ints(positions)
+	// @@ make(textPositionMap, len(positions)) escapes to heap
 
 search:
 	for i, c := range buffer {
@@ -655,6 +767,8 @@ func (e *parseError) Error() string {
 	tokens, error := []token32{e.max}, "\n"
 	positions, p := make([]int, 2*len(tokens)), 0
 	for _, token := range tokens {
+		// @@ make([]int, 2 * len(tokens)) escapes to heap
+		// @@ make([]int, 2 * len(tokens)) escapes to heap
 		positions[p], p = int(token.begin), p+1
 		positions[p], p = int(token.end), p+1
 	}
@@ -668,22 +782,119 @@ func (e *parseError) Error() string {
 		error += fmt.Sprintf(format,
 			rul3s[token.pegRule],
 			translations[begin].line, translations[begin].symbol,
+			// @@ rul3s[token.pegRule] escapes to heap
 			translations[end].line, translations[end].symbol,
+			// @@ translations[begin].line escapes to heap
+			// @@ translations[begin].symbol escapes to heap
 			strconv.Quote(string(e.p.buffer[begin:end])))
+		// @@ translations[end].line escapes to heap
+		// @@ translations[end].symbol escapes to heap
 	}
+	// @@ strconv.Quote(string(e.p.buffer[begin:end])) escapes to heap
 
 	return error
 }
 
 func (p *Parser) PrintSyntaxTree() {
+	// @@ leaking param content: p
+	// @@ leaking param content: p
 	p.tokenTree.PrintSyntaxTree(p.Buffer)
 }
 
 func (p *Parser) Highlighter() {
+	// @@ leaking param content: p
 	p.tokenTree.PrintSyntax()
 }
 
 func (p *Parser) Execute() {
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
 	buffer, _buffer, text, begin, end := p.Buffer, p.buffer, "", 0, 0
 	for token := range p.tokenTree.Tokens() {
 		switch token.pegRule {
@@ -692,6 +903,10 @@ func (p *Parser) Execute() {
 			begin, end = int(token.begin), int(token.end)
 			text = string(_buffer[begin:end])
 
+			// @@ string(_buffer[begin:end]) escapes to heap
+			// @@ string(_buffer[begin:end]) escapes to heap
+			// @@ string(_buffer[begin:end]) escapes to heap
+			// @@ string(_buffer[begin:end]) escapes to heap
 		case ruleAction0:
 
 			p.makeSelect()
@@ -707,14 +922,29 @@ func (p *Parser) Execute() {
 		case ruleAction5:
 			p.pushNode(unescapeLiteral(buffer[begin:end]))
 		case ruleAction6:
+			// @@ inlining call to (*Parser).pushNode
+			// @@ unescapeLiteral(buffer[begin:end]) escapes to heap
 			p.makeDescribe()
 		case ruleAction7:
 			p.addEvaluationContext()
 		case ruleAction8:
+			// @@ inlining call to (*Parser).addEvaluationContext
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &evaluationContextNode literal escapes to heap
+			// @@ &evaluationContextNode literal escapes to heap
+			// @@ make(map[string]bool) escapes to heap
 			p.addPropertyKey(buffer[begin:end])
 		case ruleAction9:
+			// @@ inlining call to (*Parser).addPropertyKey
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &evaluationContextKey literal escapes to heap
+			// @@ &evaluationContextKey literal escapes to heap
 			p.addPropertyValue(buffer[begin:end])
 		case ruleAction10:
+			// @@ inlining call to (*Parser).addPropertyValue
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &evaluationContextValue literal escapes to heap
+			// @@ &evaluationContextValue literal escapes to heap
 			p.insertPropertyKeyValue()
 		case ruleAction11:
 			p.checkPropertyClause()
@@ -723,30 +953,65 @@ func (p *Parser) Execute() {
 		case ruleAction13:
 			p.addExpressionList()
 		case ruleAction14:
+			// @@ inlining call to (*Parser).addExpressionList
+			// @@ inlining call to (*Parser).pushNode
+			// @@ []function.Expression literal escapes to heap
+			// @@ []function.Expression literal escapes to heap
 			p.appendExpression()
 		case ruleAction15:
 			p.appendExpression()
 		case ruleAction16:
 			p.addOperatorLiteral("+")
 		case ruleAction17:
+			// @@ inlining call to (*Parser).addOperatorLiteral
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &operatorLiteral literal escapes to heap
+			// @@ &operatorLiteral literal escapes to heap
 			p.addOperatorLiteral("-")
 		case ruleAction18:
+			// @@ inlining call to (*Parser).addOperatorLiteral
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &operatorLiteral literal escapes to heap
+			// @@ &operatorLiteral literal escapes to heap
 			p.addOperatorFunction()
 		case ruleAction19:
 			p.addOperatorLiteral("/")
 		case ruleAction20:
+			// @@ inlining call to (*Parser).addOperatorLiteral
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &operatorLiteral literal escapes to heap
+			// @@ &operatorLiteral literal escapes to heap
 			p.addOperatorLiteral("*")
 		case ruleAction21:
+			// @@ inlining call to (*Parser).addOperatorLiteral
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &operatorLiteral literal escapes to heap
+			// @@ &operatorLiteral literal escapes to heap
 			p.addOperatorFunction()
 		case ruleAction22:
 			p.pushNode(unescapeLiteral(buffer[begin:end]))
 		case ruleAction23:
+			// @@ inlining call to (*Parser).pushNode
+			// @@ unescapeLiteral(buffer[begin:end]) escapes to heap
 			p.addExpressionList()
 		case ruleAction24:
+			// @@ inlining call to (*Parser).addExpressionList
+			// @@ inlining call to (*Parser).pushNode
+			// @@ []function.Expression literal escapes to heap
+			// @@ []function.Expression literal escapes to heap
 
 			p.addExpressionList()
 			p.addGroupBy()
+			// @@ inlining call to (*Parser).addExpressionList
+			// @@ inlining call to (*Parser).pushNode
+			// @@ []function.Expression literal escapes to heap
+			// @@ []function.Expression literal escapes to heap
 
+			// @@ inlining call to (*Parser).addGroupBy
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &groupByList literal escapes to heap
+			// @@ &groupByList literal escapes to heap
+			// @@ make([]string, 0) escapes to heap
 		case ruleAction25:
 			p.addPipeExpression()
 		case ruleAction26:
@@ -756,13 +1021,23 @@ func (p *Parser) Execute() {
 		case ruleAction28:
 			p.addStringNode(unescapeLiteral(buffer[begin:end]))
 		case ruleAction29:
+			// @@ inlining call to (*Parser).addStringNode
+			// @@ inlining call to (*Parser).pushNode
+			// @@ expression.String literal escapes to heap
 			p.addAnnotationExpression(buffer[begin:end])
 		case ruleAction30:
 			p.addGroupBy()
 		case ruleAction31:
+			// @@ inlining call to (*Parser).addGroupBy
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &groupByList literal escapes to heap
+			// @@ &groupByList literal escapes to heap
+			// @@ make([]string, 0) escapes to heap
 
 			p.pushNode(unescapeLiteral(buffer[begin:end]))
 
+			// @@ inlining call to (*Parser).pushNode
+			// @@ unescapeLiteral(buffer[begin:end]) escapes to heap
 		case ruleAction32:
 
 			p.addFunctionInvocation()
@@ -771,6 +1046,8 @@ func (p *Parser) Execute() {
 
 			p.pushNode(unescapeLiteral(buffer[begin:end]))
 
+			// @@ inlining call to (*Parser).pushNode
+			// @@ unescapeLiteral(buffer[begin:end]) escapes to heap
 		case ruleAction34:
 			p.addNullPredicate()
 		case ruleAction35:
@@ -818,62 +1095,127 @@ func (p *Parser) Execute() {
 
 			p.pushNode(unescapeLiteral(buffer[begin:end]))
 
+			// @@ inlining call to (*Parser).pushNode
+			// @@ unescapeLiteral(buffer[begin:end]) escapes to heap
 		case ruleAction48:
 			p.addLiteralList()
 		case ruleAction49:
+			// @@ inlining call to (*Parser).addLiteralList
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &stringLiteralList literal escapes to heap
+			// @@ &stringLiteralList literal escapes to heap
+			// @@ make([]string, 0) escapes to heap
 
 			p.appendLiteral(unescapeLiteral(buffer[begin:end]))
 
 		case ruleAction50:
 			p.addTagLiteral(unescapeLiteral(buffer[begin:end]))
 
+			// @@ inlining call to (*Parser).addTagLiteral
+			// @@ inlining call to (*Parser).pushNode
+			// @@ &tagLiteral literal escapes to heap
+			// @@ &tagLiteral literal escapes to heap
 		}
 	}
 	_, _, _, _, _ = buffer, _buffer, text, begin, end
 }
 
 func (p *Parser) Init() {
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param content: p
+	// @@ leaking param: p
 	p.buffer = []rune(p.Buffer)
 	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != endSymbol {
+		// @@ ([]rune)(p.Buffer) escapes to heap
 		p.buffer = append(p.buffer, endSymbol)
 	}
 
 	var tree tokenTree = &tokens32{tree: make([]token32, math.MaxInt16)}
 	var max token32
+	// @@ &tokens32 literal escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
+	// @@ moved to heap: tree
+	// @@ &tokens32 literal escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ &tokens32 literal escapes to heap
+	// @@ make([]token32, math.MaxInt16) escapes to heap
 	position, depth, tokenIndex, buffer, _rules := uint32(0), uint32(0), 0, p.buffer, p.rules
+	// @@ moved to heap: max
 
+	// @@ moved to heap: tokenIndex
+	// @@ moved to heap: position
+	// @@ moved to heap: depth
+	// @@ moved to heap: _rules
 	p.Parse = func(rule ...int) error {
 		r := 1
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		if len(rule) > 0 {
 			r = rule[0]
 		}
 		matches := p.rules[r]()
 		p.tokenTree = tree
 		if matches {
+			// @@ leaking closure reference tree
+			// @@ &tree escapes to heap
 			p.tokenTree.trim(tokenIndex)
 			return nil
+			// @@ &tokenIndex escapes to heap
 		}
 		return &parseError{p, max}
 	}
+	// @@ &max escapes to heap
+	// @@ &parseError literal escapes to heap
+	// @@ &parseError literal escapes to heap
 
 	p.Reset = func() {
 		position, tokenIndex, depth = 0, 0, 0
+		// @@ can inline (*Parser).Init.func2
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 	}
+	// @@ &position escapes to heap
+	// @@ &tokenIndex escapes to heap
+	// @@ &depth escapes to heap
 
 	add := func(rule pegRule, begin uint32) {
 		if t := tree.Expand(tokenIndex); t != nil {
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			tree = t
+			// @@ leaking closure reference tree
+			// @@ leaking closure reference tree
+			// @@ &tree escapes to heap
+			// @@ &tokenIndex escapes to heap
 		}
 		tree.Add(rule, begin, position, depth, tokenIndex)
 		tokenIndex++
+		// @@ &position escapes to heap
+		// @@ &depth escapes to heap
 		if begin != position && position > max.end {
 			max = token32{rule, begin, position, depth}
+			// @@ &max escapes to heap
 		}
 	}
 
 	matchDot := func() bool {
 		if buffer[position] != endSymbol {
+			// @@ can inline (*Parser).Init.func4
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			position++
+			// @@ &position escapes to heap
 			return true
 		}
 		return false
@@ -900,7 +1242,17 @@ func (p *Parser) Init() {
 		/* 0 root <- <((selectStmt / describeStmt) _ !.)> */
 		func() bool {
 			position0, tokenIndex0, depth0 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position1 := position
 				depth++
 				{
@@ -910,6 +1262,8 @@ func (p *Parser) Init() {
 						depth++
 						if !_rules[rule_]() {
 							goto l3
+							// @@ &_rules escapes to heap
+							// @@ &_rules escapes to heap
 						}
 						{
 							position5, tokenIndex5, depth5 := position, tokenIndex, depth
@@ -1778,15 +2132,21 @@ func (p *Parser) Init() {
 		/* 9 optionalPredicateClause <- <(predicateClause / Action12)> */
 		func() bool {
 			{
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				position130 := position
 				depth++
+				// @@ &position escapes to heap
 				{
+					// @@ &depth escapes to heap
 					position131, tokenIndex131, depth131 := position, tokenIndex, depth
 					{
+						// @@ &tokenIndex escapes to heap
 						position133 := position
 						depth++
 						if !_rules[rule_]() {
 							goto l132
+							// @@ &_rules escapes to heap
 						}
 						{
 							position134, tokenIndex134, depth134 := position, tokenIndex, depth
@@ -1891,7 +2251,12 @@ func (p *Parser) Init() {
 		/* 10 expressionList <- <(Action13 expression_start Action14 (_ COMMA expression_start Action15)*)> */
 		func() bool {
 			position145, tokenIndex145, depth145 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position146 := position
 				depth++
 				{
@@ -1899,6 +2264,7 @@ func (p *Parser) Init() {
 				}
 				if !_rules[ruleexpression_start]() {
 					goto l145
+					// @@ &_rules escapes to heap
 				}
 				{
 					add(ruleAction14, position)
@@ -1933,7 +2299,12 @@ func (p *Parser) Init() {
 		/* 11 expression_start <- <(expression_sum add_pipe)> */
 		func() bool {
 			position152, tokenIndex152, depth152 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position153 := position
 				depth++
 				{
@@ -1941,6 +2312,7 @@ func (p *Parser) Init() {
 					depth++
 					if !_rules[ruleexpression_product]() {
 						goto l152
+						// @@ &_rules escapes to heap
 					}
 				l155:
 					{
@@ -2016,11 +2388,17 @@ func (p *Parser) Init() {
 		/* 13 expression_product <- <(expression_atom (add_pipe ((_ OP_DIV Action19) / (_ OP_MULT Action20)) expression_atom Action21)*)> */
 		func() bool {
 			position165, tokenIndex165, depth165 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position166 := position
 				depth++
 				if !_rules[ruleexpression_atom]() {
 					goto l165
+					// @@ &_rules escapes to heap
 				}
 			l167:
 				{
@@ -2090,16 +2468,22 @@ func (p *Parser) Init() {
 		/* 15 add_pipe <- <add_one_pipe*> */
 		func() bool {
 			{
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				position178 := position
 				depth++
+				// @@ &position escapes to heap
 			l179:
+				// @@ &depth escapes to heap
 				{
 					position180, tokenIndex180, depth180 := position, tokenIndex, depth
 					{
+						// @@ &tokenIndex escapes to heap
 						position181 := position
 						depth++
 						if !_rules[rule_]() {
 							goto l180
+							// @@ &_rules escapes to heap
 						}
 						{
 							position182 := position
@@ -2185,7 +2569,12 @@ func (p *Parser) Init() {
 		/* 16 expression_atom <- <(expression_atom_raw expression_annotation)> */
 		func() bool {
 			position192, tokenIndex192, depth192 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position193 := position
 				depth++
 				{
@@ -2198,6 +2587,7 @@ func (p *Parser) Init() {
 							depth++
 							if !_rules[rule_]() {
 								goto l196
+								// @@ &_rules escapes to heap
 							}
 							{
 								position198 := position
@@ -2409,15 +2799,21 @@ func (p *Parser) Init() {
 		/* 19 expression_annotation <- <expression_annotation_required?> */
 		func() bool {
 			{
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				position225 := position
 				depth++
+				// @@ &position escapes to heap
 				{
+					// @@ &depth escapes to heap
 					position226, tokenIndex226, depth226 := position, tokenIndex, depth
 					{
+						// @@ &tokenIndex escapes to heap
 						position228 := position
 						depth++
 						if !_rules[rule_]() {
 							goto l226
+							// @@ &_rules escapes to heap
 						}
 						if buffer[position] != rune('{') {
 							goto l226
@@ -2472,20 +2868,26 @@ func (p *Parser) Init() {
 		/* 20 optionalGroupBy <- <(Action30 (groupByClause / collapseByClause)?)> */
 		func() bool {
 			{
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				position235 := position
 				depth++
+				// @@ &position escapes to heap
 				{
+					// @@ &depth escapes to heap
 					add(ruleAction30, position)
 				}
 				{
 					position237, tokenIndex237, depth237 := position, tokenIndex, depth
 					{
+						// @@ &tokenIndex escapes to heap
 						position239, tokenIndex239, depth239 := position, tokenIndex, depth
 						{
 							position241 := position
 							depth++
 							if !_rules[rule_]() {
 								goto l240
+								// @@ &_rules escapes to heap
 							}
 							{
 								position242, tokenIndex242, depth242 := position, tokenIndex, depth
@@ -2886,13 +3288,19 @@ func (p *Parser) Init() {
 		/* 26 predicate_1 <- <((predicate_2 _ OP_OR predicate_1 Action40) / predicate_2)> */
 		func() bool {
 			position294, tokenIndex294, depth294 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position295 := position
 				depth++
 				{
 					position296, tokenIndex296, depth296 := position, tokenIndex, depth
 					if !_rules[rulepredicate_2]() {
 						goto l297
+						// @@ &_rules escapes to heap
 					}
 					if !_rules[rule_]() {
 						goto l297
@@ -2961,13 +3369,19 @@ func (p *Parser) Init() {
 		/* 27 predicate_2 <- <((predicate_3 _ OP_AND predicate_2 Action41) / predicate_3)> */
 		func() bool {
 			position304, tokenIndex304, depth304 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position305 := position
 				depth++
 				{
 					position306, tokenIndex306, depth306 := position, tokenIndex, depth
 					if !_rules[rulepredicate_3]() {
 						goto l307
+						// @@ &_rules escapes to heap
 					}
 					if !_rules[rule_]() {
 						goto l307
@@ -3051,13 +3465,19 @@ func (p *Parser) Init() {
 		/* 28 predicate_3 <- <((_ OP_NOT predicate_3 Action42) / (_ PAREN_OPEN predicate_1 _ PAREN_CLOSE) / tagMatcher)> */
 		func() bool {
 			position316, tokenIndex316, depth316 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position317 := position
 				depth++
 				{
 					position318, tokenIndex318, depth318 := position, tokenIndex, depth
 					if !_rules[rule_]() {
 						goto l319
+						// @@ &_rules escapes to heap
 					}
 					{
 						position320 := position
@@ -3382,11 +3802,17 @@ func (p *Parser) Init() {
 		/* 30 literalString <- <(_ STRING Action47)> */
 		func() bool {
 			position357, tokenIndex357, depth357 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position358 := position
 				depth++
 				if !_rules[rule_]() {
 					goto l357
+					// @@ &_rules escapes to heap
 				}
 				if !_rules[ruleSTRING]() {
 					goto l357
@@ -3407,11 +3833,17 @@ func (p *Parser) Init() {
 		/* 32 literalListString <- <(_ STRING Action49)> */
 		func() bool {
 			position361, tokenIndex361, depth361 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position362 := position
 				depth++
 				if !_rules[rule_]() {
 					goto l361
+					// @@ &_rules escapes to heap
 				}
 				if !_rules[ruleSTRING]() {
 					goto l361
@@ -3430,11 +3862,17 @@ func (p *Parser) Init() {
 		/* 33 tagName <- <(_ <TAG_NAME> Action50)> */
 		func() bool {
 			position364, tokenIndex364, depth364 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position365 := position
 				depth++
 				if !_rules[rule_]() {
 					goto l364
+					// @@ &_rules escapes to heap
 				}
 				{
 					position366 := position
@@ -3465,11 +3903,17 @@ func (p *Parser) Init() {
 		/* 34 COLUMN_NAME <- <IDENTIFIER> */
 		func() bool {
 			position369, tokenIndex369, depth369 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position370 := position
 				depth++
 				if !_rules[ruleIDENTIFIER]() {
 					goto l369
+					// @@ &_rules escapes to heap
 				}
 				depth--
 				add(ruleCOLUMN_NAME, position370)
@@ -3486,7 +3930,12 @@ func (p *Parser) Init() {
 		/* 37 IDENTIFIER <- <(('`' CHAR* '`') / (_ !(KEYWORD KEY) ID_SEGMENT ('.' ID_SEGMENT)*))> */
 		func() bool {
 			position373, tokenIndex373, depth373 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position374 := position
 				depth++
 				{
@@ -3500,6 +3949,7 @@ func (p *Parser) Init() {
 						position378, tokenIndex378, depth378 := position, tokenIndex, depth
 						if !_rules[ruleCHAR]() {
 							goto l378
+							// @@ &_rules escapes to heap
 						}
 						goto l377
 					l378:
@@ -4523,11 +4973,17 @@ func (p *Parser) Init() {
 		/* 39 ID_SEGMENT <- <(_ ID_START ID_CONT*)> */
 		func() bool {
 			position512, tokenIndex512, depth512 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position513 := position
 				depth++
 				if !_rules[rule_]() {
 					goto l512
+					// @@ &_rules escapes to heap
 				}
 				if !_rules[ruleID_START]() {
 					goto l512
@@ -4553,7 +5009,12 @@ func (p *Parser) Init() {
 		/* 40 ID_START <- <((&('_') '_') | (&('A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z') [A-Z]) | (&('a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z') [a-z]))> */
 		func() bool {
 			position516, tokenIndex516, depth516 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position517 := position
 				depth++
 				{
@@ -4590,13 +5051,19 @@ func (p *Parser) Init() {
 		/* 41 ID_CONT <- <(ID_START / [0-9])> */
 		func() bool {
 			position519, tokenIndex519, depth519 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position520 := position
 				depth++
 				{
 					position521, tokenIndex521, depth521 := position, tokenIndex, depth
 					if !_rules[ruleID_START]() {
 						goto l522
+						// @@ &_rules escapes to heap
 					}
 					goto l521
 				l522:
@@ -4618,7 +5085,12 @@ func (p *Parser) Init() {
 		/* 42 PROPERTY_KEY <- <(((&('S' | 's') (<(('s' / 'S') ('a' / 'A') ('m' / 'M') ('p' / 'P') ('l' / 'L') ('e' / 'E'))> KEY _ (('b' / 'B') ('y' / 'Y')))) | (&('R' | 'r') <(('r' / 'R') ('e' / 'E') ('s' / 'S') ('o' / 'O') ('l' / 'L') ('u' / 'U') ('t' / 'T') ('i' / 'I') ('o' / 'O') ('n' / 'N'))>) | (&('T' | 't') <(('t' / 'T') ('o' / 'O'))>) | (&('F' | 'f') <(('f' / 'F') ('r' / 'R') ('o' / 'O') ('m' / 'M'))>)) KEY)> */
 		func() bool {
 			position523, tokenIndex523, depth523 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position524 := position
 				depth++
 				{
@@ -4722,6 +5194,7 @@ func (p *Parser) Init() {
 						}
 						if !_rules[ruleKEY]() {
 							goto l523
+							// @@ &_rules escapes to heap
 						}
 						if !_rules[rule_]() {
 							goto l523
@@ -5058,7 +5531,12 @@ func (p *Parser) Init() {
 		/* 53 QUOTE_SINGLE <- <'\''> */
 		func() bool {
 			position588, tokenIndex588, depth588 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position589 := position
 				depth++
 				if buffer[position] != rune('\'') {
@@ -5076,7 +5554,12 @@ func (p *Parser) Init() {
 		/* 54 QUOTE_DOUBLE <- <'"'> */
 		func() bool {
 			position590, tokenIndex590, depth590 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position591 := position
 				depth++
 				if buffer[position] != rune('"') {
@@ -5094,13 +5577,19 @@ func (p *Parser) Init() {
 		/* 55 STRING <- <((QUOTE_SINGLE <(!QUOTE_SINGLE CHAR)*> QUOTE_SINGLE) / (QUOTE_DOUBLE <(!QUOTE_DOUBLE CHAR)*> QUOTE_DOUBLE))> */
 		func() bool {
 			position592, tokenIndex592, depth592 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position593 := position
 				depth++
 				{
 					position594, tokenIndex594, depth594 := position, tokenIndex, depth
 					if !_rules[ruleQUOTE_SINGLE]() {
 						goto l595
+						// @@ &_rules escapes to heap
 					}
 					{
 						position596 := position
@@ -5177,7 +5666,12 @@ func (p *Parser) Init() {
 		/* 56 CHAR <- <(('\\' ((&('"') QUOTE_DOUBLE) | (&('\'') QUOTE_SINGLE) | (&('\\' | '`') ESCAPE_CLASS))) / (!ESCAPE_CLASS .))> */
 		func() bool {
 			position604, tokenIndex604, depth604 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position605 := position
 				depth++
 				{
@@ -5191,6 +5685,7 @@ func (p *Parser) Init() {
 						case '"':
 							if !_rules[ruleQUOTE_DOUBLE]() {
 								goto l607
+								// @@ &_rules escapes to heap
 							}
 							break
 						case '\'':
@@ -5234,7 +5729,12 @@ func (p *Parser) Init() {
 		/* 57 ESCAPE_CLASS <- <('`' / '\\')> */
 		func() bool {
 			position610, tokenIndex610, depth610 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position611 := position
 				depth++
 				{
@@ -5263,7 +5763,12 @@ func (p *Parser) Init() {
 		/* 58 NUMBER <- <(NUMBER_INTEGER NUMBER_FRACTION? NUMBER_EXP?)> */
 		func() bool {
 			position614, tokenIndex614, depth614 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position615 := position
 				depth++
 				{
@@ -5433,7 +5938,12 @@ func (p *Parser) Init() {
 		/* 64 PAREN_OPEN <- <'('> */
 		func() bool {
 			position645, tokenIndex645, depth645 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position646 := position
 				depth++
 				if buffer[position] != rune('(') {
@@ -5451,7 +5961,12 @@ func (p *Parser) Init() {
 		/* 65 PAREN_CLOSE <- <')'> */
 		func() bool {
 			position647, tokenIndex647, depth647 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position648 := position
 				depth++
 				if buffer[position] != rune(')') {
@@ -5469,7 +5984,12 @@ func (p *Parser) Init() {
 		/* 66 COMMA <- <','> */
 		func() bool {
 			position649, tokenIndex649, depth649 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position650 := position
 				depth++
 				if buffer[position] != rune(',') {
@@ -5487,12 +6007,17 @@ func (p *Parser) Init() {
 		/* 67 _ <- <((&('/') COMMENT_BLOCK) | (&('-') COMMENT_TRAIL) | (&('\t' | '\n' | ' ') SPACE))*> */
 		func() bool {
 			{
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				position652 := position
 				depth++
+				// @@ &position escapes to heap
 			l653:
+				// @@ &depth escapes to heap
 				{
 					position654, tokenIndex654, depth654 := position, tokenIndex, depth
 					{
+						// @@ &tokenIndex escapes to heap
 						switch buffer[position] {
 						case '/':
 							{
@@ -5628,13 +6153,19 @@ func (p *Parser) Init() {
 		/* 70 KEY <- <!ID_CONT> */
 		func() bool {
 			position668, tokenIndex668, depth668 := position, tokenIndex, depth
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			{
+				// @@ &position escapes to heap
+				// @@ &tokenIndex escapes to heap
+				// @@ &depth escapes to heap
 				position669 := position
 				depth++
 				{
 					position670, tokenIndex670, depth670 := position, tokenIndex, depth
 					if !_rules[ruleID_CONT]() {
 						goto l670
+						// @@ &_rules escapes to heap
 					}
 					goto l668
 				l670:

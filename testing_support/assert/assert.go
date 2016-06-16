@@ -37,14 +37,18 @@ type Assert struct {
 
 // New creates a new Assert struct.
 func New(t *testing.T) Assert {
+	// @@ leaking param: t to result ~r1 level=0
 	return Assert{t, 0, ""}
+	// @@ can inline New
 }
 
 // Stack shifts how many stack frames to traverse to print the error message.
 // this may be useful if you're creating a helper testing method.
 // returns a new instances of Assert.
 func (assert Assert) Stack(stack int) Assert {
+	// @@ leaking param: assert to result ~r1 level=0
 	assert.stack += stack
+	// @@ can inline Assert.Stack
 	return assert
 }
 
@@ -54,6 +58,9 @@ func (assert Assert) Stack(stack int) Assert {
 // returns a new instances of Assert.
 // It will add to the existing context for the Assert object.
 func (assert Assert) Contextf(format string, a ...interface{}) Assert {
+	// @@ leaking param content: format
+	// @@ leaking param content: a
+	// @@ leaking param: assert to result ~r2 level=0
 	if assert.context != "" {
 		assert.context += ", "
 	}
@@ -63,60 +70,92 @@ func (assert Assert) Contextf(format string, a ...interface{}) Assert {
 
 // Errorf marks the test as failed.
 func (assert Assert) Errorf(format string, a ...interface{}) {
+	// @@ leaking param: assert
+	// @@ leaking param content: format
+	// @@ leaking param content: a
 	assert.withCaller(format, a...)
 }
 
 // EqString errors the test if two strings aren't equal.
 func (assert Assert) EqString(actual, expected string) {
+	// @@ leaking param: assert
+	// @@ leaking param: expected
+	// @@ leaking param: actual
 	if actual != expected {
 		assert.withCaller("Expected=[%s], actual=[%s]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // EqBool errors the test if two booleans aren't equal.
 func (assert Assert) EqBool(actual, expected bool) {
+	// @@ leaking param: assert
 	if actual != expected {
 		assert.withCaller("Expected=[%t], actual=[%t]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // MustEqBool fails the test if two booleans aren't equal.
 func (assert Assert) MustEqBool(actual, expected bool) {
+	// @@ leaking param: assert
 	if actual != expected {
 		assert.withCallerFatal("Expected=[%t], actual=[%t]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // EqInt errors the test if two ints aren't equal.
 func (assert Assert) EqInt(actual, expected int) {
+	// @@ leaking param: assert
 	if actual != expected {
 		assert.withCaller("Expected=[%d], actual=[%d]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // MustEqInt fails the test if two ints aren't equal.
 func (assert Assert) MustEqInt(actual, expected int) {
+	// @@ leaking param: assert
 	if actual != expected {
 		assert.withCallerFatal("Expected=[%d], actual=[%d]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
+	// @@ leaking param: assert
+	// @@ leaking param: expected
+	// @@ leaking param: actual
 	if len(actual) != len(expected) {
 		assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
 		return
+		// @@ expected escapes to heap
+		// @@ actual escapes to heap
 	}
 	for i := range actual {
 		if math.IsNaN(expected[i]) {
 			if !math.IsNaN(actual[i]) {
+				// @@ inlining call to math.IsNaN
 				assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
+				// @@ inlining call to math.IsNaN
 				return
+				// @@ expected escapes to heap
+				// @@ actual escapes to heap
 			}
 		} else {
 			delta := actual[i] - expected[i]
 			if math.IsNaN(delta) || math.Abs(delta) > epsilon {
 				assert.withCaller("Expected=%+v, actual=%+v", expected, actual)
+				// @@ inlining call to math.IsNaN
 				return
+				// @@ expected escapes to heap
+				// @@ actual escapes to heap
 			}
 		}
 	}
@@ -124,28 +163,42 @@ func (assert Assert) EqFloatArray(actual, expected []float64, epsilon float64) {
 
 // EqFloat errors the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqFloat(actual, expected, epsilon float64) {
+	// @@ leaking param: assert
 	if math.IsNaN(actual) != math.IsNaN(expected) {
 		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
+		// @@ inlining call to math.IsNaN
+		// @@ inlining call to math.IsNaN
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 	if math.IsNaN(expected) {
 		return
+		// @@ inlining call to math.IsNaN
 	}
 	delta := math.Abs(actual - expected)
 	if delta > epsilon {
 		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // EqApproximate errors the test if two floats aren't equal. NaNs are considered equal.
 func (assert Assert) EqApproximate(actual, expected, epsilon float64) {
+	// @@ leaking param: assert
 	delta := actual - expected
 	if !(-epsilon < delta && delta < epsilon) {
 		assert.withCaller("Expected=[%f], actual=[%f]", expected, actual)
 	}
+	// @@ expected escapes to heap
+	// @@ actual escapes to heap
 }
 
 // Eq errors the test if two arguments are not equal.
 func (assert Assert) Eq(actual, expected interface{}) {
+	// @@ leaking param: actual
+	// @@ leaking param: expected
+	// @@ leaking param: assert
 	if !reflect.DeepEqual(actual, expected) {
 		assert.withCaller("\nExpected=%+v\nActual  =%+v", expected, actual)
 	}
@@ -153,30 +206,61 @@ func (assert Assert) Eq(actual, expected interface{}) {
 
 // CheckError errors the test if a non-nil error is passed.
 func (assert Assert) CheckError(err error) {
+	// @@ leaking param: err
+	// @@ leaking param: assert
 	if err != nil {
 		assert.withCaller("Unexpected error: %s", err.Error())
 	}
+	// @@ err.Error() escapes to heap
 }
 
 // Utility Functions
 // =================
 
 func (assert Assert) withCaller(format string, a ...interface{}) {
+	// @@ leaking param content: format
+	// @@ leaking param content: a
+	// @@ leaking param: assert
+	// @@ leaking param content: format
+	// @@ leaking param content: a
 	file, line := caller(assert.stack)
 	if assert.context != "" {
 		assert.t.Errorf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
 	} else {
+		// @@ assert.t.common escapes to heap
+		// @@ file escapes to heap
+		// @@ line escapes to heap
+		// @@ assert.context escapes to heap
+		// @@ fmt.Sprintf(format, a...) escapes to heap
 		assert.t.Errorf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
 	}
+	// @@ assert.t.common escapes to heap
+	// @@ file escapes to heap
+	// @@ line escapes to heap
+	// @@ fmt.Sprintf(format, a...) escapes to heap
 }
 
 func (assert Assert) withCallerFatal(format string, a ...interface{}) {
+	// @@ leaking param content: format
+	// @@ leaking param content: a
+	// @@ leaking param: assert
+	// @@ leaking param content: format
+	// @@ leaking param content: a
 	file, line := caller(assert.stack)
 	if assert.context != "" {
 		assert.t.Fatalf("%s:%d> [%s] %s", file, line, assert.context, fmt.Sprintf(format, a...))
 	} else {
+		// @@ assert.t.common escapes to heap
+		// @@ file escapes to heap
+		// @@ line escapes to heap
+		// @@ assert.context escapes to heap
+		// @@ fmt.Sprintf(format, a...) escapes to heap
 		assert.t.Fatalf("%s:%d>%s", file, line, fmt.Sprintf(format, a...))
 	}
+	// @@ assert.t.common escapes to heap
+	// @@ file escapes to heap
+	// @@ line escapes to heap
+	// @@ fmt.Sprintf(format, a...) escapes to heap
 }
 
 func caller(depth int) (string, int) {

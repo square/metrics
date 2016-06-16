@@ -62,10 +62,16 @@ type metricUpdateAPI struct {
 }
 
 func (m *metricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
+	// @@ leaking param: metric
+	// @@ leaking param: context
+	// @@ leaking param content: m
 	return m.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetric(metric, context)
 }
 
 func (m *metricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
+	// @@ leaking param: metrics
+	// @@ leaking param: context
+	// @@ leaking param content: m
 	return m.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetrics(metrics, context)
 }
 
@@ -93,60 +99,105 @@ type CachedTagSetList struct {
 
 // NewMetricMetadataAPI creates a cached API given configuration and an underlying API object.
 func NewMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) BackgroundAPI {
+	// @@ leaking param: apiInstance to result ~r2 level=-1
 	requests := make(chan func(metadata.Context) error, config.RequestLimit)
+	// @@ can inline NewMetricMetadataAPI
 	if config.Freshness == 0 {
+		// @@ make(chan func(metadata.Context) error, config.RequestLimit) escapes to heap
+		// @@ make(chan func(metadata.Context) error, config.RequestLimit) escapes to heap
 		config.Freshness = config.TimeToLive
 	}
 	result := metricMetadataAPI{
 		metricMetadataAPI: apiInstance,
 		clock:             util.RealClock{},
 		getAllTagsCache:   map[api.MetricKey]*CachedTagSetList{},
-		freshness:         config.Freshness,
-		timeToLive:        config.TimeToLive,
-		backgroundQueue:   requests,
+		// @@ util.RealClock literal escapes to heap
+		// @@ util.RealClock literal escapes to heap
+		freshness: config.Freshness,
+		// @@ map[api.MetricKey]*CachedTagSetList literal escapes to heap
+		// @@ map[api.MetricKey]*CachedTagSetList literal escapes to heap
+		timeToLive:      config.TimeToLive,
+		backgroundQueue: requests,
 	}
 	if _, ok := apiInstance.(metadata.MetricUpdateAPI); ok {
+		// @@ moved to heap: result
 		return &metricUpdateAPI{result}
 	}
+	// @@ &metricUpdateAPI literal escapes to heap
+	// @@ &metricUpdateAPI literal escapes to heap
 	return &result
 }
+
+// @@ &result escapes to heap
+// @@ &result escapes to heap
 
 // addBackgroundGetAllTagsRequest adds a job to update the lag list for the given
 // metric. Requires the caller hold the lock for the item in the cache.
 func (c *metricMetadataAPI) addBackgroundGetAllTagsRequest(item *CachedTagSetList, metricKey api.MetricKey) {
+	// @@ leaking param: metricKey
+	// @@ leaking param: item
+	// @@ leaking param content: c
+	// @@ leaking param: c
 	if item == nil {
 		log.Errorf("Asked to perform a background GetAllTags lookup for %s but missing entry", metricKey)
 		return
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
 	}
 
 	c.queueMutex.Lock()
 	defer c.queueMutex.Unlock()
+	// @@ c.queueMutex escapes to heap
 
+	// @@ c.queueMutex escapes to heap
 	if cap(c.backgroundQueue) <= len(c.backgroundQueue) {
 		log.Warningf("Unable to enqueue a background GetAllTags lookup for %s due to a full queue", metricKey)
 		return
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
 	}
 
 	if item.enqueued {
 		log.Infof("Unable to perform a background GetAllTags lookup for %s as one is already enqueued", metricKey)
 		return
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
 	}
 
 	if item.inflight {
 		log.Infof("Unable to perform a background GetAllTags lookup for %s as one is already in flight", metricKey)
 		return
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
 	}
 
 	log.Infof("Enqueuing a background GetAllTags lookup for %s", metricKey)
 	item.enqueued = true
+	// @@ ... argument escapes to heap
+	// @@ metricKey escapes to heap
 
 	c.backgroundQueue <- func(context metadata.Context) error {
+		// @@ leaking param: context
 		log.Infof("Executing the background GetAllTags lookup for %s", metricKey)
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		defer log.Infof("Finished the background GetAllTags lookup for %s", metricKey)
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
+		// @@ leaking closure reference metricKey
+		// @@ leaking closure reference metricKey
+		// @@ leaking closure reference metricKey
 
+		// @@ ... argument escapes to heap
+		// @@ metricKey escapes to heap
 		item.Lock()
 		defer item.Unlock()
+		// @@ item.Mutex escapes to heap
+		// @@ leaking closure reference item
+		// @@ leaking closure reference item
+		// @@ leaking closure reference item
 		item.enqueued = false
+		// @@ item.Mutex escapes to heap
 
 		defer context.Profiler.Record("CachedMetricMetadataAPI_BackgroundAction_GetAllTags")()
 
@@ -159,20 +210,28 @@ func (c *metricMetadataAPI) addBackgroundGetAllTagsRequest(item *CachedTagSetLis
 // It will block until an update is available.
 func (c *metricMetadataAPI) GetBackgroundAction() func(metadata.Context) error {
 	return <-c.backgroundQueue
+	// @@ can inline (*metricMetadataAPI).GetBackgroundAction
 }
 
 // GetAllMetrics waits for a slot to be open, then queries the underlying API.
 func (c *metricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
+	// @@ leaking param: context
+	// @@ leaking param content: c
 	return c.metricMetadataAPI.GetAllMetrics(context)
 }
 
 // GetMetricsForTag wwaits for a slot to be open, then queries the underlying API.
 func (c *metricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
+	// @@ leaking param: tagKey
+	// @@ leaking param: tagValue
+	// @@ leaking param: context
+	// @@ leaking param content: c
 	return c.metricMetadataAPI.GetMetricsForTag(tagKey, tagValue, context)
 }
 
 // CheckHealthy checks if the underlying MetricAPI is healthy
 func (c *metricMetadataAPI) CheckHealthy() error {
+	// @@ leaking param content: c
 	return c.metricMetadataAPI.CheckHealthy()
 }
 
@@ -180,24 +239,36 @@ func (c *metricMetadataAPI) CheckHealthy() error {
 // is newer than what is in the cache). Requires the caller hold the lock for the
 // item in the cache.
 func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *CachedTagSetList, metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
+	// @@ leaking param: item
+	// @@ leaking param content: c
+	// @@ leaking param: metricKey
+	// @@ leaking param: context
+	// @@ leaking param content: c
 	if item == nil {
 		return nil, errors.New("Missing cache list entry")
 	}
+	// @@ inlining call to errors.New
+	// @@ &errors.errorString literal escapes to heap
+	// @@ &errors.errorString literal escapes to heap
 
 	item.wg.Add(1)
 	item.fetchError = nil
+	// @@ item.wg escapes to heap
 	item.inflight = true
 	item.Unlock()
 
+	// @@ item.Mutex escapes to heap
 	startTime := c.clock.Now()
 	tagsets, err := c.metricMetadataAPI.GetAllTags(metricKey, context)
 
 	item.Lock()
 
+	// @@ item.Mutex escapes to heap
 	if err != nil {
 		item.fetchError = err
 		item.wg.Done()
 		item.inflight = false
+		// @@ item.wg escapes to heap
 
 		return nil, err
 	}
@@ -206,16 +277,24 @@ func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *CachedTagSetList, m
 	// entry in the cache
 	newExpiry := startTime.Add(c.timeToLive)
 	if item.Expiry.Before(newExpiry) {
+		// @@ inlining call to time.Time.Add
 		item.TagSets = tagsets
+		// @@ inlining call to time.Time.Before
 		item.Expiry = newExpiry
 		item.Stale = startTime.Add(c.freshness)
 	} else {
+		// @@ inlining call to time.Time.Add
 		log.Warningf("Asked to update the tag set for %s but new expiry is earlier than current (%s vs %s)",
 			metricKey, newExpiry.String(), item.Expiry.String())
+		// @@ metricKey escapes to heap
 	}
+	// @@ ... argument escapes to heap
+	// @@ newExpiry.String() escapes to heap
+	// @@ item.Expiry.String() escapes to heap
 
 	item.wg.Done()
 	item.inflight = false
+	// @@ item.wg escapes to heap
 
 	return tagsets, nil
 }
@@ -226,44 +305,69 @@ func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *CachedTagSetList, m
 // up-to-date, this method may enqueue a background request to the underlying API
 // to keep the cache fresh.
 func (c *metricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
+	// @@ leaking param: context
+	// @@ leaking param: c
+	// @@ leaking param: metricKey
 	defer context.Profiler.Record("CachedMetricMetadataAPI_GetAllTags")()
 
 	// Get the cached result for this metric.
 	c.getAllTagsCacheMutex.RLock()
 	item, ok := c.getAllTagsCache[metricKey]
+	// @@ c.getAllTagsCacheMutex escapes to heap
 	c.getAllTagsCacheMutex.RUnlock()
 
+	// @@ c.getAllTagsCacheMutex escapes to heap
 	if !ok {
 		c.getAllTagsCacheMutex.Lock()
 
+		// @@ c.getAllTagsCacheMutex escapes to heap
 		// Now that we have the mutex for getAllTagsCache, make sure another goroutine
 		// hasn't already updated the cache
 		item, ok = c.getAllTagsCache[metricKey]
 		if !ok {
 			item = &CachedTagSetList{}
 			c.getAllTagsCache[metricKey] = item
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
+			// @@ &CachedTagSetList literal escapes to heap
 		}
 
 		c.getAllTagsCacheMutex.Unlock()
 	}
+	// @@ c.getAllTagsCacheMutex escapes to heap
 
 	item.Lock()
 
+	// @@ item.Mutex escapes to heap
 	if item.Expiry.IsZero() || item.Expiry.Before(c.clock.Now()) {
 		if item.inflight {
+			// @@ inlining call to time.Time.IsZero
+			// @@ inlining call to time.Time.Before
 			item.Unlock()
 			item.wg.Wait()
+			// @@ item.Mutex escapes to heap
 
+			// @@ item.wg escapes to heap
 			// Make sure we have the lock to re-read
 			item.Lock()
 			defer item.Unlock()
+			// @@ item.Mutex escapes to heap
 
+			// @@ item.Mutex escapes to heap
 			// If the request we were waiting on errored, we also errored
 			return item.TagSets, item.fetchError
 		}
 
 		defer item.Unlock()
 
+		// @@ item.Mutex escapes to heap
 		// We're going to execute this fetch now
 		defer context.Profiler.Record("CachedMetricMetadataAPI_GetAllTags_Expired")()
 
@@ -279,9 +383,11 @@ func (c *metricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata
 	defer context.Profiler.Record("CachedMetricMetadataAPI_Hit")()
 	defer item.Unlock()
 
+	// @@ item.Mutex escapes to heap
 	// Otherwise, we could be stale
 	if item.Stale.Before(c.clock.Now()) {
 		// Enqueue a background request
+		// @@ inlining call to time.Time.Before
 		c.addBackgroundGetAllTagsRequest(item, metricKey)
 	}
 
@@ -292,9 +398,11 @@ func (c *metricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata
 // CurrentLiveRequests returns the number of requests currently in the queue
 func (c *metricMetadataAPI) CurrentLiveRequests() int {
 	return len(c.backgroundQueue)
+	// @@ can inline (*metricMetadataAPI).CurrentLiveRequests
 }
 
 // MaximumLiveRequests returns the maximum number of requests that can be in the queue
 func (c *metricMetadataAPI) MaximumLiveRequests() int {
 	return cap(c.backgroundQueue)
+	// @@ can inline (*metricMetadataAPI).MaximumLiveRequests
 }

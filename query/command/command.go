@@ -92,6 +92,9 @@ type SelectCommand struct {
 
 // Execute returns the list of tags satisfying the provided predicate.
 func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	// @@ leaking param content: cmd
+	// @@ leaking param: context
+	// @@ leaking param content: cmd
 
 	// We generate a simple update function that closes around the profiler
 	// so if we do have a cache miss it's correctly reported on this request.
@@ -113,14 +116,19 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 				if keyValueSets[key] == nil {
 					keyValueSets[key] = map[string]bool{}
 				}
+				// @@ map[string]bool literal escapes to heap
 				keyValueSets[key][value] = true // add `value` to the set for `key`
 			}
 		}
 	}
 	keyValueLists := map[string][]string{} // a map of tag_key => list[tag_value]
 	for key, set := range keyValueSets {
+		// @@ map[string][]string literal escapes to heap
 		list := make([]string, 0, len(set))
 		for value := range set {
+			// @@ make([]string, 0, len(set)) escapes to heap
+			// @@ make([]string, 0, len(set)) escapes to heap
+			// @@ make([]string, 0, len(set)) escapes to heap
 			list = append(list, value)
 		}
 		// sort the result
@@ -130,28 +138,40 @@ func (cmd *DescribeCommand) Execute(context ExecutionContext) (CommandResult, er
 	return CommandResult{Body: keyValueLists}, nil
 }
 
+// @@ keyValueLists escapes to heap
+
 func (cmd *DescribeCommand) Name() string {
 	return "describe"
+	// @@ can inline (*DescribeCommand).Name
 }
 
 // Execute of a DescribeAllCommand returns the list of all metrics.
 func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	// @@ leaking param: context
+	// @@ leaking param content: cmd
 	result, err := context.MetricMetadataAPI.GetAllMetrics(metadata.Context{
 		Profiler: context.Profiler,
 	})
 	if err == nil {
 		filtered := make([]api.MetricKey, 0, len(result))
 		for _, row := range result {
+			// @@ make([]api.MetricKey, 0, len(result)) escapes to heap
+			// @@ make([]api.MetricKey, 0, len(result)) escapes to heap
+			// @@ make([]api.MetricKey, 0, len(result)) escapes to heap
 			if cmd.Matcher.MatchString(string(row)) {
 				filtered = append(filtered, row)
 			}
 		}
 		sort.Sort(api.MetricKeys(filtered))
 		return CommandResult{
+			// @@ api.MetricKeys(filtered) escapes to heap
 			Body: filtered,
 			Metadata: map[string]interface{}{
+				// @@ filtered escapes to heap
 				"count": len(filtered),
+				// @@ map[string]interface {} literal escapes to heap
 			},
+			// @@ len(filtered) escapes to heap
 		}, nil
 	}
 	return CommandResult{}, err
@@ -159,10 +179,14 @@ func (cmd *DescribeAllCommand) Execute(context ExecutionContext) (CommandResult,
 
 func (cmd *DescribeAllCommand) Name() string {
 	return "describe all"
+	// @@ can inline (*DescribeAllCommand).Name
 }
 
 // Execute asks for all metrics with the given name.
 func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	// @@ leaking param content: cmd
+	// @@ leaking param content: cmd
+	// @@ leaking param: context
 	data, err := context.MetricMetadataAPI.GetMetricsForTag(cmd.TagKey, cmd.TagValue, metadata.Context{
 		Profiler: context.Profiler,
 	})
@@ -172,13 +196,17 @@ func (cmd *DescribeMetricsCommand) Execute(context ExecutionContext) (CommandRes
 	return CommandResult{
 		Body: data,
 		Metadata: map[string]interface{}{
+			// @@ data escapes to heap
 			"count": len(data),
+			// @@ map[string]interface {} literal escapes to heap
 		},
+		// @@ len(data) escapes to heap
 	}, nil
 }
 
 func (cmd *DescribeMetricsCommand) Name() string {
 	return "describe metrics"
+	// @@ can inline (*DescribeMetricsCommand).Name
 }
 
 type QueryResult struct {
@@ -194,6 +222,10 @@ type QueryResult struct {
 
 // Execute performs the query represented by the given query string, and returs the result.
 func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	// @@ leaking param: context
+	// @@ leaking param content: cmd
+	// @@ leaking param content: cmd
+	// @@ leaking param: cmd
 	userTimerange, err := api.NewSnappedTimerange(cmd.Context.Start, cmd.Context.End, cmd.Context.Resolution)
 	if err != nil {
 		return CommandResult{}, err
@@ -220,14 +252,23 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 
 	chosenTimerange, err := api.NewSnappedTimerange(userTimerange.StartMillis(), userTimerange.EndMillis(), int64(chosenResolution/time.Millisecond))
 	if err != nil {
+		// @@ inlining call to api.Timerange.StartMillis
+		// @@ inlining call to api.Timerange.EndMillis
 		return CommandResult{}, err
 	}
 
 	if chosenTimerange.Slots() > slotLimit {
 		return CommandResult{}, function.NewLimitError(
+			// @@ inlining call to api.Timerange.Slots
 			"Requested number of data points exceeds the configured limit",
 			chosenTimerange.Slots(), slotLimit)
 	}
+	// @@ inlining call to api.Timerange.Slots
+	// @@ inlining call to function.NewLimitError
+	// @@ function.NewLimitError("Requested number of data points exceeds the configured limit", chosenTimerange.Slots(), slotLimit) escapes to heap
+	// @@ composite literal escapes to heap
+	// @@ slotLimit escapes to heap
+	// @@ chosenTimerange.Slots() escapes to heap
 	hasTimeout := context.Timeout != 0
 	var timeoutOwner tasks.TimeoutOwner
 	if hasTimeout {
@@ -237,22 +278,36 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 	if r == nil {
 		r = registry.Default()
 	}
+	// @@ inlining call to registry.Default
+	// @@ registry.Default() escapes to heap
+	// @@ registry.Default() escapes to heap
+	// @@ registry.Default() escapes to heap
 
 	defer timeoutOwner.Finish() // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
-		MetricMetadataAPI:     context.MetricMetadataAPI,
-		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
-		TimeseriesStorageAPI:  context.TimeseriesStorageAPI,
-		Predicate:             predicate.All(cmd.Predicate, context.AdditionalConstraints),
-		SampleMethod:          cmd.Context.SampleMethod,
-		Timerange:             chosenTimerange,
-		Timeout:               timeoutOwner.Timeout(),
-		Registry:              r,
+		MetricMetadataAPI:    context.MetricMetadataAPI,
+		FetchLimit:           function.NewFetchCounter(context.FetchLimit),
+		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
+		// @@ inlining call to function.NewFetchCounter
+		// @@ moved to heap: function.n32·3
+		// @@ &function.n32·3 escapes to heap
+		// @@ &function.n32·3 escapes to heap
+		// @@ &function.n32·3 escapes to heap
+		Predicate:    predicate.All(cmd.Predicate, context.AdditionalConstraints),
+		SampleMethod: cmd.Context.SampleMethod,
+		Timerange:    chosenTimerange,
+		Timeout:      timeoutOwner.Timeout(),
+		Registry:     r,
+		// @@ inlining call to tasks.TimeoutOwner.Timeout
 		Profiler:              context.Profiler,
 		EvaluationNotes:       new(function.EvaluationNotes),
 		UserSpecifiableConfig: context.UserSpecifiableConfig,
+		// @@ new(function.EvaluationNotes) escapes to heap
+		// @@ new(function.EvaluationNotes) escapes to heap
+		// @@ new(function.EvaluationNotes) escapes to heap
 	}
 
+	// @@ moved to heap: evaluationContext
 	timeout := (<-chan time.Time)(nil)
 	if hasTimeout {
 		// A nil channel will just block forever
@@ -261,11 +316,17 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 
 	results := make(chan []function.Value, 1)
 	errors := make(chan error, 1)
+	// @@ make(chan []function.Value, 1) escapes to heap
 	// Goroutines are never garbage collected, so we need to provide capacity so that the send always succeeds.
+	// @@ make(chan error, 1) escapes to heap
 	go func() {
 		// Evaluate the result, and send it along the goroutines.
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		result, err := function.EvaluateMany(evaluationContext, cmd.Expressions)
 		if err != nil {
+			// @@ leaking closure reference evaluationContext
+			// @@ &evaluationContext escapes to heap
 			errors <- err
 			return
 		}
@@ -276,10 +337,16 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		return CommandResult{}, function.NewLimitError("Timeout while executing the query.",
 			context.Timeout, context.Timeout)
 	case err := <-errors:
+		// @@ inlining call to function.NewLimitError
+		// @@ function.NewLimitError("Timeout while executing the query.", context.Timeout, context.Timeout) escapes to heap
+		// @@ composite literal escapes to heap
+		// @@ context.Timeout escapes to heap
+		// @@ context.Timeout escapes to heap
 		return CommandResult{}, err
 	case result := <-results:
 		description := map[string][]string{}
 		for _, value := range result {
+			// @@ map[string][]string literal escapes to heap
 			listValue, err := value.ToSeriesList(evaluationContext.Timerange)
 			if err != nil {
 				continue
@@ -295,6 +362,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			natural_sort.Sort(values)
 			filtered := []string{}
 			for i := range values {
+				// @@ []string literal escapes to heap
 				if i == 0 || values[i-1] != values[i] {
 					filtered = append(filtered, values[i])
 				}
@@ -307,6 +375,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		// when returned from this function in a CommandResult.
 		body := make([]QueryResult, len(result))
 		for i := range body {
+			// @@ make([]QueryResult, len(result)) escapes to heap
+			// @@ make([]QueryResult, len(result)) escapes to heap
 			if list, ok := result[i].(function.SeriesListValue); ok {
 				body[i] = QueryResult{
 					Query:     cmd.Expressions[i].QueryString(),
@@ -328,19 +398,25 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			}
 			return CommandResult{}, fmt.Errorf("Query %s does not result in a timeseries or scalar.", cmd.Expressions[i].QueryString())
 		}
+		// @@ cmd.Expressions[i].QueryString() escapes to heap
 
 		return CommandResult{
 			Body: body,
 			Metadata: map[string]interface{}{
+				// @@ body escapes to heap
 				"description": description,
-				"notes":       evaluationContext.EvaluationNotes,
+				// @@ map[string]interface {} literal escapes to heap
+				"notes": evaluationContext.EvaluationNotes,
+				// @@ description escapes to heap
 			},
+			// @@ evaluationContext.EvaluationNotes escapes to heap
 		}, nil
 	}
 }
 
 func (cmd *SelectCommand) Name() string {
 	return "select"
+	// @@ can inline (*SelectCommand).Name
 }
 
 //ProfilingCommand is a Command that also performs profiling actions.
@@ -350,13 +426,18 @@ type ProfilingCommand struct {
 }
 
 func NewProfilingCommandWithProfiler(command Command, profiler *inspect.Profiler) Command {
+	// @@ leaking param: profiler to result ~r2 level=0
+	// @@ leaking param: command to result ~r2 level=0
 	return ProfilingCommand{
+		// @@ can inline NewProfilingCommandWithProfiler
 		Profiler: profiler,
-		Command:  command,
+		// @@ ProfilingCommand literal escapes to heap
+		Command: command,
 	}
 }
 
 func (cmd ProfilingCommand) Name() string {
+	// @@ leaking param: cmd
 	return cmd.Command.Name()
 }
 
@@ -367,8 +448,11 @@ type profileJSON struct {
 }
 
 func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, error) {
+	// @@ leaking param: cmd
+	// @@ leaking param: context
 	defer cmd.Profiler.Record(fmt.Sprintf("%s.Execute", cmd.Name()))()
 	context.Profiler = cmd.Profiler
+	// @@ cmd.Name() escapes to heap
 	result, err := cmd.Command.Execute(context)
 	if err != nil {
 		return CommandResult{}, err
@@ -378,7 +462,9 @@ func (cmd ProfilingCommand) Execute(context ExecutionContext) (CommandResult, er
 		if result.Metadata == nil {
 			result.Metadata = map[string]interface{}{}
 		}
+		// @@ map[string]interface {} literal escapes to heap
 		result.Metadata["profile"] = profiles
 	}
+	// @@ profiles escapes to heap
 	return result, nil
 }

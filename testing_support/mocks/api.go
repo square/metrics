@@ -38,45 +38,65 @@ var _ metadata.MetricAPI = (*FakeMetricMetadataAPI)(nil)
 
 func NewFakeMetricMetadataAPI() *FakeMetricMetadataAPI {
 	return &FakeMetricMetadataAPI{
+		// @@ can inline NewFakeMetricMetadataAPI
 		metricTagSets: make(map[api.MetricKey][]api.TagSet),
 		metricsForTags: make(map[struct {
+			// @@ make(map[api.MetricKey][]api.TagSet) escapes to heap
 			key   string
 			value string
 		}][]api.MetricKey),
 	}
+	// @@ &FakeMetricMetadataAPI literal escapes to heap
+	// @@ make(map[struct { key string; value string }][]api.MetricKey) escapes to heap
 }
 
 func (fa *FakeMetricMetadataAPI) AddPair(tm api.TaggedMetric, gm util.GraphiteMetric, converter *FakeGraphiteConverter) {
+	// @@ leaking param: gm
+	// @@ leaking param: tm
+	// @@ leaking param content: fa
 	converter.MetricMap[gm] = tm
+	// @@ can inline (*FakeMetricMetadataAPI).AddPair
 	fa.AddPairWithoutGraphite(tm)
 }
 
+// @@ inlining call to (*FakeMetricMetadataAPI).AddPairWithoutGraphite
+
 func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
+	// @@ leaking param: tm
+	// @@ leaking param content: fa
 	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
+	// @@ can inline (*FakeMetricMetadataAPI).AddPairWithoutGraphite
 }
 
 func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
+	// @@ leaking param: context
+	// @@ leaking param: metricKey
 	defer context.Profiler.Record("Mock GetAllTags")()
 	if len(fa.metricTagSets[metricKey]) == 0 {
 		// This matches the behavior of the Cassandra API
 		return nil, fmt.Errorf("metric %s does not exist", metricKey)
 	}
+	// @@ metricKey escapes to heap
 	return fa.metricTagSets[metricKey], nil
 }
 
 func (fa *FakeMetricMetadataAPI) GetAllMetrics(context metadata.Context) ([]api.MetricKey, error) {
+	// @@ leaking param: context
 	defer context.Profiler.Record("Mock GetAllMetrics")()
 	array := []api.MetricKey{}
 	for key := range fa.metricTagSets {
+		// @@ []api.MetricKey literal escapes to heap
 		array = append(array, key)
 	}
 	return array, nil
 }
 
 func (fa *FakeMetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
+	// @@ leaking param: context
 	defer context.Profiler.Record("Mock GetMetricsForTag")()
 	list := []api.MetricKey{}
 MetricLoop:
+	// @@ []api.MetricKey literal escapes to heap
 	for metric, tagsets := range fa.metricTagSets {
 		for _, tagset := range tagsets {
 			for key, val := range tagset {
@@ -93,6 +113,7 @@ MetricLoop:
 // CheckHealthy checks if the FakeMetricMetadataAPI is healthy
 func (fa *FakeMetricMetadataAPI) CheckHealthy() error {
 	return nil
+	// @@ can inline (*FakeMetricMetadataAPI).CheckHealthy
 }
 
 type FakeGraphiteConverter struct {
@@ -102,19 +123,27 @@ type FakeGraphiteConverter struct {
 var _ util.GraphiteConverter = (*FakeGraphiteConverter)(nil)
 
 func (fa *FakeGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (util.GraphiteMetric, error) {
+	// @@ leaking param content: fa
+	// @@ leaking param: metric
 	for k, v := range fa.MetricMap {
 		if reflect.DeepEqual(v, metric) {
 			return k, nil
+			// @@ v escapes to heap
+			// @@ metric escapes to heap
 		}
 	}
 	return "", fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
 }
 
+// @@ metric escapes to heap
+
 func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.TaggedMetric, error) {
+	// @@ leaking param: metric
 	tm, exists := fa.MetricMap[metric]
 	if !exists {
 		return api.TaggedMetric{}, fmt.Errorf("No mapping for graphite metric %+s to graphite metric", string(metric))
 	}
+	// @@ string(metric) escapes to heap
 
 	return tm, nil
 }
@@ -123,15 +152,34 @@ type FakeTimeseriesStorageAPI struct{}
 
 func (f FakeTimeseriesStorageAPI) ChooseResolution(requested api.Timerange, smallestResolution time.Duration) (time.Duration, error) {
 	return requested.Resolution(), nil
+	// @@ can inline FakeTimeseriesStorageAPI.ChooseResolution
 }
 
+// @@ inlining call to api.Timerange.Resolution
+
 func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries.FetchRequest) (api.Timeseries, error) {
+	// @@ leaking param: request
 	defer request.Profiler.Record("Mock FetchSingleTimeseries")()
 	metricMap := map[api.MetricKey][]api.Timeseries{
 		"series_1": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.TagSet{"dc": "west"}}},
 		"series_2": {{Values: []float64{1, 2, 3, 4, 5}, TagSet: api.TagSet{"dc": "west"}}, {Values: []float64{3, 0, 3, 6, 2}, TagSet: api.TagSet{"dc": "east"}}},
+		// @@ []float64 literal escapes to heap
+		// @@ api.TagSet literal escapes to heap
+		// @@ composite literal escapes to heap
 		"series_3": {{Values: []float64{1, 1, 1, 4, 4}, TagSet: api.TagSet{"dc": "west"}}, {Values: []float64{5, 5, 5, 2, 2}, TagSet: api.TagSet{"dc": "east"}}, {Values: []float64{3, 3, 3, 3, 3}, TagSet: api.TagSet{"dc": "north"}}},
+		// @@ []float64 literal escapes to heap
+		// @@ api.TagSet literal escapes to heap
+		// @@ []float64 literal escapes to heap
+		// @@ api.TagSet literal escapes to heap
+		// @@ composite literal escapes to heap
 	}
+	// @@ []float64 literal escapes to heap
+	// @@ api.TagSet literal escapes to heap
+	// @@ []float64 literal escapes to heap
+	// @@ api.TagSet literal escapes to heap
+	// @@ []float64 literal escapes to heap
+	// @@ api.TagSet literal escapes to heap
+	// @@ composite literal escapes to heap
 	if string(request.Metric.MetricKey) == "series_timeout" {
 		<-make(chan struct{}) // block forever
 	}
@@ -139,23 +187,36 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries.Fetch
 	if !ok {
 		return api.Timeseries{}, errors.New("internal error")
 	}
+	// @@ inlining call to errors.New
+	// @@ &errors.errorString literal escapes to heap
+	// @@ &errors.errorString literal escapes to heap
 	for _, series := range list {
 		if request.Metric.TagSet.Serialize() == series.TagSet.Serialize() {
 			// Cut the values based on the Timerange.
 			values := make([]float64, request.Timerange.Slots())
 			for i := range values {
+				// @@ inlining call to api.Timerange.Slots
+				// @@ make([]float64, int(~r0)) escapes to heap
+				// @@ make([]float64, int(~r0)) escapes to heap
 				values[i] = series.Values[i+int(request.Timerange.StartMillis())/30]
 			}
+			// @@ inlining call to api.Timerange.StartMillis
 			return api.Timeseries{Values: values, TagSet: series.TagSet}, nil
 		}
 	}
 	return api.Timeseries{}, errors.New("internal error")
 }
 
+// @@ inlining call to errors.New
+// @@ &errors.errorString literal escapes to heap
+// @@ &errors.errorString literal escapes to heap
+
 func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
+	// @@ leaking param: request
 	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
 	timeseries := make([]api.Timeseries, 0)
 
+	// @@ make([]api.Timeseries, 0) escapes to heap
 	singleRequests := request.ToSingle()
 	for _, singleRequest := range singleRequests {
 		series, err := f.FetchSingleTimeseries(singleRequest)
@@ -172,4 +233,5 @@ func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.Fet
 
 func (f FakeTimeseriesStorageAPI) CheckHealthy() error {
 	return nil
+	// @@ can inline FakeTimeseriesStorageAPI.CheckHealthy
 }

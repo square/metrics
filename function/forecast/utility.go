@@ -19,6 +19,7 @@ import "math"
 // Returns the unique integer r such that x == r (mod m) and 0 <= r < m
 func mod(x int, m int) int {
 	return ((x % m) + m) % m
+	// @@ can inline mod
 }
 
 // LinearRegression estimates ys as (a + b*t) and returns (a, b).
@@ -33,6 +34,7 @@ func LinearRegression(ys []float64) (float64, float64) {
 	for i := range ys {
 		if math.IsNaN(ys[i]) {
 			continue
+			// @@ inlining call to math.IsNaN
 		}
 		c++
 		xm += float64(i)

@@ -21,15 +21,24 @@ type testClock struct {
 }
 
 func NewTestClock(startTime time.Time) *testClock {
+	// @@ leaking param: startTime to result ~r1 level=-1
 	return &testClock{
+		// @@ can inline NewTestClock
 		now: startTime,
 	}
+	// @@ &testClock literal escapes to heap
 }
 
 func (t *testClock) Now() time.Time {
+	// @@ leaking param: t to result ~r0 level=1
 	return t.now
+	// @@ can inline (*testClock).Now
 }
 
 func (t *testClock) Move(diff time.Duration) {
+	// @@ leaking param content: t
 	t.now = t.now.Add(diff)
+	// @@ can inline (*testClock).Move
 }
+
+// @@ inlining call to time.Time.Add

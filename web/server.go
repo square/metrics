@@ -23,24 +23,52 @@ import (
 )
 
 func NewMux(config Config, context command.ExecutionContext, hook Hook) (*http.ServeMux, error) {
+	// @@ leaking param: config
+	// @@ leaking param: context
+	// @@ leaking param: hook
 	// Wrap the given API and Backend in their Profiling counterparts.
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		// @@ inlining call to http.NewServeMux
+		// @@ leaking param: writer
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
+		// @@ &http.ServeMux literal escapes to heap
+		// @@ make(map[string]http.muxEntry) escapes to heap
 		http.Redirect(writer, request, "/ui", http.StatusTemporaryRedirect)
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 	})
 	httpMux.Handle("/ui", singleStaticHandler{config.StaticDir, "index.html"})
 	httpMux.Handle("/embed", singleStaticHandler{config.StaticDir, "embed.html"})
+	// @@ singleStaticHandler literal escapes to heap
 	httpMux.Handle("/query", queryHandler{
+		// @@ singleStaticHandler literal escapes to heap
 		context: context,
-		hook:    hook,
+		// @@ queryHandler literal escapes to heap
+		hook: hook,
 	})
 	httpMux.Handle("/token", tokenHandler{
 		context: context,
+		// @@ composite literal escapes to heap
 	})
 	if config.HTTPIngestion {
 		if updateAPI, ok := context.MetricMetadataAPI.(metadata.MetricUpdateAPI); ok {
 			httpMux.Handle("/ingest", ingestHandler{
 				metricMetadataAPI: updateAPI,
+				// @@ ingestHandler literal escapes to heap
 			})
 		} else {
 			return nil, fmt.Errorf("HTTP Ingestion is on, but the metadata API does not implement updates.")
@@ -52,6 +80,10 @@ func NewMux(config Config, context command.ExecutionContext, hook Hook) (*http.S
 			"/static/",
 			http.FileServer(http.Dir(config.StaticDir)),
 		),
+		// @@ inlining call to http.FileServer
+		// @@ &http.fileHandler literal escapes to heap
+		// @@ &http.fileHandler literal escapes to heap
+		// @@ http.Dir(config.StaticDir) escapes to heap
 	)
 	return httpMux, nil
 }

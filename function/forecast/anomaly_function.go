@@ -27,6 +27,8 @@ import (
 // procedure mostly automatic, it performs a join on the original tagsets to
 // match them up with their predictions.
 func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) function.MetricFunction {
+	// @@ leaking param: name to result ~r2 level=0
+	// @@ leaking param: model to result ~r2 level=-1
 	if model.MinArguments < 2 {
 		panic("FunctionAnomalyMaker requires that the model argument take at least two parameters; series and period.")
 	}
@@ -35,7 +37,13 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 		MinArguments: model.MinArguments,
 		MaxArguments: model.MaxArguments,
 		Compute: func(context function.EvaluationContext, arguments []function.Expression, groups function.Groups) (function.Value, error) {
+			// @@ leaking param content: arguments
+			// @@ leaking param: context
+			// @@ leaking param: arguments
+			// @@ leaking param: groups
 			original, err := function.EvaluateToSeriesList(arguments[0], context)
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			if err != nil {
 				return nil, err
 			}
@@ -50,12 +58,15 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if convErr != nil {
 				return nil, convErr.WithContext("in anomaly function - model")
 			}
+			// @@ inlining call to WithContext
+			// @@ convErr.WithContext("in anomaly function - model") escapes to heap
 			period, err := function.EvaluateToDuration(arguments[1], context)
 			if err != nil {
 				return nil, err
 			}
 			periodSlots := int(period / context.Timerange.Resolution())
 			// Now we need to match up 'original' and 'prediction'
+			// @@ inlining call to api.Timerange.Resolution
 			// We'll use a hashmap for now.
 			// TODO: clean this up to hog less memory
 			lookup := map[string][]float64{}
@@ -65,6 +76,8 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 
 			result := make([]api.Timeseries, len(prediction.Series))
 			for i, series := range prediction.Series {
+				// @@ make([]api.Timeseries, len(prediction.Series)) escapes to heap
+				// @@ make([]api.Timeseries, len(prediction.Series)) escapes to heap
 				result[i] = series
 				result[i].Values, err = periodicStandardDeviationsFromExpected(lookup[series.TagSet.Serialize()], series.Values, periodSlots)
 				if err != nil {
@@ -74,6 +87,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			prediction.Series = result
 			return function.SeriesListValue(prediction), nil
 		},
+		// @@ function.SeriesListValue(prediction) escapes to heap
 	}
 }
 
@@ -88,9 +102,13 @@ func standardDeviationsFromExpected(correct []float64, estimate []float64) ([]fl
 	for i := range correct {
 		if math.IsInf(correct[i], 0) || math.IsNaN(correct[i]) {
 			continue
+			// @@ inlining call to math.IsInf
+			// @@ inlining call to math.IsNaN
 		}
 		if math.IsInf(estimate[i], 0) || math.IsNaN(estimate[i]) {
 			continue
+			// @@ inlining call to math.IsInf
+			// @@ inlining call to math.IsNaN
 		}
 		differences = append(differences, estimate[i]-correct[i])
 	}
@@ -111,6 +129,8 @@ func standardDeviationsFromExpected(correct []float64, estimate []float64) ([]fl
 	// We now use this value to standardize our differences.
 	standardDifferences := make([]float64, len(estimate))
 	for i := range standardDifferences {
+		// @@ make([]float64, len(estimate)) escapes to heap
+		// @@ make([]float64, len(estimate)) escapes to heap
 		difference := (estimate[i] - correct[i])
 		standardDifferences[i] = (difference - meanDifference) / stddevDifference
 	}
@@ -125,6 +145,7 @@ func periodicStandardDeviationsFromExpected(correct []float64, estimate []float6
 	}
 	slices := make([][]float64, period)
 	for r := range slices {
+		// @@ make([][]float64, period) escapes to heap
 		// Consider len(correct) = 42
 		// If our period is 10, what are the indices for each group?
 		// 0: [0,10,20,30,40]
@@ -141,7 +162,9 @@ func periodicStandardDeviationsFromExpected(correct []float64, estimate []float6
 		}
 		correctSlice := make([]float64, length)
 		estimateSlice := make([]float64, length)
+		// @@ make([]float64, length) escapes to heap
 		for i := range correctSlice {
+			// @@ make([]float64, length) escapes to heap
 			correctSlice[i] = correct[r+i*period]
 			estimateSlice[i] = estimate[r+i*period]
 		}
@@ -154,6 +177,8 @@ func periodicStandardDeviationsFromExpected(correct []float64, estimate []float6
 	// un-interleave the slices
 	answer := make([]float64, len(correct))
 	for i := range answer {
+		// @@ make([]float64, len(correct)) escapes to heap
+		// @@ make([]float64, len(correct)) escapes to heap
 		answer[i] = slices[i%period][i/period]
 	}
 	return answer, nil

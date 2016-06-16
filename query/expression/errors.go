@@ -23,5 +23,7 @@ type SyntaxError struct {
 }
 
 func (err SyntaxError) Error() string {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.message
+	// @@ can inline SyntaxError.Error
 }

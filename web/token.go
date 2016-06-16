@@ -29,6 +29,9 @@ type tokenHandler struct {
 }
 
 func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	// @@ leaking param: writer
+	// @@ leaking param: h
+	// @@ leaking param content: request
 	writer.Header().Set("Content-Type", "application/json")
 
 	metrics, err := h.context.MetricMetadataAPI.GetAllMetrics(metadata.Context{}) // no profiling used
@@ -43,9 +46,15 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 		QueryResponse: QueryResponse{
 			Body: map[string]interface{}{ // map to array-like types.
 				"functions": h.context.Registry.All(),
-				"metrics":   metrics,
+				// @@ map[string]interface {} literal escapes to heap
+				// @@ map[string]interface {} literal escapes to heap
+				"metrics": metrics,
+				// @@ h.context.Registry.All() escapes to heap
 			},
+			// @@ metrics escapes to heap
 		},
+		// @@ map[string]interface {} literal escapes to heap
+		// @@ map[string]interface {} literal escapes to heap
 	}
 
 	// Make sure the query params have been parsed
@@ -57,15 +66,19 @@ func (h tokenHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 
 	pretty, _ := strconv.ParseBool(request.Form.Get("pretty"))
 	var encoded []byte
+	// @@ inlining call to url.Values.Get
 	if pretty {
 		encoded, err = json.MarshalIndent(response, "", "  ")
 	} else {
+		// @@ response escapes to heap
 		encoded, err = json.Marshal(response)
 	}
+	// @@ response escapes to heap
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(`{"success": false, "message": "Failed to encode the result message."}`))
 		return
+		// @@ ([]byte)("{\"success\": false, \"message\": \"Failed to encode the result message.\"}") escapes to heap
 	}
 	writer.Write(encoded)
 }

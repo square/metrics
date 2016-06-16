@@ -47,20 +47,29 @@ type MetricFunction struct {
 
 // Name returns the MetricFunction's name.
 func (metricFunc MetricFunction) Name() string {
+	// @@ leaking param: metricFunc to result ~r0 level=0
 	return metricFunc.FunctionName
+	// @@ can inline MetricFunction.Name
 }
 
 // Run evaluates the given MetricFunction on its arguments.
 // It performs error-checking against the supplies number of arguments and/or group-by clause.
 func (f MetricFunction) Run(context EvaluationContext, arguments []Expression, groups Groups) (Value, error) {
+	// @@ leaking param: f to result ~r4 level=0
+	// @@ leaking param: f
+	// @@ leaking param: context
+	// @@ leaking param: arguments
+	// @@ leaking param: groups
 	// preprocessing
 	length := len(arguments)
 	if length < f.MinArguments || (f.MaxArguments != -1 && f.MaxArguments < length) {
 		return nil, ArgumentLengthError{f.FunctionName, f.MinArguments, f.MaxArguments, length}
 	}
+	// @@ ArgumentLengthError literal escapes to heap
 	if len(groups.List) > 0 && !f.AllowsGroupBy {
 		// TODO(jee) - use typed errors
 		return nil, fmt.Errorf("function %s doesn't allow a group-by clause", f.FunctionName)
 	}
+	// @@ f.FunctionName escapes to heap
 	return f.Compute(context, arguments, groups)
 }

@@ -34,26 +34,35 @@ type AssertionError struct {
 }
 
 func (err AssertionError) Error() string {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.message
+	// @@ can inline AssertionError.Error
 }
 
 // Token returns the token of the AST related to the parsing error.
 func (err SyntaxError) Token() string {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.token
+	// @@ can inline SyntaxError.Token
 }
 
 func (err SyntaxError) Error() string {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.message
+	// @@ can inline SyntaxError.Error
 }
 
 // SyntaxErrors is a slice of SyntaxErrors implementing Error() method.
 type SyntaxErrors []SyntaxError
 
 func (errors SyntaxErrors) Error() string {
+	// @@ leaking param content: errors
 	errorStrings := make([]string, len(errors))
 	for i := 0; i < len(errorStrings); i++ {
+		// @@ make([]string, len(errors)) escapes to heap
 		errorStrings[i] = errors[i].Error()
 	}
+	// @@ inlining call to SyntaxError.Error
 	return strings.Join(errorStrings, "\n")
 }
 

@@ -34,6 +34,9 @@ type IngestRequest struct {
 }
 
 func (h ingestHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	// @@ leaking param: writer
+	// @@ leaking param content: request
+	// @@ leaking param: h
 	writer.Header().Set("Content-Type", "application/json")
 	if request.Header.Get("Content-Type") != "application/json" {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -42,12 +45,20 @@ func (h ingestHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	}
 	metrics := []IngestRequest{}
 	if err := json.NewDecoder(request.Body).Decode(&metrics); err != nil {
+		// @@ moved to heap: metrics
+		// @@ []IngestRequest literal escapes to heap
 		writer.WriteHeader(http.StatusBadRequest)
+		// @@ inlining call to json.NewDecoder
+		// @@ &json.Decoder literal escapes to heap
+		// @@ request.Body escapes to heap
+		// @@ &metrics escapes to heap
+		// @@ &metrics escapes to heap
 		writer.Write(encodeError(err))
 		return
 	}
 	taggedMetrics := []api.TaggedMetric{}
 	for i := range metrics {
+		// @@ []api.TaggedMetric literal escapes to heap
 		taggedMetrics[i] = api.TaggedMetric{
 			MetricKey: api.MetricKey(metrics[i].Name),
 			TagSet:    metrics[i].Tags,
@@ -61,3 +72,5 @@ func (h ingestHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	}
 	writer.Write([]byte(`{"success": true}`))
 }
+
+// @@ ([]byte)("{\"success\": true}") escapes to heap

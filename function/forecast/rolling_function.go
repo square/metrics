@@ -30,6 +30,8 @@ import (
 var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 	"forecast.rolling_multiplicative_holt_winters",
 	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, levelLearningRate float64, trendLearningRate float64, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (api.SeriesList, error) {
+		// @@ leaking param: seriesExpression
+		// @@ leaking param: context
 		extraTrainingTime := time.Duration(0)
 		if optionalExtraTrainingTime != nil {
 			extraTrainingTime = *optionalExtraTrainingTime
@@ -37,15 +39,20 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 		if extraTrainingTime < 0 {
 			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
+		// @@ extraTrainingTime.String() escapes to heap
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
+			// @@ inlining call to api.Timerange.Resolution
 			return api.SeriesList{}, fmt.Errorf("forecast.rolling_multiplicative_holt_winters expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
+		// @@ inlining call to api.Timerange.Slots
+		// @@ inlining call to api.Timerange.Slots
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -53,6 +60,8 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 		result := api.SeriesList{
 			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
 
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
@@ -71,6 +80,8 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 var FunctionRollingSeasonal = function.MakeFunction(
 	"forecast.rolling_seasonal",
 	func(context function.EvaluationContext, seriesExpression function.Expression, period time.Duration, seasonalLearningRate float64, optionalExtraTrainingTime *time.Duration) (api.SeriesList, error) {
+		// @@ leaking param: seriesExpression
+		// @@ leaking param: context
 		extraTrainingTime := time.Duration(0)
 		if optionalExtraTrainingTime != nil {
 			extraTrainingTime = *optionalExtraTrainingTime
@@ -78,15 +89,20 @@ var FunctionRollingSeasonal = function.MakeFunction(
 		if extraTrainingTime < 0 {
 			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
+		// @@ extraTrainingTime.String() escapes to heap
 
 		samples := int(period / context.Timerange.Resolution())
 		if samples <= 0 {
+			// @@ inlining call to api.Timerange.Resolution
 			return api.SeriesList{}, fmt.Errorf("forecast.rolling_seasonal expects the period parameter to mean at least one slot") // TODO: use a structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
+		// @@ inlining call to api.Timerange.Slots
+		// @@ inlining call to api.Timerange.Slots
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -94,6 +110,8 @@ var FunctionRollingSeasonal = function.MakeFunction(
 		result := api.SeriesList{
 			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
 
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
@@ -112,6 +130,8 @@ var FunctionRollingSeasonal = function.MakeFunction(
 var FunctionForecastLinear = function.MakeFunction(
 	"forecast.linear",
 	func(context function.EvaluationContext, seriesExpression function.Expression, optionalTrainingTime *time.Duration) (api.SeriesList, error) {
+		// @@ leaking param: seriesExpression
+		// @@ leaking param: context
 		extraTrainingTime := time.Duration(0)
 		if optionalTrainingTime != nil {
 			extraTrainingTime = *optionalTrainingTime
@@ -119,10 +139,14 @@ var FunctionForecastLinear = function.MakeFunction(
 		if extraTrainingTime < 0 {
 			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
+		// @@ extraTrainingTime.String() escapes to heap
 
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(extraTrainingTime))
 		extraSlots := newContext.Timerange.Slots() - context.Timerange.Slots()
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		seriesList, err := function.EvaluateToSeriesList(seriesExpression, newContext)
+		// @@ inlining call to api.Timerange.Slots
+		// @@ inlining call to api.Timerange.Slots
 		if err != nil {
 			return api.SeriesList{}, err
 		}
@@ -130,6 +154,8 @@ var FunctionForecastLinear = function.MakeFunction(
 		result := api.SeriesList{
 			Series: make([]api.Timeseries, len(seriesList.Series)),
 		}
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(seriesList.Series)) escapes to heap
 
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{

@@ -26,17 +26,23 @@ import (
 var Timeshift = function.MakeFunction(
 	"transform.timeshift",
 	func(expression function.Expression, duration time.Duration, context function.EvaluationContext) (function.Value, error) {
+		// @@ leaking param: context
+		// @@ leaking param: expression
 		newContext := context.WithTimerange(context.Timerange.Shift(duration))
 		return expression.Evaluate(newContext)
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 	},
 )
 
 var MovingAverage = function.MakeFunction(
 	"transform.moving_average",
 	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (api.SeriesList, error) {
+		// @@ leaking param: listExpression
+		// @@ leaking param: context
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
+			// @@ inlining call to api.Timerange.Resolution
 			// At least one value must be included at all times
 			limit = 1
 		}
@@ -44,10 +50,15 @@ var MovingAverage = function.MakeFunction(
 		timerange := context.Timerange
 		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
+			// @@ inlining call to api.Timerange.StartMillis
+			// @@ inlining call to api.Timerange.ResolutionMillis
+			// @@ inlining call to api.Timerange.EndMillis
+			// @@ inlining call to api.Timerange.ResolutionMillis
 			return api.SeriesList{}, err
 		}
 		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		list, err := function.EvaluateToSeriesList(listExpression, newContext)
 		if err != nil {
 			return api.SeriesList{}, err
@@ -58,17 +69,22 @@ var MovingAverage = function.MakeFunction(
 			// The series will be given a (shorter) replaced list of values.
 			results := make([]float64, context.Timerange.Slots())
 			count := 0
+			// @@ inlining call to api.Timerange.Slots
+			// @@ make([]float64, int(~r0)) escapes to heap
+			// @@ make([]float64, int(~r0)) escapes to heap
 			sum := 0.0
 			for i := range series.Values {
 				// Add the new element, if it isn't NaN.
 				if !math.IsNaN(series.Values[i]) {
 					sum += series.Values[i]
+					// @@ inlining call to math.IsNaN
 					count++
 				}
 				// Remove the oldest element, if it isn't NaN, and it's in range.
 				// (e.g., if limit = 1, then this removes the previous element from the sum).
 				if i >= limit && !math.IsNaN(series.Values[i-limit]) {
 					sum -= series.Values[i-limit]
+					// @@ inlining call to math.IsNaN
 					count--
 				}
 				// Numerical error could (possibly) cause count == 0 but sum != 0.
@@ -76,6 +92,8 @@ var MovingAverage = function.MakeFunction(
 					if count == 0 {
 						results[i-limit+1] = math.NaN()
 					} else {
+						// @@ inlining call to math.NaN
+						// @@ inlining call to math.Float64frombits
 						results[i-limit+1] = sum / float64(count)
 					}
 				}
@@ -89,9 +107,12 @@ var MovingAverage = function.MakeFunction(
 var ExponentialMovingAverage = function.MakeFunction(
 	"transform.exponential_moving_average",
 	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (api.SeriesList, error) {
+		// @@ leaking param: listExpression
+		// @@ leaking param: context
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
+			// @@ inlining call to api.Timerange.Resolution
 			// At least one value must be included at all times
 			limit = 1
 		}
@@ -99,11 +120,16 @@ var ExponentialMovingAverage = function.MakeFunction(
 		timerange := context.Timerange
 		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
 		if err != nil {
+			// @@ inlining call to api.Timerange.StartMillis
+			// @@ inlining call to api.Timerange.ResolutionMillis
+			// @@ inlining call to api.Timerange.EndMillis
+			// @@ inlining call to api.Timerange.ResolutionMillis
 			return api.SeriesList{}, err
 		}
 
 		newContext := context.WithTimerange(newTimerange)
 
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		// The new context has a timerange which is extended beyond the query's.
 		list, err := function.EvaluateToSeriesList(listExpression, newContext)
 		if err != nil {
@@ -117,17 +143,22 @@ var ExponentialMovingAverage = function.MakeFunction(
 		// so, alpha = exp(log(1/2) / ticks)
 		alpha := math.Exp(math.Log(0.5) * float64(context.Timerange.Resolution()) / float64(size))
 
+		// @@ inlining call to api.Timerange.Resolution
 		// Update each series in the list.
 		for index, series := range list.Series {
 			// The series will be given a (shorter) replaced list of values.
 			results := make([]float64, context.Timerange.Slots())
 			weight := 0.0
+			// @@ inlining call to api.Timerange.Slots
+			// @@ make([]float64, int(~r0)) escapes to heap
+			// @@ make([]float64, int(~r0)) escapes to heap
 			sum := 0.0
 			for i := range series.Values {
 				weight *= alpha
 				sum *= alpha
 				if !math.IsNaN(series.Values[i]) {
 					weight++
+					// @@ inlining call to math.IsNaN
 					sum += series.Values[i]
 				}
 				results[i-limit+1] = sum / weight
@@ -141,6 +172,8 @@ var ExponentialMovingAverage = function.MakeFunction(
 // Alias is deprecated.
 // TODO: delete this function
 var Alias = function.MakeFunction("transform.alias", func(seriesList api.SeriesList, message string, context function.EvaluationContext) api.SeriesList {
+	// @@ leaking param: context
+	// @@ leaking param: seriesList to result ~r3 level=0
 	context.EvaluationNotes.AddNote("transform.alias is deprecated")
 	return seriesList
 })
@@ -150,23 +183,33 @@ var Alias = function.MakeFunction("transform.alias", func(seriesList api.SeriesL
 var Derivative = function.MakeFunction(
 	"transform.derivative",
 	func(listExpression function.Expression, context function.EvaluationContext) (api.SeriesList, error) {
+		// @@ leaking param: listExpression
+		// @@ leaking param: context
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 		list, err := function.EvaluateToSeriesList(listExpression, newContext)
+		// @@ inlining call to api.Timerange.Resolution
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		if err != nil {
 			return api.SeriesList{}, err
 		}
 		resultList := api.SeriesList{
 			Series: make([]api.Timeseries, len(list.Series)),
 		}
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
 		for seriesIndex, series := range list.Series {
 			newValues := make([]float64, len(series.Values)-1)
 			for i := range series.Values {
+				// @@ make([]float64, len(series.Values) - 1) escapes to heap
+				// @@ make([]float64, len(series.Values) - 1) escapes to heap
 				if i == 0 {
 					continue
 				}
 				// Scaled difference
 				newValues[i-1] = (series.Values[i] - series.Values[i-1]) / context.Timerange.Resolution().Seconds()
 			}
+			// @@ inlining call to api.Timerange.Resolution
+			// @@ inlining call to time.Duration.Seconds
 			resultList.Series[seriesIndex] = api.Timeseries{
 				Values: newValues,
 				TagSet: series.TagSet, // TODO: verify that these are immutable
@@ -184,23 +227,33 @@ var Derivative = function.MakeFunction(
 var Rate = function.MakeFunction(
 	"transform.rate",
 	func(listExpression function.Expression, context function.EvaluationContext) (api.SeriesList, error) {
+		// @@ leaking param: listExpression
+		// @@ leaking param: context
 		newContext := context.WithTimerange(context.Timerange.ExtendBefore(context.Timerange.Resolution()))
 		list, err := function.EvaluateToSeriesList(listExpression, newContext)
+		// @@ inlining call to api.Timerange.Resolution
+		// @@ inlining call to function.EvaluationContext.WithTimerange
 		if err != nil {
 			return api.SeriesList{}, err
 		}
 		resultList := api.SeriesList{
 			Series: make([]api.Timeseries, len(list.Series)),
 		}
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
 		for seriesIndex, series := range list.Series {
 			newValues := make([]float64, len(series.Values)-1)
 			for i := range series.Values {
+				// @@ make([]float64, len(series.Values) - 1) escapes to heap
+				// @@ make([]float64, len(series.Values) - 1) escapes to heap
 				if i == 0 {
 					continue
 				}
 				// Scaled difference
 				newValues[i-1] = (series.Values[i] - series.Values[i-1]) / context.Timerange.Resolution().Seconds()
 				if newValues[i-1] < 0 {
+					// @@ inlining call to api.Timerange.Resolution
+					// @@ inlining call to time.Duration.Seconds
 					newValues[i-1] = 0
 				}
 				if i+1 < len(series.Values) && series.Values[i-1] > series.Values[i] && series.Values[i] <= series.Values[i+1] {
@@ -208,10 +261,15 @@ var Rate = function.MakeFunction(
 					// So we check the next, in addition to the previous.
 					context.EvaluationNotes.AddNote(fmt.Sprintf("Rate(%v): The underlying counter reset between %f, %f\n", series.TagSet, series.Values[i-1], series.Values[i]))
 					// values[i] is our best approximatation of the delta between i-1 and i
+					// @@ series.TagSet escapes to heap
+					// @@ series.Values[i - 1] escapes to heap
+					// @@ series.Values[i] escapes to heap
 					// Why? This should only be used on counters, so if v[i] - v[i-1] < 0 then
 					// the counter has reset, and we know *at least* v[i] increments have happened
 					newValues[i-1] = math.Max(series.Values[i], 0) / context.Timerange.Resolution().Seconds()
 				}
+				// @@ inlining call to api.Timerange.Resolution
+				// @@ inlining call to time.Duration.Seconds
 			}
 			resultList.Series[seriesIndex] = api.Timeseries{
 				Values: newValues,

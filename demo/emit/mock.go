@@ -48,14 +48,21 @@ func main() {
 	{
 		sources := make([]Source, 5)
 		for i := range sources {
+			// @@ make([]Source, 5) escapes to heap
 			sources[i] = Generate(func(x float64) float64 {
 				return math.Max(0, math.Min(300, x+10*rand.NormFloat64()))
 			})
 		}
+		// @@ inlining call to Generate
+		// @@ &Generator literal escapes to heap
+		// @@ &Generator literal escapes to heap
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		for i := 0; i < 10; i++ {
 			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.cpu.percentage", i),
 				NewLinear(sources),
+				// @@ i escapes to heap
 			})
 		}
 	}
@@ -63,16 +70,27 @@ func main() {
 	{
 		sources := make([]Source, 5)
 		for i := range sources {
+			// @@ make([]Source, 5) escapes to heap
 			sources[i] = Generate(func(x float64) float64 {
 				return x + math.Floor(math.Max(0, math.Min(300, 20+30*rand.NormFloat64())))
 			})
 		}
+		// @@ inlining call to Generate
+		// @@ &Generator literal escapes to heap
+		// @@ &Generator literal escapes to heap
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		for i := 0; i < 10; i++ {
 			scale := rand.Float64()*90 + 10
 			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.connection.http.count", i),
 				&Mapper{NewLinear(sources), func(x float64) float64 { return scale * math.Floor(x) }}, // MAP
+				// @@ i escapes to heap
 			})
+			// @@ &Mapper literal escapes to heap
+			// @@ &Mapper literal escapes to heap
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 		}
 	}
 
@@ -83,11 +101,19 @@ func main() {
 				return math.Max(0, math.Min(1000, 10*rand.NormFloat64()))
 			})
 		}
+		// @@ inlining call to Generate
+		// @@ &Generator literal escapes to heap
+		// @@ &Generator literal escapes to heap
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		for i := range sources {
 			metrics = append(metrics, sourceMetric{
 				fmt.Sprintf("webserver.host%d.connection.http.latency", i),
 				&Capper{sources[i], 0, 1000},
+				// @@ i escapes to heap
 			})
+			// @@ &Capper literal escapes to heap
+			// @@ &Capper literal escapes to heap
 		}
 	}
 
@@ -102,43 +128,72 @@ func main() {
 			if err != nil {
 				fmt.Printf("Error for metric %s:\n%s\n", metric.Metric, err.Error())
 			}
+			// @@ metric.Metric escapes to heap
+			// @@ err.Error() escapes to heap
 		}
 	}
 }
 
 func reportMetric(client *http.Client, value float64, name string, options ...interface{}) error {
+	// @@ leaking param content: name
+	// @@ leaking param content: options
+	// @@ leaking param content: client
+	// @@ leaking param content: client
 	metricName := fmt.Sprintf(name, options...)
 	json := createPointJSON(value, metricName)
 
 	request, err := http.NewRequest("POST", *bluefloodAddress, bytes.NewBuffer([]byte(json)))
 	if err != nil {
+		// @@ inlining call to bytes.NewBuffer
+		// @@ bytes.NewBuffer(([]byte)(json)) escapes to heap
+		// @@ &bytes.Buffer literal escapes to heap
+		// @@ ([]byte)(json) escapes to heap
 		return fmt.Errorf("Error creating Blueflood request: %s\n", err.Error())
 	}
+	// @@ err.Error() escapes to heap
 	response, err := client.Do(request)
 	if err != nil {
 		return fmt.Errorf("Error performing Blueflood POST: %s\n", err.Error())
 	}
+	// @@ err.Error() escapes to heap
 	fmt.Println("Blueflood: ", response.Status)
 	body, _ := ioutil.ReadAll(response.Body)
+	// @@ "Blueflood: " escapes to heap
+	// @@ response.Status escapes to heap
 	fmt.Println(string(body))
+	// @@ response.Body escapes to heap
 
+	// @@ string(body) escapes to heap
+	// @@ string(body) escapes to heap
 	// Next, we need to inform the ingestion service
 
 	request, err = http.NewRequest("POST", *mqeIngestionAddress, bytes.NewBuffer([]byte(metricName)))
 	if err != nil {
+		// @@ inlining call to bytes.NewBuffer
+		// @@ bytes.NewBuffer(([]byte)(metricName)) escapes to heap
+		// @@ &bytes.Buffer literal escapes to heap
+		// @@ ([]byte)(metricName) escapes to heap
 		return fmt.Errorf("Error creating MQE Ingestion request: %s\n", err.Error())
 	}
+	// @@ err.Error() escapes to heap
 	response, err = client.Do(request)
 	if err != nil {
 		return fmt.Errorf("Error performing MQE Ingestion POST: %s\n", err.Error())
 	}
+	// @@ err.Error() escapes to heap
 	fmt.Println("MQE: ", response.Status)
 	body, _ = ioutil.ReadAll(response.Body)
+	// @@ "MQE: " escapes to heap
+	// @@ response.Status escapes to heap
 	fmt.Println(string(body))
+	// @@ response.Body escapes to heap
 	return nil
+	// @@ string(body) escapes to heap
+	// @@ string(body) escapes to heap
 }
 
 func createPointJSON(value float64, metricName string) string {
+	// @@ leaking param: metricName
 	// 10 day TTL
 	return fmt.Sprintf(`[{
 		"collectionTime": %d,
@@ -147,3 +202,8 @@ func createPointJSON(value float64, metricName string) string {
 		"metricName": "%s"
 	}]`, time.Now().Unix()*1000, value, metricName)
 }
+
+// @@ inlining call to time.Time.Unix
+// @@ int64(~r0) * 1000 escapes to heap
+// @@ value escapes to heap
+// @@ metricName escapes to heap

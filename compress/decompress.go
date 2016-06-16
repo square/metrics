@@ -36,7 +36,9 @@ type DecompressionBuffer struct {
 
 // NewDecompressionBuffer creates a buffer with the given compressed contents.
 func NewDecompressionBuffer(data []byte, expectedSize int) DecompressionBuffer {
+	// @@ leaking param: data to result ~r2 level=0
 	dbuf := DecompressionBuffer{
+		// @@ can inline NewDecompressionBuffer
 		data:         data,
 		position:     uint32(7), // Start reading from the "left"
 		eof:          false,
@@ -57,13 +59,23 @@ func NewDecompressionBuffer(data []byte, expectedSize int) DecompressionBuffer {
 //The first entry in a new stream is always a completely
 //uncompressed 64 bit float.
 func (d *DecompressionBuffer) readFloat() float64 {
+	// @@ leaking param content: d
 	b := d.data[0:8]
 	buf := bytes.NewReader(b)
 	var result float64
+	// @@ inlining call to bytes.NewReader
+	// @@ &bytes.Reader literal escapes to heap
 	err := binary.Read(buf, binary.BigEndian, &result)
+	// @@ moved to heap: result
 	if err != nil {
+		// @@ buf escapes to heap
+		// @@ binary.BigEndian escapes to heap
+		// @@ &result escapes to heap
+		// @@ &result escapes to heap
 		fmt.Println("binary.Read failed:", err)
 		panic("Failed to decompress in ReadFirst")
+		// @@ "binary.Read failed:" escapes to heap
+		// @@ err escapes to heap
 	}
 
 	return result
@@ -71,6 +83,7 @@ func (d *DecompressionBuffer) readFloat() float64 {
 
 func (d *DecompressionBuffer) hasMore() bool {
 	return !d.eof
+	// @@ can inline (*DecompressionBuffer).hasMore
 }
 
 // ReadBit returns a single bit from the buffer.
@@ -81,6 +94,7 @@ func (d *DecompressionBuffer) ReadBit() bool {
 
 	bit := nthLowestBit(d.position, uint64(d.current))
 
+	// @@ inlining call to nthLowestBit
 	d.position--
 
 	if d.position == MaxUint32 {
@@ -114,8 +128,11 @@ func (d *DecompressionBuffer) ReadBits(n uint32) uint64 {
 func (d *DecompressionBuffer) readPartialXOR(previous float64) float64 {
 	previousBits := math.Float64bits(previous)
 	xor := d.ReadBits(d.lengthOfWindow) << (64 - d.leadingZeroWindowLength - d.lengthOfWindow)
+	// @@ inlining call to math.Float64bits
 	return math.Float64frombits(previousBits ^ xor)
 }
+
+// @@ inlining call to math.Float64frombits
 
 //Read a complete XOR record from the stream. 5 bits for leadering
 //zeros, 6 bits for XOR length, and then the XOR field.
@@ -127,20 +144,26 @@ func (d *DecompressionBuffer) readFullXOR(previous float64) float64 {
 
 	rebuiltNumber := math.Float64bits(previous) ^ xor
 
+	// @@ inlining call to math.Float64bits
 	d.lengthOfWindow = xorLength
 	d.leadingZeroWindowLength = leadingZeros
 
 	return math.Float64frombits(rebuiltNumber)
 }
 
+// @@ inlining call to math.Float64frombits
+
 // Decompress uses the compressed buffer contents to create a []float64.
 func (d *DecompressionBuffer) Decompress() []float64 {
+	// @@ leaking param content: d
 	first := d.readFloat()
 	result := []float64{first}
 
+	// @@ []float64 literal escapes to heap
 	number := first
 	for d.hasMore() && len(result) < d.expectedSize {
 		if d.ReadBit() {
+			// @@ inlining call to (*DecompressionBuffer).hasMore
 			// Hit a 1, so we need another bit to know what to do.
 			// Otherwise it's a repeat of the previous value.
 			if d.ReadBit() {

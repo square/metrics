@@ -26,20 +26,30 @@ import (
 // and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
 
 var recent = func(name string, summarizer func([]float64) float64) function.MetricFunction {
+	// @@ leaking param: summarizer
+	// @@ leaking param: name to result ~r2 level=0
 	return function.MakeFunction(
 		name,
 		func(list api.SeriesList, optionalDuration *time.Duration, timerange api.Timerange) function.ScalarSet {
+			// @@ leaking param content: list
+			// @@ leaking param content: list
 			duration := timerange.Duration()
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
+			// @@ func literal escapes to heap
 			if optionalDuration != nil {
 				duration = *optionalDuration
 			}
 			start := timerange.Slots() - 1 - int(duration/timerange.Resolution())
 			if start < 0 {
+				// @@ inlining call to api.Timerange.Slots
+				// @@ inlining call to api.Timerange.Resolution
 				start = 0
 				// TODO: warn or error?
 			}
 			result := function.ScalarSet{}
 			for i := range list.Series {
+				// @@ function.ScalarSet literal escapes to heap
 				slice := list.Series[i].Values[start:]
 				result = append(result, function.TaggedScalar{
 					TagSet: list.Series[i].TagSet,
@@ -59,6 +69,7 @@ var Mean = recent(
 		for i := range slice {
 			if math.IsNaN(slice[i]) {
 				continue
+				// @@ inlining call to math.IsNaN
 			}
 			sum += slice[i]
 			count++
@@ -72,11 +83,15 @@ var Min = recent(
 	func(slice []float64) float64 {
 		min := math.NaN()
 		for i := range slice {
+			// @@ inlining call to math.NaN
+			// @@ inlining call to math.Float64frombits
 			if math.IsNaN(min) {
 				min = slice[i]
+				// @@ inlining call to math.IsNaN
 			}
 			if math.IsNaN(slice[i]) {
 				continue
+				// @@ inlining call to math.IsNaN
 			}
 			min = math.Min(min, slice[i])
 		}
@@ -89,11 +104,15 @@ var Max = recent(
 	func(slice []float64) float64 {
 		max := math.NaN()
 		for i := range slice {
+			// @@ inlining call to math.NaN
+			// @@ inlining call to math.Float64frombits
 			if math.IsNaN(max) {
 				max = slice[i]
+				// @@ inlining call to math.IsNaN
 			}
 			if math.IsNaN(slice[i]) {
 				continue
+				// @@ inlining call to math.IsNaN
 			}
 			max = math.Max(max, slice[i])
 		}
@@ -107,17 +126,22 @@ var LastNotNaN = recent(
 		for i := range slice {
 			if !math.IsNaN(slice[len(slice)-1-i]) {
 				return slice[len(slice)-1-i]
+				// @@ inlining call to math.IsNaN
 			}
 		}
 		return math.NaN()
 	},
+	// @@ inlining call to math.NaN
+	// @@ inlining call to math.Float64frombits
 )
 
 var Current = function.MakeFunction(
 	"summarize.current",
 	func(list api.SeriesList) function.ScalarSet {
+		// @@ leaking param content: list
 		result := function.ScalarSet{}
 		for i := range list.Series {
+			// @@ function.ScalarSet literal escapes to heap
 			values := list.Series[i].Values
 			result = append(result, function.TaggedScalar{
 				TagSet: list.Series[i].TagSet,

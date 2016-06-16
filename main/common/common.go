@@ -30,6 +30,7 @@ import (
 var ConfigFile = flag.String("config-file", "", "specify the yaml config file from which to load the configuration.")
 
 func LoadConfig(config interface{}) {
+	// @@ leaking param: config
 	flag.Parse()
 	if *ConfigFile == "" {
 		ExitWithErrorMessage("No config file was specified. Specify it with '-config-file'")
@@ -38,17 +39,22 @@ func LoadConfig(config interface{}) {
 	if err != nil {
 		ExitWithErrorMessage(fmt.Sprintf("Unable to read config file `%s`: %s", *ConfigFile, err.Error()))
 	}
+	// @@ *ConfigFile escapes to heap
+	// @@ err.Error() escapes to heap
 
 	err = yaml.Unmarshal(bytes, config)
 	if err != nil {
 		ExitWithErrorMessage(fmt.Sprintf("Unable to unmarshal %T: %s", config, err.Error()))
 	}
+	// @@ err.Error() escapes to heap
 }
 
 // ExitWithMessage terminates the program with the provided message.
 func ExitWithErrorMessage(format string, arguments ...interface{}) {
+	// @@ leaking param content: arguments
 	fmt.Fprintf(os.Stderr, format+"\n", arguments...)
 	os.Exit(1)
+	// @@ os.Stderr escapes to heap
 }
 
 // If common is included, Logger will be configured via command-line arguments.
@@ -58,8 +64,17 @@ func init() {
 	if *Logger == "glog" {
 		log.InitLogger(&glog.Logger{})
 		log.Infof("Using glog logger")
+		// @@ inlining call to "github.com/square/metrics/log".InitLogger
+		// @@ &"github.com/square/metrics/log/glog".Logger literal escapes to heap
+		// @@ &"github.com/square/metrics/log/glog".Logger literal escapes to heap
 	} else {
 		log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
 		log.Infof("Using standard logger")
+		// @@ inlining call to "log".New
+		// @@ inlining call to "github.com/square/metrics/log".InitLogger
+		// @@ &standard.Logger literal escapes to heap
+		// @@ &standard.Logger literal escapes to heap
+		// @@ &"log".Logger literal escapes to heap
+		// @@ os.Stderr escapes to heap
 	}
 }

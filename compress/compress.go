@@ -35,16 +35,23 @@ type CompressionBuffer struct {
 
 // Bytes returns the remaining bytes from the buffer.
 func (c *CompressionBuffer) Bytes() []byte {
+	// @@ leaking param: c to result ~r0 level=2
 	if !c.finalized {
 		panic("Attempted to read bytes from an unfinalized compression buffer")
 	}
 	return c.buffer.Bytes()
 }
 
+// @@ inlining call to Bytes
+
 func (c *CompressionBuffer) fixup() {
+	// @@ leaking param content: c
 	if c.position == 64 {
 		err := binary.Write(c.buffer, binary.BigEndian, c.current)
 		if err != nil {
+			// @@ c.buffer escapes to heap
+			// @@ binary.BigEndian escapes to heap
+			// @@ c.current escapes to heap
 			panic("WUT")
 		}
 		c.position = 0
@@ -55,14 +62,17 @@ func (c *CompressionBuffer) fixup() {
 // NewCompressionBuffer creates a new empty compression buffer.
 func NewCompressionBuffer() CompressionBuffer {
 	return CompressionBuffer{
-		buffer:    &bytes.Buffer{},
-		position:  0,
+		// @@ can inline NewCompressionBuffer
+		buffer:   &bytes.Buffer{},
+		position: 0,
+		// @@ &bytes.Buffer literal escapes to heap
 		current:   0,
 		firstPass: true,
 	}
 }
 
 func (c *CompressionBuffer) writeFloat(x float64) {
+	// @@ leaking param content: c
 	if c.position != 0 {
 		panic("Cannot write float when a partial block is waiting on the buffer.")
 		// Since other data is flushed to the buffer only every 8 bytes,
@@ -71,11 +81,15 @@ func (c *CompressionBuffer) writeFloat(x float64) {
 	}
 	err := binary.Write(c.buffer, binary.BigEndian, x)
 	if err != nil {
+		// @@ c.buffer escapes to heap
+		// @@ binary.BigEndian escapes to heap
+		// @@ x escapes to heap
 		panic("WUT")
 	}
 }
 
 func (c *CompressionBuffer) writeOne() {
+	// @@ leaking param content: c
 	c.current = c.current << 1
 	c.current = c.current | 1
 	c.position++
@@ -83,12 +97,15 @@ func (c *CompressionBuffer) writeOne() {
 }
 
 func (c *CompressionBuffer) writeZero() {
+	// @@ leaking param content: c
 	c.current = c.current << 1
 	c.position++
 	c.fixup()
 }
 
 func (c *CompressionBuffer) writeBit(bit bool) {
+	// @@ leaking param content: c
+	// @@ leaking param content: c
 	if bit {
 		c.writeOne()
 	} else {
@@ -97,14 +114,21 @@ func (c *CompressionBuffer) writeBit(bit bool) {
 }
 
 func (c *CompressionBuffer) writeLowerBits(count uint32, value uint64) {
+	// @@ leaking param content: c
 	i := count
 	for i != MaxUint32 {
 		c.writeBit(nthLowestBit(i, value))
 		i--
+		// @@ inlining call to nthLowestBit
 	}
 }
 
 func (c *CompressionBuffer) encodeMeaningfulXOR(x uint64) {
+	// @@ leaking param content: c
+	// @@ leaking param content: c
+	// @@ leaking param content: c
+	// @@ leaking param content: c
+	// @@ leaking param content: c
 	leadingZeros := leadingZeros64(x)                   // in the interval [0, 64]
 	trailingZeros := trailingZeros64(x)                 // in the interval [0, 64]
 	length := uint32(64) - leadingZeros - trailingZeros // in the interval [0, 64]
@@ -135,6 +159,7 @@ func (c *CompressionBuffer) encodeMeaningfulXOR(x uint64) {
 //remaining bytes we have. Omit trailing zero
 //valued bytes.
 func (c *CompressionBuffer) Finalize() {
+	// @@ leaking param content: c
 	if c.finalized {
 		panic("Cannot finalize a CompressionBuffer twice.")
 	}
@@ -146,9 +171,14 @@ func (c *CompressionBuffer) Finalize() {
 
 // Compress takes data as input, compresses it, and puts it into the buffer.
 func (c *CompressionBuffer) Compress(data []float64) {
+	// @@ leaking param content: c
+	// @@ leaking param content: c
+	// @@ leaking param content: c
+	// @@ leaking param content: c
 	for _, value := range data {
 		current := math.Float64bits(value)
 		if c.firstPass {
+			// @@ inlining call to math.Float64bits
 			c.writeFloat(value)
 			c.previousXOR = current
 			c.firstPass = false

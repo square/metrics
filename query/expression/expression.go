@@ -36,14 +36,23 @@ type Duration struct {
 }
 
 func (expr Duration) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// @@ leaking param: expr to result ~r1 level=0
 	return function.NewDurationValue(expr.Literal, expr.Duration), nil
+	// @@ can inline Duration.Evaluate
 }
 
+// @@ inlining call to function.NewDurationValue
+// @@ function.NewDurationValue(expr.Literal, expr.Duration) escapes to heap
+
 func (expr Duration) Name() string {
+	// @@ leaking param: expr to result ~r0 level=0
 	return expr.Literal
+	// @@ can inline Duration.Name
 }
 func (expr Duration) QueryString() string {
+	// @@ leaking param: expr to result ~r0 level=0
 	return expr.Literal
+	// @@ can inline Duration.QueryString
 }
 
 type Scalar struct {
@@ -52,31 +61,48 @@ type Scalar struct {
 
 func (expr Scalar) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.Value), nil
+	// @@ can inline Scalar.Evaluate
 }
+
+// @@ function.ScalarValue(expr.Value) escapes to heap
 
 func (expr Scalar) Name() string {
 	return fmt.Sprintf("%+v", expr.Value)
 }
 
+// @@ expr.Value escapes to heap
+
 func (expr Scalar) QueryString() string {
 	return fmt.Sprintf("%+v", expr.Value)
 }
+
+// @@ expr.Value escapes to heap
 
 type String struct {
 	Value string
 }
 
 func (expr String) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// @@ leaking param: expr to result ~r1 level=0
 	return function.StringValue(expr.Value), nil
+	// @@ can inline String.Evaluate
 }
+
+// @@ function.StringValue(expr.Value) escapes to heap
 
 func (expr String) Name() string {
+	// @@ leaking param: expr
 	return fmt.Sprintf("%q", expr.Value)
 }
 
+// @@ expr.Value escapes to heap
+
 func (expr String) QueryString() string {
+	// @@ leaking param: expr
 	return fmt.Sprintf("%q", expr.Value)
 }
+
+// @@ expr.Value escapes to heap
 
 type MetricFetchExpression struct {
 	MetricName string
@@ -84,6 +110,10 @@ type MetricFetchExpression struct {
 }
 
 func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// @@ leaking param content: expr
+	// @@ leaking param: context
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	// Merge predicates appropriately
 	p := predicate.All(expr.Predicate, context.Predicate)
 
@@ -102,6 +132,8 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	metrics := make([]api.TaggedMetric, len(filtered))
 	for i := range metrics {
+		// @@ make([]api.TaggedMetric, len(filtered)) escapes to heap
+		// @@ make([]api.TaggedMetric, len(filtered)) escapes to heap
 		metrics[i] = api.TaggedMetric{api.MetricKey(expr.MetricName), filtered[i]}
 	}
 
@@ -123,13 +155,23 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	return function.SeriesListValue(seriesList), nil
 }
 
+// @@ function.SeriesListValue(seriesList) escapes to heap
+
 func (expr *MetricFetchExpression) QueryString() string {
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	if expr.Predicate.Query() == "true" {
 		return util.EscapeIdentifier(expr.MetricName)
 	}
 	return fmt.Sprintf("%s[%s]", util.EscapeIdentifier(expr.MetricName), expr.Predicate.Query())
 }
+
+// @@ util.EscapeIdentifier(expr.MetricName) escapes to heap
+// @@ expr.Predicate.Query() escapes to heap
 func (expr *MetricFetchExpression) Name() string {
+	// @@ leaking param content: expr
 	return expr.QueryString()
 }
 
@@ -141,15 +183,27 @@ type FunctionExpression struct {
 }
 
 func (expr *FunctionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// @@ leaking param content: expr
+	// @@ leaking param: context
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	fun, ok := context.Registry.GetFunction(expr.FunctionName)
 	if !ok {
 		return nil, SyntaxError{fmt.Sprintf("no such function %s", expr.FunctionName)}
 	}
+	// @@ expr.FunctionName escapes to heap
+	// @@ SyntaxError literal escapes to heap
 
 	return fun.Run(context, expr.Arguments, function.Groups{expr.GroupBy, expr.GroupByCollapses})
 }
 
 func functionFormatString(argumentStrings []string, f FunctionExpression) string {
+	// @@ leaking param content: argumentStrings
+	// @@ leaking param: f
+	// @@ leaking param content: argumentStrings
+	// @@ leaking param content: argumentStrings
+	// @@ leaking param content: argumentStrings
 	switch f.FunctionName {
 	case "+", "-", "*", "/":
 		if len(f.Arguments) != 2 {
@@ -158,6 +212,9 @@ func functionFormatString(argumentStrings []string, f FunctionExpression) string
 		}
 		return fmt.Sprintf("(%s %s %s)", argumentStrings[0], f.FunctionName, argumentStrings[1])
 	}
+	// @@ argumentStrings[0] escapes to heap
+	// @@ f.FunctionName escapes to heap
+	// @@ argumentStrings[1] escapes to heap
 	argumentString := strings.Join(argumentStrings, ", ")
 	groupString := ""
 	if len(f.GroupBy) != 0 {
@@ -171,10 +228,18 @@ func functionFormatString(argumentStrings []string, f FunctionExpression) string
 		}
 		groupString = fmt.Sprintf(" %s %s", groupKeyword, strings.Join(escapedGroupBy, ", "))
 	}
+	// @@ groupKeyword escapes to heap
+	// @@ strings.Join(escapedGroupBy, ", ") escapes to heap
 	return fmt.Sprintf("%s(%s%s)", f.FunctionName, argumentString, groupString)
 }
 
+// @@ f.FunctionName escapes to heap
+// @@ argumentString escapes to heap
+// @@ groupString escapes to heap
+
 func (expr *FunctionExpression) QueryString() string {
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	argumentStrings := []string{}
 	for i := range expr.Arguments {
 		argumentStrings = append(argumentStrings, expr.Arguments[i].QueryString())
@@ -183,6 +248,9 @@ func (expr *FunctionExpression) QueryString() string {
 }
 
 func (expr *FunctionExpression) Name() string {
+	// @@ leaking param: expr to result ~r0 level=2
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	// TODO: deprecate (and remove) this behavior before it becomes permanent
 	if expr.FunctionName == "transform.alias" && len(expr.Arguments) == 2 {
 		if alias, ok := expr.Arguments[1].(String); ok {
@@ -202,23 +270,36 @@ type AnnotationExpression struct {
 }
 
 func (expr *AnnotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	// @@ leaking param: context
+	// @@ leaking param content: expr
 	return expr.Expression.Evaluate(context)
 }
 
 func (expr *AnnotationExpression) QueryString() string {
+	// @@ leaking param content: expr
+	// @@ leaking param content: expr
 	return fmt.Sprintf("%s {%s}", expr.Expression.QueryString(), expr.Annotation)
 }
 
+// @@ expr.Expression.QueryString() escapes to heap
+// @@ expr.Annotation escapes to heap
+
 func (expr *AnnotationExpression) Name() string {
+	// @@ leaking param: expr to result ~r0 level=1
 	return expr.Annotation
+	// @@ can inline (*AnnotationExpression).Name
 }
 
 // Auxiliary functions
 // ===================
 
 func applyPredicates(tagSets []api.TagSet, predicate predicate.Predicate) []api.TagSet {
+	// @@ leaking param content: tagSets
+	// @@ leaking param: predicate
+	// @@ leaking param content: tagSets
 	output := []api.TagSet{}
 	for _, ts := range tagSets {
+		// @@ []api.TagSet literal escapes to heap
 		if predicate.Apply(ts) {
 			output = append(output, ts)
 		}

@@ -34,10 +34,15 @@ type LimitError interface {
 
 // NewLimitError uses its parameters to create a LimitError.
 func NewLimitError(message string, actual interface{}, limit interface{}) LimitError {
+	// @@ leaking param: message to result ~r3 level=0
+	// @@ leaking param: limit to result ~r3 level=0
+	// @@ leaking param: actual to result ~r3 level=0
 	return defaultLimitError{
+		// @@ can inline NewLimitError
 		message: message,
-		limit:   limit,
-		actual:  actual,
+		// @@ composite literal escapes to heap
+		limit:  limit,
+		actual: actual,
 	}
 }
 
@@ -49,17 +54,24 @@ type defaultLimitError struct {
 
 // Error returns a nicely-formatted error message for the default limit error.
 func (err defaultLimitError) Error() string {
+	// @@ leaking param: err
 	return fmt.Sprintf("%s (actual=%v limit=%v)", err.message, err.actual, err.limit)
 }
 
+// @@ err.message escapes to heap
+
 // Actual returns the actual value in the limit comparison.
 func (err defaultLimitError) Actual() interface{} {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.actual
+	// @@ can inline defaultLimitError.Actual
 }
 
 // Limit returns the limit value in the comparison (maximum or minimum).
 func (err defaultLimitError) Limit() interface{} {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.limit
+	// @@ can inline defaultLimitError.Limit
 }
 
 // ArgumentLengthError is a kind of error that describes when a function is given too many or too few arguments.
@@ -72,32 +84,45 @@ type ArgumentLengthError struct {
 
 // TokenName decribes where the error occurs.
 func (err ArgumentLengthError) TokenName() string {
+	// @@ leaking param: err to result ~r0 level=0
 	return err.Name
+	// @@ can inline ArgumentLengthError.TokenName
 }
 
 // Error gives a detailed description of the error.
 func (err ArgumentLengthError) Error() string {
+	// @@ leaking param: err
 	if err.ExpectedMin == err.ExpectedMax {
 		return fmt.Sprintf(
 			"Function `%s` expected %d arguments but received %d.",
 			err.Name,
 			err.ExpectedMin,
+			// @@ err.Name escapes to heap
 			err.Actual,
+			// @@ err.ExpectedMin escapes to heap
 		)
+		// @@ err.Actual escapes to heap
 	} else if err.ExpectedMax == -1 {
 		return fmt.Sprintf(
 			"Function `%s` expected at least %d arguments but received %d.",
 			err.Name,
 			err.ExpectedMin,
+			// @@ err.Name escapes to heap
 			err.Actual,
+			// @@ err.ExpectedMin escapes to heap
 		)
+		// @@ err.Actual escapes to heap
 	} else {
 		return fmt.Sprintf(
 			"Function `%s` expected between %d and %d arguments but received %d.",
 			err.Name,
 			err.ExpectedMin,
+			// @@ err.Name escapes to heap
 			err.ExpectedMax,
+			// @@ err.ExpectedMin escapes to heap
 			err.Actual,
+			// @@ err.ExpectedMax escapes to heap
 		)
+		// @@ err.Actual escapes to heap
 	}
 }

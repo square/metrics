@@ -25,9 +25,13 @@ import (
 )
 
 func transformEach(list api.SeriesList, transformation func([]float64) []float64) api.SeriesList {
+	// @@ leaking param content: list
+	// @@ leaking param content: list
 	resultList := api.SeriesList{
 		Series: make([]api.Timeseries, len(list.Series)),
 	}
+	// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
+	// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
 	for seriesIndex, series := range list.Series {
 		resultList.Series[seriesIndex] = api.Timeseries{
 			Values: transformation(series.Values),
@@ -38,9 +42,12 @@ func transformEach(list api.SeriesList, transformation func([]float64) []float64
 }
 
 func mapper(list api.SeriesList, mapFunc func(float64) float64) api.SeriesList {
+	// @@ leaking param content: list
 	return transformEach(list, func(values []float64) []float64 {
 		result := make([]float64, len(values))
 		for i := range result {
+			// @@ make([]float64, len(values)) escapes to heap
+			// @@ make([]float64, len(values)) escapes to heap
 			result[i] = mapFunc(values[i])
 		}
 		return result
@@ -52,9 +59,12 @@ func mapper(list api.SeriesList, mapFunc func(float64) float64) api.SeriesList {
 var Integral = function.MakeFunction(
 	"transform.integral",
 	func(list api.SeriesList, timerange api.Timerange) api.SeriesList {
+		// @@ leaking param content: list
 		return transformEach(list, func(values []float64) []float64 {
 			result := make([]float64, len(values))
 			integral := 0.0
+			// @@ make([]float64, len(values)) escapes to heap
+			// @@ make([]float64, len(values)) escapes to heap
 			for i := range values {
 				// Skip the 0th element since thats not technically part of our timerange
 				if i == 0 {
@@ -63,9 +73,12 @@ var Integral = function.MakeFunction(
 
 				if !math.IsNaN(values[i]) {
 					integral += values[i]
+					// @@ inlining call to math.IsNaN
 				}
 				result[i] = integral * timerange.Resolution().Seconds()
 			}
+			// @@ inlining call to api.Timerange.Resolution
+			// @@ inlining call to time.Duration.Seconds
 			return result
 		})
 	},
@@ -75,9 +88,12 @@ var Integral = function.MakeFunction(
 var Cumulative = function.MakeFunction(
 	"transform.cumulative",
 	func(list api.SeriesList, timerange api.Timerange) api.SeriesList {
+		// @@ leaking param content: list
 		return transformEach(list, func(values []float64) []float64 {
 			result := make([]float64, len(values))
 			sum := 0.0
+			// @@ make([]float64, len(values)) escapes to heap
+			// @@ make([]float64, len(values)) escapes to heap
 			for i := range values {
 				// Skip the 0th element since thats not technically part of our timerange
 				if i == 0 {
@@ -86,6 +102,7 @@ var Cumulative = function.MakeFunction(
 
 				if !math.IsNaN(values[i]) {
 					sum += values[i]
+					// @@ inlining call to math.IsNaN
 				}
 				result[i] = sum
 			}
@@ -98,12 +115,20 @@ var Cumulative = function.MakeFunction(
 //  `MapMaker(math.Abs)` is a transform function which can be used, e.g. with ApplyTransform
 // The name is used for error-checking purposes.
 func MapMaker(name string, fun func(float64) float64) function.Function {
+	// @@ leaking param: fun
+	// @@ leaking param: name to result ~r2 level=0
 	return function.MakeFunction(
 		name,
 		func(list api.SeriesList, timerange api.Timerange) api.SeriesList {
+			// @@ leaking param content: list
 			return transformEach(list, func(values []float64) []float64 {
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
+				// @@ func literal escapes to heap
 				result := make([]float64, len(values))
 				for i := range values {
+					// @@ make([]float64, len(values)) escapes to heap
+					// @@ make([]float64, len(values)) escapes to heap
 					result[i] = fun(values[i])
 				}
 				return result
@@ -112,13 +137,18 @@ func MapMaker(name string, fun func(float64) float64) function.Function {
 	)
 }
 
+// @@ function.MakeFunction(name, func literal) escapes to heap
+
 // NaNFill will replacing missing data (NaN) with the `default` value supplied as a parameter.
 var NaNFill = function.MakeFunction(
 	"transform.nan_fill",
 	func(list api.SeriesList, defaultValue float64) api.SeriesList {
+		// @@ leaking param content: list
 		return mapper(list, func(value float64) float64 {
 			if math.IsNaN(value) {
+				// @@ can inline glob.func9.1
 				return defaultValue
+				// @@ inlining call to math.IsNaN
 			}
 			return value
 		})
@@ -129,12 +159,16 @@ var NaNFill = function.MakeFunction(
 var NaNKeepLast = function.MakeFunction(
 	"transform.nan_keep_last",
 	func(list api.SeriesList) api.SeriesList {
+		// @@ leaking param content: list
 		return transformEach(list, func(values []float64) []float64 {
 			result := make([]float64, len(values))
 			for i := range result {
+				// @@ make([]float64, len(values)) escapes to heap
+				// @@ make([]float64, len(values)) escapes to heap
 				result[i] = values[i]
 				if math.IsNaN(values[i]) && i > 0 {
 					result[i] = result[i-1]
+					// @@ inlining call to math.IsNaN
 				}
 			}
 			return result
@@ -152,19 +186,30 @@ func (b boundError) Error() string {
 	return fmt.Sprintf("the lower bound (%f) should be no more than the upper bound (%f) in the parameters to transform.bound( ..., %f, %f)", b.lower, b.upper, b.lower, b.upper)
 }
 
+// @@ b.lower escapes to heap
+// @@ b.upper escapes to heap
+// @@ b.lower escapes to heap
+// @@ b.upper escapes to heap
+
 func (b boundError) TokenName() string {
 	return fmt.Sprintf("transform.bound(..., %f, %f)", b.lower, b.upper)
 }
+
+// @@ b.lower escapes to heap
+// @@ b.upper escapes to heap
 
 // Bound replaces values which fall outside the given limits with the limits themselves. If the lowest bound exceeds the upper bound, an error is returned.
 var Bound = function.MakeFunction(
 	"transform.bound",
 	func(list api.SeriesList, lowerBound float64, upperBound float64) (api.SeriesList, error) {
+		// @@ leaking param content: list
 		if lowerBound > upperBound {
 			return api.SeriesList{}, boundError{lowerBound, upperBound}
 		}
+		// @@ boundError literal escapes to heap
 		return mapper(list, func(value float64) float64 {
 			if value < lowerBound {
+				// @@ can inline glob.func11.1
 				return lowerBound
 			}
 			if value > upperBound {
@@ -179,8 +224,10 @@ var Bound = function.MakeFunction(
 var LowerBound = function.MakeFunction(
 	"transform.lower_bound",
 	func(list api.SeriesList, lowerBound float64) (api.SeriesList, error) {
+		// @@ leaking param content: list
 		return mapper(list, func(value float64) float64 {
 			if value < lowerBound {
+				// @@ can inline glob.func12.1
 				return lowerBound
 			}
 			return value
@@ -192,8 +239,10 @@ var LowerBound = function.MakeFunction(
 var UpperBound = function.MakeFunction(
 	"transform.upper_bound",
 	func(list api.SeriesList, upperBound float64) (api.SeriesList, error) {
+		// @@ leaking param content: list
 		return mapper(list, func(value float64) float64 {
 			if value > upperBound {
+				// @@ can inline glob.func13.1
 				return upperBound
 			}
 			return value

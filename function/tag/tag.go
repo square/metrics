@@ -21,8 +21,12 @@ import (
 
 // dropTagSeries returns a copy of the timeseries where the given `dropTag` has been removed from its TagSet.
 func dropTagSeries(series api.Timeseries, dropTag string) api.Timeseries {
+	// @@ leaking param content: series
+	// @@ leaking param: series to result ~r2 level=0
 	tagSet := api.NewTagSet()
 	for tag, val := range series.TagSet {
+		// @@ inlining call to api.NewTagSet
+		// @@ make(map[string]string) escapes to heap
 		if tag != dropTag {
 			tagSet[tag] = val
 		}
@@ -33,8 +37,12 @@ func dropTagSeries(series api.Timeseries, dropTag string) api.Timeseries {
 
 // DropTag returns a copy of the series list where the given `tag` has been removed from all timeseries.
 func DropTag(list api.SeriesList, tag string) api.SeriesList {
+	// @@ leaking param content: list
+	// @@ leaking param content: list
 	series := make([]api.Timeseries, len(list.Series))
 	for i := range series {
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
 		series[i] = dropTagSeries(list.Series[i], tag)
 	}
 	return api.SeriesList{
@@ -44,8 +52,14 @@ func DropTag(list api.SeriesList, tag string) api.SeriesList {
 
 // setTagSeries returns a copy of the timeseries where the given `newTag` has been set to `newValue`, or added if it wasn't present.
 func setTagSeries(series api.Timeseries, newTag string, newValue string) api.Timeseries {
+	// @@ leaking param content: series
+	// @@ leaking param: newTag
+	// @@ leaking param: newValue
+	// @@ leaking param: series to result ~r3 level=0
 	tagSet := api.NewTagSet()
 	for tag, val := range series.TagSet {
+		// @@ inlining call to api.NewTagSet
+		// @@ make(map[string]string) escapes to heap
 		tagSet[tag] = val
 	}
 	tagSet[newTag] = newValue
@@ -55,8 +69,14 @@ func setTagSeries(series api.Timeseries, newTag string, newValue string) api.Tim
 
 // SetTag returns a copy of the series list where `tag` has been assigned to `value` for every timeseries in the list.
 func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
+	// @@ leaking param content: list
+	// @@ leaking param: tag
+	// @@ leaking param: value
+	// @@ leaking param content: list
 	series := make([]api.Timeseries, len(list.Series))
 	for i := range series {
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
+		// @@ make([]api.Timeseries, len(list.Series)) escapes to heap
 		series[i] = setTagSeries(list.Series[i], tag, value)
 	}
 	return api.SeriesList{

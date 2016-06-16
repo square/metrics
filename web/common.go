@@ -27,8 +27,10 @@ import (
 )
 
 func encodeError(err error) []byte {
+	// @@ leaking param: err
 	encoded, err2 := json.MarshalIndent(Response{
 		Success: false,
+		// @@ composite literal escapes to heap
 		Message: err.Error(),
 	}, "", "  ")
 	if err2 == nil {
@@ -36,7 +38,12 @@ func encodeError(err error) []byte {
 	}
 	log.Errorf("In query handler: json.Marshal(%+v) returned %+v", err, err2)
 	return []byte(`{"success":false, "error": "internal server error while marshalling error message"}`)
+	// @@ ... argument escapes to heap
+	// @@ err escapes to heap
+	// @@ err2 escapes to heap
 }
+
+// @@ ([]byte)("{\"success\":false, \"error\": \"internal server error while marshalling error message\"}") escapes to heap
 
 // parsing functions
 // -----------------
@@ -47,10 +54,13 @@ type singleStaticHandler struct {
 }
 
 func (h singleStaticHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	// @@ leaking param: h
+	// @@ leaking param: writer
 	http.ServeFile(writer, request, path.Join(h.Path, h.File))
 }
 
 func parseStruct(form url.Values, target interface{}) {
+	// @@ leaking param: target
 	targetPointer := reflect.ValueOf(target)
 	if targetPointer.Type().Kind() != reflect.Ptr {
 		panic("Cannot parseStruct into non-pointer")
@@ -71,21 +81,28 @@ func parseStruct(form url.Values, target interface{}) {
 		}
 		keyValue := form.Get(name)
 		if field.Type.Kind() == reflect.String {
+			// @@ inlining call to url.Values.Get
 			targetValue.Field(i).Set(reflect.ValueOf(keyValue))
 			continue
+			// @@ keyValue escapes to heap
 		}
 		if field.Type.Kind() == reflect.Bool {
 			store, err := strconv.ParseBool(form.Get(name))
 			if err != nil {
+				// @@ inlining call to url.Values.Get
 				continue // Do nothing
 			}
 			targetValue.Field(i).Set(reflect.ValueOf(store))
 			continue
+			// @@ store escapes to heap
 		}
 		if field.Tag.Get("query_kind") == "json" {
 			json.Unmarshal([]byte(form.Get(name)), targetValue.Field(i).Addr().Interface())
 			continue
+			// @@ inlining call to url.Values.Get
+			// @@ ([]byte)(string(~r0)) escapes to heap
 		}
 		panic(fmt.Sprintf("parseStruct cannot handle field %+v (of an unimplemented type). Consider adding the tag `query_kind:\"json\"`", field))
 	}
+	// @@ field escapes to heap
 }

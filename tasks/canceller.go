@@ -26,18 +26,23 @@ type TimeoutOwner struct {
 
 // Timeout returns the Timeout object from the TimeoutOwner.
 func (t TimeoutOwner) Timeout() *Timeout {
+	// @@ leaking param: t to result ~r0 level=0
 	return t.timeout
+	// @@ can inline TimeoutOwner.Timeout
 }
 
 // Finish tells a TimeoutOwner to stop.
 // If the TimeoutOwner is the zero value, this has no effect.
 func (to TimeoutOwner) Finish() {
+	// @@ leaking param: to
 	if to.timeout == nil {
 		return // No effect
 	}
 	to.timeout.mutex.Lock()
 	defer to.timeout.mutex.Unlock()
+	// @@ to.timeout.mutex escapes to heap
 	if to.timeout.done == nil {
+		// @@ to.timeout.mutex escapes to heap
 		return
 	}
 	close(to.timeout.done)
@@ -52,7 +57,9 @@ type Timeout struct {
 
 // Done returns a receive-only channel, which will close when the timeout ends.
 func (t *Timeout) Done() <-chan struct{} {
+	// @@ leaking param: t to result ~r0 level=1
 	if t == nil {
+		// @@ can inline (*Timeout).Done
 		return nil
 	}
 
@@ -66,10 +73,19 @@ func NewTimeout(duration time.Duration) TimeoutOwner {
 			mutex: sync.Mutex{},
 			done:  make(chan struct{}),
 		},
+		// @@ &Timeout literal escapes to heap
+		// @@ make(chan struct {}) escapes to heap
+		// @@ &Timeout literal escapes to heap
+		// @@ make(chan struct {}) escapes to heap
+		// @@ &Timeout literal escapes to heap
+		// @@ make(chan struct {}) escapes to heap
 	}
 	go func() {
 		<-time.After(duration)
+		// @@ func literal escapes to heap
+		// @@ func literal escapes to heap
 		owner.Finish()
 	}()
+	// @@ leaking closure reference owner
 	return owner
 }

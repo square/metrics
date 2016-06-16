@@ -64,12 +64,15 @@ type FetchError struct {
 
 // Error returns the message associated with the FetchError.
 func (e FetchError) Error() string {
+	// @@ leaking param: e to result ~r0 level=0
 	return e.Message
+	// @@ can inline FetchError.Error
 }
 
 // Error500 indicates that it's a 500-level error.
 func (e FetchError) ErrorCode() int {
 	if e.Code == 0 {
+		// @@ can inline FetchError.ErrorCode
 		return http.StatusBadRequest
 	}
 	return e.Code
@@ -90,6 +93,7 @@ type Error struct {
 }
 
 func (err Error) Error() string {
+	// @@ leaking param: err
 	message := "unknown error"
 	switch err.Code {
 	case FetchTimeoutError:
@@ -105,16 +109,24 @@ func (err Error) Error() string {
 	}
 	formatted := fmt.Sprintf("[%s %+v] %s", string(err.Metric.MetricKey), err.Metric.TagSet, message)
 	if err.Message != "" {
+		// @@ string(err.Metric.MetricKey) escapes to heap
+		// @@ err.Metric.TagSet escapes to heap
+		// @@ message escapes to heap
 		formatted = formatted + " - " + err.Message
 	}
+	// @@ formatted + " - " + err.Message escapes to heap
 	return formatted
 }
 
 // ToSingle very simply decompose the FetchMultipleTimeseriesRequest into single
 // fetch requests (for now).
 func (r FetchMultipleRequest) ToSingle() []FetchRequest {
+	// @@ leaking param content: r
+	// @@ leaking param: r
 	fetchSingleRequests := make([]FetchRequest, len(r.Metrics))
 	for i, metric := range r.Metrics {
+		// @@ make([]FetchRequest, len(r.Metrics)) escapes to heap
+		// @@ make([]FetchRequest, len(r.Metrics)) escapes to heap
 		fetchSingleRequests[i] = FetchRequest{
 			Metric:         metric,
 			RequestDetails: r.RequestDetails,

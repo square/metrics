@@ -24,14 +24,19 @@ type weighted struct {
 
 func (w *weighted) get() float64 {
 	return w.value
+	// @@ can inline (*weighted).get
 }
 func (w *weighted) observe(y float64) {
 	if math.IsNaN(y) {
 		w.skip()
+		// @@ inlining call to math.IsNaN
 		return
+		// @@ inlining call to (*weighted).skip
 	}
 	if w.weight == 0 || math.IsNaN(w.value) || math.IsInf(w.value, 0) { // Special case to prevent 'NaN'
 		w.value = y
+		// @@ inlining call to math.IsNaN
+		// @@ inlining call to math.IsInf
 		w.weight = w.rate
 		return
 	}
@@ -41,19 +46,24 @@ func (w *weighted) observe(y float64) {
 }
 func (w *weighted) boostAdd(dy float64) {
 	if math.IsNaN(dy) {
+		// @@ can inline (*weighted).boostAdd
 		return
+		// @@ inlining call to math.IsNaN
 	}
 	w.value += dy
 }
 func (w *weighted) skip() {
 	w.weight *= 1 - w.rate
+	// @@ can inline (*weighted).skip
 }
 func newWeighted(rate float64) *weighted {
 	return &weighted{
+		// @@ can inline newWeighted
 		value:  0,
 		weight: 0,
 		rate:   rate,
 	}
+	// @@ &weighted literal escapes to heap
 }
 
 type cycle struct {
@@ -62,21 +72,36 @@ type cycle struct {
 
 func (c cycle) index(i int) int {
 	return (i%len(c.season) + len(c.season)) % len(c.season)
+	// @@ can inline cycle.index
 }
 func (c cycle) get(i int) float64 {
 	return c.season[c.index(i)].get()
+	// @@ can inline cycle.get
 }
+
+// @@ inlining call to cycle.index
+// @@ inlining call to (*weighted).get
 func (c cycle) observe(i int, v float64) {
 	c.season[c.index(i)].observe(v)
 }
+
+// @@ inlining call to cycle.index
 func (c cycle) skip(i int) {
 	c.season[c.index(i)].skip()
+	// @@ can inline cycle.skip
 }
+
+// @@ inlining call to cycle.index
+// @@ inlining call to (*weighted).skip
 func newCycle(rate float64, n int) cycle {
 	c := make([]*weighted, n)
 	for i := range c {
+		// @@ make([]*weighted, n) escapes to heap
+		// @@ make([]*weighted, n) escapes to heap
 		c[i] = newWeighted(rate)
 	}
+	// @@ inlining call to newWeighted
+	// @@ &weighted literal escapes to heap
 	return cycle{
 		season: c,
 	}
@@ -96,9 +121,13 @@ func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRat
 	trendLearningRate = 1 - math.Pow(1-trendLearningRate, 1/float64(period))
 	estimate := make([]float64, len(ys))
 
+	// @@ make([]float64, len(ys)) escapes to heap
+	// @@ make([]float64, len(ys)) escapes to heap
 	level := newWeighted(levelLearningRate)
 	trend := newWeighted(trendLearningRate)
+	// @@ inlining call to newWeighted
 	season := newCycle(seasonalLearningRate, period)
+	// @@ inlining call to newWeighted
 
 	// we need to initialize the season to '1':
 	for i := 0; i < period; i++ {
@@ -109,21 +138,31 @@ func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRat
 		// Remember the old values.
 		oldLevel := level.get()
 		oldTrend := trend.get()
+		// @@ inlining call to (*weighted).get
 		oldSeason := season.get(i)
+		// @@ inlining call to (*weighted).get
 
+		// @@ inlining call to cycle.get
+		// @@ inlining call to cycle.index
+		// @@ inlining call to (*weighted).get
 		// Update the level, by increasing it by the estimate slope
 		level.boostAdd(oldTrend)
 		// Then observing the new y [if y is NaN, this skips, as desired]
+		// @@ inlining call to (*weighted).boostAdd
+		// @@ inlining call to math.IsNaN
 		level.observe(y / oldSeason) // observe the y's non-seasonal value
 
 		// Next, observe the trend- difference between this level and last.
 		// If y is NaN, we want to skip instead of updating.
 		if math.IsNaN(y) {
 			trend.skip()
+			// @@ inlining call to math.IsNaN
 		} else {
+			// @@ inlining call to (*weighted).skip
 			// Compare the new level against the old.
 			trend.observe(level.get() - oldLevel)
 		}
+		// @@ inlining call to (*weighted).get
 
 		// Lastly, the seasonal value is just y / (l+b) the non-seasonal component.
 		// If y is NaN, this will be NaN too, causing it to skip (as desired).
@@ -132,6 +171,10 @@ func RollingMultiplicativeHoltWinters(ys []float64, period int, levelLearningRat
 		// Our estimate is the level times the seasonal component.
 		estimate[i] = level.get() * season.get(i)
 	}
+	// @@ inlining call to (*weighted).get
+	// @@ inlining call to cycle.get
+	// @@ inlining call to cycle.index
+	// @@ inlining call to (*weighted).get
 	return estimate
 }
 
@@ -143,9 +186,14 @@ func RollingSeasonal(ys []float64, period int, seasonalLearningRate float64) []f
 	season := newCycle(seasonalLearningRate, period)
 	estimate := make([]float64, len(ys))
 	for i := range ys {
+		// @@ make([]float64, len(ys)) escapes to heap
+		// @@ make([]float64, len(ys)) escapes to heap
 		season.observe(i, ys[i])
 		estimate[i] = season.get(i)
 	}
+	// @@ inlining call to cycle.get
+	// @@ inlining call to cycle.index
+	// @@ inlining call to (*weighted).get
 	return estimate
 }
 
@@ -153,6 +201,8 @@ func RollingSeasonal(ys []float64, period int, seasonalLearningRate float64) []f
 func ForecastLinear(ys []float64) []float64 {
 	estimate := make([]float64, len(ys))
 	a, b := LinearRegression(ys)
+	// @@ make([]float64, len(ys)) escapes to heap
+	// @@ make([]float64, len(ys)) escapes to heap
 	for i := range ys {
 		estimate[i] = a + b*float64(i)
 	}

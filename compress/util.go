@@ -25,13 +25,16 @@ func leadingZeros64(x uint64) uint32 {
 
 	zeros := leadingZeros(upper)
 	if zeros == 32 {
+		// @@ inlining call to leadingZeros
 		zeros += leadingZeros(lower)
 	}
+	// @@ inlining call to leadingZeros
 	return zeros
 }
 
 func leadingZeros(x uint32) uint32 {
 	n := uint32(0)
+	// @@ can inline leadingZeros
 	if x == 0 {
 		return 32
 	}
@@ -99,4 +102,5 @@ func trailingZeros(x uint32) uint32 {
 
 func nthLowestBit(n uint32, value uint64) bool {
 	return 1 == (value>>n)&1
+	// @@ can inline nthLowestBit
 }
