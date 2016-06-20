@@ -83,6 +83,7 @@ func init() {
 	// Tags
 	MustRegister(tag.DropFunction)
 	MustRegister(tag.SetFunction)
+	MustRegister(tag.CopyFunction)
 
 	// Forecasting
 	MustRegister(forecast.FunctionRollingMultiplicativeHoltWinters)

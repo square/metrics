@@ -64,8 +64,37 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 	}
 }
 
+// copyTagSeries copies the value of one tag to another.
+func copyTagSeries(series api.Timeseries, target string, source string) api.Timeseries {
+	tagSet := api.NewTagSet()
+	for tag, val := range series.TagSet {
+		tagSet[tag] = val
+	}
+	if val, ok := tagSet[source]; ok {
+		tagSet[target] = val
+	} else {
+		delete(tagSet, target)
+	}
+	series.TagSet = tagSet
+	return series
+}
+
+// CopyTag returns a copy of the series list where `target` is replaced by `source`'s value in each timeseries in the list.
+func CopyTag(list api.SeriesList, target string, source string) api.SeriesList {
+	series := make([]api.Timeseries, len(list.Series))
+	for i := range series {
+		series[i] = copyTagSeries(list.Series[i], target, source)
+	}
+	return api.SeriesList{
+		Series: series,
+	}
+}
+
 // DropFunction wraps up DropTag into a Function called "tag.drop"
 var DropFunction = function.MakeFunction("tag.drop", DropTag)
 
 // SetFunction wraps up SetTag into a Function called "tag.set"
 var SetFunction = function.MakeFunction("tag.set", SetTag)
+
+// CopyFunction wraps up CopyTag into a Function called "tag.copy"
+var CopyFunction = function.MakeFunction("tag.copy", CopyTag)
