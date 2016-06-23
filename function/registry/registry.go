@@ -73,7 +73,6 @@ func init() {
 	MustRegister(NewFilterThreshold("filter.min_below", aggregate.Min, true))
 
 	// Weird ones
-	MustRegister(transform.Alias)
 	MustRegister(transform.Derivative)
 	MustRegister(transform.MovingAverage)
 	MustRegister(transform.ExponentialMovingAverage)

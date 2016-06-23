@@ -248,7 +248,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		r = registry.Default()
 	}
 
-	evaluationContext := function.EvaluationContext{
+	evaluationContext := function.EvaluationContextBuilder{
 		MetricMetadataAPI:    context.MetricMetadataAPI,
 		FetchLimit:           function.NewFetchCounter(context.FetchLimit),
 		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
@@ -261,7 +261,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		EvaluationNotes: new(function.EvaluationNotes),
 
 		Ctx: ctx,
-	}
+	}.Build()
 
 	results := make(chan []function.Value, 1)
 	errors := make(chan error, 1)
@@ -283,7 +283,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 	case result := <-results:
 		description := map[string][]string{}
 		for _, value := range result {
-			listValue, err := value.ToSeriesList(evaluationContext.Timerange)
+			listValue, err := value.ToSeriesList(evaluationContext.Timerange())
 			if err != nil {
 				continue
 			}
@@ -312,8 +312,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		for i := range body {
 			if list, ok := result[i].(function.SeriesListValue); ok {
 				body[i] = QueryResult{
-					Query:     cmd.Expressions[i].QueryString(),
-					Name:      cmd.Expressions[i].Name(),
+					Query:     cmd.Expressions[i].ExpressionString(function.StringQuery),
+					Name:      cmd.Expressions[i].ExpressionString(function.StringName),
 					Type:      "series",
 					Series:    list.Series,
 					Timerange: chosenTimerange,
@@ -322,21 +322,21 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 			}
 			if scalars, err := result[i].ToScalarSet(); err == nil {
 				body[i] = QueryResult{
-					Query:   cmd.Expressions[i].QueryString(),
-					Name:    cmd.Expressions[i].Name(),
+					Query:   cmd.Expressions[i].ExpressionString(function.StringQuery),
+					Name:    cmd.Expressions[i].ExpressionString(function.StringName),
 					Type:    "scalars",
 					Scalars: scalars,
 				}
 				continue
 			}
-			return Result{}, fmt.Errorf("Query %s does not result in a timeseries or scalar.", cmd.Expressions[i].QueryString())
+			return Result{}, fmt.Errorf("Query %s does not result in a timeseries or scalar.", cmd.Expressions[i].ExpressionString(function.StringQuery))
 		}
 
 		return Result{
 			Body: body,
 			Metadata: map[string]interface{}{
 				"description": description,
-				"notes":       evaluationContext.EvaluationNotes,
+				"notes":       evaluationContext.Notes(),
 			},
 		}, nil
 	}

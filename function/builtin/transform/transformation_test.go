@@ -30,10 +30,10 @@ type literal struct {
 	value function.Value
 }
 
-func (lit literal) QueryString() string {
-	return "<literal>"
-}
-func (lit literal) Name() string {
+func (lit literal) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization {
+		return fmt.Sprintf("%#v", lit)
+	}
 	return "<literal>"
 }
 func (lit literal) Evaluate(context function.EvaluationContext) (function.Value, error) {
@@ -97,7 +97,7 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
+			ctx := function.EvaluationContextBuilder{Timerange: timerange, Ctx: context.Background()}.Build()
 			seriesList := api.SeriesList{
 				Series: []api.Timeseries{series},
 			}
@@ -106,7 +106,7 @@ func TestTransformTimeseries(t *testing.T) {
 				t.Error(err)
 				continue
 			}
-			resultList, convErr := resultValue.ToSeriesList(ctx.Timerange)
+			resultList, convErr := resultValue.ToSeriesList(ctx.Timerange())
 			if convErr != nil {
 				t.Errorf("Conversion to series list failed: %s", convErr.WithContext("???").Error())
 				continue
@@ -199,13 +199,13 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
+		ctx := function.EvaluationContextBuilder{Timerange: timerange,Ctx: context.Background()}.Build()
 		resultValue, err := test.transform.Run(ctx, []function.Expression{listExpression}, function.Groups{})
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		result, convErr := resultValue.ToSeriesList(ctx.Timerange)
+		result, convErr := resultValue.ToSeriesList(ctx.Timerange())
 		if convErr != nil {
 			t.Errorf("Error converting to series list: %s", convErr.WithContext("test case").Error())
 			continue
@@ -271,21 +271,21 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes), Timerange: timerange, Ctx: context.Background()}
+		ctx := function.EvaluationContextBuilder{EvaluationNotes: &function.EvaluationNotes{}, Timerange: timerange, Ctx: context.Background()}.Build()
 		_, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		if len(test.expected) != len(ctx.EvaluationNotes.Notes()) {
-			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.EvaluationNotes.Notes()))
+		if len(test.expected) != len(ctx.Notes()) {
+			t.Errorf("Expected there to be %d notes but there were %d of them", len(test.expected), len(ctx.Notes()))
 		}
 		for i, note := range test.expected {
-			if i >= len(ctx.EvaluationNotes.Notes()) {
+			if i >= len(ctx.Notes()) {
 				break
 			}
-			if ctx.EvaluationNotes.Notes()[i] != note {
-				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.EvaluationNotes.Notes()[i])
+			if ctx.Notes()[i] != note {
+				t.Errorf("The context notes didn't include the evaluation message. Expected: %s Actually found: %s\n", note, ctx.Notes()[i])
 			}
 		}
 
@@ -391,13 +391,13 @@ func TestApplyBound(t *testing.T) {
 		}
 
 		for _, bounderDetails := range bounders {
-			ctx := function.EvaluationContext{Ctx: context.Background()}
+			ctx := function.EvaluationContextBuilder{Ctx: context.Background()}.Build()
 			boundedValue, err := bounderDetails.bounder.Run(ctx, bounderDetails.parameters, function.Groups{})
 			if err != nil {
 				t.Errorf(err.Error())
 				continue
 			}
-			bounded, convErr := boundedValue.ToSeriesList(ctx.Timerange)
+			bounded, convErr := boundedValue.ToSeriesList(ctx.Timerange())
 			if convErr != nil {
 				t.Errorf("Error converting to series list: %s", convErr.WithContext("test case"))
 				continue
@@ -418,7 +418,7 @@ func TestApplyBound(t *testing.T) {
 			}
 		}
 	}
-	ctx := function.EvaluationContext{Ctx: context.Background()}
+	ctx := function.EvaluationContextBuilder{Ctx: context.Background()}.Build()
 	if _, err := Bound.Run(ctx, []function.Expression{listExpression, literal{function.ScalarValue(18)}, literal{function.ScalarValue(17)}}, function.Groups{}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
@@ -518,13 +518,13 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
+		ctx := function.EvaluationContextBuilder{Timerange: timerange, Ctx: context.Background()}.Build()
 		resultValue, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
 			return
 		}
-		result, convErr := resultValue.ToSeriesList(ctx.Timerange)
+		result, convErr := resultValue.ToSeriesList(ctx.Timerange())
 		if convErr != nil {
 			t.Fatalf("error converting to series list: %s", convErr.WithContext("test case"))
 			return
@@ -622,7 +622,7 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
+				ctx := function.EvaluationContextBuilder{Timerange: timerange,Ctx: context.Background()}.Build()
 
 				seriesList := api.SeriesList{
 					Series: []api.Timeseries{result},
@@ -633,7 +633,7 @@ func TestTransformIdentity(t *testing.T) {
 					t.Error(err)
 					break
 				}
-				a, convErr := aValue.ToSeriesList(ctx.Timerange)
+				a, convErr := aValue.ToSeriesList(ctx.Timerange())
 				if convErr != nil {
 					t.Error(convErr)
 					break

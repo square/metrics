@@ -67,19 +67,20 @@ func TestMovingAverage(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	expression := &expression.FunctionExpression{
+	expression := function.Memoize(&expression.FunctionExpression{
 		FunctionName: "transform.moving_average",
 		GroupBy:      []string{},
 		Arguments: []function.Expression{
-			&expression.MetricFetchExpression{MetricName: "series", Predicate: predicate.TruePredicate{}},
-			expression.Duration{Literal: "300ms", Duration: 300 * time.Millisecond},
+			function.Memoize(&expression.MetricFetchExpression{MetricName: "series", Predicate: predicate.TruePredicate{}}),
+			function.Memoize(expression.Duration{Literal: "300ms", Duration: 300 * time.Millisecond}),
 		},
-	}
+	})
 
 	backend := fakeBackend
 
-	result, err := function.EvaluateToSeriesList(expression,
-		function.EvaluationContext{
+	result, err := function.EvaluateToSeriesList(
+		expression,
+		function.EvaluationContextBuilder{
 			MetricMetadataAPI:    fakeAPI,
 			TimeseriesStorageAPI: backend,
 			Timerange:            timerange,
@@ -88,7 +89,8 @@ func TestMovingAverage(t *testing.T) {
 			Registry:             registry.Default(),
 
 			Ctx: context.Background(),
-		})
+		}.Build(),
+	)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

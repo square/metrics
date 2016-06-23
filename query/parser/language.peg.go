@@ -705,7 +705,7 @@ func (p *Parser) Execute() {
 		case ruleAction4:
 			p.makeDescribeMetrics()
 		case ruleAction5:
-			p.pushNode(unescapeLiteral(buffer[begin:end]))
+			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction6:
 			p.makeDescribe()
 		case ruleAction7:
@@ -739,7 +739,7 @@ func (p *Parser) Execute() {
 		case ruleAction21:
 			p.addOperatorFunction()
 		case ruleAction22:
-			p.pushNode(unescapeLiteral(buffer[begin:end]))
+			p.pushString(unescapeLiteral(buffer[begin:end]))
 		case ruleAction23:
 			p.addExpressionList()
 		case ruleAction24:
@@ -761,7 +761,7 @@ func (p *Parser) Execute() {
 			p.addGroupBy()
 		case ruleAction31:
 
-			p.pushNode(unescapeLiteral(buffer[begin:end]))
+			p.pushString(unescapeLiteral(buffer[begin:end]))
 
 		case ruleAction32:
 
@@ -769,7 +769,7 @@ func (p *Parser) Execute() {
 
 		case ruleAction33:
 
-			p.pushNode(unescapeLiteral(buffer[begin:end]))
+			p.pushString(unescapeLiteral(buffer[begin:end]))
 
 		case ruleAction34:
 			p.addNullPredicate()
@@ -816,7 +816,7 @@ func (p *Parser) Execute() {
 
 		case ruleAction47:
 
-			p.pushNode(unescapeLiteral(buffer[begin:end]))
+			p.pushString(unescapeLiteral(buffer[begin:end]))
 
 		case ruleAction48:
 			p.addLiteralList()
@@ -5663,7 +5663,7 @@ func (p *Parser) Init() {
 		/* 77 Action4 <- <{ p.makeDescribeMetrics() }> */
 		nil,
 		nil,
-		/* 79 Action5 <- <{ p.pushNode(unescapeLiteral(buffer[begin:end])) }> */
+		/* 79 Action5 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 		/* 80 Action6 <- <{ p.makeDescribe() }> */
 		nil,
@@ -5697,7 +5697,7 @@ func (p *Parser) Init() {
 		nil,
 		/* 95 Action21 <- <{ p.addOperatorFunction() }> */
 		nil,
-		/* 96 Action22 <- <{ p.pushNode(unescapeLiteral(buffer[begin:end])) }> */
+		/* 96 Action22 <- <{ p.pushString(unescapeLiteral(buffer[begin:end])) }> */
 		nil,
 		/* 97 Action23 <- <{p.addExpressionList()}> */
 		nil,
@@ -5719,7 +5719,7 @@ func (p *Parser) Init() {
 		/* 104 Action30 <- <{ p.addGroupBy() }> */
 		nil,
 		/* 105 Action31 <- <{
-		   p.pushNode(unescapeLiteral(buffer[begin:end]))
+		   p.pushString(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
 		/* 106 Action32 <- <{
@@ -5727,7 +5727,7 @@ func (p *Parser) Init() {
 		 }> */
 		nil,
 		/* 107 Action33 <- <{
-		   p.pushNode(unescapeLiteral(buffer[begin:end]))
+		   p.pushString(unescapeLiteral(buffer[begin:end]))
 		 }> */
 		nil,
 		/* 108 Action34 <- <{ p.addNullPredicate() }> */
@@ -5774,7 +5774,7 @@ func (p *Parser) Init() {
 		 }> */
 		nil,
 		/* 121 Action47 <- <{
-		  p.pushNode(unescapeLiteral(buffer[begin:end]))
+		  p.pushString(unescapeLiteral(buffer[begin:end]))
 		}> */
 		nil,
 		/* 122 Action48 <- <{ p.addLiteralList() }> */

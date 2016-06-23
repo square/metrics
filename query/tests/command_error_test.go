@@ -49,13 +49,13 @@ func TestCommandError(t *testing.T) {
 		Timeout:              100 * time.Millisecond,
 		Ctx:                  context.Background(),
 	}
-	command, err := parser.Parse(`select testmetric + testmetric + testmetric from 0 to 120 resolution 30ms`)
+	command, err := parser.Parse(`select testmetric + testmetric[host != "foo"] + testmetric[host != "bar"] from 0 to 120 resolution 30ms`)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	_, err = command.Execute(context)
 	if err == nil {
-		t.Fatalf("expected error")
+		t.Fatalf("expected error due to exceeding fetch limits")
 	}
 	t.Logf("Message :: %s", err.Error())
 	if !strings.Contains(err.Error(), "brings the total to 18") {

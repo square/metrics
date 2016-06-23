@@ -29,26 +29,90 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EvaluationContext is the central piece of logic, providing
-// helper funcions & varaibles to evaluate a given piece of
-// metrics query.
-// * Contains a TimeseriesStorageAPI object, which can be used to fetch data
-// from the backend systems.
-// * Contains current timerange being queried for - this can be
-// changed by say, application of time shift function.
-type EvaluationContext struct {
+// An EvaluationContextBuilder is used to create an EvaluationContext because
+// the EvaluationContext's fields are private to prevent accidental modification.
+type EvaluationContextBuilder struct {
 	TimeseriesStorageAPI timeseries.StorageAPI   // Backend to fetch data from
 	MetricMetadataAPI    metadata.MetricAPI      // Api to obtain metadata from
 	Timerange            api.Timerange           // Timerange to fetch data from
 	SampleMethod         timeseries.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
 	Predicate            predicate.Predicate     // Predicate to apply to TagSets prior to fetching
+	FetchLimit           FetchCounter            // A limit on the number of fetches which may be performed
+	Registry             Registry
+	Profiler             *inspect.Profiler // A profiler pointer
+	EvaluationNotes      *EvaluationNotes  // Debug + numerical notes that can be added during evaluation
+	Ctx                  context.Context
+}
 
-	FetchLimit      FetchCounter      // A limit on the number of fetches which may be performed
-	Registry        Registry          // Allows lookup of functions by name
-	Profiler        *inspect.Profiler // A profiler pointer
-	EvaluationNotes *EvaluationNotes  // Debug + numerical notes that can be added during evaluation
+// Build creates an evaluation context from the provided builder.
+func (builder EvaluationContextBuilder) Build() EvaluationContext {
+	return EvaluationContext{
+		private:     builder,
+		memoization: newMemo(),
+	}
+}
 
-	Ctx context.Context // Used for timeout (TODO: and user config)
+// EvaluationContext holds all information relevant to executing a single query.
+type EvaluationContext struct {
+	private     EvaluationContextBuilder // So that it can't be easily modified from outside this package.
+	memoization *memoization
+}
+
+// TimeseriesStorageAPI returns the underlying timeseries.StorageAPI.
+func (context EvaluationContext) TimeseriesStorageAPI() timeseries.StorageAPI {
+	return context.private.TimeseriesStorageAPI
+}
+
+// MetricMetadataAPI returns the underlying metadata.MetricAPI.
+func (context EvaluationContext) MetricMetadataAPI() metadata.MetricAPI {
+	return context.private.MetricMetadataAPI
+}
+
+// Timerange returns the underlying api.Timerange.
+func (context EvaluationContext) Timerange() api.Timerange {
+	return context.private.Timerange
+}
+
+// SampleMethod returns the underlying timeseries.SampleMethod.
+func (context EvaluationContext) SampleMethod() timeseries.SampleMethod {
+	return context.private.SampleMethod
+}
+
+// Predicate returns the underlying predicate.Predicate.
+func (context EvaluationContext) Predicate() predicate.Predicate {
+	return context.private.Predicate
+}
+
+// FetchLimitConsume tries to consume the amount of resources from the limit,
+// returning a non-nil error if this would overdraw the alloted limit.
+func (context EvaluationContext) FetchLimitConsume(n int) error {
+	return context.private.FetchLimit.Consume(n)
+}
+
+// Ctx returns the underlying Context instance for the evaluation.
+func (context EvaluationContext) Ctx() context.Context {
+	return context.private.Ctx
+}
+
+// RegistryGetFunction gets the function of the provided name, return true if
+// the function could be found and false otherwise.
+func (context EvaluationContext) RegistryGetFunction(name string) (Function, bool) {
+	return context.private.Registry.GetFunction(name)
+}
+
+// Profiler returns the underlying inspect.Profiler instance.
+func (context EvaluationContext) Profiler() *inspect.Profiler {
+	return context.private.Profiler
+}
+
+// AddNote adds a note to the evaluation context.
+func (context EvaluationContext) AddNote(note string) {
+	context.private.EvaluationNotes.AddNote(note)
+}
+
+// Notes returns all notes added to the evaluation context.
+func (context EvaluationContext) Notes() []string {
+	return context.private.EvaluationNotes.Notes()
 }
 
 // EvaluationNotes holds notes that were recorded during evaluation.
@@ -78,9 +142,14 @@ func (notes *EvaluationNotes) Notes() []string {
 }
 
 // WithTimerange duplicates the EvaluationContext but with a new timerange.
-func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
-	e.Timerange = t
-	return e
+func (context EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
+	context.private.Timerange = t
+	context.memoization = newMemo()
+	return context
+}
+
+func (context EvaluationContext) EvaluateMemoized(expression ActualExpression) (Value, error) {
+	return context.memoization.evaluate(expression, context)
 }
 
 // FetchCounter is used to count the number of fetches remaining in a thread-safe manner.
@@ -119,18 +188,32 @@ func (c FetchCounter) Consume(n int) error {
 }
 
 // Expression is a piece of code, which can be evaluated in a given
-// EvaluationContext. EvaluationContext must never be changed in an Evalute().
+// EvaluationContext. EvaluationContext must never be changed in an Evaluate().
 //
-// The contract of Expressions is that leaf nodes must sample a resulting
-// timeseries according to the resolution specified in its EvaluationContext's
-// Timerange. Internal nodes may assume that results from evaluating child
-// Expressions correspond to the timerange in the current EvaluationContext.
+// If an Expression returns a SeriesList, its timerange must match the context's
+// timerange exactly.
 type Expression interface {
-	// Evaluate the given expression.
 	Evaluate(context EvaluationContext) (Value, error)
-	Name() string
-	QueryString() string
+	ExpressionString(DescriptionMode) string
 }
+
+// An ActualExpression is how expressions are internally implemented by the
+// library, but not how they should be consumed. ActualExpressions don't
+// benefit from memoization, but can
+type ActualExpression interface {
+	// Evaluate the given expression.
+	ActualEvaluate(context EvaluationContext) (Value, error)
+	ExpressionString(DescriptionMode) string
+}
+
+// DescriptionMode indicates how the expression should be evaluated.
+type DescriptionMode int
+
+const (
+	StringName        DescriptionMode = iota // StringName is for human readability and respects aliases
+	StringQuery                              // StringQuery is for humans but ignores aliases, presenting the query as written
+	StringMemoization                        // StringMemoization is not for humans and intended to give a unique name to every expression
+)
 
 // EvaluateToScalar is a helper function that takes an Expression and makes it a scalar.
 func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) {
@@ -140,7 +223,7 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	}
 	value, convErr := scalarValue.ToScalar()
 	if convErr != nil {
-		return 0, convErr.WithContext(e.QueryString())
+		return 0, convErr.WithContext(e.ExpressionString(StringQuery))
 	}
 	return value, nil
 }
@@ -153,7 +236,7 @@ func EvaluateToScalarSet(e Expression, context EvaluationContext) (ScalarSet, er
 	}
 	value, convErr := scalarValue.ToScalarSet()
 	if convErr != nil {
-		return nil, convErr.WithContext(e.QueryString())
+		return nil, convErr.WithContext(e.ExpressionString(StringQuery))
 	}
 	return value, nil
 }
@@ -166,7 +249,7 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	}
 	value, convErr := durationValue.ToDuration()
 	if convErr != nil {
-		return 0, convErr.WithContext(e.QueryString())
+		return 0, convErr.WithContext(e.ExpressionString(StringQuery))
 	}
 	return value, nil
 }
@@ -177,9 +260,9 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	if err != nil {
 		return api.SeriesList{}, err
 	}
-	value, convErr := seriesValue.ToSeriesList(context.Timerange)
+	value, convErr := seriesValue.ToSeriesList(context.private.Timerange)
 	if convErr != nil {
-		return api.SeriesList{}, convErr.WithContext(e.QueryString())
+		return api.SeriesList{}, convErr.WithContext(e.ExpressionString(StringQuery))
 	}
 	return value, nil
 }
@@ -192,7 +275,7 @@ func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	}
 	value, convErr := stringValue.ToString()
 	if convErr != nil {
-		return "", convErr.WithContext(e.QueryString())
+		return "", convErr.WithContext(e.ExpressionString(StringQuery))
 	}
 	return value, nil
 }
@@ -234,5 +317,4 @@ func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value,
 		array[result.index] = result.value
 	}
 	return array, nil
-
 }
