@@ -22,13 +22,13 @@ import (
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
-	"github.com/square/metrics/function/aggregate"
-	"github.com/square/metrics/function/filter"
-	"github.com/square/metrics/function/forecast"
-	"github.com/square/metrics/function/join"
-	"github.com/square/metrics/function/summary"
-	"github.com/square/metrics/function/tag"
-	"github.com/square/metrics/function/transform"
+	"github.com/square/metrics/function/builtin/aggregate"
+	"github.com/square/metrics/function/builtin/filter"
+	"github.com/square/metrics/function/builtin/forecast"
+	"github.com/square/metrics/function/builtin/join"
+	"github.com/square/metrics/function/builtin/summary"
+	"github.com/square/metrics/function/builtin/tag"
+	"github.com/square/metrics/function/builtin/transform"
 )
 
 func init() {
