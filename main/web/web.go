@@ -25,7 +25,7 @@ import (
 
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
-	"github.com/square/metrics/main/common"
+	common "github.com/square/metrics/main"
 	"github.com/square/metrics/main/web/server"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cached"

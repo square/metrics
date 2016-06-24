@@ -24,7 +24,7 @@ import (
 	"syscall"
 
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/main/common"
+	common "github.com/square/metrics/main"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"

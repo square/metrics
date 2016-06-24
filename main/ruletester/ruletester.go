@@ -30,7 +30,7 @@ import (
 	"sync"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/main/common"
+	common "github.com/square/metrics/main"
 	"github.com/square/metrics/util"
 )
 
