@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+	"github.com/square/metrics/interface/timeseries"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/interface/timeseries"
 	"github.com/square/metrics/util"
 )
 

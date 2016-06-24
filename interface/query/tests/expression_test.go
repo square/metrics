@@ -21,8 +21,8 @@ import (
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/interface/query/expression"
-	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/interface/timeseries"
+	"github.com/square/metrics/testing_support/assert"
 )
 
 type FakeBackend struct {

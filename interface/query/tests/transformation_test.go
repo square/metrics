@@ -26,8 +26,8 @@ import (
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/interface/query/expression"
 	"github.com/square/metrics/interface/query/predicate"
-	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/interface/timeseries"
+	"github.com/square/metrics/testing_support/mocks"
 )
 
 type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
