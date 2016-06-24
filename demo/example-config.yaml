@@ -20,4 +20,4 @@ cassandra:
 web:
   port: 9007                 # The port that the HTTP UI is served on. Visit http://localhost:9007 to see the UI.
   timeout: 2000              # The timeout before a connection is dropped over the UI.
-  static_dir: main/static  # The directory that the HTTP server presents. You can fork the provided UI and use your own by placing it in a different directory.
+  static_dir: main/web/static  # The directory that the HTTP server presents. You can fork the provided UI and use your own by placing it in a different directory.
