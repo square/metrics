@@ -27,6 +27,7 @@ type TaggedMetric struct {
 	TagSet    TagSet
 }
 
+// String converts the TaggedMetric into a human-readable string.
 func (t *TaggedMetric) String() string {
 	return fmt.Sprintf("%+v [%s]\n", t.MetricKey, t.TagSet.Serialize())
 }

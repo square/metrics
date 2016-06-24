@@ -21,14 +21,17 @@ type MetricKey string
 // MetricKeys is an interface implementing sort.Interface to allow it to be sorted.
 type MetricKeys []MetricKey
 
+// Len returns the length of the list of MetricKeys.
 func (keys MetricKeys) Len() int {
 	return len(keys)
 }
 
+// Less tells whether the ith key comes before the jth key.
 func (keys MetricKeys) Less(i, j int) bool {
 	return keys[i] < keys[j]
 }
 
+// Swap swaps the ith and jth keys.
 func (keys MetricKeys) Swap(i, j int) {
 	keys[i], keys[j] = keys[j], keys[i]
 }
