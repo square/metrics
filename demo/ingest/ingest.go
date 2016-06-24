@@ -54,7 +54,7 @@ func main() {
 
 	cassandra, err := cassandra.NewMetricMetadataAPI(cassandra.Config{
 		Hosts:    []string{*cassandraHost}, // using the default port
-		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/schema
+		Keyspace: "metrics_indexer",        // from schema in github.com/square/metrics/metric_metadata/cassandra/schema
 	})
 	if err != nil {
 		fmt.Printf("Error encountered while creating Cassandra API instance: %+v", err.Error())
