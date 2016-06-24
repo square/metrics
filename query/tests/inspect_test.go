@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
@@ -139,7 +139,7 @@ func TestProfilerIntegration(t *testing.T) {
 			t.Error(err.Error())
 			continue
 		}
-		profiler := inspect.New()
+		profiler := profile.New()
 		profilingCommand := command.NewProfilingCommandWithProfiler(cmd, profiler)
 
 		_, err = profilingCommand.Execute(command.ExecutionContext{

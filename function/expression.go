@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/tasks"
@@ -44,7 +44,7 @@ type EvaluationContext struct {
 	FetchLimit            FetchCounter            // A limit on the number of fetches which may be performed
 	Timeout               *tasks.Timeout
 	Registry              Registry
-	Profiler              *inspect.Profiler // A profiler pointer
+	Profiler              *profile.Profiler // A profiler pointer
 	EvaluationNotes       *EvaluationNotes  // Debug + numerical notes that can be added during evaluation
 	UserSpecifiableConfig timeseries.UserSpecifiableConfig
 }

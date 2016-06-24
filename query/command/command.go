@@ -23,7 +23,7 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
@@ -39,7 +39,7 @@ type ExecutionContext struct {
 	Timeout               time.Duration                    // optional
 	Registry              function.Registry                // optional
 	SlotLimit             int                              // optional (0 => default 1000)
-	Profiler              *inspect.Profiler                // optional
+	Profiler              *profile.Profiler                // optional
 	UserSpecifiableConfig timeseries.UserSpecifiableConfig // optional. User tunable parameters for execution.
 	AdditionalConstraints predicate.Predicate              // optional. Additional contrains for describe and select commands
 }
@@ -345,11 +345,11 @@ func (cmd *SelectCommand) Name() string {
 
 //ProfilingCommand is a Command that also performs profiling actions.
 type ProfilingCommand struct {
-	Profiler *inspect.Profiler
+	Profiler *profile.Profiler
 	Command  Command
 }
 
-func NewProfilingCommandWithProfiler(command Command, profiler *inspect.Profiler) Command {
+func NewProfilingCommandWithProfiler(command Command, profiler *profile.Profiler) Command {
 	return ProfilingCommand{
 		Profiler: profiler,
 		Command:  command,

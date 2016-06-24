@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
@@ -33,7 +33,7 @@ type Response struct {
 	Success bool   `json:"success"`
 	Message string `json:"message,omitempty"`
 	QueryResponse
-	Profile []inspect.Profile `json:"profile,omitempty"`
+	Profile []profile.Profile `json:"profile,omitempty"`
 }
 
 type QueryResponse struct {
@@ -178,7 +178,7 @@ type QueryForm struct {
 	Constraints *Constraint `query:"-" json:"where"`
 }
 
-func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) (QueryResponse, error) {
+func (q queryHandler) process(profiler *profile.Profiler, parsedForm QueryForm) (QueryResponse, error) {
 	log.Infof("INPUT: %+v\n", parsedForm)
 	var rawCommand command.Command
 	var err error
@@ -228,7 +228,7 @@ type HTTPError interface {
 
 func (q queryHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
-	profiler := inspect.New()
+	profiler := profile.New()
 
 	queryForm := QueryForm{}
 

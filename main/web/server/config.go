@@ -14,7 +14,7 @@
 
 package server
 
-import "github.com/square/metrics/inspect"
+import "github.com/square/metrics/inspect/profile"
 
 type Config struct {
 	Port          int    `yaml:"port"`
@@ -25,5 +25,5 @@ type Config struct {
 }
 
 type Hook struct {
-	OnQuery chan<- *inspect.Profiler
+	OnQuery chan<- *profile.Profiler
 }

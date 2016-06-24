@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 	"github.com/square/metrics/tasks"
 )
 
@@ -36,7 +36,7 @@ type RequestDetails struct {
 	SampleMethod          SampleMethod  // up/downsampling behavior.
 	Timerange             api.Timerange // time range to fetch data from.
 	Timeout               *tasks.Timeout
-	Profiler              *inspect.Profiler
+	Profiler              *profile.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
 }
 

@@ -17,13 +17,13 @@ package metadata
 
 import (
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/inspect"
+	"github.com/square/metrics/inspect/profile"
 )
 
 // Context holds contextual information for performing MetricAPI queries.
 type Context struct {
 	// Profiler is used to record execution time for metadata queries.
-	Profiler *inspect.Profiler
+	Profiler *profile.Profiler
 }
 
 // MetricAPI is an interface for obtaining metric metadata for indexing in MQE.
