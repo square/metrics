@@ -16,17 +16,23 @@ package util
 
 import "time"
 
-// Clock provides the functions from the time package. Exists so we can mock
-// out time.Now
-type Clock interface {
-	// Now returns the current local time.
-	Now() time.Time
+// A Clock can give you the current time.Now(), or you can mock it out.
+// Its zero value will
+type Clock struct {
+	Offset  time.Duration
+	NowFunc func() time.Time
 }
 
-// RealClock is a wrapper over the time package
-type RealClock struct{}
-
-// Now returns the current time.Time
-func (r RealClock) Now() time.Time {
-	return time.Now()
+// Now returns either time.Now(), or the configured overriden NowFunc.
+func (c *Clock) Now() time.Time {
+	if c == nil {
+		return time.Now()
+	}
+	if c.NowFunc == nil {
+		return time.Now().Add(c.Offset)
+	}
+	return c.NowFunc().Add(c.Offset)
+}
+func (c *Clock) Move(offset time.Duration) {
+	c.Offset += offset
 }

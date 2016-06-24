@@ -27,7 +27,7 @@ import (
 	"github.com/square/metrics/inspect/log/standard"
 	"github.com/square/metrics/interface/metric_metadata"
 	"github.com/square/metrics/testing_support/assert"
-	"github.com/square/metrics/testing_support/mocks"
+	"github.com/square/metrics/util"
 )
 
 type testAPI struct {
@@ -99,8 +99,8 @@ func TestCached(t *testing.T) {
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	tags, err := cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -113,7 +113,7 @@ func TestCached(t *testing.T) {
 	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // read from cache
 
 	// Advance the clock so the next call is stale
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -128,7 +128,7 @@ func TestCached(t *testing.T) {
 	a.Eq(tags, []api.TagSet{{"foo": "new one"}})
 
 	// Advance the clock so the next call is expired
-	clock.Move(11 * time.Second)
+	cached.clock.Move(11 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -139,7 +139,7 @@ func TestCached(t *testing.T) {
 	underlying.data["metric_one"] = "ignore"
 
 	// Advance the clock so the next call isn't stale yet
-	clock.Move(3 * time.Second)
+	cached.clock.Move(3 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -148,7 +148,7 @@ func TestCached(t *testing.T) {
 	a.MustEqInt(cached.CurrentLiveRequests(), 0)
 
 	// Advance the clock so the next call is stale
-	clock.Move(3 * time.Second)
+	cached.clock.Move(3 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -187,8 +187,8 @@ func TestCachedNoStale(t *testing.T) {
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	tags, err := cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -201,7 +201,7 @@ func TestCachedNoStale(t *testing.T) {
 	a.Eq(tags, []api.TagSet{{"foo": "one"}}) // read from cache
 
 	// Advance the clock so the next call is still fresh
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -210,7 +210,7 @@ func TestCachedNoStale(t *testing.T) {
 	a.MustEqInt(cached.CurrentLiveRequests(), 0)
 
 	// Advance the clock so the next call is expired
-	clock.Move(5 * time.Second)
+	cached.clock.Move(5 * time.Second)
 
 	tags, err = cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -245,8 +245,8 @@ func TestInflight(t *testing.T) {
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	a.MustEqInt(underlying.count, 0)
 
@@ -294,7 +294,7 @@ func TestInflight(t *testing.T) {
 	//////////////////////////////////////////////////////////////////////////////
 
 	// Advance the clock so the next call is a cache miss
-	clock.Move(11 * time.Second)
+	cached.clock.Move(11 * time.Second)
 
 	// Signal that we expect a call to happen and block the return
 	underlying.calledWG.Add(1)
@@ -351,8 +351,8 @@ func TestInflightError(t *testing.T) {
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	a.MustEqInt(underlying.count, 0)
 
@@ -409,7 +409,7 @@ func TestInflightError(t *testing.T) {
 	//////////////////////////////////////////////////////////////////////////////
 
 	// Advance the clock so the next call is a cache miss
-	clock.Move(11 * time.Second)
+	cached.clock.Move(11 * time.Second)
 
 	// Let's not error this time
 	underlying.getAllTagsError = nil
@@ -464,8 +464,8 @@ func TestStaleInflight(t *testing.T) {
 		RequestLimit: 1000,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	tags, err := cached.GetAllTags("metric_one", metadata.Context{})
 	a.CheckError(err)
@@ -475,7 +475,7 @@ func TestStaleInflight(t *testing.T) {
 	a.MustEqInt(cached.CurrentLiveRequests(), 0)
 
 	// Now move the clock forward so the next requests are stale
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	// We now want to control the specific execution flow
 	underlying.synchronize = true
@@ -552,8 +552,8 @@ func TestQueueSize(t *testing.T) {
 		RequestLimit: 3,
 		TimeToLive:   10 * time.Second,
 	}).(*metricMetadataAPI)
-	clock := mocks.NewTestClock(time.Now())
-	cached.clock = clock
+	originalNow := time.Now()
+	cached.clock = &util.Clock{NowFunc: func() time.Time { return originalNow }}
 
 	// Prime the cache
 	_, err := cached.GetAllTags("metric_one", metadata.Context{})
@@ -563,7 +563,7 @@ func TestQueueSize(t *testing.T) {
 	a.CheckError(err)
 
 	// Advance the clock so that metric_one and metric_two are stale
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	// Stale entries
 	_, err = cached.GetAllTags("metric_one", metadata.Context{})
@@ -578,7 +578,7 @@ func TestQueueSize(t *testing.T) {
 	a.CheckError(err)
 
 	// Advance the clock so that metric_three is stale
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	_, err = cached.GetAllTags("metric_three", metadata.Context{})
 	a.CheckError(err)
@@ -592,7 +592,7 @@ func TestQueueSize(t *testing.T) {
 	a.CheckError(err)
 
 	// Advance the clock so that metric_four is stale
-	clock.Move(6 * time.Second)
+	cached.clock.Move(6 * time.Second)
 
 	for i := 0; i < 100; i++ {
 		_, err = cached.GetAllTags("metric_four", metadata.Context{})

@@ -41,7 +41,7 @@ type BackgroundAPI interface {
 // in the background by launching a new goroutine.
 type metricMetadataAPI struct {
 	metricMetadataAPI metadata.MetricAPI // The internal MetricAPI that performs the actual queries.
-	clock             util.Clock         // Here so we can mock out in tests
+	clock             *util.Clock        // Here so we can mock out in tests
 
 	// Cached items
 	getAllTagsCache      map[api.MetricKey]*CachedTagSetList // The cache of metric -> tags
@@ -99,7 +99,6 @@ func NewMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) Backgro
 	}
 	result := metricMetadataAPI{
 		metricMetadataAPI: apiInstance,
-		clock:             util.RealClock{},
 		getAllTagsCache:   map[api.MetricKey]*CachedTagSetList{},
 		freshness:         config.Freshness,
 		timeToLive:        config.TimeToLive,
