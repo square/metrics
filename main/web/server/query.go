@@ -21,8 +21,8 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/square/metrics/inspect/log"
 	"github.com/square/metrics/inspect/profile"
-	"github.com/square/metrics/log"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"

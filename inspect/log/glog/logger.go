@@ -16,7 +16,7 @@ package glog
 
 import (
 	"github.com/golang/glog"
-	"github.com/square/metrics/log"
+	"github.com/square/metrics/inspect/log"
 )
 
 type Logger struct{}

@@ -17,7 +17,7 @@ package standard
 import (
 	standard_logger "log"
 
-	"github.com/square/metrics/log"
+	"github.com/square/metrics/inspect/log"
 )
 
 type Logger struct {

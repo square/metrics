@@ -21,9 +21,9 @@ import (
 	standard_log "log"
 	"os"
 
-	"github.com/square/metrics/log"
-	"github.com/square/metrics/log/glog"
-	"github.com/square/metrics/log/standard"
+	"github.com/square/metrics/inspect/log"
+	"github.com/square/metrics/inspect/log/glog"
+	"github.com/square/metrics/inspect/log/standard"
 	"gopkg.in/yaml.v2"
 )
 

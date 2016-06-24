@@ -22,7 +22,7 @@ import (
 	"sort"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/log"
+	"github.com/square/metrics/inspect/log"
 )
 
 // GraphiteMetric is a flat, dot-separated identifier to a series of metric.

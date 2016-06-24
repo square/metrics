@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/log"
+	"github.com/square/metrics/inspect/log"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/util"
 )

@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/square/metrics/log"
+	"github.com/square/metrics/inspect/log"
 )
 
 func encodeError(err error) []byte {

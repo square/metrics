@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/log"
-	"github.com/square/metrics/log/standard"
+	"github.com/square/metrics/inspect/log"
+	"github.com/square/metrics/inspect/log/standard"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
