@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/timeseries"
+	"github.com/square/metrics/interface/metric_metadata"
+	"github.com/square/metrics/interface/timeseries"
 )
 
 type FakeComboAPI struct {

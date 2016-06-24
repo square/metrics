@@ -23,10 +23,10 @@ import (
 
 	"github.com/square/metrics/inspect/log"
 	"github.com/square/metrics/inspect/profile"
-	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/query/parser"
-	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/timeseries"
+	"github.com/square/metrics/interface/query/command"
+	"github.com/square/metrics/interface/query/parser"
+	"github.com/square/metrics/interface/query/predicate"
+	"github.com/square/metrics/interface/timeseries"
 )
 
 type Response struct {

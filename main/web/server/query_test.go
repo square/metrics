@@ -18,7 +18,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/square/metrics/query/predicate"
+	"github.com/square/metrics/interface/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 )
 

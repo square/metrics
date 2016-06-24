@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/metric_metadata"
+	"github.com/square/metrics/interface/metric_metadata"
 )
 
 // tokenHandler exposes all the tokens available in the system for the autocomplete.

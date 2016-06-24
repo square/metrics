@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/interface/metric_metadata"
+	"github.com/square/metrics/interface/query/command"
 )
 
 // tokenHandler function and metric name tokens available in the system for the autocomplete.

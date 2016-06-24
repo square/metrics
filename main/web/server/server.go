@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/query/command"
+	"github.com/square/metrics/interface/metric_metadata"
+	"github.com/square/metrics/interface/query/command"
 )
 
 func NewMux(config Config, context command.ExecutionContext, hook Hook) (*http.ServeMux, error) {
