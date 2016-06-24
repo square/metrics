@@ -21,30 +21,30 @@ if [ $? -ne 0 ]; then
 	fails="fails"
 fi
 
-# Lastly, make sure calling ./query/parser/build.sh doesn't cause ./query/language.peg.go to change
+# Lastly, make sure calling ./interface/query/parser/build.sh doesn't cause ./query/language.peg.go to change
 
-before=$(cat ./query/parser/language.peg.go)
-./query/parser/build.sh
+before=$(cat ./interface/query/parser/language.peg.go)
+./interface/query/parser/build.sh
 if [ $? -ne 0 ]; then
 	echo "Not able to rebuild the parser"
 	fails="fails"
 fi
 # we have to reformat in case peg.go produces unformatted code
-gofmt -w ./query/parser/language.peg.go
+gofmt -w ./interface/query/parser/language.peg.go
 if [ $? -ne 0 ]; then
-	echo "Unable to run gofmt on query/parser/language.peg.go"
+	echo "Unable to run gofmt on interface/query/parser/language.peg.go"
 	fails="fails"
 fi
-goimports -w query/parser/language.peg.go
+goimports -w interface/query/parser/language.peg.go
 if [ $? -ne 0 ]; then
-	echo "Unable to run goimports on query/parser/language.peg.go"
+	echo "Unable to run goimports on interface/query/parser/language.peg.go"
 	fails="fails"
 fi
-after=$(cat ./query/parser/language.peg.go)
+after=$(cat ./interface/query/parser/language.peg.go)
 
 if [ "$before" != "$after" ]; then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
-	echo "THERE WERE CHANGES TO query/parser/language.peg AND NO CHANGES TO query/parser/language.peg.go"
+	echo "THERE WERE CHANGES TO interface/query/parser/language.peg AND NO CHANGES TO query/parser/language.peg.go"
 	echo "Make sure you ran the build file, and that your version of peg is up to date."
 	echo "To get the latest version of peg, run:"
 	echo "> go get -u github.com/pointlander/peg"

@@ -14,24 +14,20 @@
 
 package api
 
-// MetricKey is the logical name of a given metric.
-// MetricKey should not contain any variable component in it.
-type MetricKey string
+import (
+	"fmt"
+)
 
-// MetricKeys is an interface implementing sort.Interface to allow it to be sorted.
-type MetricKeys []MetricKey
+// list of data types throughout the code.
 
-// Len returns the length of the list of MetricKeys.
-func (keys MetricKeys) Len() int {
-	return len(keys)
+// TaggedMetric is composition of a MetricKey and a TagSet.
+// TaggedMetric should uniquely identify a single series of metric.
+type TaggedMetric struct {
+	MetricKey MetricKey
+	TagSet    TagSet
 }
 
-// Less tells whether the ith key comes before the jth key.
-func (keys MetricKeys) Less(i, j int) bool {
-	return keys[i] < keys[j]
-}
-
-// Swap swaps the ith and jth keys.
-func (keys MetricKeys) Swap(i, j int) {
-	keys[i], keys[j] = keys[j], keys[i]
+// String converts the TaggedMetric into a human-readable string.
+func (t *TaggedMetric) String() string {
+	return fmt.Sprintf("%+v [%s]\n", t.MetricKey, t.TagSet.Serialize())
 }

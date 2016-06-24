@@ -10,7 +10,7 @@ before_script:
   # peg
   - go get -u github.com/pointlander/peg
   - go get -u golang.org/x/tools/cmd/goimports
-  - cqlsh -f schema/schema_test.cql
+  - cqlsh -f interface/metric_metadata/cassandra/schema/schema_test.cql
 
 script:
   - ./script/verify-build

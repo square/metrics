@@ -24,12 +24,12 @@ import (
 	"syscall"
 
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/query/parser"
-	"github.com/square/metrics/timeseries"
-	"github.com/square/metrics/timeseries/blueflood"
+	"github.com/square/metrics/interface/metric_metadata/cassandra"
+	"github.com/square/metrics/interface/query/command"
+	"github.com/square/metrics/interface/query/parser"
+	"github.com/square/metrics/interface/timeseries"
+	"github.com/square/metrics/interface/timeseries/blueflood"
+	common "github.com/square/metrics/main"
 	"github.com/square/metrics/util"
 )
 

@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package server
 
-import "time"
+import "github.com/square/metrics/inspect/profile"
 
-// A Clock can give you the current time.Now(), or you can mock it out.
-// Its zero value will
-type Clock struct {
-	Offset  time.Duration
-	NowFunc func() time.Time
+type Config struct {
+	Port          int    `yaml:"port"`
+	Timeout       int    `yaml:"timeout"`
+	StaticDir     string `yaml:"static_dir"`
+	JSONIngestion bool   `yaml:"json_ingestion"`
+	HTTPIngestion bool   `yaml:"enable_http_ingestion"`
 }
 
-// Now returns either time.Now(), or the configured overriden NowFunc.
-func (c *Clock) Now() time.Time {
-	if c == nil {
-		return time.Now()
-	}
-	if c.NowFunc == nil {
-		return time.Now().Add(c.Offset)
-	}
-	return c.NowFunc().Add(c.Offset)
-}
-func (c *Clock) Move(offset time.Duration) {
-	c.Offset += offset
+type Hook struct {
+	OnQuery chan<- *profile.Profiler
 }

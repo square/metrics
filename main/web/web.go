@@ -24,20 +24,20 @@ import (
 	"time"
 
 	"github.com/square/metrics/function/registry"
-	"github.com/square/metrics/log"
-	"github.com/square/metrics/main/common"
-	"github.com/square/metrics/metric_metadata"
-	"github.com/square/metrics/metric_metadata/cached"
-	"github.com/square/metrics/metric_metadata/cassandra"
-	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/timeseries"
-	"github.com/square/metrics/timeseries/blueflood"
+	"github.com/square/metrics/inspect/log"
+	"github.com/square/metrics/interface/metric_metadata"
+	"github.com/square/metrics/interface/metric_metadata/cached"
+	"github.com/square/metrics/interface/metric_metadata/cassandra"
+	"github.com/square/metrics/interface/query/command"
+	"github.com/square/metrics/interface/timeseries"
+	"github.com/square/metrics/interface/timeseries/blueflood"
+	common "github.com/square/metrics/main"
+	"github.com/square/metrics/main/web/server"
 	"github.com/square/metrics/util"
-	"github.com/square/metrics/web"
 )
 
-func startServer(config web.Config, context command.ExecutionContext) error {
-	httpMux, err := web.NewMux(config, context, web.Hook{})
+func startServer(config server.Config, context command.ExecutionContext) error {
+	httpMux, err := server.NewMux(config, context, server.Hook{})
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func main() {
 		ConversionRulesPath string           `yaml:"conversion_rules_path"`
 		Cassandra           cassandra.Config `yaml:"cassandra"`
 		Blueflood           blueflood.Config `yaml:"blueflood"`
-		Web                 web.Config       `yaml:"web"`
+		Web                 server.Config    `yaml:"web"`
 	}{}
 
 	common.LoadConfig(&config)
