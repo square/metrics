@@ -26,6 +26,7 @@ import (
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/main/common"
+	web "github.com/square/metrics/main/web/server"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cached"
 	"github.com/square/metrics/metric_metadata/cassandra"
@@ -33,7 +34,6 @@ import (
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
-	"github.com/square/metrics/web"
 )
 
 func startServer(config web.Config, context command.ExecutionContext) error {
