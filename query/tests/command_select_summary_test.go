@@ -70,7 +70,6 @@ func TestSelectSummary(t *testing.T) {
 				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 4,
 			},
 		},
-
 		{
 			query: "select series_a | summarize.max from 0 to 120000",
 			expected: map[string]float64{
@@ -80,11 +79,59 @@ func TestSelectSummary(t *testing.T) {
 			},
 		},
 		{
+			query: "select series_a | summarize.integral from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  450,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  150,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 750,
+			},
+		},
+		{
 			query: "select series_a | summarize.current from 0 to 120000",
 			expected: map[string]float64{
 				api.TagSet{"app": "web", "dc": "west"}.Serialize():  6,
 				api.TagSet{"app": "web", "dc": "east"}.Serialize():  2,
 				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 4,
+			},
+		},
+		{
+			query: "select series_a | summarize.last_not_nan from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  6,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  2,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 4,
+			},
+		},
+		{
+			query: "select series_a | summarize.oldest from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  0,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  1,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 5,
+			},
+		},
+		{
+			query: "select series_a | summarize.first_not_nan from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  0,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  1,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 5,
+			},
+		},
+		{
+			query: "select series_a | summarize.count from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  5,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  5,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 5,
+			},
+		},
+		{
+			query: "select series_a | summarize.total from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"app": "web", "dc": "west"}.Serialize():  5,
+				api.TagSet{"app": "web", "dc": "east"}.Serialize():  5,
+				api.TagSet{"app": "fun", "dc": "north"}.Serialize(): 5,
 			},
 		},
 		// recent
@@ -138,6 +185,14 @@ func TestSelectSummary(t *testing.T) {
 			},
 		},
 		{
+			query: "select series_b | summarize.integral from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 300,
+				api.TagSet{"dc": "east"}.Serialize(): 270,
+				api.TagSet{"dc": "miss"}.Serialize(): 0,
+			},
+		},
+		{
 			query: "select series_b | summarize.current from 0 to 120000",
 			expected: map[string]float64{
 				api.TagSet{"dc": "west"}.Serialize(): n,
@@ -151,6 +206,38 @@ func TestSelectSummary(t *testing.T) {
 				api.TagSet{"dc": "west"}.Serialize(): 7,
 				api.TagSet{"dc": "east"}.Serialize(): 2,
 				api.TagSet{"dc": "miss"}.Serialize(): n,
+			},
+		},
+		{
+			query: "select series_b | summarize.oldest from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 3,
+				api.TagSet{"dc": "east"}.Serialize(): n,
+				api.TagSet{"dc": "miss"}.Serialize(): n,
+			},
+		},
+		{
+			query: "select series_b | summarize.first_not_nan from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 3,
+				api.TagSet{"dc": "east"}.Serialize(): 5,
+				api.TagSet{"dc": "miss"}.Serialize(): n,
+			},
+		},
+		{
+			query: "select series_b | summarize.count from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 2,
+				api.TagSet{"dc": "east"}.Serialize(): 3,
+				api.TagSet{"dc": "miss"}.Serialize(): 0,
+			},
+		},
+		{
+			query: "select series_b | summarize.total from 0 to 120000",
+			expected: map[string]float64{
+				api.TagSet{"dc": "west"}.Serialize(): 5,
+				api.TagSet{"dc": "east"}.Serialize(): 5,
+				api.TagSet{"dc": "miss"}.Serialize(): 5,
 			},
 		},
 	}

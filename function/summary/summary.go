@@ -22,10 +22,7 @@ import (
 	"github.com/square/metrics/function"
 )
 
-// This file culminates in the definition of `aggregateBy`, which takes a SeriesList and an Aggregator and a list of tags,
-// and produces an aggregated SeriesList with one list per group, each group having been aggregated into it.
-
-var recent = func(name string, summarizer func([]float64) float64) function.MetricFunction {
+var recentScaled = func(name string, summarizer func([]float64, api.Timerange) float64) function.MetricFunction {
 	return function.MakeFunction(
 		name,
 		func(list api.SeriesList, optionalDuration *time.Duration, timerange api.Timerange) function.ScalarSet {
@@ -43,7 +40,7 @@ var recent = func(name string, summarizer func([]float64) float64) function.Metr
 				slice := list.Series[i].Values[start:]
 				result = append(result, function.TaggedScalar{
 					TagSet: list.Series[i].TagSet,
-					Value:  summarizer(slice),
+					Value:  summarizer(slice, timerange),
 				})
 			}
 			return result
@@ -51,6 +48,12 @@ var recent = func(name string, summarizer func([]float64) float64) function.Metr
 	)
 }
 
+// recent ignores the timerange
+var recent = func(name string, summarizer func([]float64) float64) function.MetricFunction {
+	return recentScaled(name, func(slice []float64, _ api.Timerange) float64 { return summarizer(slice) })
+}
+
+// Mean computes an average tagged scalar for each time series line.
 var Mean = recent(
 	"summarize.mean",
 	func(slice []float64) float64 {
@@ -67,6 +70,7 @@ var Mean = recent(
 	},
 )
 
+// Min computes a minimum tagged scalar for each time series line.
 var Min = recent(
 	"summarize.min",
 	func(slice []float64) float64 {
@@ -84,6 +88,7 @@ var Min = recent(
 	},
 )
 
+// Max computes a maximum tagged scalar for each time series line.
 var Max = recent(
 	"summarize.max",
 	func(slice []float64) float64 {
@@ -101,6 +106,58 @@ var Max = recent(
 	},
 )
 
+// Integral computes the (scaled) integral of the time series line.
+var Integral = recentScaled(
+	"summarize.integral",
+	func(slice []float64, timerange api.Timerange) float64 {
+		sum := 0.0
+		for i := range slice {
+			if math.IsNaN(slice[i]) {
+				continue
+			}
+			sum += slice[i]
+		}
+		return sum * timerange.Resolution().Seconds()
+	},
+)
+
+// Count computes the number of non-missing points in the line
+var Count = recent(
+	"summarize.count",
+	func(slice []float64) float64 {
+		count := 0
+		for i := range slice {
+			if math.IsNaN(slice[i]) {
+				continue
+			}
+			count++
+		}
+		return float64(count)
+	},
+)
+
+// Total computes the total number of points in the line
+var Total = recent(
+	"summarize.total",
+	func(slice []float64) float64 {
+		return float64(len(slice))
+	},
+)
+
+// FirstNotNaN computes the first not NaN tagged scalar for each time series.
+var FirstNotNaN = recent(
+	"summarize.first_not_nan",
+	func(slice []float64) float64 {
+		for i := range slice {
+			if !math.IsNaN(slice[i]) {
+				return slice[i]
+			}
+		}
+		return math.NaN()
+	},
+)
+
+// LastNotNaN computes the last not NaN tagged scalar for each time series.
 var LastNotNaN = recent(
 	"summarize.last_not_nan",
 	func(slice []float64) float64 {
@@ -113,6 +170,23 @@ var LastNotNaN = recent(
 	},
 )
 
+// Oldest computes the first tagged scalar for each time series.
+var Oldest = function.MakeFunction(
+	"summarize.oldest",
+	func(list api.SeriesList) function.ScalarSet {
+		result := function.ScalarSet{}
+		for i := range list.Series {
+			values := list.Series[i].Values
+			result = append(result, function.TaggedScalar{
+				TagSet: list.Series[i].TagSet,
+				Value:  values[0],
+			})
+		}
+		return result
+	},
+)
+
+// Oldest computes the last tagged scalar for each time series.
 var Current = function.MakeFunction(
 	"summarize.current",
 	func(list api.SeriesList) function.ScalarSet {
