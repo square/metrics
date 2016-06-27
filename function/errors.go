@@ -18,13 +18,6 @@ import (
 	"fmt"
 )
 
-// ExecutionError is returned if an error is occurred during
-// the execution of the query.
-type ExecutionError interface {
-	error
-	TokenName() string // name of the token / expression which have caused it.
-}
-
 // LimitError is returned if an error occurs where limits are surpassed.
 type LimitError interface {
 	Actual() interface{} // actual from the system which triggered this error.
@@ -68,11 +61,6 @@ type ArgumentLengthError struct {
 	ExpectedMin int
 	ExpectedMax int
 	Actual      int
-}
-
-// TokenName decribes where the error occurs.
-func (err ArgumentLengthError) TokenName() string {
-	return err.Name
 }
 
 // Error gives a detailed description of the error.

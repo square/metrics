@@ -13,5 +13,5 @@ before_script:
   - cqlsh -f metric_metadata/cassandra/schema/schema_test.cql
 
 script:
-  - ./script/verify-build
+  - ./testing_support/script/verify-build
   - go test -v -timeout 1m ./...

@@ -26,10 +26,7 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-	"github.com/square/metrics/util"
 )
-
-var emptyGraphiteName = util.GraphiteMetric("")
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
