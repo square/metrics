@@ -26,7 +26,7 @@ import (
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/main/common"
-	web "github.com/square/metrics/main/web/server"
+	"github.com/square/metrics/main/web/server"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/metric_metadata/cached"
 	"github.com/square/metrics/metric_metadata/cassandra"
@@ -36,8 +36,8 @@ import (
 	"github.com/square/metrics/util"
 )
 
-func startServer(config web.Config, context command.ExecutionContext) error {
-	httpMux, err := web.NewMux(config, context, web.Hook{})
+func startServer(config server.Config, context command.ExecutionContext) error {
+	httpMux, err := server.NewMux(config, context, server.Hook{})
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func main() {
 		ConversionRulesPath string           `yaml:"conversion_rules_path"`
 		Cassandra           cassandra.Config `yaml:"cassandra"`
 		Blueflood           blueflood.Config `yaml:"blueflood"`
-		Web                 web.Config       `yaml:"web"`
+		Web                 server.Config    `yaml:"web"`
 	}{}
 
 	common.LoadConfig(&config)
