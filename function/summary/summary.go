@@ -186,7 +186,7 @@ var Oldest = function.MakeFunction(
 	},
 )
 
-// Oldest computes the last tagged scalar for each time series.
+// Current computes the last tagged scalar for each time series.
 var Current = function.MakeFunction(
 	"summarize.current",
 	func(list api.SeriesList) function.ScalarSet {
