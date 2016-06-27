@@ -95,10 +95,15 @@ func init() {
 
 	// Summary
 	MustRegister(summary.Current)
+	MustRegister(summary.Oldest)
 	MustRegister(summary.Mean)
 	MustRegister(summary.Min)
 	MustRegister(summary.Max)
+	MustRegister(summary.Integral)
 	MustRegister(summary.LastNotNaN)
+	MustRegister(summary.FirstNotNaN)
+	MustRegister(summary.Count)
+	MustRegister(summary.Total)
 }
 
 // StandardRegistry of a functions available in MQE.
