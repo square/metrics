@@ -24,19 +24,19 @@ func TestErrorMessages(t *testing.T) {
 	tests := []sample{
 		{
 			query:   "select foo from",
-			message: "line 1, column 16: expected value to follow key 'from' in property clause of select statement",
+			message: "line 1, column 16: expected value to follow key 'from'",
 		},
 		{
 			query:   "select foo\nfrom -30m to now\nwhere app = 'mqe'",
-			message: `line 3, column 6: encountered "where" after property clause; "where" blocks must go BEFORE 'from' and 'to' specifiers in property clause of select statement`,
+			message: `line 3, column 6: encountered "where" after property clause; "where" blocks must go BEFORE 'from' and 'to' specifiers`,
 		},
 		{
 			query:   "select foo\nfrom -30m to mow",
-			message: "line 2, column 13: expected value to follow key 'to' in property clause of select statement",
+			message: "line 2, column 13: expected value to follow key 'to'",
 		},
 		{
 			query:   "select foo + bar[blah='22']\nwhere tag != 'value' and qux = 'qux'\nfrom -30m to mow",
-			message: "line 3, column 13: expected value to follow key 'to' in property clause of select statement",
+			message: "line 3, column 13: expected value to follow key 'to'",
 		},
 		{
 			query:   "select foo + bar[\nwhere tag != 'value' and qux = 'qux'\nfrom -30m to mow",
