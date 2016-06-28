@@ -90,8 +90,8 @@ func (err ruleError) Error() string {
 	return err.message
 }
 
-func newInvalidPattern(metricKey string) RuleError {
-	return ruleError{InvalidPattern, metricKey, fmt.Sprintf("Invalid metric key '%s'", metricKey)}
+func newInvalidPattern(metricKey string, message string) RuleError {
+	return ruleError{InvalidPattern, metricKey, fmt.Sprintf("Invalid metric key '%s': %s", metricKey, message)}
 }
 func newInvalidMetricKey(metricKey string) RuleError {
 	return ruleError{InvalidMetricKey, metricKey, fmt.Sprintf("Invalid pattern in key '%s'", metricKey)}

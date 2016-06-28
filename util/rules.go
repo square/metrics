@@ -78,11 +78,14 @@ func Compile(rule RawRule) (Rule, error) {
 	if len(rule.MetricKeyPattern) == 0 {
 		return Rule{}, newInvalidMetricKey(rule.MetricKeyPattern)
 	}
-	graphitePatternTags := extractTags(rule.Pattern)
-	if graphitePatternTags == nil {
-		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
+	graphitePatternTags, err := extractTags(rule.Pattern)
+	if err != nil {
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern, fmt.Sprintf("graphite pattern tags are nil in %q: %s", rule.Pattern, err.Error()))
 	}
-	metricKeyTags := extractTags(string(rule.MetricKeyPattern))
+	metricKeyTags, err := extractTags(string(rule.MetricKeyPattern))
+	if err != nil {
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern, fmt.Sprintf("metric pattern tags are nil in %q: %s", rule.Pattern, err.Error()))
+	}
 	if !isSubset(metricKeyTags, graphitePatternTags) {
 		return Rule{}, newInvalidMetricKey(rule.MetricKeyPattern)
 	}
@@ -94,14 +97,14 @@ func Compile(rule RawRule) (Rule, error) {
 	}
 	regex := rule.toRegexp(rule.Pattern)
 	if regex == nil {
-		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern, fmt.Sprintf("rule pattern cannot be converted to regex; pattern: %q", rule.Pattern))
 	}
 	if regex.NumSubexp() != len(graphitePatternTags) {
 		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
 	}
 	metricKeyRegex := rule.toRegexp(rule.MetricKeyPattern)
 	if metricKeyRegex == nil {
-		return Rule{}, newInvalidPattern(rule.MetricKeyPattern)
+		return Rule{}, newInvalidPattern(rule.MetricKeyPattern, "metric key pattern cannot be converted to regex")
 	}
 	if metricKeyRegex.NumSubexp() != len(metricKeyTags) {
 		return Rule{}, newInvalidCustomRegex(rule.MetricKeyPattern)
@@ -324,20 +327,20 @@ func extractTagValues(regex *regexp.Regexp, tagList []string, input string) api.
 }
 
 // extractTags extracts list of tags in the given pattern string.
-func extractTags(pattern string) []string {
+func extractTags(pattern string) ([]string, error) {
 	if len(pattern) == 0 {
-		return nil // empty pattern is not allowed.
+		return nil, fmt.Errorf("empty pattern is not allowed")
 	}
 	splitted := strings.Split(pattern, "%")
 	if len(splitted)%2 == 0 {
-		return nil // invalid tags.
+		return nil, fmt.Errorf("wrong number of `%%`; tags are invalid; split into %d segments", len(splitted)) // invalid tags.
 	}
 
 	result := make([]string, len(splitted)/2, len(splitted)/2)
 	for index, token := range splitted {
 		if isTagPortion(index) {
 			if len(token) == 0 {
-				return nil // no empty tag
+				return nil, fmt.Errorf("empty tag in index %d of %+v", index, splitted) // no empty tag
 			}
 			result[index/2] = token
 		}
@@ -347,11 +350,11 @@ func extractTags(pattern string) []string {
 	exists := make(map[string]bool)
 	for _, token := range result {
 		if exists[token] {
-			return nil // no duplicate
+			return nil, fmt.Errorf("tuplicate token %s", token) // no duplicate
 		}
 		exists[token] = true
 	}
-	return result
+	return result, nil
 }
 
 // LoadYAML loads a RuleSet from the byte array of the YAML file.
