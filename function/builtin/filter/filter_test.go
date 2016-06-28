@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/square/metrics/api"
-	"github.com/square/metrics/function/aggregate"
+	"github.com/square/metrics/function/builtin/aggregate"
 	"github.com/square/metrics/testing_support/assert"
 )
 

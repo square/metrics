@@ -23,19 +23,6 @@ import (
 	"github.com/square/metrics/api"
 )
 
-var stringType = reflect.TypeOf("")
-var scalarType = reflect.TypeOf(float64(0.0))
-var scalarSetType = reflect.TypeOf(ScalarSet{})
-var durationType = reflect.TypeOf(time.Duration(0))
-var timeseriesType = reflect.TypeOf(api.SeriesList{})
-var valueType = reflect.TypeOf((*Value)(nil)).Elem()
-var expressionType = reflect.TypeOf((*Expression)(nil)).Elem()
-var groupsType = reflect.TypeOf(Groups{})
-var contextType = reflect.TypeOf(EvaluationContext{})
-var timerangeType = reflect.TypeOf(api.Timerange{})
-
-var errorType = reflect.TypeOf((*error)(nil)).Elem()
-
 // MakeFunction is a convenient way to use type-safe functions to
 // construct MetricFunctions without manually checking parameters.
 func MakeFunction(name string, function interface{}) MetricFunction {
@@ -228,5 +215,17 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			}
 		},
 	}
-
 }
+
+var stringType = reflect.TypeOf("")
+var scalarType = reflect.TypeOf(float64(0.0))
+var scalarSetType = reflect.TypeOf(ScalarSet{})
+var durationType = reflect.TypeOf(time.Duration(0))
+var timeseriesType = reflect.TypeOf(api.SeriesList{})
+var valueType = reflect.TypeOf((*Value)(nil)).Elem()
+var expressionType = reflect.TypeOf((*Expression)(nil)).Elem()
+var groupsType = reflect.TypeOf(Groups{})
+var contextType = reflect.TypeOf(EvaluationContext{})
+var timerangeType = reflect.TypeOf(api.Timerange{})
+
+var errorType = reflect.TypeOf((*error)(nil)).Elem()

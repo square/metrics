@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package server
 
-import (
-	"fmt"
+import "github.com/square/metrics/inspect"
 
-	"github.com/square/metrics/compress"
-)
+type Config struct {
+	Port          int    `yaml:"port"`
+	Timeout       int    `yaml:"timeout"`
+	StaticDir     string `yaml:"static_dir"`
+	JSONIngestion bool   `yaml:"json_ingestion"`
+	HTTPIngestion bool   `yaml:"enable_http_ingestion"`
+}
 
-func main() {
-	fmt.Printf("Compression!\n")
-
-	data := []float64{1.0, 1.3, 1.4, 1.5, 1.6, 2.0, 2.1, 1.1, 1.2, 1.2, 1.2, 0.4}
-	fmt.Printf("Data: %f\n", data)
-
-	c := compress.NewCompressionBuffer()
-	c.Compress(data)
-	c.Finalize()
-	compressed := c.Bytes()
-	fmt.Printf("%+v\n", compressed)
-	fmt.Printf("%d bytes instead of %d bytes\n", len(compressed), len(data)*8)
-	d := compress.NewDecompressionBuffer(compressed, len(data))
-	decompressed := d.Decompress()
-	fmt.Printf("Decompressed %f\n", decompressed)
+type Hook struct {
+	OnQuery chan<- *inspect.Profiler
 }

@@ -14,7 +14,7 @@ if [ "$GOFMT_RESULTS" ]; then
 fi
 
 # Make sure every file has the same license
-LICENSE_RESULTS=`./script/check-license`
+LICENSE_RESULTS=`./testing_support/script/check-license`
 if [ $? -ne 0 ]; then
 	echo "Not all files have the same license file: "
 	echo "$LICENSE_RESULTS"
