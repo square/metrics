@@ -756,10 +756,40 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 	return line, underline
 }
 
-func (p *Parser) errorHere(position uint32, message string) {
+// setContext sets the fixed context, overwriting its previous contents.
+func (p *Parser) setContext(message string) bool {
+	p.fixedContext = message
+	return true
+}
+
+// withContext adds context to errors.
+func (p *Parser) withContext(message string) bool {
+	p.errorContext = append(p.errorContext, message)
+	return true
+}
+
+func (p *Parser) after(position uint32) string {
+	return string(p.buffer[position : len(p.buffer)-1])
+}
+
+// errorHere raises a typed panic with the provided error message, incorporating
+// the current line and column and the context of the error.
+func (p *Parser) errorHere(position uint32, format string, arguments ...interface{}) bool {
+	additionalContext := ""
+	if len(p.errorContext) > 0 {
+		additionalContext += "; " + strings.Join(p.errorContext, "; ")
+	}
+	if len(p.fixedContext) > 0 {
+		additionalContext += " " + p.fixedContext
+	}
 	panic(ParserError{
-		error: fmt.Errorf("%s: %s", p.currentPosition(position), message),
+		error: fmt.Errorf("%s: %s%s", p.currentPosition(position), fmt.Sprintf(format, arguments...), additionalContext),
 	})
+}
+
+// contents will give the token contents to the caller
+func (p *Parser) contents(tree tokenTree, tokenIndex int) string {
+	return string(p.buffer[tree.(*tokens32).tree[tokenIndex].begin:tree.(*tokens32).tree[tokenIndex].end])
 }
 
 func (p *Parser) currentPosition(position uint32) string {
@@ -771,9 +801,10 @@ func (p *Parser) currentPosition(position uint32) string {
 		}
 		switch c {
 		case '\n':
+			column = 0
 			line++
 		case '\r':
-			column = 9
+			column = 0
 		case '\t':
 			column = column/4*4 + 4
 		default:
