@@ -350,7 +350,7 @@ func extractTags(pattern string) ([]string, error) {
 	exists := make(map[string]bool)
 	for _, token := range result {
 		if exists[token] {
-			return nil, fmt.Errorf("tuplicate token %s", token) // no duplicate
+			return nil, fmt.Errorf("duplicate token %s", token) // no duplicate
 		}
 		exists[token] = true
 	}
