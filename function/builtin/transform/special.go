@@ -42,10 +42,8 @@ var MovingAverage = function.MakeFunction(
 		}
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
-		if err != nil {
-			return api.SeriesList{}, err
-		}
+		newTimerange := timerange.ExtendBefore(time.Duration(limit-1) * timerange.Resolution())
+
 		newContext := context.WithTimerange(newTimerange)
 		// The new context has a timerange which is extended beyond the query's.
 		list, err := function.EvaluateToSeriesList(listExpression, newContext)
@@ -90,17 +88,10 @@ var ExponentialMovingAverage = function.MakeFunction(
 	"transform.exponential_moving_average",
 	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (api.SeriesList, error) {
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
-		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of items to include in the average
-		if limit < 1 {
-			// At least one value must be included at all times
-			limit = 1
-		}
+		limit := int(float64(size)/float64(context.Timerange.Resolution()) + 0.5) // Limit is the number of (additional) items to include in the average
 
 		timerange := context.Timerange
-		newTimerange, err := api.NewSnappedTimerange(timerange.StartMillis()-int64(limit-1)*timerange.ResolutionMillis(), timerange.EndMillis(), timerange.ResolutionMillis())
-		if err != nil {
-			return api.SeriesList{}, err
-		}
+		newTimerange := timerange.ExtendBefore(time.Duration(limit) * timerange.Resolution())
 
 		newContext := context.WithTimerange(newTimerange)
 
@@ -110,31 +101,30 @@ var ExponentialMovingAverage = function.MakeFunction(
 			return api.SeriesList{}, err
 		}
 
-		// How many "ticks" are there in "size"?
-		// size / resolution
-		// alpha is a parameter such that
-		// alpha^ticks = 1/2
-		// so, alpha = exp(log(1/2) / ticks)
-		alpha := math.Exp(math.Log(0.5) * float64(context.Timerange.Resolution()) / float64(size))
+		alpha := math.Exp(math.Log(0.5) * context.Timerange.Resolution().Seconds() / size.Seconds())
 
-		// Update each series in the list.
-		for index, series := range list.Series {
-			// The series will be given a (shorter) replaced list of values.
-			results := make([]float64, context.Timerange.Slots())
+		resultList := api.SeriesList{
+			Series: make([]api.Timeseries, len(list.Series)),
+		}
+		for i := range resultList.Series {
 			weight := 0.0
 			sum := 0.0
-			for i := range series.Values {
-				weight *= alpha
+			values := make([]float64, newTimerange.Slots())
+			for t, y := range list.Series[i].Values {
 				sum *= alpha
-				if !math.IsNaN(series.Values[i]) {
-					weight++
-					sum += series.Values[i]
+				weight *= alpha
+				if !math.IsNaN(y) {
+					sum += y
+					weight += 1
 				}
-				results[i-limit+1] = sum / weight
+				values[t] = sum / weight
 			}
-			list.Series[index].Values = results
+			resultList.Series[i] = api.Timeseries{
+				Values: values[newTimerange.Slots()-timerange.Slots():],
+				TagSet: list.Series[i].TagSet,
+			}
 		}
-		return list, nil
+		return resultList, nil
 	},
 )
 
