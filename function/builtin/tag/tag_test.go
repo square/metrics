@@ -141,7 +141,10 @@ func TestDrop(t *testing.T) {
 			},
 		},
 	}
-	result := DropTag(list, "host")
+	result, err := DropTag(list, "host")
+	if err != nil {
+		t.Fatalf("unexpected error calling DropTag: %s", err.Error())
+	}
 	expect := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -323,7 +326,10 @@ func TestSet(t *testing.T) {
 			},
 		},
 	}
-	result := SetTag(list, "dc", newValue)
+	result, err := SetTag(list, "dc", newValue)
+	if err != nil {
+		t.Fatalf("expected error from SetTag: %s", err.Error())
+	}
 	expect := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -416,7 +422,10 @@ func TestCopy(t *testing.T) {
 			},
 		},
 	}
-	result := CopyTag(list, "dc", "host")
+	result, err := CopyTag(list, "dc", "host")
+	if err != nil {
+		t.Fatalf("unpexected error from CopyTag: %s", err.Error())
+	}
 	expect := api.SeriesList{
 		Series: []api.Timeseries{
 			{

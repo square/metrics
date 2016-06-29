@@ -15,6 +15,8 @@
 package tag
 
 import (
+	"fmt"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 )
@@ -28,14 +30,17 @@ func dropTagSeries(series api.Timeseries, dropTag string) api.Timeseries {
 }
 
 // DropTag returns a copy of the series list where the given `tag` has been removed from all timeseries.
-func DropTag(list api.SeriesList, tag string) api.SeriesList {
+func DropTag(list api.SeriesList, tag string) (api.SeriesList, error) {
+	if tag == "" {
+		return api.SeriesList{}, fmt.Errorf("tag.drop given empty string for tag")
+	}
 	series := make([]api.Timeseries, len(list.Series))
 	for i := range series {
 		series[i] = dropTagSeries(list.Series[i], tag)
 	}
 	return api.SeriesList{
 		series,
-	}
+	}, nil
 }
 
 // setTagSeries returns a copy of the timeseries where the given `newTag` has been set to `newValue`, or added if it wasn't present.
@@ -50,14 +55,20 @@ func setTagSeries(series api.Timeseries, newTag string, newValue string) api.Tim
 }
 
 // SetTag returns a copy of the series list where `tag` has been assigned to `value` for every timeseries in the list.
-func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
+func SetTag(list api.SeriesList, tag string, value string) (api.SeriesList, error) {
+	if tag == "" {
+		return api.SeriesList{}, fmt.Errorf("tag.set given empty string for tag")
+	}
+	if value == "" {
+		return api.SeriesList{}, fmt.Errorf("tag.set given empty string for value")
+	}
 	series := make([]api.Timeseries, len(list.Series))
 	for i := range series {
 		series[i] = setTagSeries(list.Series[i], tag, value)
 	}
 	return api.SeriesList{
 		series,
-	}
+	}, nil
 }
 
 // copyTagSeries copies the value of one tag to another.
@@ -74,14 +85,20 @@ func copyTagSeries(series api.Timeseries, target string, source string) api.Time
 }
 
 // CopyTag returns a copy of the series list where `target` is replaced by `source`'s value in each timeseries in the list.
-func CopyTag(list api.SeriesList, target string, source string) api.SeriesList {
+func CopyTag(list api.SeriesList, target string, source string) (api.SeriesList, error) {
+	if target == "" {
+		return api.SeriesList{}, fmt.Errorf("tag.copy given empty string for target tag")
+	}
+	if source == "" {
+		return api.SeriesList{}, fmt.Errorf("tag.copy given empty string for source tag")
+	}
 	series := make([]api.Timeseries, len(list.Series))
 	for i := range series {
 		series[i] = copyTagSeries(list.Series[i], target, source)
 	}
 	return api.SeriesList{
 		Series: series,
-	}
+	}, nil
 }
 
 // DropFunction wraps up DropTag into a Function called "tag.drop"
