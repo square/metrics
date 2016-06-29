@@ -21,11 +21,23 @@ import (
 )
 
 // TagSet is the set of key-value pairs associated with a given metric.
+// Instances of tag set should generally be treated immutably to avoid
+// accidentally modifying instances belonging to other metrics.
 type TagSet map[string]string
 
 // NewTagSet creates a new instance of TagSet.
 func NewTagSet() TagSet {
 	return make(map[string]string)
+}
+
+// Clone returns a new, identical tag set to the method receiver. It's safe to
+// mutate until you give it away.
+func (tagSet TagSet) Clone() TagSet {
+	result := NewTagSet()
+	for key, value := range tagSet {
+		result[key] = value
+	}
+	return result
 }
 
 // Equals check whether two tags are equal.
@@ -45,10 +57,7 @@ func (tagSet TagSet) Equals(otherTagSet TagSet) bool {
 // Merge two tagsets, and return a new tagset.
 // If keys conflict, the first tag set is preferred.
 func (tagSet TagSet) Merge(other TagSet) TagSet {
-	result := NewTagSet()
-	for key, value := range other {
-		result[key] = value
-	}
+	result := other.Clone()
 	for key, value := range tagSet {
 		result[key] = value
 	}

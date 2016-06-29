@@ -141,7 +141,10 @@ func TestDrop(t *testing.T) {
 			},
 		},
 	}
-	result := DropTag(list, "host")
+	result, err := DropTag(list, "host")
+	if err != nil {
+		t.Fatalf("unexpected error calling DropTag: %s", err.Error())
+	}
 	expect := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -323,7 +326,10 @@ func TestSet(t *testing.T) {
 			},
 		},
 	}
-	result := SetTag(list, "dc", newValue)
+	result, err := SetTag(list, "dc", newValue)
+	if err != nil {
+		t.Fatalf("expected error from SetTag: %s", err.Error())
+	}
 	expect := api.SeriesList{
 		Series: []api.Timeseries{
 			{
@@ -356,6 +362,108 @@ func TestSet(t *testing.T) {
 					"name": "D",
 					"host": "q12",
 					"dc":   "east",
+				},
+			},
+		},
+	}
+	// Verify that result == expect
+	a := assert.New(t)
+	a.EqInt(len(result.Series), len(expect.Series))
+	for i := range result.Series {
+		// Verify that the two are equal
+		seriesResult := result.Series[i]
+		seriesExpect := expect.Series[i]
+		a.EqFloatArray(seriesResult.Values, seriesExpect.Values, 1e-7)
+		if !seriesResult.TagSet.Equals(seriesExpect.TagSet) {
+			t.Errorf("Expected series %+v, but got %+v", seriesExpect, seriesResult)
+		}
+	}
+}
+
+func TestCopy(t *testing.T) {
+	list := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{1, 2, 3, 4},
+				TagSet: api.TagSet{
+					"name": "A",
+					"host": "q12",
+				},
+			},
+			{
+				Values: []float64{6, 7, 3, 1},
+				TagSet: api.TagSet{
+					"name": "B",
+					"host": "r2",
+				},
+			},
+			{
+				Values: []float64{2, 4, 6, 8},
+				TagSet: api.TagSet{
+					"name": "C",
+					"host": "q13",
+					"dc":   "south",
+				},
+			},
+			{
+				Values: []float64{5, math.NaN(), 2, math.NaN()},
+				TagSet: api.TagSet{
+					"name": "D",
+					"host": "q16",
+					"dc":   "south",
+				},
+			},
+			{
+				Values: []float64{4, 3, 2, 1},
+				TagSet: api.TagSet{
+					"name": "E",
+					"dc":   "south",
+				},
+			},
+		},
+	}
+	result, err := CopyTag(list, "dc", "host")
+	if err != nil {
+		t.Fatalf("unpexected error from CopyTag: %s", err.Error())
+	}
+	expect := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{1, 2, 3, 4},
+				TagSet: api.TagSet{
+					"name": "A",
+					"host": "q12",
+					"dc":   "q12",
+				},
+			},
+			{
+				Values: []float64{6, 7, 3, 1},
+				TagSet: api.TagSet{
+					"name": "B",
+					"host": "r2",
+					"dc":   "r2",
+				},
+			},
+			{
+				Values: []float64{2, 4, 6, 8},
+				TagSet: api.TagSet{
+					"name": "C",
+					"host": "q13",
+					"dc":   "q13",
+				},
+			},
+			{
+				Values: []float64{5, math.NaN(), 2, math.NaN()},
+				TagSet: api.TagSet{
+					"name": "D",
+					"host": "q16",
+					"dc":   "q16",
+				},
+			},
+			{
+				Values: []float64{4, 3, 2, 1},
+				TagSet: api.TagSet{
+					"name": "E",
 				},
 			},
 		},
