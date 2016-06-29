@@ -26,13 +26,13 @@ import (
 	"github.com/square/metrics/util"
 )
 
-func TestBluefloodHTTPQueriesSingle(t *testing.T) {
+func TestBluefloodHTTPQueriesMulti(t *testing.T) {
 	// from -2m to now
 	nowMillis := int64(739908000000)
-	nowFunc := func() time.Time {
+	nowFunc := TimeSource{GetTime: func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
 		return timeValue
-	}
+	}}
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
 		if beforeStart < beforeEnd {
 			t.Fatalf("Before start must be at least as large as before end.")
@@ -103,8 +103,7 @@ func TestBluefloodHTTPQueriesSingle(t *testing.T) {
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
 		Resolutions:             []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min},
-		Timeout:                 time.Millisecond,
-		MaxSimultaneousRequests: 5,
+		MaxSimultaneousRequests: 2,
 
 		GraphiteMetricConverter: &mocks.FakeGraphiteConverter{
 			MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
@@ -119,32 +118,63 @@ func TestBluefloodHTTPQueriesSingle(t *testing.T) {
 		TimeSource: nowFunc,
 	}
 	blueflood := NewBlueflood(config)
-	request := timeseries.FetchRequest{
-		Metric: api.TaggedMetric{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+	request := timeseries.FetchMultipleRequest{
+		Metrics: []api.TaggedMetric{
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+		},
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod: timeseries.SampleMean,
 			Timerange:    makeRange(2*time.Minute, 0, 30*time.Second),
 		},
 	}
-	expected := api.Timeseries{
-		Values: []float64{5, 9, -72.13, 6, 4.5},
-		TagSet: api.TagSet{"tag": "value"},
+	expected := api.SeriesList{
+		Series: []api.Timeseries{
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+			{
+				Values: []float64{5, 9, -72.13, 6, 4.5},
+				TagSet: api.TagSet{"tag": "value"},
+			},
+		},
 	}
-	result, err := blueflood.FetchSingleTimeseries(request)
+	result, err := blueflood.FetchMultipleTimeseries(request)
 	if err != nil {
 		t.Fatalf("Blueflood returns unexpected error: %s", err.Error())
 	}
 	assert.New(t).Contextf("request for timerange").Eq(result, expected)
 }
 
-// TestBluefloodHTTPQueriesMultiResolution tests that multiresolution fetching works.
-func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
+// TestBluefloodHTTPQueriesMultiResolutionMulti tests that multiresolution fetching works.
+func TestBluefloodHTTPQueriesMultiResolutionMulti(t *testing.T) {
 	// from -30d5h to -14d17h
 	nowMillis := int64(739908000000)
-	nowFunc := func() time.Time {
+	nowFunc := TimeSource{GetTime: func() time.Time {
 		timeValue := time.Unix(nowMillis/1000, nowMillis%1000*1e6)
 		return timeValue
-	}
+	}}
 	offset30 := int64(30 * 24 * 60 * 60 * 1000) // 30 days, TTL on 5m resolution
 	offset15 := int64(15 * 24 * 60 * 60 * 1000) // 15 days, first available on 60
 	makeRange := func(beforeStart time.Duration, beforeEnd time.Duration, resolution time.Duration) api.Timerange {
@@ -228,8 +258,7 @@ func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
 		BaseURL:                 "https://blueflood.url",
 		TenantID:                "square",
 		Resolutions:             []Resolution{resolutionFull, resolution5Min, resolution60Min, resolution1440Min},
-		Timeout:                 time.Second,
-		MaxSimultaneousRequests: 5,
+		MaxSimultaneousRequests: 2,
 
 		GraphiteMetricConverter: &mocks.FakeGraphiteConverter{
 			MetricMap: map[util.GraphiteMetric]api.TaggedMetric{
@@ -244,8 +273,15 @@ func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
 		TimeSource: nowFunc,
 	}
 	blueflood := NewBlueflood(config)
-	request := timeseries.FetchRequest{
-		Metric: api.TaggedMetric{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+	request := timeseries.FetchMultipleRequest{
+		Metrics: []api.TaggedMetric{
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+			{MetricKey: "some.key", TagSet: api.TagSet{"tag": "value"}},
+		},
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod: timeseries.SampleMean,
 			Timerange:    makeRange(30*day+5*time.Hour, 15*day-7*time.Hour, 60*time.Minute),
@@ -264,11 +300,23 @@ func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
 		values[i+5+24*15] = average / 12.0
 	}
 
-	expected := api.Timeseries{
+	expectedSeries := api.Timeseries{
 		Values: values,
 		TagSet: api.TagSet{"tag": "value"},
 	}
-	result, err := blueflood.FetchSingleTimeseries(request)
+
+	expected := api.SeriesList{
+		Series: []api.Timeseries{
+			expectedSeries,
+			expectedSeries,
+			expectedSeries,
+			expectedSeries,
+			expectedSeries,
+			expectedSeries,
+		},
+	}
+
+	result, err := blueflood.FetchMultipleTimeseries(request)
 	if err != nil {
 		t.Fatalf("Blueflood returns unexpected error: %s", err.Error())
 	}
