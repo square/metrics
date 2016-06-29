@@ -19,6 +19,8 @@ import (
 	"math"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
@@ -248,6 +250,7 @@ func TestSelectSummary(t *testing.T) {
 			TimeseriesStorageAPI: comboAPI,
 			MetricMetadataAPI:    comboAPI,
 			FetchLimit:           100,
+			Ctx:                  context.Background(),
 		}
 		commandObject, err := parser.Parse(test.query)
 		if err != nil {

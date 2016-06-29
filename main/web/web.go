@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/main/common"
@@ -31,7 +33,6 @@ import (
 	"github.com/square/metrics/metric_metadata/cached"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
 )
@@ -105,18 +106,13 @@ func main() {
 		}()
 	}
 
-	//Defaults
-	userConfig := timeseries.UserSpecifiableConfig{
-		IncludeRawData: false,
-	}
-
 	err = startServer(config.Web, command.ExecutionContext{
-		MetricMetadataAPI:     optimizedMetadataAPI,
-		TimeseriesStorageAPI:  blueflood,
-		FetchLimit:            1500,
-		SlotLimit:             5000,
-		Registry:              registry.Default(),
-		UserSpecifiableConfig: userConfig,
+		MetricMetadataAPI:    optimizedMetadataAPI,
+		TimeseriesStorageAPI: blueflood,
+		FetchLimit:           1500,
+		SlotLimit:            5000,
+		Registry:             registry.Default(),
+		Ctx:                  context.Background(),
 	})
 	if err != nil {
 		log.Infof(err.Error())

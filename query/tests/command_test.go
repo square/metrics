@@ -19,6 +19,8 @@ package tests
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
@@ -62,6 +64,7 @@ func TestCommand_Describe(t *testing.T) {
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,
 			Timeout:              0,
+			Ctx:                  context.Background(),
 		})
 		a.CheckError(err)
 		a.Eq(rawResult.Body, test.expected)
@@ -77,6 +80,7 @@ func TestCommand_Describe(t *testing.T) {
 		FetchLimit:            1000,
 		Timeout:               0,
 		AdditionalConstraints: predicate.ListMatcher{"dc", []string{"west"}},
+		Ctx: context.Background(),
 	})
 	a.CheckError(err)
 	a.Eq(rawResult.Body, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}})
@@ -109,6 +113,7 @@ func TestCommand_DescribeAll(t *testing.T) {
 			MetricMetadataAPI:    test.metricmetadata,
 			FetchLimit:           1000,
 			Timeout:              0,
+			Ctx:                  context.Background(),
 		})
 		a.CheckError(err)
 		a.Eq(rawResult.Body, test.expected)

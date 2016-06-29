@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
@@ -201,6 +203,7 @@ func TestCommandSelectFilterRange(t *testing.T) {
 			MetricMetadataAPI:    comboAPI,
 			FetchLimit:           1000,
 			Timeout:              100 * time.Millisecond,
+			Ctx:                  context.Background(),
 		})
 		if err != nil {
 			t.Errorf("Error evaluating query %q: %s", test.Query, err.Error())

@@ -109,11 +109,10 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 		timeseries.FetchMultipleRequest{
 			Metrics: metrics,
 			RequestDetails: timeseries.RequestDetails{
-				SampleMethod:          context.SampleMethod,
-				Timerange:             context.Timerange,
-				Ctx:                   context.Ctx,
-				Profiler:              context.Profiler,
-				UserSpecifiableConfig: context.UserSpecifiableConfig,
+				SampleMethod: context.SampleMethod,
+				Timerange:    context.Timerange,
+				Ctx:          context.Ctx,
+				Profiler:     context.Profiler,
 			},
 		},
 	)

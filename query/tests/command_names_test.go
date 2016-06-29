@@ -18,6 +18,8 @@ package tests
 import (
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
@@ -167,6 +169,7 @@ func TestQueryNaming(t *testing.T) {
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
 			Timeout:              0,
+			Ctx:                  context.Background(),
 		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())

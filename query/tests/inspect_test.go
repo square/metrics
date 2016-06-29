@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/query/command"
@@ -147,6 +149,7 @@ func TestProfilerIntegration(t *testing.T) {
 			MetricMetadataAPI:    myAPI,
 			FetchLimit:           10000,
 			Timeout:              time.Second * 4,
+			Ctx:                  context.Background(),
 		})
 
 		if err != nil {

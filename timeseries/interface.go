@@ -34,11 +34,10 @@ type StorageAPI interface {
 }
 
 type RequestDetails struct {
-	SampleMethod          SampleMethod    // up/downsampling behavior.
-	Timerange             api.Timerange   // time range to fetch data from.
-	Ctx                   context.Context // context includes timeout details
-	Profiler              *inspect.Profiler
-	UserSpecifiableConfig UserSpecifiableConfig
+	SampleMethod SampleMethod    // up/downsampling behavior.
+	Timerange    api.Timerange   // time range to fetch data from.
+	Ctx          context.Context // context includes timeout details
+	Profiler     *inspect.Profiler
 }
 
 type FetchRequest struct {
@@ -49,10 +48,6 @@ type FetchRequest struct {
 type FetchMultipleRequest struct {
 	Metrics []api.TaggedMetric
 	RequestDetails
-}
-
-type UserSpecifiableConfig struct {
-	IncludeRawData bool
 }
 
 type ErrorCode int

@@ -34,15 +34,16 @@ import (
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	TimeseriesStorageAPI  timeseries.StorageAPI            // the backend
-	MetricMetadataAPI     metadata.MetricAPI               // the api
-	FetchLimit            int                              // the maximum number of fetches
-	Timeout               time.Duration                    // optional
-	Registry              function.Registry                // optional
-	SlotLimit             int                              // optional (0 => default 1000)
-	Profiler              *inspect.Profiler                // optional
-	UserSpecifiableConfig timeseries.UserSpecifiableConfig // optional. User tunable parameters for execution.
-	AdditionalConstraints predicate.Predicate              // optional. Additional contrains for describe and select commands
+	TimeseriesStorageAPI  timeseries.StorageAPI // the backend
+	MetricMetadataAPI     metadata.MetricAPI    // the api
+	FetchLimit            int                   // the maximum number of fetches
+	Timeout               time.Duration         // optional
+	Registry              function.Registry     // optional
+	SlotLimit             int                   // optional (0 => default 1000)
+	Profiler              *inspect.Profiler     // optional
+	AdditionalConstraints predicate.Predicate   // optional. Additional contrains for describe and select commands
+
+	Ctx netcontext.Context
 }
 
 type CommandResult struct {
@@ -230,7 +231,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			chosenTimerange.Slots(), slotLimit)
 	}
 
-	ctx, cancelFunc := netcontext.Background(), netcontext.CancelFunc(nil)
+	ctx, cancelFunc := context.Ctx, netcontext.CancelFunc(nil)
 
 	if context.Timeout != 0 {
 		ctx, cancelFunc = netcontext.WithTimeout(ctx, context.Timeout)
@@ -255,10 +256,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		SampleMethod:         cmd.Context.SampleMethod,
 		Timerange:            chosenTimerange,
 
-		Registry:              r,
-		Profiler:              context.Profiler,
-		EvaluationNotes:       new(function.EvaluationNotes),
-		UserSpecifiableConfig: context.UserSpecifiableConfig,
+		Registry:        r,
+		Profiler:        context.Profiler,
+		EvaluationNotes: new(function.EvaluationNotes),
 
 		Ctx: ctx,
 	}
