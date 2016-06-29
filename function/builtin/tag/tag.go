@@ -21,12 +21,8 @@ import (
 
 // dropTagSeries returns a copy of the timeseries where the given `dropTag` has been removed from its TagSet.
 func dropTagSeries(series api.Timeseries, dropTag string) api.Timeseries {
-	tagSet := api.NewTagSet()
-	for tag, val := range series.TagSet {
-		if tag != dropTag {
-			tagSet[tag] = val
-		}
-	}
+	tagSet := series.TagSet.Clone()
+	delete(tagSet, dropTag)
 	series.TagSet = tagSet
 	return series
 }
@@ -66,10 +62,8 @@ func SetTag(list api.SeriesList, tag string, value string) api.SeriesList {
 
 // copyTagSeries copies the value of one tag to another.
 func copyTagSeries(series api.Timeseries, target string, source string) api.Timeseries {
-	tagSet := api.NewTagSet()
-	for tag, val := range series.TagSet {
-		tagSet[tag] = val
-	}
+	tagSet := series.TagSet.Clone()
+	// it's okay to mutate tagSet because this reference to it is unique.
 	if val, ok := tagSet[source]; ok {
 		tagSet[target] = val
 	} else {
