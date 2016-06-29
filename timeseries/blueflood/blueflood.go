@@ -269,8 +269,8 @@ func (b *Blueflood) constructURL(metric api.TaggedMetric, interval api.Interval,
 
 type httpClient interface {
 	// our own client to mock out the standard golang HTTP Client.
-	Get(string) (resp *http.Response, err error)
-	Do(*http.Request) (resp *http.Response, err error)
+	Get(string) (*http.Response, error)
+	Do(*http.Request) (*http.Response, error)
 }
 
 // fetch fetches from the backend, asynchronously calling performFetch and cancelling on timeout.
