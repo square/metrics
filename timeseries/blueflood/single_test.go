@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
@@ -123,6 +125,7 @@ func TestBluefloodHTTPQueriesSingle(t *testing.T) {
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod: timeseries.SampleMean,
 			Timerange:    makeRange(2*time.Minute, 0, 30*time.Second),
+			Ctx:          context.Background(),
 		},
 	}
 	expected := api.Timeseries{
@@ -247,6 +250,7 @@ func TestBluefloodHTTPQueriesMultiResolutionSingle(t *testing.T) {
 		RequestDetails: timeseries.RequestDetails{
 			SampleMethod: timeseries.SampleMean,
 			Timerange:    makeRange(30*day+5*time.Hour, 15*day-7*time.Hour, 60*time.Minute),
+			Ctx:          context.Background(),
 		},
 	}
 

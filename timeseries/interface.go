@@ -19,9 +19,10 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
-	"github.com/square/metrics/tasks"
 )
 
 type StorageAPI interface {
@@ -33,9 +34,9 @@ type StorageAPI interface {
 }
 
 type RequestDetails struct {
-	SampleMethod          SampleMethod  // up/downsampling behavior.
-	Timerange             api.Timerange // time range to fetch data from.
-	Timeout               *tasks.Timeout
+	SampleMethod          SampleMethod    // up/downsampling behavior.
+	Timerange             api.Timerange   // time range to fetch data from.
+	Ctx                   context.Context // context includes timeout details
 	Profiler              *inspect.Profiler
 	UserSpecifiableConfig UserSpecifiableConfig
 }

@@ -20,11 +20,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 )
 
@@ -36,17 +37,19 @@ import (
 // * Contains current timerange being queried for - this can be
 // changed by say, application of time shift function.
 type EvaluationContext struct {
-	TimeseriesStorageAPI  timeseries.StorageAPI   // Backend to fetch data from
-	MetricMetadataAPI     metadata.MetricAPI      // Api to obtain metadata from
-	Timerange             api.Timerange           // Timerange to fetch data from
-	SampleMethod          timeseries.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate             predicate.Predicate     // Predicate to apply to TagSets prior to fetching
-	FetchLimit            FetchCounter            // A limit on the number of fetches which may be performed
-	Timeout               *tasks.Timeout
-	Registry              Registry
+	TimeseriesStorageAPI timeseries.StorageAPI   // Backend to fetch data from
+	MetricMetadataAPI    metadata.MetricAPI      // Api to obtain metadata from
+	Timerange            api.Timerange           // Timerange to fetch data from
+	SampleMethod         timeseries.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
+	Predicate            predicate.Predicate     // Predicate to apply to TagSets prior to fetching
+
+	FetchLimit            FetchCounter      // A limit on the number of fetches which may be performed
+	Registry              Registry          // Allows lookup of functions by name
 	Profiler              *inspect.Profiler // A profiler pointer
 	EvaluationNotes       *EvaluationNotes  // Debug + numerical notes that can be added during evaluation
 	UserSpecifiableConfig timeseries.UserSpecifiableConfig
+
+	Ctx context.Context // Used for timeout (TODO: and user config)
 }
 
 // EvaluationNotes holds notes that were recorded during evaluation.

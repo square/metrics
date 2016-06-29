@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // A TimeoutError is an error associated with a timeout.
@@ -50,9 +52,9 @@ type ticket struct{}
 type ParallelQueue struct {
 	sync.Mutex // ParallelQueue uses itself as a mutex, and clients can also use it as a mutex.
 
-	tickets   chan ticket    // tickets internally limit the number of simultaneous actions
-	timeout   *Timeout       // timeout is used to stop the queue
-	waitgroup sync.WaitGroup // the waitgroup synchronizes the actions
+	tickets   chan ticket     // tickets internally limit the number of simultaneous actions
+	ctx       context.Context // timeout is used to stop the queue
+	waitgroup sync.WaitGroup  // the waitgroup synchronizes the actions
 
 	errorResult       error       // errorResult holds an execution error.
 	errorNotification chan ticket // errorNotification receives a ticket after errorResult has been set.
@@ -84,8 +86,8 @@ func (q *ParallelQueue) Do(f func() error) {
 		case <-q.tickets:
 			defer func() { q.tickets <- ticket{} }()
 			q.FlagError(f())
-		case <-q.timeout.Done():
-			q.FlagError(NewTimeoutError(q.timeout.Duration()))
+		case <-q.ctx.Done():
+			q.FlagError(q.ctx.Err())
 		}
 	}()
 }
@@ -100,8 +102,8 @@ func (q *ParallelQueue) Wait() error {
 		done <- ticket{}
 	}()
 	select {
-	case <-q.timeout.Done():
-		return NewTimeoutError(q.timeout.Duration())
+	case <-q.ctx.Done():
+		return q.ctx.Err()
 	case <-q.errorNotification:
 		q.Lock()
 		defer q.Unlock()
@@ -114,13 +116,16 @@ func (q *ParallelQueue) Wait() error {
 }
 
 // NewParallelQueue creates a ParallelQueue with the given number of tickets whose timeout is the specified timeout.
-func NewParallelQueue(tickets int, timeout *Timeout) *ParallelQueue {
+func NewParallelQueue(tickets int, ctx context.Context) *ParallelQueue {
+	if ctx == nil {
+		panic("NewParallelQueue given nil context")
+	}
 	ticketChannel := make(chan ticket, tickets)
 	for i := 0; i < tickets; i++ {
 		ticketChannel <- ticket{}
 	}
 	return &ParallelQueue{
-		timeout:           timeout,
+		ctx:               ctx,
 		tickets:           ticketChannel,
 		errorNotification: make(chan ticket, 1),
 	}
