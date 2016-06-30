@@ -112,11 +112,11 @@ func reportMetric(client *http.Client, value float64, name string, options ...in
 
 	request, err := http.NewRequest("POST", *bluefloodAddress, bytes.NewBuffer([]byte(json)))
 	if err != nil {
-		return fmt.Errorf("Error creating Blueflood request: %s\n", err.Error())
+		return fmt.Errorf("error creating Blueflood request: %s\n", err.Error())
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("Error performing Blueflood POST: %s\n", err.Error())
+		return fmt.Errorf("error performing Blueflood POST: %s\n", err.Error())
 	}
 	fmt.Println("Blueflood: ", response.Status)
 	body, _ := ioutil.ReadAll(response.Body)
@@ -126,11 +126,11 @@ func reportMetric(client *http.Client, value float64, name string, options ...in
 
 	request, err = http.NewRequest("POST", *mqeIngestionAddress, bytes.NewBuffer([]byte(metricName)))
 	if err != nil {
-		return fmt.Errorf("Error creating MQE Ingestion request: %s\n", err.Error())
+		return fmt.Errorf("error creating MQE Ingestion request: %s\n", err.Error())
 	}
 	response, err = client.Do(request)
 	if err != nil {
-		return fmt.Errorf("Error performing MQE Ingestion POST: %s\n", err.Error())
+		return fmt.Errorf("error performing MQE Ingestion POST: %s\n", err.Error())
 	}
 	fmt.Println("MQE: ", response.Status)
 	body, _ = ioutil.ReadAll(response.Body)

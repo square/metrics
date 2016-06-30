@@ -107,7 +107,7 @@ func (b *Blueflood) CheckHealthy() error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Blueflood returned an unhealthy status of %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("the Blueflood instance returned an unhealthy status of %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

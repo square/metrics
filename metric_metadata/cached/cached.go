@@ -181,7 +181,7 @@ func (c *metricMetadataAPI) CheckHealthy() error {
 // item in the cache.
 func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *TagSetList, metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	if item == nil {
-		return nil, errors.New("Missing cache list entry")
+		return nil, errors.New("missing cache list entry")
 	}
 
 	item.wg.Add(1)

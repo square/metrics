@@ -66,7 +66,7 @@ func ReadMetricsFile(file string) ([]string, error) {
 	r, err := zlib.NewReader(bytes.NewBuffer(data))
 	defer r.Close()
 	if err != nil {
-		return nil, fmt.Errorf("Problem with zlib compressed data: %s", err.Error())
+		return nil, fmt.Errorf("problem with zlib compressed data: %s", err.Error())
 	}
 
 	// Store the result of the decode in this map:

@@ -72,7 +72,7 @@ func planFetchIntervalsWithOnlyFiner(resolutions []Resolution, now time.Time, re
 	for i := range resolutions {
 		if resolutions[i].Resolution > requestRange.Resolution() {
 			if i == 0 {
-				return nil, fmt.Errorf("No resolutions are available at least as fine as the chosen %+v", requestRange.Resolution())
+				return nil, fmt.Errorf("no resolutions are available at least as fine as the chosen %+v", requestRange.Resolution())
 			}
 			return planFetchIntervals(resolutions[:i], now, requestRange.Interval())
 		}

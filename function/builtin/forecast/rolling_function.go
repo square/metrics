@@ -35,7 +35,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		samples := int(period / context.Timerange().Resolution())
@@ -76,7 +76,7 @@ var FunctionRollingSeasonal = function.MakeFunction(
 			extraTrainingTime = *optionalExtraTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		samples := int(period / context.Timerange().Resolution())
@@ -117,7 +117,7 @@ var FunctionLinear = function.MakeFunction(
 			extraTrainingTime = *optionalTrainingTime
 		}
 		if extraTrainingTime < 0 {
-			return api.SeriesList{}, fmt.Errorf("Extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
+			return api.SeriesList{}, fmt.Errorf("extra training time must be non-negative, but got %s", extraTrainingTime.String()) // TODO: use structured error
 		}
 
 		newContext := context.WithTimerange(context.Timerange().ExtendBefore(extraTrainingTime))

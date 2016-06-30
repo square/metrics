@@ -107,13 +107,13 @@ func (fa *FakeGraphiteConverter) ToGraphiteName(metric api.TaggedMetric) (util.G
 			return k, nil
 		}
 	}
-	return "", fmt.Errorf("No mapping for tagged metric %+v to tagged metric", metric)
+	return "", fmt.Errorf("no mapping for tagged metric %+v to tagged metric", metric)
 }
 
 func (fa *FakeGraphiteConverter) ToTaggedName(metric util.GraphiteMetric) (api.TaggedMetric, error) {
 	tm, exists := fa.MetricMap[metric]
 	if !exists {
-		return api.TaggedMetric{}, fmt.Errorf("No mapping for graphite metric %+s to graphite metric", string(metric))
+		return api.TaggedMetric{}, fmt.Errorf("no mapping for graphite metric %+s to graphite metric", string(metric))
 	}
 
 	return tm, nil

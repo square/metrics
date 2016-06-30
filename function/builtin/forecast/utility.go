@@ -16,11 +16,6 @@ package forecast
 
 import "math"
 
-// Returns the unique integer r such that x == r (mod m) and 0 <= r < m
-func mod(x int, m int) int {
-	return ((x % m) + m) % m
-}
-
 // LinearRegression estimates ys as (a + b*t) and returns (a, b).
 // It performs linear regression using the explicit form for minimization of least-squares error.
 // When ys[i] is NaN, it is treated as a missing point. (This makes things only slightly more complicated).
