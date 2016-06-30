@@ -51,19 +51,19 @@ func TestProfilerIntegration(t *testing.T) {
 	// 	},
 	// }
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "1", "y": "2"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "2", "y": "2"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"A", api.TagSet{"x": "3", "y": "1"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "A", TagSet: api.TagSet{"x": "1", "y": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "A", TagSet: api.TagSet{"x": "2", "y": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "A", TagSet: api.TagSet{"x": "3", "y": "1"}})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.TagSet{"q": "foo"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"B", api.TagSet{"q": "bar"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "B", TagSet: api.TagSet{"q": "foo"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "B", TagSet: api.TagSet{"q": "bar"}})
 
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "1"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "2"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "3"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "4"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "5"}})
-	myAPI.AddPairWithoutGraphite(api.TaggedMetric{"C", api.TagSet{"c": "6"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "1"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "2"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "3"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "4"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "5"}})
+	myAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "C", TagSet: api.TagSet{"c": "6"}})
 
 	testCases := []struct {
 		query    string

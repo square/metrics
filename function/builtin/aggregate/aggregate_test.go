@@ -256,7 +256,7 @@ func Test_AggregateBy(t *testing.T) {
 	a := assert.New(t)
 
 	var testList = api.SeriesList{
-		[]api.Timeseries{
+		Series: []api.Timeseries{
 			{
 				Values: []float64{0, 1, 2},
 				TagSet: api.TagSet{

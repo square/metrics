@@ -63,7 +63,7 @@ func (e FetchError) Error() string {
 	return e.Message
 }
 
-// Error500 indicates that it's a 500-level error.
+// ErrorCode returns the error code of the fetch error.
 func (e FetchError) ErrorCode() int {
 	if e.Code == 0 {
 		return http.StatusBadRequest
@@ -72,11 +72,11 @@ func (e FetchError) ErrorCode() int {
 }
 
 const (
-	FetchTimeoutError  ErrorCode = iota + 1 // error while fetching - timeout.
-	FetchIOError                            // error while fetching - general IO.
-	InvalidSeriesError                      // the given series is not well-defined.
-	LimitError                              // the fetch limit is reached.
-	Unsupported                             // the given fetch operation is unsupported by the backend.
+	FetchTimeoutError  ErrorCode = iota + 1 // FetchTimeoutError indicates a timeout happened
+	FetchIOError                            // FetchIOError indicates an IO error occurred
+	InvalidSeriesError                      // InvalidSeriesError indicates the requested series was ill-formed
+	LimitError                              // LimitError indicates a resource limit was reached
+	Unsupported                             // Unsupported indicates an operation was attempted which is not supported
 )
 
 type Error struct {

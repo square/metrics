@@ -126,7 +126,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 			return current.Resolution, nil
 		}
 	}
-	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
+	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough", requested)
 }
 
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.
@@ -140,7 +140,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	return b.fetchTimeseries(request.Metric, plan, request.Profiler, request.Ctx)
 }
 
-// FetchMultipleRequest fetches multiple timeseries. It requires that the
+// FetchMultipleTimeseries fetches multiple timeseries. It requires that the
 // The resolution is required to be supported (as ensured by ChooseResolution).
 func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()
@@ -251,12 +251,12 @@ func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, pro
 func (b *Blueflood) constructURL(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) (*url.URL, error) {
 	graphiteName, err := b.config.GraphiteMetricConverter.ToGraphiteName(metric)
 	if err != nil {
-		return nil, timeseries.Error{metric, timeseries.InvalidSeriesError, "cannot convert to graphite name"}
+		return nil, timeseries.Error{Metric: metric, Code: timeseries.InvalidSeriesError, Message: "cannot convert to graphite name"}
 	}
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseURL, b.config.TenantID, graphiteName))
 	if err != nil {
-		return nil, timeseries.Error{metric, timeseries.InvalidSeriesError, fmt.Sprintf("cannot generate URL for tagged metric with graphite name %s", graphiteName)}
+		return nil, timeseries.Error{Metric: metric, Code: timeseries.InvalidSeriesError, Message: fmt.Sprintf("cannot generate URL for tagged metric with graphite name %s", graphiteName)}
 	}
 
 	result.RawQuery = url.Values{

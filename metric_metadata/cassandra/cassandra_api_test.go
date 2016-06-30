@@ -77,29 +77,54 @@ func TestMetricNameGetTagSetAPI(t *testing.T) {
 		tagSet       api.TagSet
 		expectedTags map[string][]api.TagSet // { metricName: [ tags ] }
 	}{
-		{true, "sample", api.TagSet{"foo": "bar1"}, map[string][]api.TagSet{
-			"sample": {{"foo": "bar1"}},
-		}},
-		{true, "sample", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
-			"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
-		}},
-		{true, "sample2", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
-			"sample":  {{"foo": "bar1"}, {"foo": "bar2"}},
-			"sample2": {{"foo": "bar2"}},
-		}},
-		{false, "sample2", api.TagSet{"foo": "bar2"}, map[string][]api.TagSet{
-			"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
-		}},
-		{false, "sample", api.TagSet{"foo": "bar1"}, map[string][]api.TagSet{
-			"sample": {{"foo": "bar2"}},
-		}},
+		{
+			addTest:    true,
+			metricName: "sample",
+			tagSet:     api.TagSet{"foo": "bar1"},
+			expectedTags: map[string][]api.TagSet{
+				"sample": {{"foo": "bar1"}},
+			},
+		},
+		{
+			addTest:    true,
+			metricName: "sample",
+			tagSet:     api.TagSet{"foo": "bar2"},
+			expectedTags: map[string][]api.TagSet{
+				"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
+			},
+		},
+		{
+			addTest:    true,
+			metricName: "sample2",
+			tagSet:     api.TagSet{"foo": "bar2"},
+			expectedTags: map[string][]api.TagSet{
+				"sample":  {{"foo": "bar1"}, {"foo": "bar2"}},
+				"sample2": {{"foo": "bar2"}},
+			},
+		},
+		{
+			addTest:    false,
+			metricName: "sample2",
+			tagSet:     api.TagSet{"foo": "bar2"},
+			expectedTags: map[string][]api.TagSet{
+				"sample": {{"foo": "bar1"}, {"foo": "bar2"}},
+			},
+		},
+		{
+			addTest:    false,
+			metricName: "sample",
+			tagSet:     api.TagSet{"foo": "bar1"},
+			expectedTags: map[string][]api.TagSet{
+				"sample": {{"foo": "bar2"}},
+			},
+		},
 	}
 
 	for _, c := range metricNamesTests {
 		if c.addTest {
 			a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-				api.MetricKey(c.metricName),
-				c.tagSet,
+				MetricKey: api.MetricKey(c.metricName),
+				TagSet:    c.tagSet,
 			}, context))
 		} else {
 			clearCassandraInstance(t, &cassandra.db, c.metricName, c.tagSet.Serialize())
@@ -123,29 +148,29 @@ func TestGetAllMetricsAPI(t *testing.T) {
 	cassandra, context := newCassandraAPI(t)
 	defer cleanAPI(t, cassandra)
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"metric.a",
-		api.TagSet{"foo": "a"},
+		MetricKey: "metric.a",
+		TagSet:    api.TagSet{"foo": "a"},
 	}, context))
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"metric.a",
-		api.TagSet{"foo": "b"},
+		MetricKey: "metric.a",
+		TagSet:    api.TagSet{"foo": "b"},
 	}, context))
 	a.CheckError(cassandra.AddMetrics([]api.TaggedMetric{
 		{
-			"metric.c",
-			api.TagSet{
+			MetricKey: "metric.c",
+			TagSet: api.TagSet{
 				"bar": "cat",
 			},
 		},
 		{
-			"metric.d",
-			api.TagSet{
+			MetricKey: "metric.d",
+			TagSet: api.TagSet{
 				"bar": "dog",
 			},
 		},
 		{
-			"metric.e",
-			api.TagSet{
+			MetricKey: "metric.e",
+			TagSet: api.TagSet{
 				"bar": "cat",
 			},
 		},
@@ -155,12 +180,12 @@ func TestGetAllMetricsAPI(t *testing.T) {
 	sort.Sort(api.MetricKeys(keys))
 	a.Eq(keys, []api.MetricKey{"metric.a", "metric.c", "metric.d", "metric.e"})
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"metric.b",
-		api.TagSet{"foo": "c"},
+		MetricKey: "metric.b",
+		TagSet:    api.TagSet{"foo": "c"},
 	}, context))
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"metric.b",
-		api.TagSet{"foo": "c"},
+		MetricKey: "metric.b",
+		TagSet:    api.TagSet{"foo": "c"},
 	}, context))
 	keys, err = cassandra.GetAllMetrics(context)
 	a.CheckError(err)
@@ -179,14 +204,14 @@ func TestTagIndexAPI(t *testing.T) {
 		a.EqInt(len(rows), 0)
 	}
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"a.b.c",
-		api.TagSet{
+		MetricKey: "a.b.c",
+		TagSet: api.TagSet{
 			"environment": "production",
 		},
 	}, context))
 	a.CheckError(cassandra.AddMetric(api.TaggedMetric{
-		"d.e.f",
-		api.TagSet{
+		MetricKey: "d.e.f",
+		TagSet: api.TagSet{
 			"environment": "production",
 		},
 	}, context))

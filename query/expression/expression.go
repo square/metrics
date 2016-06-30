@@ -102,7 +102,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	metrics := make([]api.TaggedMetric, len(filtered))
 	for i := range metrics {
-		metrics[i] = api.TaggedMetric{api.MetricKey(expr.MetricName), filtered[i]}
+		metrics[i] = api.TaggedMetric{MetricKey: api.MetricKey(expr.MetricName), TagSet: filtered[i]}
 	}
 
 	seriesList, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
@@ -145,7 +145,7 @@ func (expr *FunctionExpression) Evaluate(context function.EvaluationContext) (fu
 		return nil, SyntaxError{fmt.Sprintf("no such function %s", expr.FunctionName)}
 	}
 
-	return fun.Run(context, expr.Arguments, function.Groups{expr.GroupBy, expr.GroupByCollapses})
+	return fun.Run(context, expr.Arguments, function.Groups{List: expr.GroupBy, Collapses: expr.GroupByCollapses})
 }
 
 func functionFormatString(argumentStrings []string, f FunctionExpression) string {

@@ -35,21 +35,21 @@ type Predicate interface {
 // TruePredicate is always true
 type TruePredicate struct{}
 
-func (_ TruePredicate) Apply(_ api.TagSet) bool {
+func (TruePredicate) Apply(api.TagSet) bool {
 	return true
 }
-func (_ TruePredicate) Query() string {
+func (TruePredicate) Query() string {
 	return "true"
 }
 
 // FalsePredicate is always false
 type FalsePredicate struct{}
 
-func (_ FalsePredicate) Apply(_ api.TagSet) bool {
+func (FalsePredicate) Apply(api.TagSet) bool {
 	return false
 }
 
-func (_ FalsePredicate) Query() string {
+func (FalsePredicate) Query() string {
 	return "false"
 }
 

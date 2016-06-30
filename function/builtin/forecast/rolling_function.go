@@ -106,10 +106,10 @@ var FunctionRollingSeasonal = function.MakeFunction(
 	},
 )
 
-// FunctionForecastLinear forecasts with a simple linear regression.
+// FunctionLinear forecasts with a simple linear regression.
 // For data which is mostly just a linear trend up or down, this will provide a good model of current behavior,
 // as well as a good estimate of near-future behavior.
-var FunctionForecastLinear = function.MakeFunction(
+var FunctionLinear = function.MakeFunction(
 	"forecast.linear",
 	func(context function.EvaluationContext, seriesExpression function.Expression, optionalTrainingTime *time.Duration) (api.SeriesList, error) {
 		extraTrainingTime := time.Duration(0)
@@ -134,7 +134,7 @@ var FunctionForecastLinear = function.MakeFunction(
 		for seriesIndex, series := range seriesList.Series {
 			result.Series[seriesIndex] = api.Timeseries{
 				TagSet: series.TagSet,
-				Values: ForecastLinear(series.Values)[extraSlots:], // Slice to drop the first few extra slots from the result
+				Values: Linear(series.Values)[extraSlots:], // Slice to drop the first few extra slots from the result
 			}
 		}
 

@@ -171,7 +171,7 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	return value, nil
 }
 
-// EvaluateToDuration is a helper function that takes an Expression and makes it a series list.
+// EvaluateToSeriesList is a helper function that takes an Expression and makes it a series list.
 func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesList, error) {
 	seriesValue, err := e.Evaluate(context)
 	if err != nil {
@@ -184,7 +184,7 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	return value, nil
 }
 
-// EvaluateToDuration is a helper function that takes an Expression and makes it a string.
+// EvaluateToString is a helper function that takes an Expression and makes it a string.
 func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	stringValue, err := e.Evaluate(context)
 	if err != nil {
@@ -230,9 +230,8 @@ func EvaluateMany(context EvaluationContext, expressions []Expression) ([]Value,
 		result := <-results
 		if result.err != nil {
 			return nil, result.err
-		} else {
-			array[result.index] = result.value
 		}
+		array[result.index] = result.value
 	}
 	return array, nil
 

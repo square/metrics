@@ -39,10 +39,8 @@ func (list filterList) Less(i, j int) bool {
 	}
 	if list.ascending {
 		return list.value[i] < list.value[j]
-	} else {
-		return list.value[j] < list.value[i]
 	}
-
+	return list.value[j] < list.value[i]
 }
 func (list filterList) Swap(i, j int) {
 	list.index[i], list.index[j] = list.index[j], list.index[i]
@@ -85,9 +83,9 @@ func sortSeriesRecent(list api.SeriesList, summary func([]float64) float64, lowe
 	)
 }
 
-// FilterRecentBy reduces the number of things in the series `list` to at most the given `count`.
+// ByRecent reduces the number of things in the series `list` to at most the given `count`.
 // However, it only considered recent points when evaluating their ordering.
-func FilterByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, slots int) api.SeriesList {
+func ByRecent(list api.SeriesList, count int, summary func([]float64) float64, lowest bool, slots int) api.SeriesList {
 	// Sort them by their recent points.
 	sorted, _ := sortSeriesRecent(list, summary, lowest, slots)
 
@@ -101,9 +99,9 @@ func FilterByRecent(list api.SeriesList, count int, summary func([]float64) floa
 	}
 }
 
-// FilterThresholdBy reduces the number of things in the series `list` to those whose `summar` is at at least/at most the threshold.
+// ThresholdByRecent reduces the number of things in the series `list` to those whose `summar` is at at least/at most the threshold.
 // However, it only considers the data points as recent as the duration permits.
-func FilterThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, slots int) api.SeriesList {
+func ThresholdByRecent(list api.SeriesList, threshold float64, summary func([]float64) float64, below bool, slots int) api.SeriesList {
 	sorted, values := sortSeriesRecent(list, summary, below, slots)
 
 	result := []api.Timeseries{}

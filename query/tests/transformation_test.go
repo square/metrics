@@ -46,7 +46,7 @@ func (b movingAverageBackend) FetchSingleTimeseries(r timeseries.FetchRequest) (
 }
 
 func (b movingAverageBackend) FetchMultipleTimeseries(r timeseries.FetchMultipleRequest) (api.SeriesList, error) {
-	timeseries := make([]api.Timeseries, 0)
+	timeseries := []api.Timeseries{}
 	singleRequests := r.ToSingle()
 	for _, request := range singleRequests {
 		series, _ := b.FetchSingleTimeseries(request)
@@ -59,7 +59,7 @@ func (b movingAverageBackend) FetchMultipleTimeseries(r timeseries.FetchMultiple
 
 func TestMovingAverage(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series", api.NewTagSet()})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series", TagSet: api.NewTagSet()})
 
 	fakeBackend := movingAverageBackend{}
 	timerange, err := api.NewTimerange(1200, 1500, 100)
@@ -71,8 +71,8 @@ func TestMovingAverage(t *testing.T) {
 		FunctionName: "transform.moving_average",
 		GroupBy:      []string{},
 		Arguments: []function.Expression{
-			&expression.MetricFetchExpression{"series", predicate.TruePredicate{}},
-			expression.Duration{"300ms", 300 * time.Millisecond},
+			&expression.MetricFetchExpression{MetricName: "series", Predicate: predicate.TruePredicate{}},
+			expression.Duration{Literal: "300ms", Duration: 300 * time.Millisecond},
 		},
 	}
 

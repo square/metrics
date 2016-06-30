@@ -44,8 +44,8 @@ type metricMetadataAPI struct {
 	clock             util.Clock         // Here so we can mock out in tests
 
 	// Cached items
-	getAllTagsCache      map[api.MetricKey]*CachedTagSetList // The cache of metric -> tags
-	getAllTagsCacheMutex sync.RWMutex                        // Mutex for getAllTagsCache
+	getAllTagsCache      map[api.MetricKey]*TagSetList // The cache of metric -> tags
+	getAllTagsCacheMutex sync.RWMutex                  // Mutex for getAllTagsCache
 
 	// Cache Config
 	freshness  time.Duration // How long until cache entries become stale
@@ -61,12 +61,12 @@ type metricUpdateAPI struct {
 	metricMetadataAPI
 }
 
-func (m *metricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
-	return m.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetric(metric, context)
+func (c *metricMetadataAPI) AddMetric(metric api.TaggedMetric, context metadata.Context) error {
+	return c.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetric(metric, context)
 }
 
-func (m *metricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
-	return m.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetrics(metrics, context)
+func (c *metricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
+	return c.metricMetadataAPI.(metadata.MetricUpdateAPI).AddMetrics(metrics, context)
 }
 
 // Config stores data needed to instantiate a CachedMetricMetadataAPI.
@@ -76,8 +76,8 @@ type Config struct {
 	TimeToLive   time.Duration
 }
 
-// CachedTagSetList is an item in the cache.
-type CachedTagSetList struct {
+// TagSetList is an item in the cache.
+type TagSetList struct {
 	TagSets []api.TagSet // The tagsets for this metric
 	Expiry  time.Time    // The time at which the cache entry expires
 	Stale   time.Time    // The time at which the cache entry becomes stale
@@ -100,7 +100,7 @@ func NewMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) Backgro
 	result := metricMetadataAPI{
 		metricMetadataAPI: apiInstance,
 		clock:             util.RealClock{},
-		getAllTagsCache:   map[api.MetricKey]*CachedTagSetList{},
+		getAllTagsCache:   map[api.MetricKey]*TagSetList{},
 		freshness:         config.Freshness,
 		timeToLive:        config.TimeToLive,
 		backgroundQueue:   requests,
@@ -113,7 +113,7 @@ func NewMetricMetadataAPI(apiInstance metadata.MetricAPI, config Config) Backgro
 
 // addBackgroundGetAllTagsRequest adds a job to update the lag list for the given
 // metric. Requires the caller hold the lock for the item in the cache.
-func (c *metricMetadataAPI) addBackgroundGetAllTagsRequest(item *CachedTagSetList, metricKey api.MetricKey) {
+func (c *metricMetadataAPI) addBackgroundGetAllTagsRequest(item *TagSetList, metricKey api.MetricKey) {
 	if item == nil {
 		log.Errorf("Asked to perform a background GetAllTags lookup for %s but missing entry", metricKey)
 		return
@@ -179,7 +179,7 @@ func (c *metricMetadataAPI) CheckHealthy() error {
 // fetchAndUpdateCachedTagSet updates the in-memory cache (asusming the update
 // is newer than what is in the cache). Requires the caller hold the lock for the
 // item in the cache.
-func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *CachedTagSetList, metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
+func (c *metricMetadataAPI) fetchAndUpdateCachedTagSet(item *TagSetList, metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	if item == nil {
 		return nil, errors.New("Missing cache list entry")
 	}
@@ -240,7 +240,7 @@ func (c *metricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata
 		// hasn't already updated the cache
 		item, ok = c.getAllTagsCache[metricKey]
 		if !ok {
-			item = &CachedTagSetList{}
+			item = &TagSetList{}
 			c.getAllTagsCache[metricKey] = item
 		}
 

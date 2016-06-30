@@ -166,7 +166,7 @@ func TestFilter(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, 100)
+		filtered := ByRecent(list, test.count, test.summary, test.lowest, 100)
 		// Verify that every series in the result is from the original.
 		// Also verify that we only get the ones we expect.
 		if len(filtered.Series) != len(test.expect) {
@@ -273,7 +273,7 @@ func TestFilterRecent(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		filtered := FilterByRecent(list, test.count, test.summary, test.lowest, test.slots)
+		filtered := ByRecent(list, test.count, test.summary, test.lowest, test.slots)
 		// Verify that they're all unique and expected and unchanged
 		a.EqInt(len(filtered.Series), len(test.expect))
 		// Next, verify that the names are the same.

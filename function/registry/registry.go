@@ -90,7 +90,7 @@ func init() {
 	MustRegister(forecast.FunctionAnomalyRollingMultiplicativeHoltWinters)
 	MustRegister(forecast.FunctionRollingSeasonal)
 	MustRegister(forecast.FunctionAnomalyRollingSeasonal)
-	MustRegister(forecast.FunctionForecastLinear)
+	MustRegister(forecast.FunctionLinear)
 
 	MustRegister(forecast.FunctionDrop)
 
@@ -139,7 +139,7 @@ func (r StandardRegistry) All() []string {
 func (r StandardRegistry) Register(fun function.Function) error {
 	_, ok := r.mapping[fun.Name()]
 	if ok {
-		return fmt.Errorf("function %s has already been registered", fun.Name)
+		return fmt.Errorf("function %s has already been registered", fun.Name())
 	}
 	if fun.Name() == "" {
 		return fmt.Errorf("empty function name")
@@ -152,7 +152,7 @@ func (r StandardRegistry) Register(fun function.Function) error {
 func MustRegister(fun function.Function) {
 	err := defaultRegistry.Register(fun)
 	if err != nil {
-		panic(fmt.Sprintf("function %s has failed to register", fun.Name))
+		panic(fmt.Sprintf("function %s has failed to register", fun.Name()))
 	}
 }
 
@@ -174,7 +174,7 @@ func NewFilterCount(name string, summary func([]float64) float64, ascending bool
 			if duration < 0 {
 				return api.SeriesList{}, fmt.Errorf("expected positive recent duration but got %+v", duration)
 			}
-			return filter.FilterByRecent(list, count, summary, ascending, 1+int(duration/timerange.Resolution())), nil
+			return filter.ByRecent(list, count, summary, ascending, 1+int(duration/timerange.Resolution())), nil
 		},
 	)
 }
@@ -191,7 +191,7 @@ func NewFilterThreshold(name string, summary func([]float64) float64, below bool
 			if duration < 0 {
 				return api.SeriesList{}, fmt.Errorf("expected positive recent duration but got %+v", duration)
 			}
-			return filter.FilterThresholdByRecent(list, threshold, summary, below, 1+int(duration/timerange.Resolution())), nil
+			return filter.ThresholdByRecent(list, threshold, summary, below, 1+int(duration/timerange.Resolution())), nil
 		},
 	)
 }

@@ -149,8 +149,8 @@ func RollingSeasonal(ys []float64, period int, seasonalLearningRate float64) []f
 	return estimate
 }
 
-// ForecastLinear estimates a purely linear trend from the data.
-func ForecastLinear(ys []float64) []float64 {
+// Linear estimates a purely linear trend from the data.
+func Linear(ys []float64) []float64 {
 	estimate := make([]float64, len(ys))
 	a, b := LinearRegression(ys)
 	for i := range ys {
