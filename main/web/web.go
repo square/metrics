@@ -23,8 +23,6 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/log"
 	"github.com/square/metrics/main/common"
@@ -35,6 +33,8 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 func startServer(config server.Config, context command.ExecutionContext) error {

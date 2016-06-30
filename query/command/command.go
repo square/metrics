@@ -20,8 +20,6 @@ import (
 	"sort"
 	"time"
 
-	netcontext "golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/function/registry"
@@ -30,6 +28,8 @@ import (
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries"
+
+	netcontext "golang.org/x/net/context"
 )
 
 // ExecutionContext is the context supplied when invoking a command.

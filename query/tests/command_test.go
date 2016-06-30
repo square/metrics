@@ -19,8 +19,6 @@ package tests
 import (
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/command"
@@ -28,6 +26,8 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
+
+	"golang.org/x/net/context"
 )
 
 func TestCommand_Describe(t *testing.T) {

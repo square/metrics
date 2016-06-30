@@ -18,12 +18,12 @@ package tests
 import (
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
+
+	"golang.org/x/net/context"
 )
 
 func TestQueryNaming(t *testing.T) {

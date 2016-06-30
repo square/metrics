@@ -19,13 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 func TestBluefloodHTTPQueriesSingle(t *testing.T) {

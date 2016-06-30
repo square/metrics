@@ -19,10 +19,10 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
+
+	"golang.org/x/net/context"
 )
 
 type StorageAPI interface {

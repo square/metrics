@@ -23,8 +23,6 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/function/registry"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/metric_metadata/cassandra"
@@ -32,6 +30,8 @@ import (
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 func main() {

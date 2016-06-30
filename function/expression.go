@@ -20,13 +20,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries"
+
+	"golang.org/x/net/context"
 )
 
 // EvaluationContext is the central piece of logic, providing

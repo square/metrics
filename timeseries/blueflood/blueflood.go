@@ -24,13 +24,13 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
 	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 // Blueflood is a timeseries storage API instance.
