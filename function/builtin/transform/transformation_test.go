@@ -199,7 +199,7 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContextBuilder{Timerange: timerange,Ctx: context.Background()}.Build()
+		ctx := function.EvaluationContextBuilder{Timerange: timerange, Ctx: context.Background()}.Build()
 		resultValue, err := test.transform.Run(ctx, []function.Expression{listExpression}, function.Groups{})
 		if err != nil {
 			t.Error(err)
@@ -622,7 +622,7 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContextBuilder{Timerange: timerange,Ctx: context.Background()}.Build()
+				ctx := function.EvaluationContextBuilder{Timerange: timerange, Ctx: context.Background()}.Build()
 
 				seriesList := api.SeriesList{
 					Series: []api.Timeseries{result},
