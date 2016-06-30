@@ -90,8 +90,7 @@ func (m memoizedExpression) ExpressionString(mode DescriptionMode) string {
 	return m.Expression.ExpressionString(mode)
 }
 
-////////
-
+// memoization map holds a collection of memoization points.
 type memoizationMap struct {
 	sync.Mutex
 	Map map[contextIdentity]*memoization
