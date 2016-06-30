@@ -42,9 +42,9 @@ func (le LiteralExpression) Name() string {
 	return "<literal expression>"
 }
 
-func (expr *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (le *LiteralExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.SeriesListValue(api.SeriesList{
-		Series: []api.Timeseries{{Values: expr.Values, TagSet: api.NewTagSet()}},
+		Series: []api.Timeseries{{Values: le.Values, TagSet: api.NewTagSet()}},
 	}), nil
 }
 
@@ -58,8 +58,8 @@ func (lse LiteralSeriesExpression) QueryString() string {
 func (lse LiteralSeriesExpression) Name() string {
 	return "<literal series expression>"
 }
-func (expr *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.SeriesListValue(expr.list), nil
+func (lse *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.SeriesListValue(lse.list), nil
 }
 
 func Test_ScalarExpression(t *testing.T) {

@@ -18,30 +18,30 @@ import (
 	"github.com/square/metrics/api"
 )
 
-type JoinRow struct {
+type Row struct {
 	TagSet api.TagSet       // The tagSet is used to improve performance, or, possibly in the future, for later queries
-	Row    []api.Timeseries // The Row consists of all Timeseries which got collected into this JoinRow
+	Row    []api.Timeseries // The Row consists of all Timeseries which got collected into this Row
 }
 
-type JoinResult struct {
-	Rows []JoinRow
+type Result struct {
+	Rows []Row
 }
 
-// This method takes a partial joinrow, and evaluates the validity of appending `series` to it.
+// This method takes a partial row, and evaluates the validity of appending `series` to it.
 // If this is possible, return the new series and true; otherwise return false for "ok"
-func extendRow(row JoinRow, series api.Timeseries) (JoinRow, bool) {
+func extendRow(row Row, series api.Timeseries) (Row, bool) {
 	for key, newValue := range series.TagSet {
 		oldValue, ok := map[string]string(row.TagSet)[key]
 		if ok && newValue != oldValue {
 			// If this occurs, then the candidate member (series) and the rest of the row are in
 			// conflict about `key`, since they assign it different values. If this occurs, then
 			// it is not possible to assign any key here.
-			return JoinRow{}, false
+			return Row{}, false
 		}
 	}
 	// if this point has been reached, then it is possible to extend the row without conflict
 	newTagSet := api.NewTagSet()
-	result := JoinRow{newTagSet, append(row.Row, series)}
+	result := Row{newTagSet, append(row.Row, series)}
 	for key, newValue := range series.TagSet {
 		newTagSet[key] = newValue
 	}
@@ -52,18 +52,18 @@ func extendRow(row JoinRow, series api.Timeseries) (JoinRow, bool) {
 }
 
 // Join generates a cartesian product of the given series lists, and then returns rows where the tags are matching.
-func Join(lists []api.SeriesList) JoinResult {
+func Join(lists []api.SeriesList) Result {
 	// place an empty row inside the results list first
 	// this row will be used to build up all others
-	emptyRow := JoinRow{api.NewTagSet(), []api.Timeseries{}}
-	results := []JoinRow{emptyRow}
+	emptyRow := Row{api.NewTagSet(), []api.Timeseries{}}
+	results := []Row{emptyRow}
 
 	// The `results` list is given an inductive definition:
 	// at the end of the `i`th iteration of the outer loop,
 	// `results` corresponds to the join of the first `i` seriesLists given as input
 
 	for _, list := range lists {
-		next := []JoinRow{}
+		next := []Row{}
 		// `next` is gradually accumulated into the final join of the first `i` (iteration) seriesLists
 		// results already contains the join of the the first (i-1)th series
 		for _, series := range list.Series {
@@ -86,5 +86,5 @@ func Join(lists []api.SeriesList) JoinResult {
 	// at this stage, iteration has continued over the entire set of lists,
 	// so `results` contains the join of all of the lists.
 
-	return JoinResult{Rows: results}
+	return Result{Rows: results}
 }

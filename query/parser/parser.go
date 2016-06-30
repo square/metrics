@@ -131,7 +131,7 @@ func parseDate(date string, now time.Time) (int64, error) {
 	return -1, errors.New(errorMessage)
 }
 
-type ParserAssert struct {
+type Assert struct {
 	error
 }
 
@@ -143,7 +143,7 @@ func Parse(query string) (commandResult command.Command, finalErr error) {
 		if r == nil {
 			return
 		}
-		if message, ok := r.(ParserAssert); ok {
+		if message, ok := r.(Assert); ok {
 			finalErr = message
 		}
 	}()
@@ -155,10 +155,9 @@ func Parse(query string) (commandResult command.Command, finalErr error) {
 				token:   "",
 				message: customParseError(&p),
 			}})
-		} else {
-			// generic error (should not occur).
-			return nil, AssertionError{"Non-parse error raised"}
 		}
+		// generic error (should not occur).
+		return nil, AssertionError{"Non-parse error raised"}
 	}
 	p.Execute()
 	if len(p.nodeStack) > 0 {
@@ -189,13 +188,13 @@ func (p *Parser) flagSyntaxError(err SyntaxError) {
 func (p *Parser) popNodeInto(target interface{}) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Type().Kind() != reflect.Ptr {
-		panic(ParserAssert{ // Will unwind until it comes to "p.Parse()" which has a recover.
+		panic(Assert{ // Will unwind until it comes to "p.Parse()" which has a recover.
 			fmt.Errorf("[%s] popNodeInto() given a non-pointer target", functionName(1)),
 		})
 	}
 	l := len(p.nodeStack)
 	if l == 0 {
-		panic(ParserAssert{fmt.Errorf("[%s] popNodeInto() on an empty stack", functionName(1))})
+		panic(Assert{fmt.Errorf("[%s] popNodeInto() on an empty stack", functionName(1))})
 	}
 	node := p.nodeStack[l-1]
 	p.nodeStack = p.nodeStack[:l-1]
@@ -204,7 +203,7 @@ func (p *Parser) popNodeInto(target interface{}) {
 	actualType := nodeValue.Type()
 	expectedType := targetValue.Elem().Type()
 	if !actualType.ConvertibleTo(expectedType) {
-		panic(ParserAssert{fmt.Errorf("[%s] popNodeInto() - expected %s, got off the stack %s",
+		panic(Assert{fmt.Errorf("[%s] popNodeInto() - expected %s, got off the stack %s",
 			functionName(1),
 			expectedType.String(),
 			actualType.String()),
@@ -216,13 +215,13 @@ func (p *Parser) popNodeInto(target interface{}) {
 func (p *Parser) peekNodeInto(target interface{}) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Type().Kind() != reflect.Ptr {
-		panic(ParserAssert{
+		panic(Assert{
 			fmt.Errorf("[%s] peekNodeInto() given a non-pointer target", functionName(1)),
 		})
 	}
 	l := len(p.nodeStack)
 	if l == 0 {
-		panic(ParserAssert{fmt.Errorf("[%s] peekNodeInto() on an empty stack", functionName(1))})
+		panic(Assert{fmt.Errorf("[%s] peekNodeInto() on an empty stack", functionName(1))})
 	}
 
 	nodeValue := reflect.ValueOf(p.nodeStack[l-1])
@@ -230,7 +229,7 @@ func (p *Parser) peekNodeInto(target interface{}) {
 	expectedType := targetValue.Elem().Type()
 	actualType := nodeValue.Type()
 	if !actualType.ConvertibleTo(expectedType) {
-		panic(ParserAssert{fmt.Errorf("[%s] peekNodeInto() - expected %s, got off the stack %s",
+		panic(Assert{fmt.Errorf("[%s] peekNodeInto() - expected %s, got off the stack %s",
 			functionName(1),
 			expectedType.String(),
 			actualType.String()),
@@ -723,15 +722,14 @@ func makePrettyLine(parser *Parser, token token32, translations textPositionMap)
 		}
 		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
 		return line, underline
-	} else {
-		// multi-line error - print the firsst line and draw carets under the token until the line finishes.
-		length := lineEnd - lineStart - translations[begin].symbol - 1
-		if length <= 0 {
-			length = 1
-		}
-		underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
-		return line, underline
 	}
+	// multi-line error - print the firsst line and draw carets under the token until the line finishes.
+	length := lineEnd - lineStart - translations[begin].symbol - 1
+	if length <= 0 {
+		length = 1
+	}
+	underline := strings.Repeat(" ", symbolBegin) + strings.Repeat("^", length)
+	return line, underline
 }
 
 func min(x, y int) int {

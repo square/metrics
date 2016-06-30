@@ -123,10 +123,10 @@ func main() {
 type ConversionStatus int
 
 const (
-	Matched ConversionStatus = iota
-	Unmatched
-	ReverseFailed
-	ReverseChanged
+	Matched        ConversionStatus = iota // Matched indicates a metric successfully matched forward and backwards
+	Unmatched                              // Unmatched indicates a metric that could not be matched
+	ReverseFailed                          // ReverseFailed indicates a metric that was matched, but couldn't be reversed
+	ReverseChanged                         // ReverseChanged indicates a metric that was matched and reversed without error, but was changed through the round trip
 )
 
 func ClassifyMetric(metric string, graphiteConverter util.RuleBasedGraphiteConverter) ConversionStatus {

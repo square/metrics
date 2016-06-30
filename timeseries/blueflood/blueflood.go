@@ -126,7 +126,7 @@ func (b *Blueflood) ChooseResolution(requested api.Timerange, lowerBound time.Du
 			return current.Resolution, nil
 		}
 	}
-	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough.", requested)
+	return 0, fmt.Errorf("cannot choose resolution for timerange %+v; available resolutions do not live long enough or are not available soon enough", requested)
 }
 
 // FetchSingleTimeseries fetches a timeseries with the given tagged metric.
@@ -140,7 +140,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	return b.fetchTimeseries(request.Metric, plan, request.Profiler, request.Ctx)
 }
 
-// FetchMultipleRequest fetches multiple timeseries. It requires that the
+// FetchMultipleTimeseries fetches multiple timeseries. It requires that the
 // The resolution is required to be supported (as ensured by ChooseResolution).
 func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Blueflood FetchMultipleTimeseries")()

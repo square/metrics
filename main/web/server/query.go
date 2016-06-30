@@ -199,7 +199,8 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 
 	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
 
-	result := command.CommandResult{}
+	result := command.Result{}
+
 	profiler.Do("Total Execution", func() {
 		result, err = profiledCommand.Execute(context)
 	})
@@ -214,7 +215,7 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 	}, nil
 }
 
-// ErrorHTTP indicates that an error should override the return code.
+// HTTPError indicates that an error should override the return code.
 type HTTPError interface {
 	error
 	ErrorCode() int

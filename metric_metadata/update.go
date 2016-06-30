@@ -17,7 +17,7 @@ package metadata
 
 import "github.com/square/metrics/api"
 
-// UpdateAPI is an interface for updating metric metadata for indexing in MQE.
+// MetricUpdateAPI is an interface for updating metric metadata for indexing in MQE.
 type MetricUpdateAPI interface {
 	// AddMetric adds the metric to the system.
 	AddMetric(metric api.TaggedMetric, context Context) error

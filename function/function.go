@@ -46,8 +46,8 @@ type MetricFunction struct {
 }
 
 // Name returns the MetricFunction's name.
-func (metricFunc MetricFunction) Name() string {
-	return metricFunc.FunctionName
+func (f MetricFunction) Name() string {
+	return f.FunctionName
 }
 
 // Run evaluates the given MetricFunction on its arguments.

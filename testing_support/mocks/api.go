@@ -154,7 +154,7 @@ func (f FakeTimeseriesStorageAPI) FetchSingleTimeseries(request timeseries.Fetch
 
 func (f FakeTimeseriesStorageAPI) FetchMultipleTimeseries(request timeseries.FetchMultipleRequest) (api.SeriesList, error) {
 	defer request.Profiler.Record("Mock FetchMultipleTimeseries")()
-	timeseries := make([]api.Timeseries, 0)
+	timeseries := []api.Timeseries{}
 
 	singleRequests := request.ToSingle()
 	for _, singleRequest := range singleRequests {

@@ -43,7 +43,7 @@ func NewMux(config Config, context command.ExecutionContext, hook Hook) (*http.S
 				metricMetadataAPI: updateAPI,
 			})
 		} else {
-			return nil, fmt.Errorf("HTTP Ingestion is on, but the metadata API does not implement updates.")
+			return nil, fmt.Errorf("HTTP Ingestion is on, but the metadata API does not implement updates")
 		}
 	}
 	httpMux.Handle(

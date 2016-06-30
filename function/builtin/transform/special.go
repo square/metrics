@@ -115,7 +115,7 @@ var ExponentialMovingAverage = function.MakeFunction(
 				weight *= alpha
 				if !math.IsNaN(y) {
 					sum += y
-					weight += 1
+					weight++
 				}
 				values[t] = sum / weight
 			}
