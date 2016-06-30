@@ -27,10 +27,6 @@ type any interface{} // fixes a bug in gopeg
 // * lists
 // * evaluation context nodes
 
-type stringLiteral struct {
-	literal string
-}
-
 // list of literals
 type stringLiteralList struct {
 	literals []string

@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/square/metrics/api"
 	"github.com/square/metrics/main/common"
 	"github.com/square/metrics/util"
 )
@@ -38,23 +37,6 @@ var (
 	metricsFile = flag.String("metrics-file", "", "Location of zlib compressed gob string file.")
 	rulePath    = flag.String("rule-path", "", "Path to directory containing conversion rules.")
 )
-
-// Statistics represents the aggregated result of rules
-// after running through the test file.
-type Statistics struct {
-	perMetric map[api.MetricKey]PerMetricStatistics
-	matched   int // number of matched rows
-	unmatched int // number of unmatched rows
-}
-
-// PerMetricStatistics represents per-metric result of rules
-// after running through the test file.
-type PerMetricStatistics struct {
-	matched          int // number of matched rows
-	reverseSuccess   int // number of reversed entries
-	reverseError     int // number of incorrectly reversed entries.
-	reverseIncorrect int // number of incorrectly reversed entries.
-}
 
 func ReadMetricsFile(file string) ([]string, error) {
 	data, err := ioutil.ReadFile(file)
