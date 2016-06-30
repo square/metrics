@@ -89,3 +89,24 @@ func (m memoizedExpression) Evaluate(context EvaluationContext) (Value, error) {
 func (m memoizedExpression) ExpressionString(mode DescriptionMode) string {
 	return m.Expression.ExpressionString(mode)
 }
+
+////////
+
+type memoizationMap struct {
+	sync.Mutex
+	Map map[contextIdentity]*memoization
+}
+
+func (m *memoizationMap) get(i contextIdentity) *memoization {
+	m.Lock()
+	defer m.Unlock()
+	_, ok := m.Map[i]
+	if !ok {
+		m.Map[i] = newMemo()
+	}
+	return m.Map[i]
+}
+
+func newMemoMap() *memoizationMap {
+	return &memoizationMap{Map: map[contextIdentity]*memoization{}}
+}
