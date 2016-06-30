@@ -83,6 +83,17 @@ func (e EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
 	return e
 }
 
+// WithPredicate duplicates the EvaluationContext but with a new predicate conjunct to it.
+func (e EvaluationContext) WithPredicate(p predicate.Predicate) EvaluationContext {
+	e.Predicate = predicate.AndPredicate{
+		Predicates: []predicate.Predicate{
+			e.Predicate,
+			p,
+		},
+	}
+	return e
+}
+
 // FetchCounter is used to count the number of fetches remaining in a thread-safe manner.
 type FetchCounter struct {
 	count *int32
