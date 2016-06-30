@@ -107,13 +107,12 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 
 	seriesList, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
 		timeseries.FetchMultipleRequest{
-			metrics,
-			timeseries.RequestDetails{
-				context.SampleMethod,
-				context.Timerange,
-				context.Timeout,
-				context.Profiler,
-				context.UserSpecifiableConfig,
+			Metrics: metrics,
+			RequestDetails: timeseries.RequestDetails{
+				SampleMethod: context.SampleMethod,
+				Timerange:    context.Timerange,
+				Ctx:          context.Ctx,
+				Profiler:     context.Profiler,
 			},
 		},
 	)

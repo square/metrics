@@ -27,21 +27,23 @@ import (
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
+
+	netcontext "golang.org/x/net/context"
 )
 
 // ExecutionContext is the context supplied when invoking a command.
 type ExecutionContext struct {
-	TimeseriesStorageAPI  timeseries.StorageAPI            // the backend
-	MetricMetadataAPI     metadata.MetricAPI               // the api
-	FetchLimit            int                              // the maximum number of fetches
-	Timeout               time.Duration                    // optional
-	Registry              function.Registry                // optional
-	SlotLimit             int                              // optional (0 => default 1000)
-	Profiler              *inspect.Profiler                // optional
-	UserSpecifiableConfig timeseries.UserSpecifiableConfig // optional. User tunable parameters for execution.
-	AdditionalConstraints predicate.Predicate              // optional. Additional contrains for describe and select commands
+	TimeseriesStorageAPI  timeseries.StorageAPI // the backend
+	MetricMetadataAPI     metadata.MetricAPI    // the api
+	FetchLimit            int                   // the maximum number of fetches
+	Timeout               time.Duration         // optional
+	Registry              function.Registry     // optional
+	SlotLimit             int                   // optional (0 => default 1000)
+	Profiler              *inspect.Profiler     // optional
+	AdditionalConstraints predicate.Predicate   // optional. Additional contrains for describe and select commands
+
+	Ctx netcontext.Context
 }
 
 type CommandResult struct {
@@ -228,35 +230,37 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 			"Requested number of data points exceeds the configured limit",
 			chosenTimerange.Slots(), slotLimit)
 	}
-	hasTimeout := context.Timeout != 0
-	var timeoutOwner tasks.TimeoutOwner
-	if hasTimeout {
-		timeoutOwner = tasks.NewTimeout(context.Timeout)
+
+	ctx, cancelFunc := context.Ctx, netcontext.CancelFunc(nil)
+
+	if context.Timeout != 0 {
+		ctx, cancelFunc = netcontext.WithTimeout(ctx, context.Timeout)
 	}
+
+	if cancelFunc != nil {
+		// When this function returns, the context's resources will be cleaned up,
+		// just in case something remains open.
+		defer cancelFunc()
+	}
+
 	r := context.Registry
 	if r == nil {
 		r = registry.Default()
 	}
 
-	defer timeoutOwner.Finish() // broadcast the finish - this ensures that the future work is cancelled.
 	evaluationContext := function.EvaluationContext{
-		MetricMetadataAPI:     context.MetricMetadataAPI,
-		FetchLimit:            function.NewFetchCounter(context.FetchLimit),
-		TimeseriesStorageAPI:  context.TimeseriesStorageAPI,
-		Predicate:             predicate.All(cmd.Predicate, context.AdditionalConstraints),
-		SampleMethod:          cmd.Context.SampleMethod,
-		Timerange:             chosenTimerange,
-		Timeout:               timeoutOwner.Timeout(),
-		Registry:              r,
-		Profiler:              context.Profiler,
-		EvaluationNotes:       new(function.EvaluationNotes),
-		UserSpecifiableConfig: context.UserSpecifiableConfig,
-	}
+		MetricMetadataAPI:    context.MetricMetadataAPI,
+		FetchLimit:           function.NewFetchCounter(context.FetchLimit),
+		TimeseriesStorageAPI: context.TimeseriesStorageAPI,
+		Predicate:            predicate.All(cmd.Predicate, context.AdditionalConstraints),
+		SampleMethod:         cmd.Context.SampleMethod,
+		Timerange:            chosenTimerange,
 
-	timeout := (<-chan time.Time)(nil)
-	if hasTimeout {
-		// A nil channel will just block forever
-		timeout = time.After(context.Timeout)
+		Registry:        r,
+		Profiler:        context.Profiler,
+		EvaluationNotes: new(function.EvaluationNotes),
+
+		Ctx: ctx,
 	}
 
 	results := make(chan []function.Value, 1)
@@ -272,9 +276,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (CommandResult, erro
 		results <- result
 	}()
 	select {
-	case <-timeout:
-		return CommandResult{}, function.NewLimitError("Timeout while executing the query.",
-			context.Timeout, context.Timeout)
+	case <-ctx.Done():
+		return CommandResult{}, function.NewLimitError("Timeout while executing the query.", context.Timeout, context.Timeout)
 	case err := <-errors:
 		return CommandResult{}, err
 	case result := <-results:

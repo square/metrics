@@ -29,6 +29,8 @@ import (
 	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 // Blueflood is a timeseries storage API instance.
@@ -135,7 +137,7 @@ func (b *Blueflood) FetchSingleTimeseries(request timeseries.FetchRequest) (api.
 	if err != nil {
 		return api.Timeseries{}, err
 	}
-	return b.fetchTimeseries(request.Metric, plan, request.Profiler, request.Timeout)
+	return b.fetchTimeseries(request.Metric, plan, request.Profiler, request.Ctx)
 }
 
 // FetchMultipleRequest fetches multiple timeseries. It requires that the
@@ -149,11 +151,11 @@ func (b *Blueflood) FetchMultipleTimeseries(request timeseries.FetchMultipleRequ
 
 	singleRequests := request.ToSingle()
 	results := make([]api.Timeseries, len(singleRequests))
-	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, request.Timeout)
+	queue := tasks.NewParallelQueue(b.config.MaxSimultaneousRequests, request.Ctx)
 	for i := range singleRequests {
 		i := i // Captures it in a new local for the closure.
 		queue.Do(func() error {
-			result, err := b.fetchTimeseries(singleRequests[i].Metric, plan, request.Profiler, request.Timeout)
+			result, err := b.fetchTimeseries(singleRequests[i].Metric, plan, request.Profiler, request.Ctx)
 			if err != nil {
 				return err
 			}
@@ -206,8 +208,8 @@ func (b *Blueflood) createPlan(request timeseries.RequestDetails) (fetchPlan, er
 // using several HTTP queries. FetchMultipleTimeseries defers to this method,
 // rather than FetchSingleTimeseries, in order to prevent duplicating work on a
 // per-timeseries basis.
-func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler, timeout *tasks.Timeout) (api.Timeseries, error) {
-	queue := tasks.NewParallelQueue(len(plan.intervals), timeout)
+func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, profiler *inspect.Profiler, ctx context.Context) (api.Timeseries, error) {
+	queue := tasks.NewParallelQueue(len(plan.intervals), ctx)
 	allPoints := []metricPoint{}
 	for resolution, interval := range plan.intervals {
 		resolution, interval := resolution, interval
@@ -219,7 +221,7 @@ func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, pro
 				return err
 			}
 			// Then query it.
-			points, err := b.fetchTimeseriesHTTP(queryURL, timeout)
+			points, err := b.fetchTimeseriesHTTP(queryURL, ctx)
 			if err != nil {
 				return err
 			}
@@ -274,12 +276,12 @@ type httpClient interface {
 }
 
 // fetch fetches from the backend, asynchronously calling performFetch and cancelling on timeout.
-func (b *Blueflood) fetchTimeseriesHTTP(queryURL *url.URL, timeout *tasks.Timeout) ([]metricPoint, error) {
+func (b *Blueflood) fetchTimeseriesHTTP(queryURL *url.URL, ctx context.Context) ([]metricPoint, error) {
 	request, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	request.Cancel = timeout.Done()
+	request.Cancel = ctx.Done()
 	response, err := b.config.HTTPClient.Do(request)
 	if err != nil {
 		return nil, timeseries.FetchError{Code: 500, Message: fmt.Sprintf("error fetching from Blueflood at URL %q: %s", queryURL.String(), err.Error())}

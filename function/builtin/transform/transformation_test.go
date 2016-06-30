@@ -22,6 +22,8 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/testing_support/assert"
+
+	"golang.org/x/net/context"
 )
 
 type literal struct {
@@ -95,7 +97,7 @@ func TestTransformTimeseries(t *testing.T) {
 			TagSet: test.tagSet,
 		}
 		for _, transform := range test.tests {
-			ctx := function.EvaluationContext{Timerange: timerange}
+			ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
 			seriesList := api.SeriesList{
 				Series: []api.Timeseries{series},
 			}
@@ -197,7 +199,7 @@ func TestApplyTransform(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{Timerange: timerange}
+		ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
 		resultValue, err := test.transform.Run(ctx, []function.Expression{listExpression}, function.Groups{})
 		if err != nil {
 			t.Error(err)
@@ -269,7 +271,7 @@ func TestApplyNotes(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes), Timerange: timerange}
+		ctx := function.EvaluationContext{EvaluationNotes: new(function.EvaluationNotes), Timerange: timerange, Ctx: context.Background()}
 		_, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Error(err)
@@ -389,7 +391,7 @@ func TestApplyBound(t *testing.T) {
 		}
 
 		for _, bounderDetails := range bounders {
-			ctx := function.EvaluationContext{}
+			ctx := function.EvaluationContext{Ctx: context.Background()}
 			boundedValue, err := bounderDetails.bounder.Run(ctx, bounderDetails.parameters, function.Groups{})
 			if err != nil {
 				t.Errorf(err.Error())
@@ -416,7 +418,7 @@ func TestApplyBound(t *testing.T) {
 			}
 		}
 	}
-	ctx := function.EvaluationContext{}
+	ctx := function.EvaluationContext{Ctx: context.Background()}
 	if _, err := Bound.Run(ctx, []function.Expression{listExpression, literal{function.ScalarValue(18)}, literal{function.ScalarValue(17)}}, function.Groups{}); err == nil {
 		t.Fatalf("Expected error on invalid bounds")
 	}
@@ -516,7 +518,7 @@ func TestApplyTransformNaN(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		ctx := function.EvaluationContext{Timerange: timerange}
+		ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
 		resultValue, err := test.transform.Run(ctx, test.parameters, function.Groups{})
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("error applying transformation %s", err))
@@ -620,7 +622,7 @@ func TestTransformIdentity(t *testing.T) {
 		for _, transform := range test.tests {
 			result := series
 			for _, fun := range transform.transforms {
-				ctx := function.EvaluationContext{Timerange: timerange}
+				ctx := function.EvaluationContext{Timerange: timerange, Ctx: context.Background()}
 
 				seriesList := api.SeriesList{
 					Series: []api.Timeseries{result},

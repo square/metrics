@@ -24,6 +24,8 @@ import (
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
+
+	"golang.org/x/net/context"
 )
 
 func TestSelectMovingAverage(t *testing.T) {
@@ -109,6 +111,7 @@ func TestSelectMovingAverage(t *testing.T) {
 			TimeseriesStorageAPI: comboAPI,
 			MetricMetadataAPI:    comboAPI,
 			FetchLimit:           100,
+			Ctx:                  context.Background(),
 		}
 		commandObject, err := parser.Parse(test.query)
 		if err != nil {

@@ -31,9 +31,10 @@ import (
 	"github.com/square/metrics/metric_metadata/cached"
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query/command"
-	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 func startServer(config server.Config, context command.ExecutionContext) error {
@@ -105,18 +106,13 @@ func main() {
 		}()
 	}
 
-	//Defaults
-	userConfig := timeseries.UserSpecifiableConfig{
-		IncludeRawData: false,
-	}
-
 	err = startServer(config.Web, command.ExecutionContext{
-		MetricMetadataAPI:     optimizedMetadataAPI,
-		TimeseriesStorageAPI:  blueflood,
-		FetchLimit:            1500,
-		SlotLimit:             5000,
-		Registry:              registry.Default(),
-		UserSpecifiableConfig: userConfig,
+		MetricMetadataAPI:    optimizedMetadataAPI,
+		TimeseriesStorageAPI: blueflood,
+		FetchLimit:           1500,
+		SlotLimit:            5000,
+		Registry:             registry.Default(),
+		Ctx:                  context.Background(),
 	})
 	if err != nil {
 		log.Infof(err.Error())

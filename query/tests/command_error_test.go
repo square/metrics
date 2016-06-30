@@ -24,6 +24,8 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
+
+	"golang.org/x/net/context"
 )
 
 func TestCommandError(t *testing.T) {
@@ -45,6 +47,7 @@ func TestCommandError(t *testing.T) {
 		MetricMetadataAPI:    comboAPI,
 		FetchLimit:           13,
 		Timeout:              100 * time.Millisecond,
+		Ctx:                  context.Background(),
 	}
 	command, err := parser.Parse(`select testmetric + testmetric + testmetric from 0 to 120 resolution 30ms`)
 	if err != nil {

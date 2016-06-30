@@ -28,9 +28,10 @@ import (
 	"github.com/square/metrics/metric_metadata/cassandra"
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
-	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
+
+	"golang.org/x/net/context"
 )
 
 func main() {
@@ -68,18 +69,13 @@ func main() {
 
 	blueflood := blueflood.NewBlueflood(config.Blueflood)
 
-	//Defaults
-	userConfig := timeseries.UserSpecifiableConfig{
-		IncludeRawData: false,
-	}
-
 	executionContext := command.ExecutionContext{
-		MetricMetadataAPI:     cassandraAPI,
-		TimeseriesStorageAPI:  blueflood,
-		FetchLimit:            1500,
-		SlotLimit:             5000,
-		Registry:              registry.Default(),
-		UserSpecifiableConfig: userConfig,
+		MetricMetadataAPI:    cassandraAPI,
+		TimeseriesStorageAPI: blueflood,
+		FetchLimit:           1500,
+		SlotLimit:            5000,
+		Registry:             registry.Default(),
+		Ctx:                  context.Background(),
 	}
 
 	reader := bufio.NewReader(os.Stdin)

@@ -23,6 +23,8 @@ import (
 	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/timeseries"
+
+	"golang.org/x/net/context"
 )
 
 type FakeBackend struct {
@@ -87,6 +89,8 @@ func Test_ScalarExpression(t *testing.T) {
 			SampleMethod:         timeseries.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
+
+			Ctx: context.Background(),
 		})
 
 		if err != nil {
@@ -104,11 +108,10 @@ func Test_ScalarExpression(t *testing.T) {
 func Test_evaluateBinaryOperation(t *testing.T) {
 	emptyContext := function.EvaluationContext{
 		TimeseriesStorageAPI: FakeBackend{},
-		MetricMetadataAPI:    nil,
-		Timerange:            api.Timerange{},
 		SampleMethod:         timeseries.SampleMean,
-		Predicate:            nil,
 		FetchLimit:           function.NewFetchCounter(1000),
+
+		Ctx: context.Background(),
 	}
 	for _, test := range []struct {
 		context              function.EvaluationContext

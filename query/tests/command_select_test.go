@@ -25,6 +25,8 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
+
+	"golang.org/x/net/context"
 )
 
 func TestCommand_Select(t *testing.T) {
@@ -326,6 +328,7 @@ func TestCommand_Select(t *testing.T) {
 			MetricMetadataAPI:    comboAPI,
 			FetchLimit:           1000,
 			Timeout:              100 * time.Millisecond,
+			Ctx:                  context.Background(),
 		})
 		if test.expectError {
 			if err == nil {
@@ -363,6 +366,7 @@ func TestCommand_Select(t *testing.T) {
 		MetricMetadataAPI:    comboAPI,
 		FetchLimit:           3,
 		Timeout:              0,
+		Ctx:                  context.Background(),
 	}
 	_, err = testCommand.Execute(context)
 	if err != nil {
@@ -494,6 +498,7 @@ func TestTag(t *testing.T) {
 			MetricMetadataAPI:    fakeAPI,
 			FetchLimit:           1000,
 			Timeout:              0,
+			Ctx:                  context.Background(),
 		})
 		if err != nil {
 			t.Errorf("Unexpected error while execution: %s", err.Error())

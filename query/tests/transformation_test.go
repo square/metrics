@@ -28,6 +28,8 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/timeseries"
+
+	"golang.org/x/net/context"
 )
 
 type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
@@ -84,6 +86,8 @@ func TestMovingAverage(t *testing.T) {
 			SampleMethod:         timeseries.SampleMean,
 			FetchLimit:           function.NewFetchCounter(1000),
 			Registry:             registry.Default(),
+
+			Ctx: context.Background(),
 		})
 	if err != nil {
 		t.Errorf(err.Error())

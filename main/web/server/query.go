@@ -26,7 +26,6 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/query/predicate"
-	"github.com/square/metrics/timeseries"
 )
 
 type Response struct {
@@ -174,7 +173,6 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 type QueryForm struct {
 	Input       string      `query:"query" json:"query"`     // query to execute.
 	Profile     bool        `query:"profile" json:"profile"` // if true, then profile information will be exposed to the user.
-	IncludeRaw  bool        `query:"include_raw" json:"include_raw"`
 	Constraints *Constraint `query:"-" json:"where"`
 }
 
@@ -200,10 +198,6 @@ func (q queryHandler) process(profiler *inspect.Profiler, parsedForm QueryForm) 
 	}
 
 	profiledCommand := command.NewProfilingCommandWithProfiler(rawCommand, profiler)
-
-	context.UserSpecifiableConfig = timeseries.UserSpecifiableConfig{
-		IncludeRawData: parsedForm.IncludeRaw,
-	}
 
 	result := command.CommandResult{}
 	profiler.Do("Total Execution", func() {
