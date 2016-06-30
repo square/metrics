@@ -59,7 +59,7 @@ func init() {
 		log.InitLogger(&glog.Logger{})
 		log.Infof("Using glog logger")
 	} else {
-		log.InitLogger(&standard.Logger{standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
+		log.InitLogger(&standard.Logger{Logger: standard_log.New(os.Stderr, "", standard_log.LstdFlags)})
 		log.Infof("Using standard logger")
 	}
 }

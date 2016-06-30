@@ -116,7 +116,7 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 		if err != nil {
 			return nil, err
 		}
-		return predicate.NotPredicate{child}, nil
+		return predicate.NotPredicate{Predicate: child}, nil
 	case "all":
 		children := make([]predicate.Predicate, len(c.All))
 		for i, arg := range c.All {
@@ -126,7 +126,7 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 			}
 			children[i] = child
 		}
-		return predicate.AndPredicate{children}, nil
+		return predicate.AndPredicate{Predicates: children}, nil
 	case "any":
 		children := make([]predicate.Predicate, len(c.Any))
 		for i, arg := range c.Any {
@@ -136,7 +136,7 @@ func predicateFromConstraint(c Constraint) (predicate.Predicate, error) {
 			}
 			children[i] = child
 		}
-		return predicate.OrPredicate{children}, nil
+		return predicate.OrPredicate{Predicates: children}, nil
 	case "key_is":
 		if c.KeyIs.Key == "" {
 			return nil, fmt.Errorf(`key is given no value in "key_is" constraint`)

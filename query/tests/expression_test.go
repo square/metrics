@@ -73,7 +73,7 @@ func Test_ScalarExpression(t *testing.T) {
 		expectedSeries []api.Timeseries
 	}{
 		{
-			expression.Scalar{5},
+			expression.Scalar{Value: 5},
 			[]api.Timeseries{
 				{
 					Values: []float64{5.0, 5.0, 5.0, 5.0, 5.0, 5.0},
@@ -126,7 +126,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			emptyContext,
 			"add",
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{},
@@ -134,7 +134,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 			},
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{4, 5, 1},
 						TagSet: api.TagSet{},
@@ -149,14 +149,14 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			emptyContext,
 			"subtract",
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
 					},
 				},
 			},
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{4, 5, 1},
 					},
@@ -170,7 +170,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			emptyContext,
 			"add",
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{
@@ -195,7 +195,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 			},
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{5, 5, 5},
 						TagSet: api.TagSet{
@@ -218,7 +218,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			emptyContext,
 			"add",
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{
@@ -243,7 +243,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 			},
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{2, 2, 2},
 						TagSet: api.TagSet{
@@ -266,7 +266,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			emptyContext,
 			"add",
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{103, 103, 103},
 						TagSet: api.TagSet{
@@ -291,7 +291,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				},
 			},
 			api.SeriesList{
-				[]api.Timeseries{
+				Series: []api.Timeseries{
 					{
 						Values: []float64{1, 2, 3},
 						TagSet: api.TagSet{

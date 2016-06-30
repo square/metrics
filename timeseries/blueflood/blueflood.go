@@ -251,12 +251,12 @@ func (b *Blueflood) fetchTimeseries(metric api.TaggedMetric, plan fetchPlan, pro
 func (b *Blueflood) constructURL(metric api.TaggedMetric, interval api.Interval, sampler sampler, resolution Resolution) (*url.URL, error) {
 	graphiteName, err := b.config.GraphiteMetricConverter.ToGraphiteName(metric)
 	if err != nil {
-		return nil, timeseries.Error{metric, timeseries.InvalidSeriesError, "cannot convert to graphite name"}
+		return nil, timeseries.Error{Metric: metric, Code: timeseries.InvalidSeriesError, Message: "cannot convert to graphite name"}
 	}
 
 	result, err := url.Parse(fmt.Sprintf("%s/v2.0/%s/views/%s", b.config.BaseURL, b.config.TenantID, graphiteName))
 	if err != nil {
-		return nil, timeseries.Error{metric, timeseries.InvalidSeriesError, fmt.Sprintf("cannot generate URL for tagged metric with graphite name %s", graphiteName)}
+		return nil, timeseries.Error{Metric: metric, Code: timeseries.InvalidSeriesError, Message: fmt.Sprintf("cannot generate URL for tagged metric with graphite name %s", graphiteName)}
 	}
 
 	result.RawQuery = url.Values{

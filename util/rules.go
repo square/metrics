@@ -183,8 +183,8 @@ func (rule *Rule) MatchRule(input string) (api.TaggedMetric, bool) {
 		log.Errorf("MatchRule (graphite string => metric name) is returning bad metric: `%s` from input `%s`", interpolatedKey, input)
 	}
 	return api.TaggedMetric{
-		api.MetricKey(interpolatedKey),
-		tagSet,
+		MetricKey: api.MetricKey(interpolatedKey),
+		TagSet:    tagSet,
 	}, true
 }
 

@@ -32,10 +32,10 @@ import (
 
 func TestCommand_Describe(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "west", "env": "production", "host": "a"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "west", "env": "staging", "host": "b"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "east", "env": "production", "host": "c"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{"dc": "east", "env": "staging", "host": "d"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_0", TagSet: api.TagSet{"dc": "west", "env": "production", "host": "a"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_0", TagSet: api.TagSet{"dc": "west", "env": "staging", "host": "b"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_0", TagSet: api.TagSet{"dc": "east", "env": "production", "host": "c"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_0", TagSet: api.TagSet{"dc": "east", "env": "staging", "host": "d"}})
 
 	for _, test := range []struct {
 		query          string
@@ -75,12 +75,12 @@ func TestCommand_Describe(t *testing.T) {
 	testCommand, err := parser.Parse(`describe series_0`)
 	a.CheckError(err)
 	rawResult, err := testCommand.Execute(command.ExecutionContext{
-		TimeseriesStorageAPI:  mocks.FakeTimeseriesStorageAPI{},
-		MetricMetadataAPI:     fakeAPI,
-		FetchLimit:            1000,
-		Timeout:               0,
-		AdditionalConstraints: predicate.ListMatcher{"dc", []string{"west"}},
-		Ctx: context.Background(),
+		TimeseriesStorageAPI: mocks.FakeTimeseriesStorageAPI{},
+		MetricMetadataAPI:    fakeAPI,
+		FetchLimit:           1000,
+		Timeout:              0,
+		Ctx:                  context.Background(),
+		AdditionalConstraints: predicate.ListMatcher{Tag: "dc", Values: []string{"west"}},
 	})
 	a.CheckError(err)
 	a.Eq(rawResult.Body, map[string][]string{"dc": {"west"}, "env": {"production", "staging"}, "host": {"a", "b"}})
@@ -88,10 +88,10 @@ func TestCommand_Describe(t *testing.T) {
 
 func TestCommand_DescribeAll(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_0", api.TagSet{}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_3", api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_0", TagSet: api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_1", TagSet: api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_2", TagSet: api.TagSet{}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_3", TagSet: api.TagSet{}})
 
 	for _, test := range []struct {
 		query          string

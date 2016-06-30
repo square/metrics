@@ -30,9 +30,9 @@ import (
 )
 
 func TestCommand_Select(t *testing.T) {
-	testTimerange, err := api.NewSnappedTimerange(0, 120, 30)
-	if err != nil {
-		t.Fatalf("Error creating timerange for test: %s", err.Error())
+	testTimerange, timerangeErr := api.NewSnappedTimerange(0, 120, 30)
+	if timerangeErr != nil {
+		t.Fatalf("Error creating timerange for test: %s", timerangeErr.Error())
 	}
 
 	comboAPI := mocks.NewComboAPI(
@@ -395,7 +395,7 @@ func TestCommand_Select(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error while parsing")
 	}
-	context.AdditionalConstraints = predicate.ListMatcher{"dc", []string{"east"}}
+	context.AdditionalConstraints = predicate.ListMatcher{Tag: "dc", Values: []string{"east"}}
 	result, err := testCommand.Execute(context)
 	if err != nil {
 		t.Fatalf("expected success but got %s", err.Error())
@@ -412,10 +412,10 @@ func TestCommand_Select(t *testing.T) {
 
 func TestTag(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "west", "env": "production"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "east", "env": "staging"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "west", "env": "production"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_1", TagSet: api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_1", TagSet: api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_2", TagSet: api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_2", TagSet: api.TagSet{"dc": "east", "env": "staging"}})
 
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {

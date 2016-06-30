@@ -28,16 +28,16 @@ import (
 
 func TestQueryNaming(t *testing.T) {
 	fakeAPI := mocks.NewFakeMetricMetadataAPI()
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "west", "env": "production"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_1", api.TagSet{"dc": "east", "env": "staging"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "west", "env": "production"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series_2", api.TagSet{"dc": "east", "env": "staging"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"series-special#characters", api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_1", TagSet: api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_1", TagSet: api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_2", TagSet: api.TagSet{"dc": "west", "env": "production"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series_2", TagSet: api.TagSet{"dc": "east", "env": "staging"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "series-special#characters", TagSet: api.TagSet{"dc": "east", "env": "staging"}})
 
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.bar.", api.TagSet{"qaz": "foo1"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{".foo.bar", api.TagSet{"qaz": "foo1"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"foo.2bar", api.TagSet{"qaz": "foo1"}})
-	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{"_names423.with_.dots_and_und3rsc0r3s", api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "foo.bar.", TagSet: api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: ".foo.bar", TagSet: api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "foo.2bar", TagSet: api.TagSet{"qaz": "foo1"}})
+	fakeAPI.AddPairWithoutGraphite(api.TaggedMetric{MetricKey: "_names423.with_.dots_and_und3rsc0r3s", TagSet: api.TagSet{"qaz": "foo1"}})
 
 	fakeBackend := mocks.FakeTimeseriesStorageAPI{}
 	tests := []struct {

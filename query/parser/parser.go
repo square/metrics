@@ -562,7 +562,7 @@ func (p *Parser) appendCollapseBy(literal string) {
 func (p *Parser) addNotPredicate() {
 	var original predicate.Predicate
 	p.popNodeInto(&original)
-	p.pushNode(predicate.NotPredicate{original})
+	p.pushNode(predicate.NotPredicate{Predicate: original})
 }
 
 func (p *Parser) addOrPredicate() {
@@ -587,7 +587,7 @@ func (p *Parser) addAndPredicate() {
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
-	p.pushNode(expression.Duration{value, duration})
+	p.pushNode(expression.Duration{Literal: value, Duration: duration})
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -598,7 +598,7 @@ func (p *Parser) addDurationNode(value string) {
 
 func (p *Parser) addNumberNode(value string) {
 	parsedValue, err := strconv.ParseFloat(value, 64)
-	p.pushNode(expression.Scalar{parsedValue})
+	p.pushNode(expression.Scalar{Value: parsedValue})
 	if err != nil || math.IsNaN(parsedValue) {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -608,7 +608,7 @@ func (p *Parser) addNumberNode(value string) {
 }
 
 func (p *Parser) addStringNode(value string) {
-	p.pushNode(expression.String{value})
+	p.pushNode(expression.String{Value: value})
 }
 
 // Utility Stack Operations

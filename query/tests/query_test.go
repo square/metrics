@@ -217,7 +217,7 @@ func TestParse_syntaxError(t *testing.T) {
 			t.Errorf("[%s] should have failed to parse", row)
 		} else if _, ok := err.(parser.SyntaxErrors); !ok {
 			t.Logf("[%s] Expected SyntaxErrors, got: %s", row, err.Error())
-			err.Error() // test that it does not panic.
+			_ = err.Error() // test that it does not panic.
 		}
 	}
 }

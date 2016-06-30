@@ -39,7 +39,7 @@ func DropTag(list api.SeriesList, tag string) (api.SeriesList, error) {
 		series[i] = dropTagSeries(list.Series[i], tag)
 	}
 	return api.SeriesList{
-		series,
+		Series: series,
 	}, nil
 }
 
@@ -67,7 +67,7 @@ func SetTag(list api.SeriesList, tag string, value string) (api.SeriesList, erro
 		series[i] = setTagSeries(list.Series[i], tag, value)
 	}
 	return api.SeriesList{
-		series,
+		Series: series,
 	}, nil
 }
 
