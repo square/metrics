@@ -628,9 +628,9 @@ func TestTransformIdentity(t *testing.T) {
 					Series: []api.Timeseries{result},
 				}
 				params := []function.Expression{literal{function.SeriesListValue(seriesList)}}
-				aValue, err := fun.Run(ctx, params, function.Groups{})
-				if err != nil {
-					t.Error(err)
+				aValue, runErr := fun.Run(ctx, params, function.Groups{})
+				if runErr != nil {
+					t.Error(runErr)
 					break
 				}
 				a, convErr := aValue.ToSeriesList(ctx.Timerange())

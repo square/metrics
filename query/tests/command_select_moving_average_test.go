@@ -53,6 +53,7 @@ func TestSelectMovingAverage(t *testing.T) {
 	type test struct {
 		query    string
 		expected map[string][]float64
+		err      bool
 	}
 
 	nnnnn := n
@@ -103,6 +104,37 @@ func TestSelectMovingAverage(t *testing.T) {
 				"nc": {nnnnn, nnnnn, nnnnn},
 			},
 		},
+		// 0 and negative averages
+		{
+			query: "select series_a | transform.moving_average(0ms) from 50 to 70 resolution 10ms",
+			expected: map[string][]float64{
+				"a":  {7, 8, 9},
+				"b":  {4, 3, 1},
+				"c":  {2, 6, 4},
+				"na": {n, n, 1},
+				"nb": {n, n, 4},
+				"nc": {n, n, n},
+			},
+		},
+		{
+			query: "select series_a | transform.exponential_moving_average(0ms) from 50 to 70 resolution 10ms",
+			expected: map[string][]float64{
+				"a":  {7, 8, 9},
+				"b":  {4, 3, 1},
+				"c":  {2, 6, 4},
+				"na": {n, n, 1},
+				"nb": {n, n, 4},
+				"nc": {n, n, n},
+			},
+		},
+		{
+			query: "select series_a | transform.moving_average(-2ms) from 50 to 70 resolution 10ms",
+			err:   true,
+		},
+		{
+			query: "select series_a | transform.exponential_moving_average(-2ms) from 50 to 70 resolution 10ms",
+			err:   true,
+		},
 	}
 
 	for _, test := range tests {
@@ -118,6 +150,12 @@ func TestSelectMovingAverage(t *testing.T) {
 			t.Fatalf("Error parsing command %s: %s", test.query, err.Error())
 		}
 		result, err := commandObject.Execute(context)
+		if test.err {
+			if err == nil {
+				t.Errorf("Expected error evaluating %s; but got none", test.query)
+			}
+			continue
+		}
 		if err != nil {
 			t.Fatalf("Error evaluating %s: %s", test.query, err.Error())
 		}

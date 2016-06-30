@@ -34,6 +34,9 @@ var Timeshift = function.MakeFunction(
 var MovingAverage = function.MakeFunction(
 	"transform.moving_average",
 	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (api.SeriesList, error) {
+		if size < 0 {
+			return api.SeriesList{}, fmt.Errorf("transform.moving_average must be given a non-negative duration")
+		}
 		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
 		limit := int(float64(size)/float64(context.Timerange().Resolution()) + 0.5) // Limit is the number of items to include in the average
 		if limit < 1 {
@@ -86,14 +89,14 @@ var MovingAverage = function.MakeFunction(
 var ExponentialMovingAverage = function.MakeFunction(
 	"transform.exponential_moving_average",
 	func(context function.EvaluationContext, listExpression function.Expression, size time.Duration) (api.SeriesList, error) {
-		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
-		limit := int(float64(size)/float64(context.Timerange().Resolution()) + 0.5) // Limit is the number of items to include in the average
-		if limit < 1 {
-			// At least one value must be included at all times
-			limit = 1
+		if size < 0 {
+			return api.SeriesList{}, fmt.Errorf("transform.exponential_moving_average must be given a non-negative duration")
 		}
+		// Applying a similar trick as did TimeshiftFunction. It fetches data prior to the start of the timerange.
+		scale := float64(size) / float64(context.Timerange().Resolution())
+		extraPoints := int(scale + 0.5)
 		timerange := context.Timerange()
-		newTimerange := timerange.ExtendBefore(time.Duration(limit) * timerange.Resolution())
+		newTimerange := timerange.ExtendBefore(time.Duration(extraPoints) * timerange.Resolution())
 		newContext := context.WithTimerange(newTimerange)
 
 		// The new context has a timerange which is extended beyond the query's.
