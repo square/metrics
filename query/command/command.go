@@ -329,7 +329,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 				}
 				continue
 			}
-			return Result{}, fmt.Errorf("Query %s does not result in a timeseries or scalar.", cmd.Expressions[i].ExpressionString(function.StringQuery))
+			return Result{}, fmt.Errorf("query %s does not result in a timeseries or scalar.", cmd.Expressions[i].ExpressionString(function.StringQuery))
 		}
 
 		return Result{

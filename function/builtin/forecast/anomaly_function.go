@@ -118,7 +118,7 @@ func standardDeviationsFromExpected(correct []float64, estimate []float64) ([]fl
 }
 func periodicStandardDeviationsFromExpected(correct []float64, estimate []float64, period int) ([]float64, error) {
 	if period <= 0 {
-		return nil, fmt.Errorf("Period must be strictly positive")
+		return nil, fmt.Errorf("period must be strictly positive")
 	}
 	if len(correct) != len(estimate) {
 		return nil, fmt.Errorf("to estimate anomaly values, the ground truth and estimate slices must be the same length")

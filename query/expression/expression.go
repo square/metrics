@@ -184,7 +184,8 @@ type AnnotationExpression struct {
 	Annotation string
 }
 
-// AnnotationExpression implements Evaluate rather than ActualEvaluate so that it doesn't cause memoization.
+// Evaluate evalutes the underlying expression without memoization, since its
+// child expression should handle memoization itself.
 func (expr *AnnotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return expr.Expression.Evaluate(context)
 }

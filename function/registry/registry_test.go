@@ -23,7 +23,7 @@ import (
 )
 
 var dummyCompute = func(function.EvaluationContext, []function.Expression, function.Groups) (function.Value, error) {
-	return nil, errors.New("Not implemented")
+	return nil, errors.New("not implemented")
 }
 
 func Test_Registry_Default(t *testing.T) {
