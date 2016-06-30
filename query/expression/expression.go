@@ -35,14 +35,14 @@ type Duration struct {
 	Duration time.Duration
 }
 
-func (expr Duration) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr Duration) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.NewDurationValue(expr.Literal, expr.Duration), nil
 }
 
-func (expr Duration) Name() string {
-	return expr.Literal
-}
-func (expr Duration) QueryString() string {
+func (expr Duration) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization {
+		return fmt.Sprintf("%#v", expr)
+	}
 	return expr.Literal
 }
 
@@ -50,15 +50,14 @@ type Scalar struct {
 	Value float64
 }
 
-func (expr Scalar) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr Scalar) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.Value), nil
 }
 
-func (expr Scalar) Name() string {
-	return fmt.Sprintf("%+v", expr.Value)
-}
-
-func (expr Scalar) QueryString() string {
+func (expr Scalar) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization {
+		return fmt.Sprintf("%#v", expr)
+	}
 	return fmt.Sprintf("%+v", expr.Value)
 }
 
@@ -66,15 +65,14 @@ type String struct {
 	Value string
 }
 
-func (expr String) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr String) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.StringValue(expr.Value), nil
 }
 
-func (expr String) Name() string {
-	return fmt.Sprintf("%q", expr.Value)
-}
-
-func (expr String) QueryString() string {
+func (expr String) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization {
+		return fmt.Sprintf("%#v", expr)
+	}
 	return fmt.Sprintf("%q", expr.Value)
 }
 
@@ -83,12 +81,12 @@ type MetricFetchExpression struct {
 	Predicate  predicate.Predicate
 }
 
-func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
+func (expr *MetricFetchExpression) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	// Merge predicates appropriately
-	p := predicate.All(expr.Predicate, context.Predicate)
+	p := predicate.All(expr.Predicate, context.Predicate())
 
-	metricTagSets, err := context.MetricMetadataAPI.GetAllTags(api.MetricKey(expr.MetricName), metadata.Context{
-		Profiler: context.Profiler,
+	metricTagSets, err := context.MetricMetadataAPI().GetAllTags(api.MetricKey(expr.MetricName), metadata.Context{
+		Profiler: context.Profiler(),
 	})
 
 	if err != nil {
@@ -96,7 +94,7 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	}
 	filtered := applyPredicates(metricTagSets, p)
 
-	if err := context.FetchLimit.Consume(len(filtered)); err != nil {
+	if err := context.FetchLimitConsume(len(filtered)); err != nil {
 		return nil, err
 	}
 
@@ -105,14 +103,14 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 		metrics[i] = api.TaggedMetric{MetricKey: api.MetricKey(expr.MetricName), TagSet: filtered[i]}
 	}
 
-	seriesList, err := context.TimeseriesStorageAPI.FetchMultipleTimeseries(
+	seriesList, err := context.TimeseriesStorageAPI().FetchMultipleTimeseries(
 		timeseries.FetchMultipleRequest{
 			Metrics: metrics,
 			RequestDetails: timeseries.RequestDetails{
-				SampleMethod: context.SampleMethod,
-				Timerange:    context.Timerange,
-				Ctx:          context.Ctx,
-				Profiler:     context.Profiler,
+				SampleMethod: context.SampleMethod(),
+				Timerange:    context.Timerange(),
+				Ctx:          context.Ctx(),
+				Profiler:     context.Profiler(),
 			},
 		},
 	)
@@ -122,14 +120,14 @@ func (expr *MetricFetchExpression) Evaluate(context function.EvaluationContext) 
 	return function.SeriesListValue(seriesList), nil
 }
 
-func (expr *MetricFetchExpression) QueryString() string {
+func (expr *MetricFetchExpression) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization {
+		return fmt.Sprintf("fetch[%q][%s]", expr.MetricName, expr.Predicate.Query())
+	}
 	if expr.Predicate.Query() == "true" {
 		return util.EscapeIdentifier(expr.MetricName)
 	}
 	return fmt.Sprintf("%s[%s]", util.EscapeIdentifier(expr.MetricName), expr.Predicate.Query())
-}
-func (expr *MetricFetchExpression) Name() string {
-	return expr.QueryString()
 }
 
 type FunctionExpression struct {
@@ -139,8 +137,8 @@ type FunctionExpression struct {
 	GroupByCollapses bool
 }
 
-func (expr *FunctionExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
-	fun, ok := context.Registry.GetFunction(expr.FunctionName)
+func (expr *FunctionExpression) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
+	fun, ok := context.RegistryGetFunction(expr.FunctionName)
 	if !ok {
 		return nil, SyntaxError{fmt.Sprintf("no such function %s", expr.FunctionName)}
 	}
@@ -173,24 +171,10 @@ func functionFormatString(argumentStrings []string, f FunctionExpression) string
 	return fmt.Sprintf("%s(%s%s)", f.FunctionName, argumentString, groupString)
 }
 
-func (expr *FunctionExpression) QueryString() string {
+func (expr *FunctionExpression) ExpressionString(mode function.DescriptionMode) string {
 	argumentStrings := []string{}
 	for i := range expr.Arguments {
-		argumentStrings = append(argumentStrings, expr.Arguments[i].QueryString())
-	}
-	return functionFormatString(argumentStrings, *expr)
-}
-
-func (expr *FunctionExpression) Name() string {
-	// TODO: deprecate (and remove) this behavior before it becomes permanent
-	if expr.FunctionName == "transform.alias" && len(expr.Arguments) == 2 {
-		if alias, ok := expr.Arguments[1].(String); ok {
-			return alias.Value
-		}
-	}
-	argumentStrings := []string{}
-	for i := range expr.Arguments {
-		argumentStrings = append(argumentStrings, expr.Arguments[i].Name())
+		argumentStrings = append(argumentStrings, expr.Arguments[i].ExpressionString(mode))
 	}
 	return functionFormatString(argumentStrings, *expr)
 }
@@ -200,16 +184,19 @@ type AnnotationExpression struct {
 	Annotation string
 }
 
+// AnnotationExpression implements Evaluate rather than ActualEvaluate so that it doesn't cause memoization.
 func (expr *AnnotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return expr.Expression.Evaluate(context)
 }
 
-func (expr *AnnotationExpression) QueryString() string {
-	return fmt.Sprintf("%s {%s}", expr.Expression.QueryString(), expr.Annotation)
-}
-
-func (expr *AnnotationExpression) Name() string {
-	return expr.Annotation
+func (expr *AnnotationExpression) ExpressionString(mode function.DescriptionMode) string {
+	if mode == function.StringName {
+		return expr.Annotation
+	}
+	if mode == function.StringMemoization {
+		return expr.Expression.ExpressionString(mode) // annotations can be ignored for memoization purposes since they don't modify their input
+	}
+	return fmt.Sprintf("%s {%s}", expr.Expression.ExpressionString(mode), expr.Annotation)
 }
 
 // Auxiliary functions

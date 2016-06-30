@@ -144,7 +144,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				case contextType:
 					argumentFuncs[i] = provideValue(context)
 				case timerangeType:
-					argumentFuncs[i] = provideValue(context.Timerange)
+					argumentFuncs[i] = provideValue(context.Timerange())
 				case groupsType:
 					argumentFuncs[i] = provideValue(groups)
 				case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:

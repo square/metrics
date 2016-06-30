@@ -24,8 +24,8 @@ import (
 
 var FunctionDrop = function.MakeFunction(
 	"forecast.drop",
-	func(context function.EvaluationContext, original api.SeriesList, dropTime time.Duration) api.SeriesList {
-		lastValue := float64(context.Timerange.Slots()) - dropTime.Seconds()/context.Timerange.Resolution().Seconds()
+	func(timerange api.Timerange, original api.SeriesList, dropTime time.Duration) api.SeriesList {
+		lastValue := float64(timerange.Slots()) - dropTime.Seconds()/timerange.Resolution().Seconds()
 		result := make([]api.Timeseries, len(original.Series))
 		for i, series := range original.Series {
 			values := make([]float64, len(series.Values))

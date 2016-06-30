@@ -242,6 +242,20 @@ func (p *Parser) pushNode(node interface{}) {
 	p.nodeStack = append(p.nodeStack, node)
 }
 
+// pushString is just a type-safe way to push a string
+func (p *Parser) pushString(node string) {
+	p.pushNode(node)
+}
+
+// pushExpression is just a type-safe way to push an expression
+func (p *Parser) pushExpression(node function.Expression) {
+	p.pushNode(node)
+}
+
+func (p *Parser) pushPredicate(node predicate.Predicate) {
+	p.pushNode(node)
+}
+
 // Modification Operations
 // =======================
 // These operations are used by the embedded code snippets in language.peg
@@ -315,10 +329,10 @@ func (p *Parser) addOperatorFunction() {
 	p.popNodeInto(&operatorNode)
 	var left function.Expression
 	p.popNodeInto(&left)
-	p.pushNode(&expression.FunctionExpression{
+	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName: operatorNode.operator,
 		Arguments:    []function.Expression{left, right},
-	})
+	}))
 }
 
 func (p *Parser) addPropertyKey(key string) {
@@ -437,12 +451,12 @@ func (p *Parser) addPipeExpression() {
 	p.popNodeInto(&literal)
 	var expressionNode function.Expression
 	p.popNodeInto(&expressionNode)
-	p.pushNode(&expression.FunctionExpression{
+	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName:     literal,
 		Arguments:        append([]function.Expression{expressionNode}, expressionList...),
 		GroupBy:          groupBy.list,
 		GroupByCollapses: groupBy.collapses,
-	})
+	}))
 }
 
 func (p *Parser) addFunctionInvocation() {
@@ -453,18 +467,18 @@ func (p *Parser) addFunctionInvocation() {
 	var literal string
 	p.popNodeInto(&literal)
 	// user-level error generation here.
-	p.pushNode(&expression.FunctionExpression{
+	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName:     literal,
 		Arguments:        expressionList,
 		GroupBy:          groupBy.list,
 		GroupByCollapses: groupBy.collapses,
-	})
+	}))
 }
 
 func (p *Parser) addAnnotationExpression(annotation string) {
 	var content function.Expression
 	p.popNodeInto(&content)
-	p.pushNode(&expression.AnnotationExpression{
+	p.pushExpression(&expression.AnnotationExpression{
 		Expression: content,
 		Annotation: annotation,
 	})
@@ -475,10 +489,10 @@ func (p *Parser) addMetricExpression() {
 	p.popNodeInto(&predicateNode)
 	var literal string
 	p.popNodeInto(&literal)
-	p.pushNode(&expression.MetricFetchExpression{
+	p.pushExpression(function.Memoize(&expression.MetricFetchExpression{
 		MetricName: literal,
 		Predicate:  predicateNode,
-	})
+	}))
 }
 
 func (p *Parser) addExpressionList() {
@@ -499,7 +513,7 @@ func (p *Parser) addLiteralMatcher() {
 	var tagLiteral *tagLiteral
 
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(predicate.ListMatcher{
+	p.pushPredicate(predicate.ListMatcher{
 		Tag:    tagLiteral.tag,
 		Values: []string{literal},
 	})
@@ -511,7 +525,7 @@ func (p *Parser) addListMatcher() {
 	p.popNodeInto(&stringLiteral)
 	var tagLiteral *tagLiteral
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(predicate.ListMatcher{
+	p.pushPredicate(predicate.ListMatcher{
 		Tag:    tagLiteral.tag,
 		Values: stringLiteral.literals,
 	})
@@ -521,7 +535,7 @@ func (p *Parser) addRegexMatcher() {
 	compiled := p.popRegex()
 	var tagLiteral *tagLiteral
 	p.popNodeInto(&tagLiteral)
-	p.pushNode(predicate.RegexMatcher{
+	p.pushPredicate(predicate.RegexMatcher{
 		Tag:   tagLiteral.tag,
 		Regex: compiled,
 	})
@@ -561,7 +575,7 @@ func (p *Parser) appendCollapseBy(literal string) {
 func (p *Parser) addNotPredicate() {
 	var original predicate.Predicate
 	p.popNodeInto(&original)
-	p.pushNode(predicate.NotPredicate{Predicate: original})
+	p.pushPredicate(predicate.NotPredicate{Predicate: original})
 }
 
 func (p *Parser) addOrPredicate() {
@@ -569,11 +583,11 @@ func (p *Parser) addOrPredicate() {
 	p.popNodeInto(&rightPredicate)
 	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
-	p.pushNode(predicate.Any(leftPredicate, rightPredicate))
+	p.pushPredicate(predicate.Any(leftPredicate, rightPredicate))
 }
 
 func (p *Parser) addNullPredicate() {
-	p.pushNode(predicate.All())
+	p.pushPredicate(predicate.All())
 }
 
 func (p *Parser) addAndPredicate() {
@@ -581,12 +595,12 @@ func (p *Parser) addAndPredicate() {
 	p.popNodeInto(&rightPredicate)
 	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
-	p.pushNode(predicate.All(leftPredicate, rightPredicate))
+	p.pushPredicate(predicate.All(leftPredicate, rightPredicate))
 }
 
 func (p *Parser) addDurationNode(value string) {
 	duration, err := function.StringToDuration(value)
-	p.pushNode(expression.Duration{Literal: value, Duration: duration})
+	p.pushExpression(function.Memoize(expression.Duration{Literal: value, Duration: duration}))
 	if err != nil {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -597,7 +611,7 @@ func (p *Parser) addDurationNode(value string) {
 
 func (p *Parser) addNumberNode(value string) {
 	parsedValue, err := strconv.ParseFloat(value, 64)
-	p.pushNode(expression.Scalar{Value: parsedValue})
+	p.pushExpression(function.Memoize(expression.Scalar{Value: parsedValue}))
 	if err != nil || math.IsNaN(parsedValue) {
 		p.flagSyntaxError(SyntaxError{
 			token:   value,
@@ -607,7 +621,7 @@ func (p *Parser) addNumberNode(value string) {
 }
 
 func (p *Parser) addStringNode(value string) {
-	p.pushNode(expression.String{Value: value})
+	p.pushExpression(function.Memoize(expression.String{Value: value}))
 }
 
 // Utility Stack Operations

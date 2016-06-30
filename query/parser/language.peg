@@ -66,7 +66,7 @@ matchClause <- _ "match" KEY literalString { p.addMatchClause() }
 describeMetrics <- _ "metrics" KEY _ "where" KEY tagName _ "=" literalString { p.makeDescribeMetrics() }
 
 describeSingleStmt <-
-  _ <METRIC_NAME> { p.pushNode(unescapeLiteral(buffer[begin:end])) }
+  _ <METRIC_NAME> { p.pushString(unescapeLiteral(buffer[begin:end])) }
   optionalPredicateClause
   { p.makeDescribe() }
 
@@ -112,7 +112,7 @@ expression_product <-
 add_one_pipe <-
   _ OP_PIPE
   _ <IDENTIFIER>
-  { p.pushNode(unescapeLiteral(buffer[begin:end])) }
+  { p.pushString(unescapeLiteral(buffer[begin:end])) }
   (
     (
     _ PAREN_OPEN
@@ -156,7 +156,7 @@ expression_function  <-
   # func(expr_a, expr_b, expr_c group by column_a, column_b, column_c)
   # a single optional group-by clause.
   _ <IDENTIFIER> {
-    p.pushNode(unescapeLiteral(buffer[begin:end]))
+    p.pushString(unescapeLiteral(buffer[begin:end]))
   }
   _ PAREN_OPEN
     expressionList optionalGroupBy
@@ -166,7 +166,7 @@ expression_function  <-
 
 expression_metric <-
   _ <IDENTIFIER> {
-    p.pushNode(unescapeLiteral(buffer[begin:end]))
+    p.pushString(unescapeLiteral(buffer[begin:end]))
   }
   (_ "[" predicate_1 _ "]" / { p.addNullPredicate() })? {
     p.addMetricExpression()
@@ -227,7 +227,7 @@ tagMatcher <-
   }
 
 literalString <- _ STRING {
-  p.pushNode(unescapeLiteral(buffer[begin:end]))
+  p.pushString(unescapeLiteral(buffer[begin:end]))
 }
 
 literalList <- { p.addLiteralList() }

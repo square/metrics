@@ -15,6 +15,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/square/metrics/api"
@@ -35,8 +36,12 @@ type LiteralExpression struct {
 	Values []float64
 }
 
-func (le LiteralExpression) QueryString() string {
-	return "<literal expression>"
+func (le LiteralExpression) ExpressionString(mode function.DescriptionMode) string {
+	switch mode {
+	case function.StringName:
+		return "<literal expression>"
+	}
+	return fmt.Sprintf("%+v", le)
 }
 func (le LiteralExpression) Name() string {
 	return "<literal expression>"
@@ -52,12 +57,14 @@ type LiteralSeriesExpression struct {
 	list api.SeriesList
 }
 
-func (lse LiteralSeriesExpression) QueryString() string {
-	return "<literal series expression>"
+func (lse LiteralSeriesExpression) ExpressionString(mode function.DescriptionMode) string {
+	switch mode {
+	case function.StringName:
+		return "<literal series expression>"
+	}
+	return fmt.Sprintf("%+v", lse)
 }
-func (lse LiteralSeriesExpression) Name() string {
-	return "<literal series expression>"
-}
+
 func (lse *LiteralSeriesExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.SeriesListValue(lse.list), nil
 }
@@ -83,7 +90,7 @@ func Test_ScalarExpression(t *testing.T) {
 		},
 	} {
 		a := assert.New(t).Contextf("%+v", test)
-		result, err := function.EvaluateToSeriesList(test.expr, function.EvaluationContext{
+		result, err := function.EvaluateToSeriesList(function.Memoize(test.expr), function.EvaluationContextBuilder{
 			TimeseriesStorageAPI: FakeBackend{},
 			Timerange:            timerangeA,
 			SampleMethod:         timeseries.SampleMean,
@@ -91,7 +98,7 @@ func Test_ScalarExpression(t *testing.T) {
 			Registry:             registry.Default(),
 
 			Ctx: context.Background(),
-		})
+		}.Build())
 
 		if err != nil {
 			t.Fatalf("failed to convert number into serieslist")
@@ -106,13 +113,14 @@ func Test_ScalarExpression(t *testing.T) {
 }
 
 func Test_evaluateBinaryOperation(t *testing.T) {
-	emptyContext := function.EvaluationContext{
+	emptyContext := function.EvaluationContextBuilder{
 		TimeseriesStorageAPI: FakeBackend{},
 		SampleMethod:         timeseries.SampleMean,
 		FetchLimit:           function.NewFetchCounter(1000),
 
 		Ctx: context.Background(),
-	}
+	}.Build()
+
 	for _, test := range []struct {
 		context              function.EvaluationContext
 		functionName         string
@@ -321,7 +329,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 			continue
 		}
 
-		result, convErr := value.ToSeriesList(test.context.Timerange)
+		result, convErr := value.ToSeriesList(test.context.Timerange())
 		if convErr != nil {
 			a.EqBool(convErr == nil, test.expectSuccess)
 			continue
@@ -357,7 +365,7 @@ func Test_evaluateBinaryOperation(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Fatalf("got %+v for test %+v", result, test)
+				t.Fatalf("test for binary operator %s:\n\tleft: %+v\n\tright: %+v\n\tgot %+v\n\tcouldn't find %+v", test.functionName, test.left, test.right, result, expectedMember)
 			}
 		}
 

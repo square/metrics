@@ -46,7 +46,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err // TODO: add decoration to describe it's coming from the anomaly function
 			}
-			prediction, convErr := predictionValue.ToSeriesList(context.Timerange)
+			prediction, convErr := predictionValue.ToSeriesList(context.Timerange())
 			if convErr != nil {
 				return nil, convErr.WithContext("in anomaly function - model")
 			}
@@ -54,7 +54,7 @@ func FunctionPeriodicAnomalyMaker(name string, model function.MetricFunction) fu
 			if err != nil {
 				return nil, err
 			}
-			periodSlots := int(period / context.Timerange.Resolution())
+			periodSlots := int(period / context.Timerange().Resolution())
 			// Now we need to match up 'original' and 'prediction'
 			// We'll use a hashmap for now.
 			// TODO: clean this up to hog less memory

@@ -89,6 +89,15 @@ func TestProfilerIntegration(t *testing.T) {
 			query: "select A+A from 0 to 0",
 			expected: map[string]int{
 				"select.Execute":               1,
+				"Mock FetchMultipleTimeseries": 1,
+				"Mock GetAllTags":              1,
+				"Mock FetchSingleTimeseries":   3,
+			},
+		},
+		{
+			query: `select A+A[foo != "blah"] from 0 to 0`,
+			expected: map[string]int{
+				"select.Execute":               1,
 				"Mock FetchMultipleTimeseries": 2,
 				"Mock GetAllTags":              2,
 				"Mock FetchSingleTimeseries":   6,
