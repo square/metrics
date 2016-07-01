@@ -33,28 +33,34 @@ import (
 type EvaluationContextBuilder struct {
 	TimeseriesStorageAPI timeseries.StorageAPI   // Backend to fetch data from
 	MetricMetadataAPI    metadata.MetricAPI      // Api to obtain metadata from
-	Timerange            api.Timerange           // Timerange to fetch data from
+	Registry             Registry                // Registry stores functions
 	SampleMethod         timeseries.SampleMethod // SampleMethod to use when up/downsampling to match the requested resolution
-	Predicate            predicate.Predicate     // Predicate to apply to TagSets prior to fetching
 	FetchLimit           FetchCounter            // A limit on the number of fetches which may be performed
-	Registry             Registry
-	Profiler             *inspect.Profiler // A profiler pointer
-	EvaluationNotes      *EvaluationNotes  // Debug + numerical notes that can be added during evaluation
+	Profiler             *inspect.Profiler       // A profiler pointer
+	EvaluationNotes      *EvaluationNotes        // Debug + numerical notes that can be added during evaluation
 	Ctx                  context.Context
+
+	// These may be changed in sub-contexts while evaluating the query.
+	Timerange api.Timerange       // Timerange to fetch data from
+	Predicate predicate.Predicate // Predicate to apply to TagSets prior to fetching
 }
 
 // Build creates an evaluation context from the provided builder.
 func (builder EvaluationContextBuilder) Build() EvaluationContext {
+	memoMap := newMemoMap()
+	memo := memoMap.get(builder.memoizationIdentity())
 	return EvaluationContext{
-		private:     builder,
-		memoization: newMemo(),
+		private:        builder,
+		memoizationMap: memoMap,
+		memoization:    memo,
 	}
 }
 
 // EvaluationContext holds all information relevant to executing a single query.
 type EvaluationContext struct {
-	private     EvaluationContextBuilder // So that it can't be easily modified from outside this package.
-	memoization *memoization
+	private        EvaluationContextBuilder // So that it can't be easily modified from outside this package.
+	memoizationMap *memoizationMap          // This map stores results of expression evaluations
+	memoization    *memoization             // This map stores memoizations for better sharing between contexts
 }
 
 // TimeseriesStorageAPI returns the underlying timeseries.StorageAPI.
@@ -142,11 +148,25 @@ func (notes *EvaluationNotes) Notes() []string {
 
 // WithTimerange duplicates the EvaluationContext but with a new timerange.
 func (context EvaluationContext) WithTimerange(t api.Timerange) EvaluationContext {
+	if context.private.Timerange == t {
+		// don't reduce sharing if the timerange hasn't changed
+		return context
+	}
 	context.private.Timerange = t
-	context.memoization = newMemo()
+	context.memoization = context.memoizationMap.get(context.private.memoizationIdentity())
 	return context
 }
 
+// WithAdditionalConstraint return a new copy of the evaluation context with a
+// distinct memoization map.
+func (context EvaluationContext) WithAdditionalConstraint(p predicate.Predicate) EvaluationContext {
+	context.private.Predicate = predicate.All(context.private.Predicate, p)
+	context.memoization = context.memoizationMap.get(context.private.memoizationIdentity())
+	return context
+}
+
+// EvaluateMemoized evaluates the given ActualExpression using the memoization
+// map internal to the context.
 func (context EvaluationContext) EvaluateMemoized(expression ActualExpression) (Value, error) {
 	return context.memoization.evaluate(expression, context)
 }
@@ -184,4 +204,22 @@ func (c FetchCounter) Consume(n int) error {
 		return fmt.Errorf("performing fetch of %d additional series brings the total to %d, which exceeds the specified limit %d", n, c.limit-int(remaining), c.limit)
 	}
 	return nil
+}
+
+type contextIdentity struct {
+	Timerange      api.Timerange
+	PredicateQuery string
+}
+
+// memoizationIdentity is used to improve sharing between contexts
+func (builder EvaluationContextBuilder) memoizationIdentity() contextIdentity {
+	timerange := builder.Timerange
+	predicate := "<nil>"
+	if builder.Predicate != nil {
+		predicate = builder.Predicate.Query()
+	}
+	return contextIdentity{
+		Timerange:      timerange,
+		PredicateQuery: predicate,
+	}
 }

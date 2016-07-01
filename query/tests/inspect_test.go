@@ -142,6 +142,24 @@ func TestProfilerIntegration(t *testing.T) {
 				"Mock GetAllMetrics":   1,
 			},
 		},
+		{
+			query: "select transform.timeshift(A, -5m) + transform.timeshift(A, -5m) from 0 to 0",
+			expected: map[string]int{
+				"select.Execute":               1,
+				"Mock FetchMultipleTimeseries": 1,
+				"Mock GetAllTags":              1,
+				"Mock FetchSingleTimeseries":   3,
+			},
+		},
+		{
+			query: "select transform.timeshift(A | transform.timeshift(-3m), -2m) + transform.timeshift(A, -5m) from 0 to 0",
+			expected: map[string]int{
+				"select.Execute":               1,
+				"Mock FetchMultipleTimeseries": 1,
+				"Mock GetAllTags":              1,
+				"Mock FetchSingleTimeseries":   3,
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -177,6 +195,7 @@ func TestProfilerIntegration(t *testing.T) {
 
 		for name, count := range test.expected {
 			if counts[name] != count {
+				t.Errorf("Unexpected problem in query '%s'", test.query)
 				t.Errorf("Expected `%s` to have %d occurrences, but had %d\n", name, count, counts[name])
 				t.Errorf("Expected: %+v\nBut got: %+v\n", test.expected, counts)
 				break
