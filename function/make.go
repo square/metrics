@@ -21,8 +21,6 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
-
-	netcontext "golang.org/x/net/context"
 )
 
 // MakeFunction is a convenient way to use type-safe functions to
@@ -96,10 +94,10 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				return arg
 			}
 
-			subCtx, cancel := netcontext.WithCancel(context.Ctx())
-			defer cancel() // when done, make sure to terminate the subcontext
-			subcontext := context
-			subcontext.private.Ctx = subCtx
+			//subCtx, cancel := netcontext.WithCancel(context.Ctx())
+			//defer cancel() // when done, make sure to terminate the subcontext
+			//subcontext := context
+			//subcontext.private.Ctx = subCtx
 
 			// evalTo takes an expression and a reflect.Type and evaluates to the appropriate type.
 			// If an Expression is requested, it just returns it.
@@ -108,17 +106,17 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				case expressionType:
 					return expression, nil
 				case stringType:
-					return EvaluateToString(expression, subcontext)
+					return EvaluateToString(expression, context)
 				case scalarType:
-					return EvaluateToScalar(expression, subcontext)
+					return EvaluateToScalar(expression, context)
 				case scalarSetType:
-					return EvaluateToScalarSet(expression, subcontext)
+					return EvaluateToScalarSet(expression, context)
 				case durationType:
-					return EvaluateToDuration(expression, subcontext)
+					return EvaluateToDuration(expression, context)
 				case timeseriesType:
-					return EvaluateToSeriesList(expression, subcontext)
+					return EvaluateToSeriesList(expression, context)
 				case valueType:
-					return expression.Evaluate(subcontext)
+					return expression.Evaluate(context)
 				}
 				panic(fmt.Sprintf("Unreachable :: Attempting to evaluate to unknown type %+v", resultType))
 			}
@@ -149,9 +147,9 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				argType := funcType.In(i)
 				switch argType {
 				case contextType:
-					argumentFuncs[i] = provideValue(subcontext)
+					argumentFuncs[i] = provideValue(context)
 				case timerangeType:
-					argumentFuncs[i] = provideValue(subcontext.Timerange())
+					argumentFuncs[i] = provideValue(context.Timerange())
 				case groupsType:
 					argumentFuncs[i] = provideValue(groups)
 				case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
