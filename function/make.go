@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/square/metrics/api"
+
+	netcontext "golang.org/x/net/context"
 )
 
 // MakeFunction is a convenient way to use type-safe functions to
@@ -94,6 +96,11 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				return arg
 			}
 
+			subCtx, cancel := netcontext.WithCancel(context.Ctx())
+			defer cancel() // when done, make sure to terminate the subcontext
+			subcontext := context
+			subcontext.private.Ctx = subCtx
+
 			// evalTo takes an expression and a reflect.Type and evaluates to the appropriate type.
 			// If an Expression is requested, it just returns it.
 			evalTo := func(expression Expression, resultType reflect.Type) (interface{}, error) {
@@ -101,17 +108,17 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				case expressionType:
 					return expression, nil
 				case stringType:
-					return EvaluateToString(expression, context)
+					return EvaluateToString(expression, subcontext)
 				case scalarType:
-					return EvaluateToScalar(expression, context)
+					return EvaluateToScalar(expression, subcontext)
 				case scalarSetType:
-					return EvaluateToScalarSet(expression, context)
+					return EvaluateToScalarSet(expression, subcontext)
 				case durationType:
-					return EvaluateToDuration(expression, context)
+					return EvaluateToDuration(expression, subcontext)
 				case timeseriesType:
-					return EvaluateToSeriesList(expression, context)
+					return EvaluateToSeriesList(expression, subcontext)
 				case valueType:
-					return expression.Evaluate(context)
+					return expression.Evaluate(subcontext)
 				}
 				panic(fmt.Sprintf("Unreachable :: Attempting to evaluate to unknown type %+v", resultType))
 			}
@@ -142,9 +149,9 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				argType := funcType.In(i)
 				switch argType {
 				case contextType:
-					argumentFuncs[i] = provideValue(context)
+					argumentFuncs[i] = provideValue(subcontext)
 				case timerangeType:
-					argumentFuncs[i] = provideValue(context.Timerange())
+					argumentFuncs[i] = provideValue(subcontext.Timerange())
 				case groupsType:
 					argumentFuncs[i] = provideValue(groups)
 				case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
@@ -188,10 +195,19 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 					argValues[i] = reflect.ValueOf(arg)
 				}()
 			}
-			waiter.Wait() // Wait for all the arguments to be evaluated.
+			waitChan := make(chan struct{})
+			go func() {
+				waiter.Wait() // Wait for all the arguments to be evaluated.
+				close(waitChan)
+			}()
 
-			if len(errors) != 0 {
-				return nil, <-errors
+			select {
+			case <-waitChan:
+				// Everything completed okay and without error.
+			case err := <-errors:
+				// An error occurred, so we return it immediately.
+				// The deferred cancel will run as the function returns.
+				return nil, err
 			}
 
 			output := funcValue.Call(argValues)

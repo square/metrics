@@ -520,3 +520,29 @@ func TestTag(t *testing.T) {
 		}
 	}
 }
+
+func TestFastError(t *testing.T) {
+	testTimerange, err := api.NewTimerange(0, 1000, 10)
+	if err != nil {
+		t.Fatalf("unexpected error creating test timerange: %s", err.Error())
+	}
+	comboAPI := mocks.NewComboAPI(testTimerange)
+	cmd, err := parser.Parse("select blah + series_timeout from -30m to now")
+	if err != nil {
+		t.Fatalf("unexpected error parsing test query: %s", err.Error())
+	}
+	now := time.Now()
+	garbage, err := cmd.Execute(command.ExecutionContext{
+		TimeseriesStorageAPI: comboAPI,
+		MetricMetadataAPI:    comboAPI,
+		FetchLimit:           100,
+		Ctx:                  context.Background(),
+	})
+	if err == nil {
+		t.Errorf("expected error from test query but got out %+v", garbage)
+	}
+	if time.Since(now) > time.Millisecond*10 {
+		t.Errorf("expected instantaneous failure, but took %+v time", time.Since(now))
+	}
+
+}
