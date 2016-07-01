@@ -186,13 +186,16 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 				i := i
 				waiter.Add(1)
 				go func() {
-					defer waiter.Done()
 					arg, err := argumentFuncs[i]()
 					if err != nil {
+						// Do NOT .Done() the waiter before sending an error: doing so will
+						// introduce a race between the waiter finishing and the error being
+						// received.
 						errors <- err
 						return
 					}
 					argValues[i] = reflect.ValueOf(arg)
+					waiter.Done()
 				}()
 			}
 			waitChan := make(chan struct{})
