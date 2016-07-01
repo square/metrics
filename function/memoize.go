@@ -99,8 +99,7 @@ type memoizationMap struct {
 func (m *memoizationMap) get(i contextIdentity) *memoization {
 	m.Lock()
 	defer m.Unlock()
-	_, ok := m.Map[i]
-	if !ok {
+	if _, ok := m.Map[i]; !ok {
 		m.Map[i] = newMemo()
 	}
 	return m.Map[i]
