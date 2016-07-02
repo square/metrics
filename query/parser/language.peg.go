@@ -1,11 +1,12 @@
 package parser
 
 import (
-	"github.com/square/metrics/query/command"
 	"fmt"
 	"math"
 	"sort"
 	"strconv"
+
+	"github.com/square/metrics/query/command"
 )
 
 const endSymbol rune = 1114112
