@@ -48,6 +48,10 @@ if [ "$before" != "$after" ]; then
 	echo "Make sure you ran the build file, and that your version of peg is up to date."
 	echo "To get the latest version of peg, run:"
 	echo "> go get -u github.com/pointlander/peg"
+	echo "expected:"
+	echo "======================================================================="
+	echo $(cat ./query/parser/language.peg.go)
+	echo "======================================================================="
 	fails="fails"
 fi
 
