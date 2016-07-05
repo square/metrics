@@ -28,6 +28,10 @@ type Parser Peg {
   // a non-empty list at the finish time means an invalid query is provided.
   errors     []SyntaxError
 
+  // errorContext describes contexts used to build error messages
+  fixedContext string
+  errorContext []string
+
   // programming errors accumulated during the AST traversal.
   // a non-empty list at the finish time implies a programming error.
 
@@ -50,31 +54,50 @@ root <- (selectStmt / describeStmt) _ !.
 
 selectStmt <- _ ("select" KEY)?
   expressionList
+  &{ p.setContext("after expression of select statement") }
   optionalPredicateClause
-  propertyClause {
-    p.makeSelect()
-  }
+  &{ p.setContext("") }
+  propertyClause { p.makeSelect() }
 
 describeStmt <- _ "describe" KEY (describeAllStmt / describeMetrics / describeSingleStmt)
 
-describeAllStmt <- _ "all" KEY optionalMatchClause { p.makeDescribeAll() }
+describeAllStmt <- _ "all" KEY optionalMatchClause { p.makeDescribeAll() } &(_ !. / _ &{p.errorHere(position, `expected end of input after 'describe all' and optional match clause but got %q`, p.after(position) )})
 
 optionalMatchClause <- matchClause / { p.addNullMatchClause() }
 
-matchClause <- _ "match" KEY literalString { p.addMatchClause() }
+matchClause <-
+  _ "match" KEY
+  (literalString / &{ p.errorHere(position, `expected string literal to follow keyword "match"`) })
+  { p.addMatchClause() }
 
-describeMetrics <- _ "metrics" KEY _ "where" KEY tagName _ "=" literalString { p.makeDescribeMetrics() }
+describeMetrics <-
+  _ "metrics" KEY
+  (_ "where" KEY / &{ p.errorHere(position, `expected "where" to follow keyword "metrics" in "describe metrics" command`) })
+  (tagName / &{ p.errorHere(position, `expected tag key to follow keyword "where" in "describe metrics" command`) })
+  (_ "=" / &{ p.errorHere(position, `expected "=" to follow keyword "where" in "describe metrics" command`) })
+  (literalString / &{ p.errorHere(position, `expected string literal to follow "=" in "describe metrics" command`) })
+  { p.makeDescribeMetrics() }
 
 describeSingleStmt <-
-  _ <METRIC_NAME> { p.pushString(unescapeLiteral(buffer[begin:end])) }
+  (_ <METRIC_NAME> { p.pushString(unescapeLiteral(text)) } / &{ p.errorHere(position, `expected metric name to follow "describe" in "describe" command`) })
   optionalPredicateClause
   { p.makeDescribe() }
 
 propertyClause <-
   { p.addEvaluationContext() }
-  ( _ PROPERTY_KEY   { p.addPropertyKey(buffer[begin:end])   }
-    _ PROPERTY_VALUE { p.addPropertyValue(buffer[begin:end]) }
+  (
+    _ PROPERTY_KEY { p.addPropertyKey(text) }
+    (
+      _ PROPERTY_VALUE {
+      p.addPropertyValue(text) }
+      /
+      &{ p.errorHere(position, `expected value to follow key '%s'`, p.contents(tree, tokenIndex-2)) }
+    )
     { p.insertPropertyKeyValue() }
+    /
+    _ "where" KEY &{ p.errorHere(position, `encountered "where" after property clause; "where" blocks must go BEFORE 'from' and 'to' specifiers`) }
+    /
+    _ (!(!.)) &{ p.errorHere(position, `expected key (one of 'from', 'to', 'resolution', or 'sample by') or end of input but got %q following a completed expression`, p.after(position)) }
   )*
   { p.checkPropertyClause() }
 
@@ -85,9 +108,12 @@ optionalPredicateClause <-
 
 expressionList <-
   { p.addExpressionList() }
-  expression_start{ p.appendExpression() }
+  expression_start
+  { p.appendExpression() }
   (
-    _ COMMA expression_start { p.appendExpression() }
+    _ COMMA
+    (expression_start / &{ p.errorHere(position, `expected expression to follow ","`) })
+    { p.appendExpression() }
   )*
 
 expression_start <-
@@ -97,28 +123,34 @@ expression_sum <-
   expression_product
   (
     add_pipe
-    ( _ OP_ADD { p.addOperatorLiteral("+") } / _ OP_SUB { p.addOperatorLiteral("-") })
-    expression_product { p.addOperatorFunction() }
+    (
+      _ OP_ADD { p.addOperatorLiteral("+") } / _ OP_SUB { p.addOperatorLiteral("-") }
+    )
+    (expression_product / &{ p.errorHere(position, `expected expression to follow operator "+" or "-"`) })
+    { p.addOperatorFunction() }
   ) *
 
 expression_product <-
   expression_atom
   (
     add_pipe
-    ( _ OP_DIV { p.addOperatorLiteral("/") } / _ OP_MULT { p.addOperatorLiteral("*") })
-    expression_atom { p.addOperatorFunction() }
+    (
+      _ OP_DIV { p.addOperatorLiteral("/") } / _ OP_MULT { p.addOperatorLiteral("*") }
+    )
+    (expression_atom / &{ p.errorHere(position, `expected expression to follow operator "*" or "/"`) })
+    { p.addOperatorFunction() }
   ) *
 
 add_one_pipe <-
   _ OP_PIPE
-  _ <IDENTIFIER>
-  { p.pushString(unescapeLiteral(buffer[begin:end])) }
+  (_ <IDENTIFIER> / &{ p.errorHere(position, `expected function name to follow pipe "|"`) })
+  { p.pushString(unescapeLiteral(text)) }
   (
     (
-    _ PAREN_OPEN
+      _ PAREN_OPEN
       (expressionList / {p.addExpressionList()}) # argument list
       optionalGroupBy
-    _ PAREN_CLOSE
+      (_ PAREN_CLOSE / &{ p.errorHere(position, `expected ")" to close "(" opened in pipe function call`) })
     ) / {
       p.addExpressionList()
       p.addGroupBy()
@@ -127,7 +159,7 @@ add_one_pipe <-
   { p.addPipeExpression() }
   expression_annotation
 
-add_pipe <- (add_one_pipe) *
+add_pipe <- (add_one_pipe)*
 
 expression_atom <- expression_atom_raw expression_annotation
 
@@ -135,62 +167,77 @@ expression_atom_raw <-
   expression_function /
   expression_metric /
   # #sub-expression
-  _ PAREN_OPEN expression_start _ PAREN_CLOSE /
+  (
+    _ PAREN_OPEN
+    (expression_start / &{ p.errorHere(position, `expected expression to follow "("`) })
+    (_ PAREN_CLOSE / &{ p.errorHere(position, `expected ")" to close "("`) })
+  ) /
   # constant scalar
   _ <DURATION> { p.addDurationNode(text) } /
-  _ <NUMBER> { p.addNumberNode(buffer[begin:end]) } /
-  _ STRING { p.addStringNode(unescapeLiteral(buffer[begin:end])) }
+  _ <NUMBER> { p.addNumberNode(text) } /
+  _ STRING { p.addStringNode(unescapeLiteral(text)) }
 
 expression_annotation_required <-
   _ "{"
   <[^}]*>
-  "}"
-  { p.addAnnotationExpression(buffer[begin:end]) }
+  ("}" / &{ p.errorHere(position, `expected "$CLOSEBRACE$" to close "$OPENBRACE$" opened for annotation`) }) # peg generator doesn't handle `{` or `}` in comments or strings
+  { p.addAnnotationExpression(text) }
 
 expression_annotation <- expression_annotation_required?
 
-optionalGroupBy <- { p.addGroupBy() } (groupByClause / collapseByClause)?
+optionalGroupBy <- (groupByClause / collapseByClause / { p.addGroupBy() })?
 
 expression_function  <-
   # We allow syntax of the form:
   # func(expr_a, expr_b, expr_c group by column_a, column_b, column_c)
   # a single optional group-by clause.
-  _ <IDENTIFIER> {
-    p.pushString(unescapeLiteral(buffer[begin:end]))
-  }
+  _ <IDENTIFIER>
+  { p.pushString(unescapeLiteral(text)) }
   _ PAREN_OPEN
-    expressionList optionalGroupBy
-  _ PAREN_CLOSE {
-    p.addFunctionInvocation()
-  }
+  (expressionList / &{ p.errorHere(position, `expected expression list to follow "(" in function call`) })
+  optionalGroupBy
+  (_ PAREN_CLOSE / &{ p.errorHere(position, `expected ")" to close "(" opened by function call`) })
+  { p.addFunctionInvocation() }
 
 expression_metric <-
-  _ <IDENTIFIER> {
-    p.pushString(unescapeLiteral(buffer[begin:end]))
-  }
-  (_ "[" predicate_1 _ "]" / { p.addNullPredicate() })? {
-    p.addMetricExpression()
-  }
+  _ <IDENTIFIER>
+  { p.pushString(unescapeLiteral(text)) }
+  (
+    _ "["
+    (predicate_1 / &{ p.errorHere(position, `expected predicate to follow "[" after metric`) })
+    (_ "]" / &{ p.errorHere(position, `expected "]" to close "[" opened to apply predicate`) })
+    /
+    { p.addNullPredicate() }
+  )
+  { p.addMetricExpression() }
 
 groupByClause <-
-  _ "group" KEY _ "by" KEY _ <COLUMN_NAME> {
-    p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
-  }
+  _ "group" KEY
+  (_ "by" KEY / &{ p.errorHere(position, `expected keyword "by" to follow keyword "group" in "group by" clause`) })
+  (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "group by" keywords in "group by" clause`) })
+  { p.addGroupBy() }
+  { p.appendGroupTag(unescapeLiteral(text)) }
   (
-    _ COMMA _ <COLUMN_NAME> {
-      p.appendGroupBy(unescapeLiteral(buffer[begin:end]))
-    }
+    _ COMMA
+    (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "," in "group by" clause`) })
+    { p.appendGroupTag(unescapeLiteral(text)) }
   )*
 
 collapseByClause <-
-  _ "collapse" KEY _ "by" KEY _ <COLUMN_NAME> {
-    p.appendCollapseBy(unescapeLiteral(text))
-  }
+  _ "collapse" KEY
+  (_ "by" KEY / &{ p.errorHere(position, `expected keyword "by" to follow keyword "collapse" in "collapse by" clause`) })
+  (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`) })
+  { p.addCollapseBy() }
+  { p.appendGroupTag(unescapeLiteral(text)) }
   (
-  _ COMMA _ <COLUMN_NAME> {p.appendCollapseBy(unescapeLiteral(text))}
+    _ COMMA
+    (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "," in "collapse by" clause`) })
+    { p.appendGroupTag(unescapeLiteral(text)) }
   )*
 
-predicateClause <- _ "where" KEY _ predicate_1
+predicateClause <-
+  _ "where" KEY
+  (_ predicate_1 / &{ p.errorHere(position, `expected predicate to follow "where" keyword`) })
 
 # predicate_X are layered to maintain the order of operations.
 # not
@@ -199,48 +246,84 @@ predicateClause <- _ "where" KEY _ predicate_1
 # ...
 
 predicate_1 <-
-  predicate_2 _ OP_OR predicate_1 { p.addOrPredicate() } /
+  predicate_2
+  _ OP_OR
+  (predicate_1 / &{ p.errorHere(position, `expected predicate to follow "or" operator`) })
+  { p.addOrPredicate() }
+  /
   predicate_2
 
 predicate_2 <-
-  predicate_3 _ OP_AND predicate_2 { p.addAndPredicate() } /
+  predicate_3
+  _ OP_AND
+  (predicate_2 / &{ p.errorHere(position, `expected predicate to follow "and" operator`) })
+  { p.addAndPredicate() }
+  /
   predicate_3
 
 predicate_3 <-
-  _ OP_NOT predicate_3 { p.addNotPredicate() } /
-  _ PAREN_OPEN predicate_1 _ PAREN_CLOSE /
+  _ OP_NOT
+  (predicate_3 / &{ p.errorHere(position, `expected predicate to follow "not" operator`) })
+  { p.addNotPredicate() }
+  /
+  _ PAREN_OPEN
+  (predicate_1 / &{ p.errorHere(position, `expected predicate to follow "("`) })
+  (_ PAREN_CLOSE / &{ p.errorHere(position, `expected ")" to close "(" opened in predicate`) })
+  /
   tagMatcher
 
 tagMatcher <-
-  tagName _ "=" literalString {
-    p.addLiteralMatcher()
-  } /
-  tagName _ "!=" literalString {
-    p.addLiteralMatcher()
-    p.addNotPredicate()
-  } /
-  tagName _ "match" KEY literalString {
-    p.addRegexMatcher()
-  } /
-  tagName _ "in" KEY literalList {
-    p.addListMatcher()
-  }
+  tagName
+  (
+    (
+      _ "="
+      (literalString / &{ p.errorHere(position, `expected string literal to follow "="`) })
+      { p.addLiteralMatcher() }
+    )
+    /
+    (
+      _ "!="
+      (literalString / &{ p.errorHere(position, `expected string literal to follow "!="`) })
+      { p.addLiteralMatcher() }
+      { p.addNotPredicate() }
+    )
+    /
+    (
+      _ "match" KEY
+      (literalString / &{ p.errorHere(position, `expected regex string literal to follow "match"`) })
+      { p.addRegexMatcher() }
+    )
+    /
+    (
+      _ "in" KEY
+      (literalList / &{ p.errorHere(position, `expected string literal list to follow "in" keyword`) })
+      { p.addListMatcher() }
+    )
+    /
+    &{ p.errorHere(position, `expected "=", "!=", "match", or "in" to follow tag key in predicate`) }
+  )
 
-literalString <- _ STRING {
-  p.pushString(unescapeLiteral(buffer[begin:end]))
-}
+literalString <-
+  _ STRING
+  { p.pushString(unescapeLiteral(text)) }
 
-literalList <- { p.addLiteralList() }
+literalList <-
+  { p.addLiteralList() }
   _ PAREN_OPEN
-    literalListString (_ COMMA literalListString)*
-  _ PAREN_CLOSE
+  (literalListString / &{ p.errorHere(position, `expected string literal to follow "(" in literal list`) })
+  (
+    _ COMMA
+    (literalListString / &{ p.errorHere(position, `expected string literal to follow "," in literal list`) })
+  )*
+  (_ PAREN_CLOSE / &{ p.errorHere(position, `expected ")" to close "(" for literal list`) })
 
-literalListString <- _ STRING {
-  p.appendLiteral(unescapeLiteral(buffer[begin:end]))
-}
+literalListString <-
+  _ STRING
+  { p.appendLiteral(unescapeLiteral(text)) }
 
 tagName <-
-  _ <TAG_NAME> { p.addTagLiteral(unescapeLiteral(buffer[begin:end])) }
+  _ <TAG_NAME>
+  { p.addTagLiteral(unescapeLiteral(text)) }
 
 # Lexical Syntax
 # ==============
@@ -250,24 +333,38 @@ COLUMN_NAME <- IDENTIFIER
 METRIC_NAME <- IDENTIFIER
 TAG_NAME <-    IDENTIFIER
 # TODO - may be refactored later.
-IDENTIFIER <-  "`" CHAR* "`" / _ !(KEYWORD KEY) ID_SEGMENT ("." ID_SEGMENT)*
+IDENTIFIER <-
+  "`" CHAR* ("`" / &{ p.errorHere(position, "expected \"`\" to end identifier") })
+  /
+  !(KEYWORD KEY)
+  ID_SEGMENT
+  (
+    "."
+    (ID_SEGMENT / &{ p.errorHere(position, `expected identifier segment to follow "."`) })
+  )*
 # `[[a-z]]?` allows for relative timestamps
-TIMESTAMP <- _ <NUMBER [[a-z]]*> / _ STRING / _ <"now">
-ID_SEGMENT <- _ ID_START ID_CONT*
+TIMESTAMP <- _ <NUMBER [[a-z]]*> / _ STRING / _ <"now"> KEY
+ID_SEGMENT <- ID_START ID_CONT*
 # Hyphen (-) is intentionally omitted, since it makes the language ambiguous.
 # If hyphens are needed, use backticks instead.
 ID_START <-    [a-zA-Z_]
 ID_CONT <-     ID_START / [0-9]
 
 PROPERTY_KEY <-
-  (<"from"> /
-  <"to"> /
-  <"resolution"> /
-  <"sample"> KEY _ "by") KEY
+  (
+    <"from"> KEY
+  /
+    <"to"> KEY
+  /
+    <"resolution"> KEY
+  /
+    <"sample"> KEY
+    (_ "by" KEY / &{ p.errorHere(position, `expected keyword "by" to follow keyword "sample"`) })
+  )
 
 PROPERTY_VALUE <- TIMESTAMP
 
-KEYWORD <-     # List of keywrods used throughout the code.
+KEYWORD <-     # List of keywords used throughout the code.
   "all" /
   "and" /
   "as" /
@@ -282,7 +379,10 @@ KEYWORD <-     # List of keywrods used throughout the code.
   "select" /
   "where" /
   "metrics" /
-  PROPERTY_KEY
+  "from" /
+  "to" /
+  "resolution" /
+  "sample"
 
 # Operators
 # =========
@@ -299,8 +399,11 @@ OP_NOT  <- "not" KEY
 
 QUOTE_SINGLE <- "'"
 QUOTE_DOUBLE <- '"'
-STRING       <- QUOTE_SINGLE <(!QUOTE_SINGLE CHAR)*> QUOTE_SINGLE / QUOTE_DOUBLE <(!QUOTE_DOUBLE CHAR)*> QUOTE_DOUBLE
-CHAR         <- "\\" (ESCAPE_CLASS / QUOTE_SINGLE / QUOTE_DOUBLE) / ! ESCAPE_CLASS .
+STRING       <-
+  QUOTE_SINGLE <(!QUOTE_SINGLE CHAR)*> (QUOTE_SINGLE / &{ p.errorHere(position, `expected "'" to close string`) })
+  /
+  QUOTE_DOUBLE <(!QUOTE_DOUBLE CHAR)*> (QUOTE_DOUBLE / &{ p.errorHere(position, `expected '"' to close string`) })
+CHAR         <- "\\" (ESCAPE_CLASS / QUOTE_SINGLE / (QUOTE_DOUBLE / &{ p.errorHere(position, "expected \"\\\", \"'\", \"`\", or '\"' to follow \"\\\" in string literal") }) ) / ! ESCAPE_CLASS .
 ESCAPE_CLASS <- "`" / "\\"
 
 # Numerical elements
@@ -312,7 +415,7 @@ NUMBER          <- NUMBER_INTEGER NUMBER_FRACTION? NUMBER_EXP?
 NUMBER_NATURAL  <- "0" / [1-9] [0-9]*
 NUMBER_FRACTION <- "." [0-9]+
 NUMBER_INTEGER  <- "-"? NUMBER_NATURAL
-NUMBER_EXP      <- "e" ("+" / "-")? [0-9]+
+NUMBER_EXP      <- "e" ("+" / "-")? ([0-9]+ / &{ p.errorHere(position, `expected exponent`) })
 
 DURATION <- NUMBER [a-z]+ KEY
 
@@ -322,7 +425,7 @@ DURATION <- NUMBER [a-z]+ KEY
 PAREN_OPEN <-  "("
 PAREN_CLOSE <- ")"
 COMMA <-       ","
-_  <-          (SPACE / COMMENT_TRAIL / COMMENT_BLOCK) * # Optional spaces
+_  <-          (SPACE / COMMENT_TRAIL / COMMENT_BLOCK)* # Optional spaces
 COMMENT_TRAIL  <- "--" (!"\n" .)*
 COMMENT_BLOCK  <- "/*" (!"*/" .)* "*/"
 KEY <-         !ID_CONT
