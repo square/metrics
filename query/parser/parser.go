@@ -105,7 +105,6 @@ var dateFormats = []string{
 
 // parseDate converts the given datestring (from one of the allowable formats) into a millisecond offset from the Unix epoch.
 func parseDate(date string, now time.Time) (int64, error) {
-
 	if date == "now" {
 		return now.Unix() * 1000, nil
 	}
@@ -131,13 +130,13 @@ func parseDate(date string, now time.Time) (int64, error) {
 	return -1, errors.New(errorMessage)
 }
 
+// An Assert is a kind of error that occurs due to a bug in the parser itself.
 type Assert struct {
 	error
 }
 
-type ParserError struct {
-	error
-}
+// A ParserError wraps an error raised during parser execution.
+type ParserError error
 
 func Parse(query string) (commandResult command.Command, finalErr error) {
 	p := Parser{Buffer: query}
@@ -152,7 +151,7 @@ func Parse(query string) (commandResult command.Command, finalErr error) {
 			return
 		}
 		if parserError, ok := r.(ParserError); ok {
-			finalErr = parserError.error
+			finalErr = error(parserError)
 			return
 		}
 		panic(r) // Can't catch it
@@ -169,7 +168,7 @@ func Parse(query string) (commandResult command.Command, finalErr error) {
 		// generic error (should not occur).
 		return nil, AssertionError{"Non-parse error raised"}
 	}
-	p.Execute()
+	p.Execute() // Execute runs code associated with the AST.
 	if len(p.nodeStack) > 0 {
 		return nil, AssertionError{"Node stack is not empty"}
 	}
@@ -222,32 +221,6 @@ func (p *Parser) popNodeInto(target interface{}) {
 	targetValue.Elem().Set(nodeValue)
 }
 
-func (p *Parser) peekNodeInto(target interface{}) {
-	targetValue := reflect.ValueOf(target)
-	if targetValue.Type().Kind() != reflect.Ptr {
-		panic(Assert{
-			fmt.Errorf("[%s] peekNodeInto() given a non-pointer target", functionName(1)),
-		})
-	}
-	l := len(p.nodeStack)
-	if l == 0 {
-		panic(Assert{fmt.Errorf("[%s] peekNodeInto() on an empty stack", functionName(1))})
-	}
-
-	nodeValue := reflect.ValueOf(p.nodeStack[l-1])
-
-	expectedType := targetValue.Elem().Type()
-	actualType := nodeValue.Type()
-	if !actualType.ConvertibleTo(expectedType) {
-		panic(Assert{fmt.Errorf("[%s] peekNodeInto() - expected %s, got off the stack %s",
-			functionName(1),
-			expectedType.String(),
-			actualType.String()),
-		})
-	}
-	targetValue.Elem().Set(nodeValue)
-}
-
 func (p *Parser) pushNode(node interface{}) {
 	p.nodeStack = append(p.nodeStack, node)
 }
@@ -262,6 +235,7 @@ func (p *Parser) pushExpression(node function.Expression) {
 	p.pushNode(node)
 }
 
+// pushPredicate is just a type-safe way to push a predicate
 func (p *Parser) pushPredicate(node predicate.Predicate) {
 	p.pushNode(node)
 }
@@ -333,12 +307,12 @@ func (p *Parser) addOperatorLiteral(operator string) {
 
 func (p *Parser) addOperatorFunction() {
 	var right function.Expression
-
 	p.popNodeInto(&right)
 	var operator operatorLiteral
 	p.popNodeInto(&operator)
 	var left function.Expression
 	p.popNodeInto(&left)
+
 	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName: string(operator),
 		Arguments:    []function.Expression{left, right},
@@ -459,6 +433,7 @@ func (p *Parser) addPipeExpression() {
 	p.popNodeInto(&literal)
 	var expressionNode function.Expression
 	p.popNodeInto(&expressionNode)
+
 	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName:     literal,
 		Arguments:        append([]function.Expression{expressionNode}, expressionList...),
@@ -486,6 +461,7 @@ func (p *Parser) addFunctionInvocation() {
 func (p *Parser) addAnnotationExpression(annotation string) {
 	var content function.Expression
 	p.popNodeInto(&content)
+
 	p.pushExpression(&expression.AnnotationExpression{
 		Expression: content,
 		Annotation: annotation,
@@ -497,6 +473,7 @@ func (p *Parser) addMetricExpression() {
 	p.popNodeInto(&predicateNode)
 	var literal string
 	p.popNodeInto(&literal)
+
 	p.pushExpression(function.Memoize(&expression.MetricFetchExpression{
 		MetricName: literal,
 		Predicate:  predicateNode,
@@ -543,6 +520,7 @@ func (p *Parser) addRegexMatcher() {
 	compiled := p.popRegex()
 	var tag tagLiteral
 	p.popNodeInto(&tag)
+
 	p.pushPredicate(predicate.RegexMatcher{
 		Tag:   string(tag),
 		Regex: compiled,
@@ -560,6 +538,7 @@ func (p *Parser) addLiteralList() {
 func (p *Parser) appendLiteral(literal string) {
 	var list []string
 	p.popNodeInto(&list)
+
 	p.pushNode(append(list, literal))
 }
 
@@ -574,6 +553,7 @@ func (p *Parser) addCollapseBy() {
 func (p *Parser) appendGroupTag(literal string) {
 	var groupBy function.Groups
 	p.popNodeInto(&groupBy)
+
 	groupBy.List = append(groupBy.List, literal)
 	p.pushNode(groupBy)
 }
@@ -581,6 +561,7 @@ func (p *Parser) appendGroupTag(literal string) {
 func (p *Parser) addNotPredicate() {
 	var original predicate.Predicate
 	p.popNodeInto(&original)
+
 	p.pushPredicate(predicate.NotPredicate{Predicate: original})
 }
 
@@ -589,6 +570,7 @@ func (p *Parser) addOrPredicate() {
 	p.popNodeInto(&rightPredicate)
 	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
+
 	p.pushPredicate(predicate.Any(leftPredicate, rightPredicate))
 }
 
@@ -601,6 +583,7 @@ func (p *Parser) addAndPredicate() {
 	p.popNodeInto(&rightPredicate)
 	var leftPredicate predicate.Predicate
 	p.popNodeInto(&leftPredicate)
+
 	p.pushPredicate(predicate.All(leftPredicate, rightPredicate))
 }
 
@@ -781,9 +764,7 @@ func (p *Parser) errorHere(position uint32, format string, arguments ...interfac
 	message := fmt.Sprintf("%s: %s%s", p.currentPosition(position), fmt.Sprintf(format, arguments...), additionalContext)
 	message = strings.Replace(message, "$OPENBRACE$", "{", -1)
 	message = strings.Replace(message, "$CLOSEBRACE$", "}", -1)
-	panic(ParserError{
-		error: fmt.Errorf("%s", message),
-	})
+	panic(ParserError(fmt.Errorf("%s", message)))
 }
 
 // contents will give the token contents to the caller
