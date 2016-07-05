@@ -66,6 +66,10 @@ func TestErrorMessages(t *testing.T) {
 			query:   "select foo, bar[host = 'x' and '2']\nfrom -30m to now",
 			message: `line 1, column 31: expected predicate to follow "and" operator`,
 		},
+		{
+			query:   "select foo, bar[host = 'x'] {unclosed annotation\nfrom -30m to now",
+			message: `line 2, column 17: expected "}" to close "{" opened for annotation`,
+		},
 	}
 	for _, test := range tests {
 		_, err := Parse(test.query)
