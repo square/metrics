@@ -45,13 +45,9 @@ after=$(cat ./query/parser/language.peg.go)
 if [ "$before" != "$after" ]; then
 	echo "FAIL: LANGUAGE .GO FILE IS NOT UP TO DATE"
 	echo "THERE WERE CHANGES TO query/parser/language.peg AND NO CHANGES TO query/parser/language.peg.go"
-	echo "Make sure you ran the build file, and that your version of peg is up to date."
+	echo "Make sure you ran the build script, and that your version of peg is up to date."
 	echo "To get the latest version of peg, run:"
 	echo "> go get -u github.com/pointlander/peg"
-	echo "expected:"
-	echo "======================================================================="
-	echo $(cat ./query/parser/language.peg.go)
-	echo "======================================================================="
 	fails="fails"
 fi
 

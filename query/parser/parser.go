@@ -319,65 +319,63 @@ func (p *Parser) makeDescribeMetrics() {
 	var literal string
 	p.popNodeInto(&literal)
 	// Pop of the tag name.
-	var tagLiteral *tagLiteral
-	p.popNodeInto(&tagLiteral)
+	var tag tagLiteral
+	p.popNodeInto(&tag)
 	p.command = &command.DescribeMetricsCommand{
-		TagKey:   tagLiteral.tag,
+		TagKey:   string(tag),
 		TagValue: literal,
 	}
 }
 
 func (p *Parser) addOperatorLiteral(operator string) {
-	p.pushNode(&operatorLiteral{operator})
+	p.pushNode(operatorLiteral(operator))
 }
 
 func (p *Parser) addOperatorFunction() {
 	var right function.Expression
 
 	p.popNodeInto(&right)
-	var operatorNode *operatorLiteral
-	p.popNodeInto(&operatorNode)
+	var operator operatorLiteral
+	p.popNodeInto(&operator)
 	var left function.Expression
 	p.popNodeInto(&left)
 	p.pushExpression(function.Memoize(&expression.FunctionExpression{
-		FunctionName: operatorNode.operator,
+		FunctionName: string(operator),
 		Arguments:    []function.Expression{left, right},
 	}))
 }
 
 func (p *Parser) addPropertyKey(key string) {
-	p.pushNode(&evaluationContextKey{key})
+	p.pushNode(evaluationContextKey(key))
 }
 
 func (p *Parser) addPropertyValue(value string) {
-	p.pushNode(&evaluationContextValue{value})
+	p.pushNode(evaluationContextValue(value))
 }
 
 func (p *Parser) addEvaluationContext() {
 	p.pushNode(&evaluationContextNode{
 		0, 0, 30000,
 		timeseries.SampleMean,
-		make(map[string]bool),
+		make(map[evaluationContextKey]bool),
 	})
 }
 
 func (p *Parser) insertPropertyKeyValue() {
-	var valueNode *evaluationContextValue
-	p.popNodeInto(&valueNode)
-	var keyNode *evaluationContextKey
-	p.popNodeInto(&keyNode)
+	var value evaluationContextValue
+	p.popNodeInto(&value)
+	var key evaluationContextKey
+	p.popNodeInto(&key)
 	var contextNode *evaluationContextNode
 	p.popNodeInto(&contextNode)
 
-	key := keyNode.key
-	value := valueNode.value
 	// Authenticate the validity of the given key and value...
 	// The key must be one of "sample"(by), "from", "to", "resolution"
 
 	// First check that the key has been assigned only once:
 	if contextNode.assigned[key] {
 		p.flagSyntaxError(SyntaxError{
-			token:   key,
+			token:   string(key),
 			message: fmt.Sprintf("Key %s has already been assigned", key),
 		})
 	}
@@ -396,7 +394,7 @@ func (p *Parser) insertPropertyKeyValue() {
 			contextNode.SampleMethod = timeseries.SampleMean
 		default:
 			p.flagSyntaxError(SyntaxError{
-				token:   value,
+				token:   string(value),
 				message: fmt.Sprintf("Expected sampling method 'max', 'min', or 'mean' but got %s", value),
 			})
 		}
@@ -404,9 +402,9 @@ func (p *Parser) insertPropertyKeyValue() {
 		var unix int64
 		var err error
 		now := time.Now()
-		if unix, err = parseDate(value, now); err != nil {
+		if unix, err = parseDate(string(value), now); err != nil {
 			p.flagSyntaxError(SyntaxError{
-				token:   value,
+				token:   string(value),
 				message: err.Error(),
 			})
 		}
@@ -417,19 +415,19 @@ func (p *Parser) insertPropertyKeyValue() {
 		}
 	case "resolution":
 		// The value must be determined to be an int if the key is "resolution".
-		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+		if intValue, err := strconv.ParseInt(string(value), 10, 64); err == nil {
 			contextNode.Resolution = intValue
-		} else if duration, err := function.StringToDuration(value); err == nil {
+		} else if duration, err := function.StringToDuration(string(value)); err == nil {
 			contextNode.Resolution = int64(duration / time.Millisecond)
 		} else {
 			p.flagSyntaxError(SyntaxError{
-				token:   value,
+				token:   string(value),
 				message: fmt.Sprintf("Expected number but parse failed; %s", err.Error()),
 			})
 		}
 	default:
 		p.flagSyntaxError(SyntaxError{
-			token:   key,
+			token:   string(key),
 			message: fmt.Sprintf("Unknown property key %s", key),
 		})
 	}
@@ -440,11 +438,11 @@ func (p *Parser) insertPropertyKeyValue() {
 func (p *Parser) checkPropertyClause() {
 	var contextNode *evaluationContextNode
 	p.popNodeInto(&contextNode)
-	mandatoryFields := []string{"from", "to"} // Sample, resolution is optional (default to mean, 30s)
+	mandatoryFields := []evaluationContextKey{"from", "to"} // Sample, resolution is optional (default to mean, 30s)
 	for _, field := range mandatoryFields {
 		if !contextNode.assigned[field] {
 			p.flagSyntaxError(SyntaxError{
-				token:   field,
+				token:   string(field),
 				message: fmt.Sprintf("Field %s is never assigned in property clause", field),
 			})
 		}
@@ -453,7 +451,7 @@ func (p *Parser) checkPropertyClause() {
 }
 
 func (p *Parser) addPipeExpression() {
-	var groupBy *groupByList
+	var groupBy function.Groups
 	p.popNodeInto(&groupBy)
 	var expressionList []function.Expression
 	p.popNodeInto(&expressionList)
@@ -464,13 +462,13 @@ func (p *Parser) addPipeExpression() {
 	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName:     literal,
 		Arguments:        append([]function.Expression{expressionNode}, expressionList...),
-		GroupBy:          groupBy.list,
-		GroupByCollapses: groupBy.collapses,
+		GroupBy:          groupBy.List,
+		GroupByCollapses: groupBy.Collapses,
 	}))
 }
 
 func (p *Parser) addFunctionInvocation() {
-	var groupBy *groupByList
+	var groupBy function.Groups
 	p.popNodeInto(&groupBy)
 	var expressionList []function.Expression
 	p.popNodeInto(&expressionList)
@@ -480,8 +478,8 @@ func (p *Parser) addFunctionInvocation() {
 	p.pushExpression(function.Memoize(&expression.FunctionExpression{
 		FunctionName:     literal,
 		Arguments:        expressionList,
-		GroupBy:          groupBy.list,
-		GroupByCollapses: groupBy.collapses,
+		GroupBy:          groupBy.List,
+		GroupByCollapses: groupBy.Collapses,
 	}))
 }
 
@@ -520,66 +518,64 @@ func (p *Parser) appendExpression() {
 func (p *Parser) addLiteralMatcher() {
 	var literal string
 	p.popNodeInto(&literal)
-	var tagLiteral *tagLiteral
+	var tag tagLiteral
 
-	p.popNodeInto(&tagLiteral)
+	p.popNodeInto(&tag)
 	p.pushPredicate(predicate.ListMatcher{
-		Tag:    tagLiteral.tag,
+		Tag:    string(tag),
 		Values: []string{literal},
 	})
 }
 
 func (p *Parser) addListMatcher() {
-	var stringLiteral *stringLiteralList
+	var list []string
 
-	p.popNodeInto(&stringLiteral)
-	var tagLiteral *tagLiteral
-	p.popNodeInto(&tagLiteral)
+	p.popNodeInto(&list)
+	var tag tagLiteral
+	p.popNodeInto(&tag)
 	p.pushPredicate(predicate.ListMatcher{
-		Tag:    tagLiteral.tag,
-		Values: stringLiteral.literals,
+		Tag:    string(tag),
+		Values: list,
 	})
 }
 
 func (p *Parser) addRegexMatcher() {
 	compiled := p.popRegex()
-	var tagLiteral *tagLiteral
-	p.popNodeInto(&tagLiteral)
+	var tag tagLiteral
+	p.popNodeInto(&tag)
 	p.pushPredicate(predicate.RegexMatcher{
-		Tag:   tagLiteral.tag,
+		Tag:   string(tag),
 		Regex: compiled,
 	})
 }
 
 func (p *Parser) addTagLiteral(tag string) {
-	p.pushNode(&tagLiteral{tag: tag})
+	p.pushNode(tagLiteral(tag))
 }
 
 func (p *Parser) addLiteralList() {
-	p.pushNode(&stringLiteralList{make([]string, 0)})
+	p.pushNode([]string(nil))
 }
 
 func (p *Parser) appendLiteral(literal string) {
-	var listNode *stringLiteralList
-	p.peekNodeInto(&listNode)
-	listNode.literals = append(listNode.literals, literal)
+	var list []string
+	p.popNodeInto(&list)
+	p.pushNode(append(list, literal))
 }
 
 func (p *Parser) addGroupBy() {
-	p.pushNode(&groupByList{make([]string, 0), false})
+	p.pushNode(function.Groups{})
 }
 
-func (p *Parser) appendGroupBy(literal string) {
-	var listNode *groupByList
-	p.peekNodeInto(&listNode)
-	listNode.list = append(listNode.list, literal)
+func (p *Parser) addCollapseBy() {
+	p.pushNode(function.Groups{Collapses: true})
 }
 
-func (p *Parser) appendCollapseBy(literal string) {
-	var listNode *groupByList
-	p.peekNodeInto(&listNode)
-	listNode.collapses = true // Switch to collapsing mode
-	listNode.list = append(listNode.list, literal)
+func (p *Parser) appendGroupTag(literal string) {
+	var groupBy function.Groups
+	p.popNodeInto(&groupBy)
+	groupBy.List = append(groupBy.List, literal)
+	p.pushNode(groupBy)
 }
 
 func (p *Parser) addNotPredicate() {
@@ -782,8 +778,11 @@ func (p *Parser) errorHere(position uint32, format string, arguments ...interfac
 	if len(p.fixedContext) > 0 {
 		additionalContext += " " + p.fixedContext
 	}
+	message := fmt.Sprintf("%s: %s%s", p.currentPosition(position), fmt.Sprintf(format, arguments...), additionalContext)
+	message = strings.Replace(message, "$OPENBRACE$", "{", -1)
+	message = strings.Replace(message, "$CLOSEBRACE$", "}", -1)
 	panic(ParserError{
-		error: fmt.Errorf("%s: %s%s", p.currentPosition(position), fmt.Sprintf(format, arguments...), additionalContext),
+		error: fmt.Errorf("%s", message),
 	})
 }
 

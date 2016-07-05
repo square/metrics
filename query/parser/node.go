@@ -27,41 +27,23 @@ type any interface{} // fixes a bug in gopeg
 // * lists
 // * evaluation context nodes
 
-// list of literals
-type stringLiteralList struct {
-	literals []string
-}
-
 // single tag
-type tagLiteral struct {
-	tag string
-}
+type tagLiteral string
 
 // a single operator
-type operatorLiteral struct {
-	operator string
-}
-
-type groupByList struct {
-	list      []string
-	collapses bool
-}
+type operatorLiteral string
 
 // evaluationContextKey represents a key (from, to, sampleby) for the evaluation context.
-type evaluationContextKey struct {
-	key string
-}
+type evaluationContextKey string
 
 // evaluationContextValue represents a value (date, samplingmode, etc.) for the evaluation context.
-type evaluationContextValue struct {
-	value string
-}
+type evaluationContextValue string
 
 // evaluationContextMap represents a collection of key-value pairs that form the evaluation context.
 type evaluationContextNode struct {
-	Start        int64                   // Start of data timerange
-	End          int64                   // End of data timerange
-	Resolution   int64                   // Resolution of data timerange
-	SampleMethod timeseries.SampleMethod // to use when up/downsampling to match requested resolution
-	assigned     map[string]bool         // a map for knowing which elements of the context have been assigned
+	Start        int64                         // Start of data timerange
+	End          int64                         // End of data timerange
+	Resolution   int64                         // Resolution of data timerange
+	SampleMethod timeseries.SampleMethod       // to use when up/downsampling to match requested resolution
+	assigned     map[evaluationContextKey]bool // a map for knowing which elements of the context have been assigned
 }

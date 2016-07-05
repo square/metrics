@@ -91,7 +91,7 @@ propertyClause <-
       _ PROPERTY_VALUE {
       p.addPropertyValue(text) }
       /
-      &{ p.errorHere(position, `expected value to follow key '%s'`, p.contents(tree, tokenIndex-2)   ) }
+      &{ p.errorHere(position, `expected value to follow key '%s'`, p.contents(tree, tokenIndex-2)) }
     )
     { p.insertPropertyKeyValue() }
     /
@@ -180,12 +180,12 @@ expression_atom_raw <-
 expression_annotation_required <-
   _ "{"
   <[^}]*>
-  ("}" / &{ p.errorHere(position, `expected "%CLOSEBRACE%" to close "%OPENBRACE%" opened for annotation`) })
+  ("}" / &{ p.errorHere(position, `expected "$CLOSEBRACE$" to close "$OPENBRACE$" opened for annotation`) }) # peg generator doesn't handle `{` or `}` in comments or strings
   { p.addAnnotationExpression(text) }
 
 expression_annotation <- expression_annotation_required?
 
-optionalGroupBy <- { p.addGroupBy() } (groupByClause / collapseByClause)?
+optionalGroupBy <- (groupByClause / collapseByClause / { p.addGroupBy() })?
 
 expression_function  <-
   # We allow syntax of the form:
@@ -215,22 +215,24 @@ groupByClause <-
   _ "group" KEY
   (_ "by" KEY / &{ p.errorHere(position, `expected keyword "by" to follow keyword "group" in "group by" clause`) })
   (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "group by" keywords in "group by" clause`) })
-  { p.appendGroupBy(unescapeLiteral(text)) }
+  { p.addGroupBy() }
+  { p.appendGroupTag(unescapeLiteral(text)) }
   (
     _ COMMA
     (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "," in "group by" clause`) })
-    { p.appendGroupBy(unescapeLiteral(text)) }
+    { p.appendGroupTag(unescapeLiteral(text)) }
   )*
 
 collapseByClause <-
   _ "collapse" KEY
   (_ "by" KEY / &{ p.errorHere(position, `expected keyword "by" to follow keyword "collapse" in "collapse by" clause`) })
   (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "collapse by" keywords in "collapse by" clause`) })
-  { p.appendCollapseBy(unescapeLiteral(text)) }
+  { p.addCollapseBy() }
+  { p.appendGroupTag(unescapeLiteral(text)) }
   (
     _ COMMA
     (_ <COLUMN_NAME> / &{ p.errorHere(position, `expected tag key identifier to follow "," in "collapse by" clause`) })
-    { p.appendCollapseBy(unescapeLiteral(text)) }
+    { p.appendGroupTag(unescapeLiteral(text)) }
   )*
 
 predicateClause <-
