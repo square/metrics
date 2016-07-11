@@ -1,7 +1,7 @@
 [![license](https://img.shields.io/badge/license-apache_2.0-red.svg?style=flat)](https://raw.githubusercontent.com/square/metrics/master/LICENSE)
 [![Build Status](https://travis-ci.org/square/metrics.svg?branch=master)](https://travis-ci.org/square/metrics)
 
-#### Metrics Query Engine
+#### Metrics Query Engine [(Version 1.0)](https://github.com/square/metrics/releases/tag/v1.0)
 
 ```
 go get "github.com/square/metrics"
