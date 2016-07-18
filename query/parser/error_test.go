@@ -75,8 +75,8 @@ func TestErrorMessages(t *testing.T) {
 			message: `line 1, column 7: expected expression to start 'select' statement`,
 		},
 		{
-			query: "from -330m to now select cpu",
-			message: `line 1, column 1: expected expression to start 'select' statement`
+			query:   "from -330m to now select cpu",
+			message: `line 1, column 1: expected expression to start 'select' statement`,
 		},
 	}
 	for _, test := range tests {
