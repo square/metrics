@@ -50,10 +50,10 @@ type Parser Peg {
 # Hierarchical Syntax
 # ===================
 
-root <- (selectStmt / describeStmt) _ !.
+root <- (describeStmt / selectStmt) _ !.
 
 selectStmt <- _ ("select" KEY)?
-  expressionList
+  (expressionList / &{ p.errorHere(position, "expected expression to start 'select' statement") })
   &{ p.setContext("after expression of select statement") }
   optionalPredicateClause
   &{ p.setContext("") }
