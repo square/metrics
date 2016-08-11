@@ -413,10 +413,13 @@ function Autocom(input) {
 		} else {
 			tooltipState.active = false;
 		}
-		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress;
+		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress || input != document.activeElement;
 	}
 	var refreshStateCache = null;
 	var computeRefreshCacheState = function() {
+		if (input != document.activeElement) {
+			return "unfocused";
+		}
 		return tooltipState.active + "." + tooltipState.index + "." + input.selectionStart + "," + input.selectionEnd + ":" + input.value;
 	}
 	var refresh = function() {
