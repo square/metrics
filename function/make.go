@@ -28,8 +28,8 @@ type OptionName int
 
 const (
 	InvalidOption OptionName = iota // InvalidOption represents an invalid option
-	WidenBy                         // WidenBy indicates that the given duration Argument index, or the number of Slots should be used to extend the timerange in the query
-	ShiftBy                         // ShiftBy acts as WidenBy, but with opposite sign
+	WidenBy                         // WidenBy indicates that the given duration Argument index, or the number of Slots should be used to extend the timerange in the query into the past by the given amount.
+	ShiftBy                         // ShiftBy indicates that the given duration Argument index, or the number of Slots should be used to shift the timerange in the query (positive is forward in time into the future, negative is backward in time to the past)
 )
 
 // String makes the option name human-readable.
