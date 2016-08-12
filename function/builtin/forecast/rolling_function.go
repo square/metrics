@@ -63,6 +63,7 @@ var FunctionRollingMultiplicativeHoltWinters = function.MakeFunction(
 
 		return result, nil
 	},
+	function.Option{Name: "WidenBy", Value: function.Argument(5)},
 )
 
 // FunctionRollingSeasonal is a forecasting MetricFunction that performs the rolling seasonal estimation.
@@ -104,6 +105,7 @@ var FunctionRollingSeasonal = function.MakeFunction(
 
 		return result, nil
 	},
+	function.Option{Name: "WidenBy", Value: function.Argument(3)},
 )
 
 // FunctionLinear forecasts with a simple linear regression.
@@ -140,4 +142,5 @@ var FunctionLinear = function.MakeFunction(
 
 		return result, nil
 	},
+	function.Option{Name: "WidenBy", Value: function.Argument(1)},
 )

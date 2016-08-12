@@ -23,9 +23,17 @@ import (
 	"github.com/square/metrics/api"
 )
 
+type Option struct {
+	Name  string
+	Value interface{}
+}
+
+type Argument int
+type Slot int
+
 // MakeFunction is a convenient way to use type-safe functions to
 // construct MetricFunctions without manually checking parameters.
-func MakeFunction(name string, function interface{}) MetricFunction {
+func MakeFunction(name string, function interface{}, options ...Option) MetricFunction {
 	funcValue := reflect.ValueOf(function)
 	if funcValue.Kind() != reflect.Func {
 		panic("MakeFunction expects a function as input.")
@@ -74,7 +82,7 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 	// The function has been checked and inspected.
 	// Now, generate the corresponding MetricFunction.
 
-	return MetricFunction{
+	resultFunction := MetricFunction{
 		FunctionName:  name,
 		MinArguments:  requiredArgumentCount,
 		MaxArguments:  requiredArgumentCount + optionalArgumentCount,
@@ -215,6 +223,49 @@ func MakeFunction(name string, function interface{}) MetricFunction {
 			}
 		},
 	}
+
+	for _, option := range options {
+		// TODO: check there aren't multiple conflicting values
+		if option.Name == "WidenBy" || option.Name == "ShiftBy" {
+			sign := -1
+			if option.Name == "ShiftBy" {
+				sign = 1
+			}
+			switch value := option.Value.(type) {
+			case Argument:
+				resultFunction.Widen = func(widen WidestMode, arguments []Expression) time.Time {
+					result := widen.Current
+					if int(value) >= len(arguments) {
+						return result
+					}
+					literalInterface, ok := arguments[int(value)].(LiteralExpression)
+					if !ok {
+						return result
+					}
+					literalValue := literalInterface.Literal()
+					if literalValue == nil {
+						return result
+					}
+					duration, ok := literalValue.(time.Duration)
+					if !ok {
+						return result
+					}
+					widen.AddTime(widen.Current.Add(time.Duration(sign) * duration))
+					if option.Name == "ShiftBy" {
+						return result.Add(duration)
+					}
+					return result
+				}
+			case Slot:
+				resultFunction.Widen = func(widen WidestMode, arguments []Expression) time.Time {
+					widen.AddTime(widen.Current.Add(-widen.Resolution))
+					return widen.Current
+				}
+			}
+		}
+	}
+
+	return resultFunction
 }
 
 var stringType = reflect.TypeOf("")

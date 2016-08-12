@@ -32,8 +32,7 @@ import (
 var fixedNow = time.Now().Round(30 * time.Second)
 var fullResolutionCutoff = fixedNow.Add(-24 * time.Hour)
 
-type testResolutionStorage struct {
-}
+type testResolutionStorage struct{}
 
 func (t testResolutionStorage) ChooseResolution(requested api.Timerange, lowerBound time.Duration) (time.Duration, error) {
 	if requested.Start().Before(fullResolutionCutoff) {
@@ -77,12 +76,17 @@ func relative(format string, durations ...time.Duration) string {
 }
 
 func TestResolutionEdge(t *testing.T) {
-	queries := []string{
-		relative(`select foo from '%s' to '%s'`, -24*time.Hour, 0),
-		relative(`select foo from '%s' to '%s'`, -24*time.Hour-time.Minute, 0),
-		`select foo | transform.timeshift(-5m) from -1d to now`,
-		`select foo | transform.moving_average(5m) from -1d to now`,
-		`select foo | forecast.linear(5m) from -1d to now`,
+	queries := map[string]time.Duration{
+		relative(`select foo from '%s' to '%s'`, -24*time.Hour, 0):                            30 * time.Second,
+		relative(`select foo from '%s' to '%s'`, -24*time.Hour-time.Minute, 0):                5 * time.Minute,
+		`select foo | transform.timeshift(-5m) from -1d to now`:                               5 * time.Minute,
+		`select bar + transform.timeshift(foo, -5m) from -1d to now`:                          5 * time.Minute,
+		`select foo | transform.moving_average(5m) from -1d to now`:                           5 * time.Minute,
+		`select foo | transform.moving_average(5m) | transform.timeshift(5m) from -1d to now`: 30 * time.Second,
+		`select foo | forecast.linear(5m) from -1d to now`:                                    5 * time.Minute,
+		`select bar, foo | forecast.linear(5m) from -1d to now`:                               5 * time.Minute,
+		`select bar + foo, foo | forecast.linear(5m) from -1d to now`:                         5 * time.Minute,
+		`select foo | forecast.linear(5m) from -23h to now`:                                   30 * time.Second,
 	}
 	timerange, err := api.NewSnappedTimerange(300000000, 300000000, 30000)
 	if err != nil {
@@ -91,14 +95,15 @@ func TestResolutionEdge(t *testing.T) {
 	combo := mocks.NewComboAPI(
 		timerange,
 		api.Timeseries{TagSet: api.TagSet{"metric": "foo"}, Values: []float64{math.NaN()}},
+		api.Timeseries{TagSet: api.TagSet{"metric": "bar"}, Values: []float64{math.NaN()}},
 	)
-	for _, query := range queries {
+	for query, expectedResolution := range queries {
 		parsed, err := parser.Parse(query)
 		if err != nil {
 			t.Errorf("parsing error for query %q: %s", query, err.Error())
 			continue
 		}
-		_, err = parsed.Execute(command.ExecutionContext{
+		result, err := parsed.Execute(command.ExecutionContext{
 			TimeseriesStorageAPI: testResolutionStorage{},
 			MetricMetadataAPI:    combo,
 			FetchLimit:           1000,
@@ -107,6 +112,10 @@ func TestResolutionEdge(t *testing.T) {
 		})
 		if err != nil {
 			t.Errorf("unexpected error executing query %q: %s", query, err.Error())
+			continue
+		}
+		if chosenResolution := result.Metadata["resolution"].(time.Duration); chosenResolution != expectedResolution {
+			t.Errorf("expected query %q to use resolution %v but got %v", query, expectedResolution, chosenResolution)
 		}
 	}
 }

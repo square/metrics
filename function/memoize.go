@@ -53,7 +53,7 @@ func (m *memoization) evaluate(e ActualExpression, context EvaluationContext) (V
 		return e.ActualEvaluate(context)
 	}
 	m.Lock()
-	memoIdentity := e.ExpressionString(StringMemoization)
+	memoIdentity := e.ExpressionDescription(StringMemoization)
 	ptr, ok := m.memoized[memoIdentity]
 	if !ok {
 		ptr = new(memoized)
@@ -80,14 +80,23 @@ func Memoize(expression ActualExpression) Expression {
 	return memoizedExpression{Expression: expression}
 }
 
+// Literal exposes the underlying Expression's literal
+func (m memoizedExpression) Literal() interface{} {
+	literalExpression, ok := m.Expression.(LiteralExpression)
+	if !ok {
+		return nil
+	}
+	return literalExpression.Literal()
+}
+
 // Evaluate calls EvaluateMemoized on the underlying expression.
 func (m memoizedExpression) Evaluate(context EvaluationContext) (Value, error) {
 	return context.EvaluateMemoized(m.Expression)
 }
 
-// ExpressionString behaves identically to the underlying expression
-func (m memoizedExpression) ExpressionString(mode DescriptionMode) string {
-	return m.Expression.ExpressionString(mode)
+// ExpressionDescription behaves identically to the underlying expression
+func (m memoizedExpression) ExpressionDescription(mode DescriptionMode) string {
+	return m.Expression.ExpressionDescription(mode)
 }
 
 // memoization map holds a collection of memoization points.
