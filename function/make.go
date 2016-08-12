@@ -36,23 +36,23 @@ type Slot int
 func MakeFunction(name string, function interface{}, options ...Option) MetricFunction {
 	funcValue := reflect.ValueOf(function)
 	if funcValue.Kind() != reflect.Func {
-		panic("MakeFunction expects a function as input.")
+		panic(fmt.Sprintf("MakeFunction for function `%s` expects a function as second parameter.", name))
 	}
 	funcType := funcValue.Type()
 	if funcType.IsVariadic() {
-		panic("MakeFunction's argument cannot be variadic.")
+		panic(fmt.Sprintf("MakeFunction for function `%s`'s arguments cannot be variadic.", name))
 	}
 	if funcType.NumOut() == 0 {
-		panic("MakeFunction's argument function must return a value.")
+		panic(fmt.Sprintf("MakeFunction for function `%s`'s argument function must return a value.", name))
 	}
 	if funcType.NumOut() > 2 {
-		panic("MakeFunction's argument function must return at most two values.")
+		panic(fmt.Sprintf("MakeFunction for function `%s`'s argument function must return at most two values.", name))
 	}
 	if !funcType.Out(0).ConvertibleTo(valueType) && funcType.Out(0) != timeseriesType {
-		panic("MakeFunction's argument function's first return type must be convertible to `function.Value`.")
+		panic(fmt.Sprintf("MakeFunction for function `%s`'s first return type must be convertible to `function.Value`.", name))
 	}
 	if funcType.NumOut() == 2 && !funcType.Out(1).ConvertibleTo(errorType) {
-		panic("MakeFunction's argument function's second return type must convertible be `error`.")
+		panic(fmt.Sprintf("MakeFunction for function `%s`'s second return type must convertible be `error`.", name))
 	}
 
 	requiredArgumentCount := 0
@@ -69,14 +69,14 @@ func MakeFunction(name string, function interface{}, options ...Option) MetricFu
 		case stringType, scalarType, scalarSetType, durationType, timeseriesType, valueType, expressionType:
 			// An ordinary argument.
 			if optionalArgumentCount > 0 {
-				panic("Non-optional arguments cannot occur after optional ones.")
+				panic(fmt.Sprintf("MakeFunction for function `%s` has non-optional arguments after optional ones.", name))
 			}
 			requiredArgumentCount++
 		case reflect.PtrTo(stringType), reflect.PtrTo(scalarType), reflect.PtrTo(scalarSetType), reflect.PtrTo(durationType), reflect.PtrTo(timeseriesType), reflect.PtrTo(valueType), reflect.PtrTo(expressionType):
 			// An optional argument
 			optionalArgumentCount++
 		default:
-			panic(fmt.Sprintf("MetricFunction function argument asks for unsupported type: cannot supply argument %d of type %+v.", i, argType))
+			panic(fmt.Sprintf("MakeFunction for function `%s` function argument asks for unsupported type: cannot supply argument %d of type %+v.", name, i, argType))
 		}
 	}
 	// The function has been checked and inspected.
@@ -224,9 +224,15 @@ func MakeFunction(name string, function interface{}, options ...Option) MetricFu
 		},
 	}
 
+	setFlags := map[string]bool{}
+
 	for _, option := range options {
-		// TODO: check there aren't multiple conflicting values
-		if option.Name == "WidenBy" || option.Name == "ShiftBy" {
+		switch option.Name {
+		case "WidenBy", "ShiftBy":
+			if setFlags["Widen"] {
+				panic(fmt.Sprintf("MakeFunction for function `%s` given option %s with parameter %v; but already had a WidenBy/ShiftBy Option", name, option.Name, option.Value))
+			}
+			setFlags["Widen"] = true
 			sign := -1
 			if option.Name == "ShiftBy" {
 				sign = 1
@@ -261,7 +267,11 @@ func MakeFunction(name string, function interface{}, options ...Option) MetricFu
 					widen.AddTime(widen.Current.Add(-widen.Resolution))
 					return widen.Current
 				}
+			default:
+				panic(fmt.Sprintf("MakeFunction for function `%s` given option %s with value %v of unsupported type %T; must be either function.Argument or function.Slot", name, option.Name, option.Value, option.Value))
 			}
+		default:
+			panic(fmt.Sprintf("MakeFunction for function `%s` given unrecognized option %s (with argument %v)", name, option.Name, option.Value))
 		}
 	}
 
