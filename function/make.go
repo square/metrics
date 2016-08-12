@@ -23,12 +23,37 @@ import (
 	"github.com/square/metrics/api"
 )
 
-type Option struct {
-	Name  string
-	Value interface{}
+// An OptionName identifies an option passed to MakeFunction
+type OptionName int
+
+const (
+	InvalidOption OptionName = iota // InvalidOption represents an invalid option
+	WidenBy                         // WidenBy indicates that the given duration Argument index, or the number of Slots should be used to extend the timerange in the query
+	ShiftBy                         // ShiftBy acts as WidenBy, but with opposite sign
+)
+
+// String makes the option name human-readable.
+func (n OptionName) String() string {
+	switch n {
+	case WidenBy:
+		return "WidenBy"
+	case ShiftBy:
+		return "ShiftBy"
+	default:
+		return "Invalid"
+	}
 }
 
+// An Option is an annotation used to add extra functionality to the generated MetricFunction.
+type Option struct {
+	Name  OptionName  // Name identifies the option type
+	Value interface{} // Value is the value associated with the option
+}
+
+// Argument represents an argument index
 type Argument int
+
+// Slot represents a number of slots
 type Slot int
 
 // MakeFunction is a convenient way to use type-safe functions to
@@ -228,13 +253,13 @@ func MakeFunction(name string, function interface{}, options ...Option) MetricFu
 
 	for _, option := range options {
 		switch option.Name {
-		case "WidenBy", "ShiftBy":
+		case WidenBy, ShiftBy:
 			if setFlags["Widen"] {
 				panic(fmt.Sprintf("MakeFunction for function `%s` given option %s with parameter %v; but already had a WidenBy/ShiftBy Option", name, option.Name, option.Value))
 			}
 			setFlags["Widen"] = true
 			sign := -1
-			if option.Name == "ShiftBy" {
+			if option.Name == ShiftBy {
 				sign = 1
 			}
 			switch value := option.Value.(type) {
@@ -257,7 +282,7 @@ func MakeFunction(name string, function interface{}, options ...Option) MetricFu
 						return result
 					}
 					widen.AddTime(widen.Current.Add(time.Duration(sign) * duration))
-					if option.Name == "ShiftBy" {
+					if option.Name == ShiftBy {
 						return result.Add(duration)
 					}
 					return result

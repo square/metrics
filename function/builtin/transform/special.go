@@ -29,7 +29,7 @@ var Timeshift = function.MakeFunction(
 		newContext := context.WithTimerange(context.Timerange().Shift(duration))
 		return expression.Evaluate(newContext)
 	},
-	function.Option{Name: "ShiftBy", Value: function.Argument(1)},
+	function.Option{Name: function.ShiftBy, Value: function.Argument(1)},
 )
 
 var MovingAverage = function.MakeFunction(
@@ -85,7 +85,7 @@ var MovingAverage = function.MakeFunction(
 		}
 		return list, nil
 	},
-	function.Option{Name: "WidenBy", Value: function.Argument(1)},
+	function.Option{Name: function.WidenBy, Value: function.Argument(1)},
 )
 
 var ExponentialMovingAverage = function.MakeFunction(
@@ -132,7 +132,7 @@ var ExponentialMovingAverage = function.MakeFunction(
 		}
 		return resultList, nil
 	},
-	function.Option{Name: "WidenBy", Value: function.Argument(1)},
+	function.Option{Name: function.WidenBy, Value: function.Argument(1)},
 )
 
 // Derivative is special because it needs to get one extra data point to the left
@@ -164,7 +164,7 @@ var Derivative = function.MakeFunction(
 		}
 		return resultList, nil
 	},
-	function.Option{Name: "WidenBy", Value: function.Slot(1)},
+	function.Option{Name: function.WidenBy, Value: function.Slot(1)},
 )
 
 // Rate is special because it needs to get one extra data point to the left.
@@ -211,5 +211,5 @@ var Rate = function.MakeFunction(
 		}
 		return resultList, nil
 	},
-	function.Option{Name: "WidenBy", Value: function.Slot(1)},
+	function.Option{Name: function.WidenBy, Value: function.Slot(1)},
 )
