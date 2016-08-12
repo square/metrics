@@ -31,7 +31,7 @@ type literal struct {
 }
 
 func (lit literal) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", lit)
 	}
 	return "<literal>"

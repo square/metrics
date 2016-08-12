@@ -233,7 +233,9 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 	widenedTimerange, err := api.NewSnappedTimerange(earliest.UnixNano()/1e6, userTimerange.EndMillis(), userTimerange.ResolutionMillis())
 
 	if err != nil {
-		widenedTimerange = userTimerange // TODO: anything else?
+		// If the timerange is invalid, just fall back on the user's.
+		// It's unlikely that this can actually occur; but just to be safe, it's an easy fallback.
+		widenedTimerange = userTimerange
 	}
 
 	// Update the timerange by applying the insights of the storage API:
@@ -334,8 +336,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		for i := range body {
 			if list, ok := result[i].(function.SeriesListValue); ok {
 				body[i] = QueryResult{
-					Query:     cmd.Expressions[i].ExpressionDescription(function.StringQuery),
-					Name:      cmd.Expressions[i].ExpressionDescription(function.StringName),
+					Query:     cmd.Expressions[i].ExpressionDescription(function.StringQuery()),
+					Name:      cmd.Expressions[i].ExpressionDescription(function.StringName()),
 					Type:      "series",
 					Series:    list.Series,
 					Timerange: chosenTimerange,
@@ -344,8 +346,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 			}
 			if scalars, err := result[i].ToScalarSet(); err == nil {
 				body[i] = QueryResult{
-					Query:   cmd.Expressions[i].ExpressionDescription(function.StringQuery),
-					Name:    cmd.Expressions[i].ExpressionDescription(function.StringName),
+					Query:   cmd.Expressions[i].ExpressionDescription(function.StringQuery()),
+					Name:    cmd.Expressions[i].ExpressionDescription(function.StringName()),
 					Type:    "scalars",
 					Scalars: scalars,
 				}

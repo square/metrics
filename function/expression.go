@@ -71,12 +71,20 @@ func (w *WidestMode) AddTime(t time.Time) {
 	}
 }
 
-var (
-	// TODO: These should be constants
-	StringName        = StringNameMode{}        // StringName is for human readability and respects aliases
-	StringQuery       = StringQueryMode{}       // StringQuery is for humans but ignores aliases, presenting the query as written
-	StringMemoization = StringMemoizationMode{} // StringMemoization is not for humans and intended to give a unique name to every expression
-)
+// StringName is for human readability and respects aliases
+func StringName() DescriptionMode {
+	return StringNameMode{}
+}
+
+// StringQuery is for humans but ignores aliases, presenting the query as written
+func StringQuery() DescriptionMode {
+	return StringQueryMode{}
+}
+
+// StringMemoization is not for humans and intended to give a unique name to every expression
+func StringMemoization() DescriptionMode {
+	return StringMemoizationMode{}
+}
 
 // EvaluateToScalar is a helper function that takes an Expression and makes it a scalar.
 func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) {

@@ -44,7 +44,7 @@ func (expr Duration) ActualEvaluate(context function.EvaluationContext) (functio
 }
 
 func (expr Duration) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
 	return expr.Source
@@ -63,7 +63,7 @@ func (expr Scalar) ActualEvaluate(context function.EvaluationContext) (function.
 }
 
 func (expr Scalar) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
 	return fmt.Sprintf("%+v", expr.Value)
@@ -82,7 +82,7 @@ func (expr String) ActualEvaluate(context function.EvaluationContext) (function.
 }
 
 func (expr String) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
 	return fmt.Sprintf("%q", expr.Value)
@@ -133,7 +133,7 @@ func (expr *MetricFetchExpression) ActualEvaluate(context function.EvaluationCon
 }
 
 func (expr *MetricFetchExpression) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("fetch[%q][%s]", expr.MetricName, expr.Predicate.Query())
 	}
 	if expr.Predicate.Query() == "true" {
@@ -225,10 +225,10 @@ func (expr *AnnotationExpression) Evaluate(context function.EvaluationContext) (
 }
 
 func (expr *AnnotationExpression) ExpressionDescription(mode function.DescriptionMode) string {
-	if mode == function.StringName {
+	if mode == function.StringName() {
 		return expr.Annotation
 	}
-	if mode == function.StringMemoization {
+	if mode == function.StringMemoization() {
 		return expr.Expression.ExpressionDescription(mode) // annotations can be ignored for memoization purposes since they don't modify their input
 	}
 	return fmt.Sprintf("%s {%s}", expr.Expression.ExpressionDescription(mode), expr.Annotation)
