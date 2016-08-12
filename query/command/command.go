@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -222,6 +223,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		Current:    userTimerange.Start(),
 		Earliest:   earliest,
 		Resolution: userTimerange.Resolution(),
+		Mutex:      &sync.Mutex{},
 	}
 	if context.Registry == nil {
 		widening.Registry = registry.Default()

@@ -60,12 +60,12 @@ type WidestMode struct {
 	Current    time.Time
 	Earliest   *time.Time
 	Resolution time.Duration
-	mutex      sync.Mutex
+	Mutex      *sync.Mutex
 }
 
 func (w *WidestMode) AddTime(t time.Time) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
 	if w.Earliest.After(t) {
 		*w.Earliest = t
 	}
