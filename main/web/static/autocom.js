@@ -224,6 +224,9 @@ function predictReady(input, prefixPattern, continuePattern) {
 // filterCandidates finds a list of candidates, pursuant to the config, among the options
 // from the given prefix `word`.
 function filterCandidates(word, givenOptions, config, activeRegion, beforeText, afterText) {
+	if (givenOptions.indexOf(word) >= 0) {
+		return [];
+	}
 	// Compute the scores for each word.
 	var options = [];
 	for (var i = 0; i < givenOptions.length; i++) {
@@ -233,6 +236,9 @@ function filterCandidates(word, givenOptions, config, activeRegion, beforeText, 
 		options[i] = { word: givenOptions[i], score: scoreAgainst(word, givenOptions[i], config) };
 	}
 	options.sort(function(a, b) {
+		if (a.score == b.score) {
+			return a.word < b.word ? -1 : 1;
+		}
 		return b.score - a.score;
 	});
 	var words = [];
@@ -407,10 +413,13 @@ function Autocom(input) {
 		} else {
 			tooltipState.active = false;
 		}
-		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress;
+		elements.tooltip.hidden = !tooltipState.active || tooltipSuppress || input != document.activeElement;
 	}
 	var refreshStateCache = null;
 	var computeRefreshCacheState = function() {
+		if (input != document.activeElement) {
+			return "unfocused";
+		}
 		return tooltipState.active + "." + tooltipState.index + "." + input.selectionStart + "," + input.selectionEnd + ":" + input.value;
 	}
 	var refresh = function() {
@@ -419,7 +428,7 @@ function Autocom(input) {
 			return; // Don't do anything
 		}
 		refreshStateCache = newCache;
-		setTimeout(renderTooltip, 0);
+		renderTooltip();
 		var inputStyle = getComputedStyle(input);
 
 		// Make input have style that matches the holder.
