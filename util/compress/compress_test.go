@@ -22,7 +22,7 @@ import (
 )
 
 func TestCompressionRoundtrip(t *testing.T) {
-	data := []float64{1.0, 1.3, 1.4, 1.5, 1.6, 2.0, 2.1, 1.1, 1.2, 1.2, 1.2, 0.4}
+	data := []float64{1.0, 1.3, 1.4, 1.5, 1.6, 2.0, 2.1, 1.1, 1.2, 1.2, 1.2, 0.4, 6.00065e+06, 6.000656e+06, 6.000657e+06, 6.000659e+06, 6.000661e+06, 1.79e+308, 1.79e+308, 1.79e-308, 1.79e-308}
 	c := NewCompressionBuffer()
 	c.Compress(data)
 	c.Finalize()
@@ -30,7 +30,12 @@ func TestCompressionRoundtrip(t *testing.T) {
 	dbuf := NewDecompressionBuffer(compressed, len(data))
 	decompressed := dbuf.Decompress()
 	if !reflect.DeepEqual(data, decompressed) {
-		t.Errorf("The array didn't decompress correctly.")
+		t.Errorf("The array didn't decompress correctly:\n\tinput:  %v\n\toutput: %v", data, decompressed)
+		for i := range data {
+			if !reflect.DeepEqual(data[i], decompressed[i]) {
+				t.Errorf("\tdata[%d] = %f != decompressed[%d] = %f", i, data[i], i, decompressed[i])
+			}
+		}
 	}
 }
 
@@ -66,7 +71,7 @@ func TestSmallInput(t *testing.T) {
 
 func TestCompressionLarge(t *testing.T) {
 	r := rand.New(rand.NewSource(800))
-	length := 10000
+	length := 100000
 	data := make([]float64, length)
 	for i := 0; i < length; i++ {
 		//To be fair, this really highlights the worst case.

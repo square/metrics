@@ -105,7 +105,10 @@ func (c *CompressionBuffer) writeLowerBits(count uint32, value uint64) {
 }
 
 func (c *CompressionBuffer) encodeMeaningfulXOR(x uint64) {
-	leadingZeros := leadingZeros64(x)                   // in the interval [0, 64]
+	leadingZeros := leadingZeros64(x) // in the interval [0, 64]
+	if leadingZeros > 31 {
+		leadingZeros = 31
+	}
 	trailingZeros := trailingZeros64(x)                 // in the interval [0, 64]
 	length := uint32(64) - leadingZeros - trailingZeros // in the interval [0, 64]
 
