@@ -284,18 +284,6 @@ var rul3s = [...]string{
 	"_Suf",
 }
 
-type tokenTree interface {
-	Print()
-	PrintSyntax()
-	PrintSyntaxTree(buffer string)
-	Add(rule pegRule, begin, end, next uint32, depth int)
-	Expand(index int) tokenTree
-	Tokens() <-chan token32
-	AST() *node32
-	Error() []token32
-	trim(length int)
-}
-
 type node32 struct {
 	token32
 	up, next *node32
@@ -571,26 +559,13 @@ func (t *tokens32) Error() []token32 {
 	return tokens
 }
 
-/*func (t *tokens16) Expand(index int) tokenTree {
-	tree := t.tree
-	if index >= len(tree) {
-		expanded := make([]token32, 2 * len(tree))
-		for i, v := range tree {
-			expanded[i] = v.getToken32()
-		}
-		return &tokens32{tree: expanded}
-	}
-	return nil
-}*/
-
-func (t *tokens32) Expand(index int) tokenTree {
+func (t *tokens32) Expand(index int) {
 	tree := t.tree
 	if index >= len(tree) {
 		expanded := make([]token32, 2*len(tree))
 		copy(expanded, tree)
 		t.tree = expanded
 	}
-	return nil
 }
 
 type Parser struct {
@@ -622,7 +597,7 @@ type Parser struct {
 	Parse  func(rule ...int) error
 	Reset  func()
 	Pretty bool
-	tokenTree
+	tokens32
 }
 
 type textPosition struct {
@@ -686,16 +661,16 @@ func (e *parseError) Error() string {
 }
 
 func (p *Parser) PrintSyntaxTree() {
-	p.tokenTree.PrintSyntaxTree(p.Buffer)
+	p.tokens32.PrintSyntaxTree(p.Buffer)
 }
 
 func (p *Parser) Highlighter() {
-	p.tokenTree.PrintSyntax()
+	p.PrintSyntax()
 }
 
 func (p *Parser) Execute() {
 	buffer, _buffer, text, begin, end := p.Buffer, p.buffer, "", 0, 0
-	for token := range p.tokenTree.Tokens() {
+	for token := range p.Tokens() {
 		switch token.pegRule {
 
 		case rulePegText:
@@ -826,7 +801,7 @@ func (p *Parser) Init() {
 		p.buffer = append(p.buffer, endSymbol)
 	}
 
-	var tree tokenTree = &tokens32{tree: make([]token32, math.MaxInt16)}
+	tree := tokens32{tree: make([]token32, math.MaxInt16)}
 	var max token32
 	position, depth, tokenIndex, buffer, _rules := uint32(0), uint32(0), 0, p.buffer, p.rules
 
@@ -836,9 +811,9 @@ func (p *Parser) Init() {
 			r = rule[0]
 		}
 		matches := p.rules[r]()
-		p.tokenTree = tree
+		p.tokens32 = tree
 		if matches {
-			p.tokenTree.trim(tokenIndex)
+			p.trim(tokenIndex)
 			return nil
 		}
 		return &parseError{p, max}
@@ -849,9 +824,7 @@ func (p *Parser) Init() {
 	}
 
 	add := func(rule pegRule, begin uint32) {
-		if t := tree.Expand(tokenIndex); t != nil {
-			tree = t
-		}
+		tree.Expand(tokenIndex)
 		tree.Add(rule, begin, position, depth, tokenIndex)
 		tokenIndex++
 		if begin != position && position > max.end {
