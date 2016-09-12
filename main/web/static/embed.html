@@ -1,7 +1,5 @@
 <!doctype html>
 <html>
-<head>
-  <base href="/">
   <head>
     <title>Metrics Query Engine</title>
     <base href="/">
@@ -15,6 +13,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-aria.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-messages.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-sanitize.min.js"></script>
     <!-- Angular Material Library -->
     <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.0.0/angular-material.min.js"></script>
     <!-- MQE dependencies -->
@@ -26,29 +25,28 @@
     <script src="/static/autocom.js"></script>
     <script src="/static/script.js"></script>
   </head>
-</head>
-<body>
-  <div ng-app="main" ng-controller="EmbedController" class="fullscreen">
-    <div ng-show="screenState() != 'loading' && screenState() == 'error'">
-      <md-content>
-        <h3>Error</h3>
-        <md-divider></md-divider>
-        <p>{{ queryResult.message }}</p>
-      </md-content>
-    </div>
-    <div ng-show="screenState() == 'rendered' && queryResultIsEmpty()">
-      <md-content>
-        <h3>Warning</h3>
-        <md-divider></md-divider>
-        <p>{{ queryEmptyMessage }}</p>
-      </md-content>
-    </div>
-    <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
-      <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
-      <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
-      <span flex></span>
-    </div>
-    <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
+  <body>
+    <div ng-app="main" ng-controller="EmbedController" class="fullscreen">
+      <div ng-show="screenState() != 'loading' && screenState() == 'error'">
+        <md-content>
+          <h3>Error</h3>
+          <md-divider></md-divider>
+          <p>{{ queryResult.message }}</p>
+        </md-content>
+      </div>
+      <div ng-show="screenState() == 'rendered' && queryResultIsEmpty()">
+        <md-content>
+          <h3>Warning</h3>
+          <md-divider></md-divider>
+          <p>{{ queryEmptyMessage }}</p>
+        </md-content>
+      </div>
+      <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+        <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
+        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
+        <span flex></span>
+      </div>
+      <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
       <google-chart
         ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
         class="metric-chart"
