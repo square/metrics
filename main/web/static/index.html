@@ -30,7 +30,7 @@
 
       <div flex="80" id="query-container">
         <md-tabs  md-dynamic-height md-border-bottom>
-          <md-tab label="Query">
+          <md-tab label="Query" md-on-select="tabSelected='query'">
             <div ng-controller="QueryController" id="query">
               <form name="queryForm">
                 <div layout="column">
@@ -52,7 +52,7 @@
             </div><!-- Query Controller -->
           </md-tab>
 
-          <md-tab label="Discover">
+          <md-tab label="Discover" md-on-select="tabSelected='discover'">
             <div ng-controller="DiscoverController" id="discover">
               <div flex layout="column">
 
@@ -108,6 +108,29 @@
               </div>
             </div><!-- Discover controller -->
           </md-tab>
+          <md-tab label="Help" md-on-select="tabSelected='help'">
+            <p> Link to extensive tutorial: <a href="https://github.com/square/metrics/wiki/Tutorial">Tutorial</a></p>
+            <md-divider></md-divider>
+            <h3 class="md-title"> Discovering Metrics (describe) </h3>
+            <md-divider></md-divider>
+            <p> Listing all metrics </p>
+            <code> describe all </code>
+            <p> Searching for a particular metric </p>
+            <code> describe all match "inspect" </code>
+            <p> Describe a particular metric </p>
+            <code> describe `inspect.cpustat.total` </code>
+            <h3 class="md-title"> Select </h3>
+            <md-divider></md-divider>
+            <p> Simple query</p>
+            <code> select `inspect.cpustat.total` where host = 'aam1' from -1h to now </code>
+            <p> Simple query with function usage</p>
+            <code> select aggregate.sum(`inspect.cpustat.total`) where host = 'aam1' from -1h to now </code>
+            <p> Simple query with function usage with pipe syntax. This shows top 10 hosts sorted by max</p>
+            <code> select `inspect.cpustat.total` | filter.highest_max(10) from -1h to now </code>
+          </md-tab>
+
+
+
         </md-tabs>
 
         <!-- Results section -->
@@ -125,16 +148,42 @@
             <p>{{ queryEmptyMessage }}</p>
           </md-content>
         </div>
-        <div layout="row" ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
-          <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
-          <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
-          <span flex></span>
-          <a ng-href="{{ embedLink }}" target="_blank">embed</a>
+        <div ng-if="tabSelected != 'help'">
+          <div layout="row" ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+            <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
+              <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
+            <span flex></span>
+            <a ng-href="{{ embedLink }}" target="_blank">embed</a>
+          </div>
+          <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+            <google-chart class="metric-chart" data="selectResult" option="selectOptions" chart-type="inputModel.renderType"></google-chart>
+          </div>
+          <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'describe'">
+            <h3 class="md-title">Available Tags</h3>
+            <div layout="row" layout-wrap layout-sm="column">
+              <div flex="33" class="md-2-line" ng-repeat="(key, list) in queryResult.body">
+                <div class="md-list-item-text">
+                  <h3 class="md-title">{{ key }}</h3>
+                  <div class="md-1-line" ng-repeat="value in list track by $index">
+                    <div class="md-list-item-text">
+                      <p class="md-body-1">{{ value }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name != 'describe' && isTabular()">
+            <h3 class="md-title">Result</h3>
+            <md-list>
+              <md-list-item class="md-line-1" ng-repeat="row in queryResult.body">
+                <div class="md-list-item-text">
+                  <p class="md-body-1">{{ row }}</p>
+                </div>
+              </md-list-item>
+            </md-list>
+          </div>
         </div>
-        <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
-          <google-chart class="metric-chart" data="selectResult" option="selectOptions" chart-type="inputModel.renderType"></google-chart>
-        </div>
-
       </div><!-- end query/graph container -->
 
       <div flex="20" id="savedQueryContainer"> <!-- Saved query display -->
