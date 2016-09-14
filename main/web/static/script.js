@@ -599,7 +599,7 @@ module.controller("MainController", function (
         targetEvent: ev,
         clickOutsideToClose: true,
         locals: {
-          query: $scope.query
+          query: $scope.inputModel.query
         },
       });
   };
