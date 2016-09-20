@@ -57,6 +57,7 @@
       <div class="metrics-link">
         <a ng-show="!hidden.explore" ng-href="{{metricsURL}}" target="_blank">Explore in MQE</a>
       </div>
+      <div class="limit-warning" ng-show="totalSeriesCount > maxResult">Embedded view is only rendering {{ maxResult }} results of {{ totalSeriesCount }} total.</div>
     </div>
   </body>
 </html>

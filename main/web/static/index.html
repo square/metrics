@@ -109,7 +109,7 @@
             </div><!-- Discover controller -->
           </md-tab>
           <md-tab label="Help" md-on-select="tabSelected='help'">
-            <p> Link to extensive tutorial: <a href="https://github.com/square/metrics/wiki/Tutorial">Tutorial</a></p>
+            <p><a class="md-button md-raised" href="https://github.com/square/metrics/wiki/Tutorial">Full Tutorial</a></p>
             <md-divider></md-divider>
             <h3 class="md-title"> Discovering Metrics (describe) </h3>
             <md-divider></md-divider>
@@ -119,7 +119,7 @@
             <code> describe all match "inspect" </code>
             <p> Describe a particular metric </p>
             <code> describe `inspect.cpustat.total` </code>
-            <h3 class="md-title"> Select </h3>
+            <h3 class="md-title"> Querying Metrics (select) </h3>
             <md-divider></md-divider>
             <p> Simple query</p>
             <code> select `inspect.cpustat.total` where host = 'aam1' from -1h to now </code>
@@ -128,8 +128,6 @@
             <p> Simple query with function usage with pipe syntax. This shows top 10 hosts sorted by max</p>
             <code> select `inspect.cpustat.total` | filter.highest_max(10) from -1h to now </code>
           </md-tab>
-
-
 
         </md-tabs>
 
@@ -150,10 +148,10 @@
         </div>
         <div ng-if="tabSelected != 'help'">
           <div layout="row" ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
-            <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
-              <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
+            <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalSeriesCount }}</b> series returned.
+              <b ng-show="totalSeriesCount > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
             <span flex></span>
-            <a ng-href="{{ embedLink }}" target="_blank">embed</a>
+            <a class="md-button md-raised" ng-href="{{ embedLink }}" target="_blank">Embed link</a>
           </div>
           <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
             <google-chart class="metric-chart" data="selectResult" option="selectOptions" chart-type="inputModel.renderType"></google-chart>
