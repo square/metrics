@@ -1,36 +1,63 @@
 <!doctype html>
 <html>
-<head>
-  <title>Metrics Query Engine</title>
-  <base href="/">
-  <script type="text/ecmascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.0/angular.js"></script>
-  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-  <script type="text/ecmascript" src="/static/script.js"></script>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/style_embed.css">
-
-</head>
-<body>
-<div ng-app="main" ng-controller="embedCtrl" class="fullscreen">
-  <div ng-show="screenState() != 'rendered'">
-    <div class="alert alert-info"   ng-show="screenState() == 'loading'">Waiting for response...</div>
-    <div class="alert alert-info"   ng-show="screenState() == 'rendering'">Rendering chart...</div>
-    <div class="alert alert-danger" ng-show="screenState() == 'error'">
-      <div class="alert alert-danger-message">{{(queryResult.message || "").trim()}}</div>
+  <head>
+    <title>Metrics Query Engine</title>
+    <base href="/">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <!-- Angular Material -->
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.0.0/angular-material.min.css">
+    <!-- MQE style -->
+    <link rel="stylesheet" href="/static/style_embed.css">
+    <!-- Angular Material requires Angular.js Libraries -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-aria.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-messages.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-sanitize.min.js"></script>
+    <!-- Angular Material Library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.0.0/angular-material.min.js"></script>
+    <!-- MQE dependencies -->
+    <script src="https://www.google.com/jsapi"></script>
+    <script src="/static/js/angular-local-storage.min.js"></script>
+    <script src="/static/js/underscore-min.js"></script>
+    <script src="/static/js/underscore.string.min.js"></script>
+    <!-- MQE scripts -->
+    <script src="/static/autocom.js"></script>
+    <script src="/static/script.js"></script>
+  </head>
+  <body>
+    <div ng-app="main" ng-controller="EmbedController" class="fullscreen">
+      <div ng-show="screenState() != 'loading' && screenState() == 'error'">
+        <md-content>
+          <h3>Error</h3>
+          <md-divider></md-divider>
+          <p>{{ queryResult.message }}</p>
+        </md-content>
+      </div>
+      <div ng-show="screenState() == 'rendered' && queryResultIsEmpty()">
+        <md-content>
+          <h3>Warning</h3>
+          <md-divider></md-divider>
+          <p>{{ queryEmptyMessage }}</p>
+        </md-content>
+      </div>
+      <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
+        <p> Query took <b>{{ elapsedMs / 1000 | number }}</b> seconds. <b>{{ totalResult }}</b> Series returned
+        <b ng-show="totalResult > maxResult">UI is only rendering {{ maxResult }} results.</b></p>
+        <span flex></span>
+      </div>
+      <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
+      <google-chart
+        ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
+        class="metric-chart"
+        data="selectResult"
+        option="selectOptions"
+        chart-type="inputModel.renderType">
+      </google-chart>
+      <div class="metrics-link">
+        <a ng-show="!hidden.explore" ng-href="{{metricsURL}}" target="_blank">Explore in MQE</a>
+      </div>
+      <div class="limit-warning" ng-show="totalSeriesCount > maxResult">Embedded view is only rendering {{ maxResult }} results of {{ totalSeriesCount }} total.</div>
     </div>
-  </div>
-  <div class="alert alert-danger" ng-show="screenState() == 'rendered' && queryResultIsEmpty()">{{ queryEmptyMessage }}</div>
-  <google-chart
-    ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()"
-		class="metric-chart"
-		data="selectResult"
-		option="selectOptions"
-		chart-type="inputModel.renderType">
-	</google-chart>
-  <div class="metrics-link">
-    <a ng-show="!hidden.explore" ng-href="{{metricsURL}}" target="_blank">Explore in MQE</a>
-  </div>
-  <div class="limit-warning" ng-show="totalSeriesCount > maxResult">Embedded view is only rendering {{ maxResult }} results of {{ totalSeriesCount }} total.</div>
-</div>
-</body>
+  </body>
 </html>
