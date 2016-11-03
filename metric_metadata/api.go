@@ -30,8 +30,12 @@ type Context struct {
 type MetricAPI interface {
 	// GetAllTags takes a MetricKey and retrieves all the tagsets associated with it.
 	GetAllTags(metricKey api.MetricKey, context Context) ([]api.TagSet, error)
+	// GetAllAvailableTags returns a list of tags indexed in the database
+	GetAllAvailableTags(context Context) (map[string][]string, error)
 	// GetAllMetrics returns all metrics managed by the system.
 	GetAllMetrics(context Context) ([]api.MetricKey, error)
+	//GetAllTagSets geta all the tagsets
+	GetAllTagSets(context Context) ([]api.TagSetInfo, error)
 	// GetMetricsForTag takes a tag key-value pair and returnsthe list of all the
 	// MetricKeys associated with them.
 	GetMetricsForTag(tagKey, tagValue string, context Context) ([]api.MetricKey, error)

@@ -171,6 +171,16 @@ func (c *metricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context me
 	return c.metricMetadataAPI.GetMetricsForTag(tagKey, tagValue, context)
 }
 
+// GETA wwaits for a slot to be open, then queries the underlying API.
+func (c *metricMetadataAPI) GetAllAvailableTags(context metadata.Context) (map[string][]string, error) {
+	return c.metricMetadataAPI.GetAllAvailableTags(context)
+}
+
+//curretnly not caching GetAllTagsSets
+func (c *metricMetadataAPI) GetAllTagSets(context metadata.Context) ([]api.TagSetInfo, error) {
+	return c.metricMetadataAPI.GetAllTagSets(context)
+}
+
 // CheckHealthy checks if the underlying MetricAPI is healthy
 func (c *metricMetadataAPI) CheckHealthy() error {
 	return c.metricMetadataAPI.CheckHealthy()
