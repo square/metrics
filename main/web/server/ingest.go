@@ -48,8 +48,8 @@ func (h ingestHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	}
 	taggedMetrics := []api.TaggedMetric{}
 	for i := range metrics {
-              //Append will create taggedMetrics and add to metrics range
-              taggedMetrics = append(taggedMetrics,api.TaggedMetric{MetricKey: api.MetricKey(metrics[i].Name),TagSet: metrics[i].Tags})
+		//Append will create taggedMetrics and add to metrics range
+		taggedMetrics = append(taggedMetrics, api.TaggedMetric{MetricKey: api.MetricKey(metrics[i].Name), TagSet: metrics[i].Tags})
 	}
 	err := h.metricMetadataAPI.AddMetrics(taggedMetrics, metadata.Context{})
 	if err != nil {
