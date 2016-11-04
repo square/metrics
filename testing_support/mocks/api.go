@@ -55,6 +55,16 @@ func (fa *FakeMetricMetadataAPI) AddPairWithoutGraphite(tm api.TaggedMetric) {
 	fa.metricTagSets[tm.MetricKey] = append(fa.metricTagSets[tm.MetricKey], tm.TagSet)
 }
 
+func (fa *FakeMetricMetadataAPI) GetAllTagSets(context metadata.Context) ([]api.TagSetInfo, error) {
+   return nil,fmt.Errorf("Yet to Implement")
+}
+
+func (fa *FakeMetricMetadataAPI) GetAllAvailableTags(context metadata.Context) (map[string][]string, error) {
+   return nil,fmt.Errorf("Yet to Implement")
+}
+
+
+
 func (fa *FakeMetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Mock GetAllTags")()
 	if len(fa.metricTagSets[metricKey]) == 0 {

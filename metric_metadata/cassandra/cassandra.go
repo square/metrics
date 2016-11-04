@@ -15,6 +15,7 @@
 package cassandra
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -82,6 +83,16 @@ func (a *MetricMetadataAPI) AddMetrics(metrics []api.TaggedMetric, context metad
 func (a *MetricMetadataAPI) GetAllTags(metricKey api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	defer context.Profiler.Record("Cassandra GetAllTags")()
 	return a.db.GetTagSet(metricKey)
+}
+
+func (a *MetricMetadataAPI) GetAllTagSets(context metadata.Context) ([]api.TagSetInfo, error) {
+	defer context.Profiler.Record("Cassandra GetAllTagSets")()
+	return a.db.GetAllTagSets()
+}
+
+func (a *MetricMetadataAPI) GetAllAvailableTags(context metadata.Context) (map[string][]string, error) {
+	defer context.Profiler.Record("Cassandra GetAllAvailableTags")()
+	return a.db.GetAllAvailableTags()
 }
 
 func (a *MetricMetadataAPI) GetMetricsForTag(tagKey, tagValue string, context metadata.Context) ([]api.MetricKey, error) {
@@ -219,6 +230,26 @@ func (db *cassandraDatabase) GetAllMetrics() ([]api.MetricKey, error) {
 	return keys, nil
 }
 
+func (db *cassandraDatabase) GetAllAvailableTags() (map[string][]string, error) {
+	tags := map[string][]string{}
+	tag := ""
+	value := ""
+	iterator := db.session.Query(
+		"SELECT tag_key,tag_value FROM tag_index",
+	).Iter()
+	for iterator.Scan(&tag, &value) {
+		if _, ok := tags[tag]; !ok {
+			tags[tag] = []string{value}
+		} else {
+			tags[tag] = append(tags[tag], value)
+		}
+	}
+	if err := iterator.Close(); err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
+
 func (db *cassandraDatabase) RemoveFromTagIndex(tagKey string, tagValue string, metricKey api.MetricKey) error {
 	return db.session.Query(
 		"UPDATE tag_index SET metric_keys = metric_keys - ? WHERE tag_key = ? AND tag_value = ?",
@@ -231,4 +262,45 @@ func (db *cassandraDatabase) RemoveFromTagIndex(tagKey string, tagValue string, 
 // CheckHealthy checks if the connection to Cassandra is healthy
 func (db *cassandraDatabase) CheckHealthy() error {
 	return db.session.Query("SELECT now() FROM system.local").Exec()
+}
+
+func (db *cassandraDatabase) GetAllTagSets() ([]api.TagSetInfo, error) {
+
+	type host []string
+	type ClusHost map[string]host
+	ch := make(ClusHost)
+
+	rawTag := ""
+	iterator := db.session.Query("SELECT tag_set FROM metric_names").Iter()
+
+	for iterator.Scan(&rawTag) {
+		parsedTagSet := api.ParseTagSet(rawTag)
+		if parsedTagSet != nil {
+			c := parsedTagSet["cluster"]
+			h := parsedTagSet["host"]
+			d := ch[c]
+			if strings.Contains(strings.Join(d, ""), h) == false {
+				ch[c] = append(ch[c], h)
+			}
+		}
+	}
+
+	if err := iterator.Close(); err != nil {
+		return nil, err
+	}
+
+	if len(ch) == 0 {
+		return nil, metadata.NewNoSuchMetricError("No Tagset")
+	}
+
+	chm := make([]api.TagSetInfo, 0, 1)
+
+	for k, v := range ch {
+		var tmp api.TagSetInfo
+		tmp.Cluster = k
+		tmp.Hosts = v
+		chm = append(chm, tmp)
+	}
+
+	return chm, nil
 }

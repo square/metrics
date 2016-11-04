@@ -20,6 +20,12 @@ import (
 	"sort"
 )
 
+//TagSetInfo used to display tags with relation
+type TagSetInfo struct {
+	Cluster string   `json:"cluster"`
+	Hosts   []string `json:"hosts"`
+}
+
 // TagSet is the set of key-value pairs associated with a given metric.
 // Instances of tag set should generally be treated immutably to avoid
 // accidentally modifying instances belonging to other metrics.
