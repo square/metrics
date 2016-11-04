@@ -35,6 +35,14 @@ func (fapi FakeComboAPI) AddMetric(metric api.TaggedMetric, context metadata.Con
 func (fapi FakeComboAPI) AddMetrics(metrics []api.TaggedMetric, context metadata.Context) error {
 	return fmt.Errorf("cannot add metrics to FakeComboAPI")
 }
+
+func (fapi FakeComboAPI) GetAllTagSets(context metadata.Context) ([]api.TagSetInfo, error) {
+        return nil, fmt.Errorf("Yet to Imeplement")
+}
+func (fapi FakeComboAPI) GetAllAvailableTags(context metadata.Context) (map[string][]string, error) {
+        return nil, fmt.Errorf("Yet to Imeplement")
+}
+
 func (fapi FakeComboAPI) GetAllTags(metric api.MetricKey, context metadata.Context) ([]api.TagSet, error) {
 	list, ok := fapi.metrics[metric]
 	if !ok {
