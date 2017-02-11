@@ -315,11 +315,12 @@ window.Autocom = (function () {
   }
 
   // Inserts `word` at the location specified by `at` inside of `input`.
-  function insertWord(input, at, word, supressCallback) {
+  function insertWord(input, at, word, suppressCallback) {
     input.value = input.value.substring(0, at.from) + word + input.value.substring(at.to);
     input.focus();
     input.selectionStart = input.selectionEnd = at.from + word.length;
-    supressCallback();
+    input.dispatchEvent(new Event("input"));
+    suppressCallback();
   }
 
 
@@ -350,7 +351,7 @@ window.Autocom = (function () {
     };
     var tooltipSuppress = false;
 
-    function supressCallback() {
+    function suppressCallback() {
       tooltipSuppress = true;
     }
 
@@ -359,7 +360,7 @@ window.Autocom = (function () {
         if (e.keyCode == 9 || e.keyCode == 13) { // TAB or ENTER
           // Tab
           e.preventDefault();
-          insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index], supressCallback);
+          insertWord(input, tooltipState.at, tooltipState.words[tooltipState.index], suppressCallback);
           tooltipSuppress = true;
           refresh();
           return;
@@ -397,7 +398,7 @@ window.Autocom = (function () {
     input.addEventListener("keydown", keyPress, false);
 
     function completeSelect(index) {
-      insertWord(input, tooltipState.at, tooltipState.words[index], supressCallback);
+      insertWord(input, tooltipState.at, tooltipState.words[index], suppressCallback);
       refresh();
     }
 
