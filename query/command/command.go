@@ -15,6 +15,7 @@
 package command
 
 import (
+	netcontext "context"
 	"fmt"
 	"regexp"
 	"sort"
@@ -28,8 +29,6 @@ import (
 	"github.com/square/metrics/query/natural_sort"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries"
-
-	netcontext "golang.org/x/net/context"
 )
 
 // ExecutionContext is the context supplied when invoking a command.

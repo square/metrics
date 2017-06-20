@@ -47,7 +47,7 @@ Square collects millions of signals every few seconds from application servers a
 
 #### Go Version
 
-MQE supports Go 1.6 and up.
+MQE supports Go 1.7 and up.
 
 
 ###### See wiki for installation, setup and development.

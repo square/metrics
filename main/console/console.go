@@ -16,6 +16,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,8 +31,6 @@ import (
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
-
-	"golang.org/x/net/context"
 )
 
 func main() {

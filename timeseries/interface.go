@@ -15,14 +15,13 @@
 package timeseries
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/inspect"
-
-	"golang.org/x/net/context"
 )
 
 type StorageAPI interface {

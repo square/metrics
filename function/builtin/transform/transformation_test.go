@@ -15,6 +15,7 @@
 package transform
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -22,8 +23,6 @@ import (
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/function"
 	"github.com/square/metrics/testing_support/assert"
-
-	"golang.org/x/net/context"
 )
 
 type literal struct {

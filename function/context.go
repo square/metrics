@@ -15,6 +15,7 @@
 package function
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -24,8 +25,6 @@ import (
 	"github.com/square/metrics/metric_metadata"
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/timeseries"
-
-	"golang.org/x/net/context"
 )
 
 // An EvaluationContextBuilder is used to create an EvaluationContext because

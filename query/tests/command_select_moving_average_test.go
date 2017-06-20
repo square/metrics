@@ -16,6 +16,7 @@
 package tests
 
 import (
+	"context"
 	"math"
 	"testing"
 
@@ -24,8 +25,6 @@ import (
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-
-	"golang.org/x/net/context"
 )
 
 func TestSelectMovingAverage(t *testing.T) {
