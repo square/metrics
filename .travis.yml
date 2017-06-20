@@ -3,6 +3,10 @@ go:
   - 1.7
   - 1.8
 
+before_install:
+  # https://github.com/travis-ci/travis-ci/issues/1053
+  - sudo sh -c "echo 'JVM_OPTS=\"\${JVM_OPTS} -Djava.net.preferIPv4Stack=false\"' >> /usr/local/cassandra/conf/cassandra-env.sh"
+
 services:
   - cassandra
 
