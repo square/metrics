@@ -16,6 +16,7 @@
 package tests
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -24,8 +25,6 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/query/parser"
 	"github.com/square/metrics/testing_support/mocks"
-
-	"golang.org/x/net/context"
 )
 
 func TestCommandError(t *testing.T) {

@@ -15,6 +15,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -24,8 +25,6 @@ import (
 	"github.com/square/metrics/query/expression"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/timeseries"
-
-	"golang.org/x/net/context"
 )
 
 type FakeBackend struct {

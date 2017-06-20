@@ -16,6 +16,7 @@
 package tests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -25,8 +26,6 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/assert"
 	"github.com/square/metrics/testing_support/mocks"
-
-	"golang.org/x/net/context"
 )
 
 func TestCommand_Select(t *testing.T) {

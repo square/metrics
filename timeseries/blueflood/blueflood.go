@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -29,8 +30,6 @@ import (
 	"github.com/square/metrics/tasks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
-
-	"golang.org/x/net/context"
 )
 
 // Blueflood is a timeseries storage API instance.

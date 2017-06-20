@@ -15,11 +15,10 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // A TimeoutError is an error associated with a timeout.

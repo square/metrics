@@ -15,6 +15,7 @@
 package blueflood
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -24,8 +25,6 @@ import (
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/timeseries"
 	"github.com/square/metrics/util"
-
-	"golang.org/x/net/context"
 )
 
 func TestBluefloodHTTPQueriesMulti(t *testing.T) {

@@ -26,7 +26,7 @@ end
 okay = true
 
 print "Go Files: "
-okay &= check_files(Dir.glob("**/*.go") - ["query/parser/language.peg.go"])
+okay &= check_files(Dir.glob("**/*.go") - Dir.glob("vendor/**/*.go") - ["query/parser/language.peg.go"])
 
 print "CSS Files: "
 okay &= check_files(Dir.glob("**/*.css"))

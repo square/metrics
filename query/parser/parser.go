@@ -670,7 +670,7 @@ func customParseError(parser *Parser) string {
 		start int
 		end   int
 	}
-	tokens, error := parser.tokens32.Error(), ""
+	tokens, error := parser.tokens32.Tokens(), ""
 	positions, p := make([]int, 2*len(tokens)), 0
 	for _, token := range tokens {
 		positions[p], p = int(token.begin), p+1
@@ -768,7 +768,7 @@ func (p *Parser) errorHere(position uint32, format string, arguments ...interfac
 }
 
 // contents will give the token contents to the caller
-func (p *Parser) contents(tree tokens32, tokenIndex int) string {
+func (p *Parser) contents(tree tokens32, tokenIndex uint32) string {
 	return string(p.buffer[tree.tree[tokenIndex].begin:tree.tree[tokenIndex].end])
 }
 

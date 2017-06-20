@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,8 +34,6 @@ import (
 	"github.com/square/metrics/query/command"
 	"github.com/square/metrics/timeseries/blueflood"
 	"github.com/square/metrics/util"
-
-	"golang.org/x/net/context"
 )
 
 func startServer(config server.Config, context command.ExecutionContext) error {

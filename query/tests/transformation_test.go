@@ -17,6 +17,7 @@
 package tests
 
 import (
+	"context"
 	"math"
 	"testing"
 	"time"
@@ -28,8 +29,6 @@ import (
 	"github.com/square/metrics/query/predicate"
 	"github.com/square/metrics/testing_support/mocks"
 	"github.com/square/metrics/timeseries"
-
-	"golang.org/x/net/context"
 )
 
 type movingAverageBackend struct{ mocks.FakeTimeseriesStorageAPI }
