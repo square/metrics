@@ -71,7 +71,7 @@ func TestMovingAverage(t *testing.T) {
 		GroupBy:      []string{},
 		Arguments: []function.Expression{
 			function.Memoize(&expression.MetricFetchExpression{MetricName: "series", Predicate: predicate.TruePredicate{}}),
-			function.Memoize(expression.Duration{Literal: "300ms", Duration: 300 * time.Millisecond}),
+			function.Memoize(expression.Duration{Source: "300ms", Duration: 300 * time.Millisecond}),
 		},
 	})
 

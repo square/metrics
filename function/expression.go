@@ -15,6 +15,7 @@
 package function
 
 import (
+	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -27,7 +28,14 @@ import (
 // timerange exactly.
 type Expression interface {
 	Evaluate(context EvaluationContext) (Value, error)
-	ExpressionString(DescriptionMode) string
+	ExpressionDescription(DescriptionMode) string
+}
+
+// A LiteralExpression is an expression that holds a literal value.
+// Returning `nil` indicates that your particular instance doesn't actually
+// hold any literal value.
+type LiteralExpression interface {
+	Literal() interface{}
 }
 
 // An ActualExpression is how expressions are internally implemented by the
@@ -35,17 +43,48 @@ type Expression interface {
 type ActualExpression interface {
 	// Evaluate the given expression.
 	ActualEvaluate(context EvaluationContext) (Value, error)
-	ExpressionString(DescriptionMode) string
+	ExpressionDescription(DescriptionMode) string
 }
 
 // DescriptionMode indicates how the expression should be evaluated.
-type DescriptionMode int
+type DescriptionMode interface{}
 
-const (
-	StringName        DescriptionMode = iota // StringName is for human readability and respects aliases
-	StringQuery                              // StringQuery is for humans but ignores aliases, presenting the query as written
-	StringMemoization                        // StringMemoization is not for humans and intended to give a unique name to every expression
-)
+type StringNameMode struct{}
+
+type StringQueryMode struct{}
+
+type StringMemoizationMode struct{}
+
+type WidestMode struct {
+	Registry   Registry
+	Current    time.Time
+	Earliest   *time.Time
+	Resolution time.Duration
+	Mutex      *sync.Mutex
+}
+
+func (w *WidestMode) AddTime(t time.Time) {
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+	if w.Earliest.After(t) {
+		*w.Earliest = t
+	}
+}
+
+// StringName is for human readability and respects aliases
+func StringName() DescriptionMode {
+	return StringNameMode{}
+}
+
+// StringQuery is for humans but ignores aliases, presenting the query as written
+func StringQuery() DescriptionMode {
+	return StringQueryMode{}
+}
+
+// StringMemoization is not for humans and intended to give a unique name to every expression
+func StringMemoization() DescriptionMode {
+	return StringMemoizationMode{}
+}
 
 // EvaluateToScalar is a helper function that takes an Expression and makes it a scalar.
 func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) {
@@ -55,7 +94,7 @@ func EvaluateToScalar(e Expression, context EvaluationContext) (float64, error) 
 	}
 	value, convErr := scalarValue.ToScalar()
 	if convErr != nil {
-		return 0, convErr.WithContext(e.ExpressionString(StringQuery))
+		return 0, convErr.WithContext(e.ExpressionDescription(StringQuery))
 	}
 	return value, nil
 }
@@ -68,7 +107,7 @@ func EvaluateToScalarSet(e Expression, context EvaluationContext) (ScalarSet, er
 	}
 	value, convErr := scalarValue.ToScalarSet()
 	if convErr != nil {
-		return nil, convErr.WithContext(e.ExpressionString(StringQuery))
+		return nil, convErr.WithContext(e.ExpressionDescription(StringQuery))
 	}
 	return value, nil
 }
@@ -81,7 +120,7 @@ func EvaluateToDuration(e Expression, context EvaluationContext) (time.Duration,
 	}
 	value, convErr := durationValue.ToDuration()
 	if convErr != nil {
-		return 0, convErr.WithContext(e.ExpressionString(StringQuery))
+		return 0, convErr.WithContext(e.ExpressionDescription(StringQuery))
 	}
 	return value, nil
 }
@@ -94,7 +133,7 @@ func EvaluateToSeriesList(e Expression, context EvaluationContext) (api.SeriesLi
 	}
 	value, convErr := seriesValue.ToSeriesList(context.private.Timerange)
 	if convErr != nil {
-		return api.SeriesList{}, convErr.WithContext(e.ExpressionString(StringQuery))
+		return api.SeriesList{}, convErr.WithContext(e.ExpressionDescription(StringQuery))
 	}
 	return value, nil
 }
@@ -107,7 +146,7 @@ func EvaluateToString(e Expression, context EvaluationContext) (string, error) {
 	}
 	value, convErr := stringValue.ToString()
 	if convErr != nil {
-		return "", convErr.WithContext(e.ExpressionString(StringQuery))
+		return "", convErr.WithContext(e.ExpressionDescription(StringQuery))
 	}
 	return value, nil
 }

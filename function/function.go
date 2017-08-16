@@ -14,7 +14,10 @@
 
 package function
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // The Function interface defines a metric function.
 // It is given several (unevaluated) expressions as input, and evaluates to a Value.
@@ -43,6 +46,7 @@ type MetricFunction struct {
 	MaxArguments  int    // MaxArguments is the maximum number of arguments the function allows. -1 indicates an unlimited number.
 	AllowsGroupBy bool   // Whether the function allows a 'group by' clause.
 	Compute       func(EvaluationContext, []Expression, Groups) (Value, error)
+	Widen         func(WidestMode, []Expression) time.Time // Optional; returns new Earliest
 }
 
 // Name returns the MetricFunction's name.

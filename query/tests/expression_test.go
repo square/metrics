@@ -35,9 +35,9 @@ type LiteralExpression struct {
 	Values []float64
 }
 
-func (le LiteralExpression) ExpressionString(mode function.DescriptionMode) string {
+func (le LiteralExpression) ExpressionDescription(mode function.DescriptionMode) string {
 	switch mode {
-	case function.StringName:
+	case function.StringName():
 		return "<literal expression>"
 	}
 	return fmt.Sprintf("%+v", le)
@@ -56,9 +56,9 @@ type LiteralSeriesExpression struct {
 	list api.SeriesList
 }
 
-func (lse LiteralSeriesExpression) ExpressionString(mode function.DescriptionMode) string {
+func (lse LiteralSeriesExpression) ExpressionDescription(mode function.DescriptionMode) string {
 	switch mode {
-	case function.StringName:
+	case function.StringName():
 		return "<literal series expression>"
 	}
 	return fmt.Sprintf("%+v", lse)

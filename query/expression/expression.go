@@ -31,31 +31,39 @@ import (
 // ===============
 
 type Duration struct {
-	Literal  string
+	Source   string
 	Duration time.Duration
 }
 
-func (expr Duration) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
-	return function.NewDurationValue(expr.Literal, expr.Duration), nil
+func (expr Duration) Literal() interface{} {
+	return expr.Duration
 }
 
-func (expr Duration) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+func (expr Duration) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
+	return function.NewDurationValue(expr.Source, expr.Duration), nil
+}
+
+func (expr Duration) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
-	return expr.Literal
+	return expr.Source
 }
 
 type Scalar struct {
 	Value float64
 }
 
+func (expr Scalar) Literal() interface{} {
+	return expr.Value
+}
+
 func (expr Scalar) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.ScalarValue(expr.Value), nil
 }
 
-func (expr Scalar) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+func (expr Scalar) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
 	return fmt.Sprintf("%+v", expr.Value)
@@ -65,12 +73,16 @@ type String struct {
 	Value string
 }
 
+func (expr String) Literal() interface{} {
+	return expr.Value
+}
+
 func (expr String) ActualEvaluate(context function.EvaluationContext) (function.Value, error) {
 	return function.StringValue(expr.Value), nil
 }
 
-func (expr String) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+func (expr String) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", expr)
 	}
 	return fmt.Sprintf("%q", expr.Value)
@@ -120,8 +132,8 @@ func (expr *MetricFetchExpression) ActualEvaluate(context function.EvaluationCon
 	return function.SeriesListValue(seriesList), nil
 }
 
-func (expr *MetricFetchExpression) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+func (expr *MetricFetchExpression) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("fetch[%q][%s]", expr.MetricName, expr.Predicate.Query())
 	}
 	if expr.Predicate.Query() == "true" {
@@ -171,10 +183,24 @@ func functionFormatString(argumentStrings []string, f FunctionExpression) string
 	return fmt.Sprintf("%s(%s%s)", f.FunctionName, argumentString, groupString)
 }
 
-func (expr *FunctionExpression) ExpressionString(mode function.DescriptionMode) string {
+func (expr *FunctionExpression) ExpressionDescription(mode function.DescriptionMode) string {
+	if widest, ok := mode.(function.WidestMode); ok {
+		// Handle "widening" here
+		if registered, ok := widest.Registry.GetFunction(expr.FunctionName); ok {
+			if metricFunction, ok := registered.(function.MetricFunction); ok {
+				if metricFunction.Widen != nil {
+					widest.Current = metricFunction.Widen(widest, expr.Arguments)
+				}
+			}
+		}
+		for _, argument := range expr.Arguments {
+			argument.ExpressionDescription(widest)
+		}
+		return ""
+	}
 	argumentStrings := []string{}
 	for i := range expr.Arguments {
-		argumentStrings = append(argumentStrings, expr.Arguments[i].ExpressionString(mode))
+		argumentStrings = append(argumentStrings, expr.Arguments[i].ExpressionDescription(mode))
 	}
 	return functionFormatString(argumentStrings, *expr)
 }
@@ -184,20 +210,28 @@ type AnnotationExpression struct {
 	Annotation string
 }
 
+func (expr *AnnotationExpression) Literal() interface{} {
+	literalExpression, ok := expr.Expression.(function.LiteralExpression)
+	if !ok {
+		return nil
+	}
+	return literalExpression.Literal()
+}
+
 // Evaluate evalutes the underlying expression without memoization, since its
 // child expression should handle memoization itself.
 func (expr *AnnotationExpression) Evaluate(context function.EvaluationContext) (function.Value, error) {
 	return expr.Expression.Evaluate(context)
 }
 
-func (expr *AnnotationExpression) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringName {
+func (expr *AnnotationExpression) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringName() {
 		return expr.Annotation
 	}
-	if mode == function.StringMemoization {
-		return expr.Expression.ExpressionString(mode) // annotations can be ignored for memoization purposes since they don't modify their input
+	if mode == function.StringMemoization() {
+		return expr.Expression.ExpressionDescription(mode) // annotations can be ignored for memoization purposes since they don't modify their input
 	}
-	return fmt.Sprintf("%s {%s}", expr.Expression.ExpressionString(mode), expr.Annotation)
+	return fmt.Sprintf("%s {%s}", expr.Expression.ExpressionDescription(mode), expr.Annotation)
 }
 
 // Auxiliary functions

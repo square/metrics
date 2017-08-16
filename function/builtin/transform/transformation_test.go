@@ -29,8 +29,8 @@ type literal struct {
 	value function.Value
 }
 
-func (lit literal) ExpressionString(mode function.DescriptionMode) string {
-	if mode == function.StringMemoization {
+func (lit literal) ExpressionDescription(mode function.DescriptionMode) string {
+	if mode == function.StringMemoization() {
 		return fmt.Sprintf("%#v", lit)
 	}
 	return "<literal>"

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/square/metrics/api"
@@ -213,8 +214,33 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 	// so
 	// res >= (end - start) / (slots - 2)
 
+	earliest := new(time.Time)
+	*earliest = userTimerange.Start()
+
+	widening := function.WidestMode{
+		Registry:   context.Registry,
+		Current:    userTimerange.Start(),
+		Earliest:   earliest,
+		Resolution: userTimerange.Resolution(),
+		Mutex:      &sync.Mutex{},
+	}
+	if context.Registry == nil {
+		widening.Registry = registry.Default()
+	}
+	for _, expression := range cmd.Expressions {
+		_ = expression.ExpressionDescription(widening) // widen by each expression
+	}
+
+	widenedTimerange, err := api.NewSnappedTimerange(earliest.UnixNano()/1e6, userTimerange.EndMillis(), userTimerange.ResolutionMillis())
+
+	if err != nil {
+		// If the timerange is invalid, just fall back on the user's.
+		// It's unlikely that this can actually occur; but just to be safe, it's an easy fallback.
+		widenedTimerange = userTimerange
+	}
+
 	// Update the timerange by applying the insights of the storage API:
-	chosenResolution, err := context.TimeseriesStorageAPI.ChooseResolution(userTimerange, smallestResolution)
+	chosenResolution, err := context.TimeseriesStorageAPI.ChooseResolution(widenedTimerange, smallestResolution)
 	if err != nil {
 		return Result{}, err
 	}
@@ -311,8 +337,8 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 		for i := range body {
 			if list, ok := result[i].(function.SeriesListValue); ok {
 				body[i] = QueryResult{
-					Query:     cmd.Expressions[i].ExpressionString(function.StringQuery),
-					Name:      cmd.Expressions[i].ExpressionString(function.StringName),
+					Query:     cmd.Expressions[i].ExpressionDescription(function.StringQuery()),
+					Name:      cmd.Expressions[i].ExpressionDescription(function.StringName()),
 					Type:      "series",
 					Series:    list.Series,
 					Timerange: chosenTimerange,
@@ -321,14 +347,14 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 			}
 			if scalars, err := result[i].ToScalarSet(); err == nil {
 				body[i] = QueryResult{
-					Query:   cmd.Expressions[i].ExpressionString(function.StringQuery),
-					Name:    cmd.Expressions[i].ExpressionString(function.StringName),
+					Query:   cmd.Expressions[i].ExpressionDescription(function.StringQuery()),
+					Name:    cmd.Expressions[i].ExpressionDescription(function.StringName()),
 					Type:    "scalars",
 					Scalars: scalars,
 				}
 				continue
 			}
-			return Result{}, fmt.Errorf("query %s does not result in a timeseries or scalar.", cmd.Expressions[i].ExpressionString(function.StringQuery))
+			return Result{}, fmt.Errorf("query %s does not result in a timeseries or scalar.", cmd.Expressions[i].ExpressionDescription(function.StringQuery))
 		}
 
 		return Result{
@@ -336,6 +362,7 @@ func (cmd *SelectCommand) Execute(context ExecutionContext) (Result, error) {
 			Metadata: map[string]interface{}{
 				"description": description,
 				"notes":       evaluationContext.Notes(),
+				"resolution":  chosenResolution,
 			},
 		}, nil
 	}
