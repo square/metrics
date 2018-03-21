@@ -15,12 +15,11 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/square/metrics/api"
 	"github.com/square/metrics/query/command"
