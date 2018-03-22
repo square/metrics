@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# a hack to determine the location of this script:
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-
-peg -inline -switch $DIR/language.peg
-goimports -w $DIR/language.peg.go # format the file; optional
+(
+  cd "$( dirname "${BASH_SOURCE[0]}" )"
+  peg -inline -switch language.peg
+  goimports -w ./language.peg.go # format the file; optional
+)
