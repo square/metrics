@@ -1,5 +1,7 @@
 package parser
 
+//go:generate peg -inline -switch language.peg
+
 import (
 	"fmt"
 	"math"
