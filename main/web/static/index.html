@@ -153,6 +153,20 @@
             <span flex></span>
             <a class="md-button md-raised" ng-href="{{ embedLink }}" target="_blank">Embed link</a>
           </div>
+          <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select'">
+            <h3 class="md-title">Scalars</h3>
+            <md-list>
+              <md-list-item class="md-line-1" ng-repeat="row in queryResult.body">
+                <div ng-if="row.scalars">
+                  <md-list>
+              	    <md-list-item class="md-line-1" ng-repeat="scalar in row.scalars">
+                     {{ scalar.tagset }} {{ scalar.value }}
+                    </md-list-item>
+                  </md-list>
+                </div>
+              </md-list-item>
+            </md-list>
+          </div>
           <div ng-show="screenState() != 'loading' && screenState() != 'error' && queryResult.name === 'select' && !queryResultIsEmpty()">
             <google-chart class="metric-chart" data="selectResult" option="selectOptions" chart-type="inputModel.renderType"></google-chart>
           </div>

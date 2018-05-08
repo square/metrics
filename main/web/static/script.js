@@ -396,7 +396,7 @@ module.controller("CommonController", function (
       return false;
     }
     for (var i = 0; i < result.body.length; i++) {
-      if (result.body[i].series.length === 0) {
+      if (_.isArray(result.body[i].series) && result.body[i].series.length === 0) {
         if (result.body.length == 1) {
           $scope.queryEmptyMessage = "the query resulted in 0 series";
         } else {
@@ -735,13 +735,11 @@ function convertProfileResponse(object) {
 function convertSelectResponse(object) {
   if (!(object && object.name == "select" &&
       object.body &&
-      object.body.length &&
-      object.body[0].series &&
-      object.body[0].series.length &&
-      object.body[0].timerange)) {
+      object.body.length)) {
     // invalid data.
     return null;
   }
+
   var seriesOptions = {};
   var series = [];
   var labels = ["Time"];
@@ -750,6 +748,12 @@ function convertSelectResponse(object) {
   for (var i = 0; i < object.body.length; i++) {
     // Each of these is a list of series
     var serieslist = object.body[i];
+
+    // sometimes select queries return only scalars
+    if(!serieslist.series) {
+      continue;
+    }
+
     for (var j = 0; j < serieslist.series.length; j++) {
       if (series.length < MAX_RENDERED) {
         var s = object.body[i].series[j];
